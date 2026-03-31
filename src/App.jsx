@@ -26,7 +26,7 @@ import SellerTypePage from './pages/seller/SellerTypePage'
 import ProfilePage from './pages/profile/ProfilePage'
 import SearchPage from './pages/search/SearchPage'
 
-
+// Seller Dashboard Pages
 import DashboardLayout from './pages/seller/dashboard/DashboardLayout'
 import Overview from './pages/seller/dashboard/Overview'
 import Earnings from './pages/seller/dashboard/Earnings'
@@ -37,6 +37,13 @@ import AddCourse from './pages/seller/courses/AddCourse'
 import ServicesDashboard from './pages/seller/services/ServicesDashboard'
 import AddService from './pages/seller/services/AddService'
 
+// Footer Pages
+import SellerGuidelines from './pages/seller/SellerGuidelines'
+import PricingPage from './pages/PricingPage'
+import HelpCenter from './pages/HelpCenter'
+import ContactPage from './pages/ContactPage'
+import TermsPage from './pages/TermsPage'
+import PrivacyPage from './pages/PrivacyPage'
 
 // Context Providers
 import { AuthProvider } from './contexts/AuthContext'
@@ -49,10 +56,11 @@ function App() {
       <AuthProvider>
         <CartProvider>
           <FavoritesProvider>
-            <div className="min-h-screen flex flex-col">
+            <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
               <Navbar />
-              <main className="flex-grow pt-20">
+              <main style={{ flexGrow: 1, paddingTop: '80px' }}>
                 <Routes>
+                  {/* Main Pages */}
                   <Route path="/" element={<HomePage />} />
                   <Route path="/products" element={<ProductsPage />} />
                   <Route path="/product/:id" element={<ProductDetailsPage />} />
@@ -62,28 +70,42 @@ function App() {
                   <Route path="/service/:id" element={<ServiceDetailsPage />} />
                   <Route path="/digital" element={<DigitalPage />} />
                   <Route path="/bookings" element={<BookingsPage />} />
+                  
+                  {/* Buyer Pages */}
                   <Route path="/cart" element={<CartPage />} />
                   <Route path="/favorites" element={<FavoritesPage />} />
                   <Route path="/checkout" element={<CheckoutPage />} />
                   <Route path="/orders" element={<OrdersPage />} />
+                  
+                  {/* Auth Pages */}
                   <Route path="/login" element={<LoginPage />} />
                   <Route path="/register" element={<RegisterPage />} />
+                  
+                  {/* Seller Pages */}
                   <Route path="/choose-seller-type" element={<SellerTypePage />} />
                   <Route path="/profile" element={<ProfilePage />} />
                   <Route path="/search" element={<SearchPage />} />
+                  
+                  {/* Footer Pages */}
+                  <Route path="/seller-guidelines" element={<SellerGuidelines />} />
+                  <Route path="/pricing" element={<PricingPage />} />
+                  <Route path="/help" element={<HelpCenter />} />
+                  <Route path="/contact" element={<ContactPage />} />
+                  <Route path="/terms" element={<TermsPage />} />
+                  <Route path="/privacy" element={<PrivacyPage />} />
 
-<Route path="/seller/dashboard" element={<DashboardLayout />}>
-  <Route index element={<Overview />} />
-  <Route path="overview" element={<Overview />} />
-  <Route path="earnings" element={<Earnings />} />
-  <Route path="products" element={<ProductsDashboard />} />
-  <Route path="products/add" element={<AddProduct />} />
-  <Route path="courses" element={<CoursesDashboard />} />
-  <Route path="courses/add" element={<AddCourse />} />
-  <Route path="services" element={<ServicesDashboard />} />
-  <Route path="services/add" element={<AddService />} />
-</Route>
-
+                  {/* Seller Dashboard Routes */}
+                  <Route path="/seller/dashboard" element={<DashboardLayout />}>
+                    <Route index element={<Overview />} />
+                    <Route path="overview" element={<Overview />} />
+                    <Route path="earnings" element={<Earnings />} />
+                    <Route path="products" element={<ProductsDashboard />} />
+                    <Route path="products/add" element={<AddProduct />} />
+                    <Route path="courses" element={<CoursesDashboard />} />
+                    <Route path="courses/add" element={<AddCourse />} />
+                    <Route path="services" element={<ServicesDashboard />} />
+                    <Route path="services/add" element={<AddService />} />
+                  </Route>
                 </Routes>
               </main>
               <Footer />

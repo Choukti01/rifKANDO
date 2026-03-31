@@ -25,7 +25,7 @@ const HomePage = () => {
         <div className="container">
           <div className="hero-content">
             <h1 className="hero-title">
-              Welcome to <span className="text-primary">RifKANDI</span>
+              Welcome to <span className="text-primary">rifKANDI</span>
             </h1>
             <p className="hero-description">
               Morocco's first multi-service platform. Shop products, take courses, hire professionals, all in one place.
@@ -106,7 +106,7 @@ const HomePage = () => {
       <section className="cta-section">
         <div className="container text-center">
           <h2 className="cta-title">Ready to start selling?</h2>
-          <p className="cta-description">Join thousands of sellers on RifKANDI</p>
+          <p className="cta-description">Join thousands of sellers on rifKANDI</p>
           <Link to="/choose-seller-type">
             <button className="btn cta-button">Become a Seller</button>
           </Link>

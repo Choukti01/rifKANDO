@@ -28,14 +28,18 @@ const Navbar = () => {
     <>
       <nav className="navbar">
         <div className="container">
-          <div className="flex items-center justify-between">
-            {/* Logo */}
-            <Link to="/" className="flex items-center gap-2">
+          <div className="navbar-content">
+            {/* Logo and Brand */}
+            <Link to="/" className="brand-link">
               <div className="logo-icon">
-                <span className="logo-text">R</span>
+                <img 
+                  src="/logo.png" 
+                  alt="rifKANDI" 
+                  className="logo-img"
+                />
               </div>
-              <span className="logo-name">
-                Rif<span className="logo-name-accent">KANDI</span>
+              <span className="brand-name">
+                rif<span className="brand-accent">KANDI</span>
               </span>
             </Link>
 
@@ -112,7 +116,6 @@ const Navbar = () => {
       )}
 
       <style>{`
-        /* Navbar */
         .navbar {
           position: fixed;
           top: 0;
@@ -123,54 +126,78 @@ const Navbar = () => {
           z-index: 1000;
           padding: 0.75rem 0;
         }
-
-        /* Logo */
+        .navbar-content {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+        /* Brand Section */
+        .brand-link {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          text-decoration: none;
+          margin-right: 2.5rem;
+        }
         .logo-icon {
-          width: 36px;
-          height: 36px;
-          background: var(--color-primary);
-          border-radius: var(--radius-lg);
+          width: 38px;
+          height: 38px;
           display: flex;
           align-items: center;
           justify-content: center;
         }
-        .logo-text {
-          font-weight: bold;
-          font-size: 1.2rem;
-          color: var(--color-black);
+        .logo-img {
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
         }
-        .logo-name {
-          font-size: 1.3rem;
-          font-weight: bold;
+        .brand-name {
+          font-size: 1.5rem;
+          font-weight: 700;
           color: var(--color-black);
+          letter-spacing: -0.5px;
         }
-        .logo-name-accent {
+        .brand-accent {
           color: var(--color-primary);
         }
-
         /* Desktop Navigation */
         .nav-links-desktop {
           display: none;
           align-items: center;
-          gap: 1.8rem;
+          gap: 2rem;
+          margin-right: auto;
         }
         .nav-link {
           text-decoration: none;
           color: var(--color-gray-600);
           font-weight: 500;
-          font-size: 0.95rem;
+          font-size: 1rem;
           transition: color 0.2s;
+          padding: 0.5rem 0;
+          position: relative;
         }
         .nav-link:hover {
           color: var(--color-primary);
         }
-
-        /* Search Form */
+        .nav-link::after {
+          content: '';
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          width: 0;
+          height: 2px;
+          background: var(--color-primary);
+          transition: width 0.2s;
+        }
+        .nav-link:hover::after {
+          width: 100%;
+        }
+        /* Search Bar */
         .search-form-desktop {
           display: none;
           flex: 1;
-          max-width: 500px;
-          margin: 0 1rem;
+          max-width: 450px;
+          margin: 0 1.5rem;
         }
         .search-wrapper {
           position: relative;
@@ -187,7 +214,7 @@ const Navbar = () => {
         }
         .search-input {
           width: 100%;
-          padding: 0.65rem 1rem 0.65rem 2.5rem;
+          padding: 0.7rem 1rem 0.7rem 2.5rem;
           border: 1px solid var(--color-gray-200);
           border-radius: 50px;
           font-size: 0.9rem;
@@ -200,12 +227,11 @@ const Navbar = () => {
           background: var(--color-white);
           box-shadow: 0 0 0 3px rgba(135,206,235,0.1);
         }
-
         /* Icons */
         .nav-icons {
           display: flex;
           align-items: center;
-          gap: 1.25rem;
+          gap: 1.5rem;
         }
         .nav-icon {
           color: var(--color-gray-600);
@@ -227,7 +253,6 @@ const Navbar = () => {
           color: var(--color-gray-600);
           display: block;
         }
-
         /* Mobile Menu */
         .mobile-menu {
           position: fixed;
@@ -267,7 +292,6 @@ const Navbar = () => {
           background: var(--color-gray-200);
           margin: 0.75rem 0;
         }
-
         /* Desktop Styles */
         @media (min-width: 768px) {
           .nav-links-desktop {
@@ -281,6 +305,19 @@ const Navbar = () => {
           }
           .mobile-menu-btn {
             display: none;
+          }
+        }
+        /* Responsive Adjustments */
+        @media (max-width: 1024px) {
+          .brand-link {
+            margin-right: 1.5rem;
+          }
+          .nav-links-desktop {
+            gap: 1.5rem;
+          }
+          .search-form-desktop {
+            max-width: 350px;
+            margin: 0 1rem;
           }
         }
       `}</style>

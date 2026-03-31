@@ -67,24 +67,24 @@ const RegisterPage = () => {
         boxShadow: '0 20px 35px -10px rgba(0,0,0,0.1)',
         padding: '2rem'
       }}>
-        {/* Header */}
+        {/* Header with Logo */}
         <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
           <div style={{
             width: '60px',
             height: '60px',
-            background: '#87CEEB',
-            borderRadius: '1rem',
+            margin: '0 auto 1rem',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '2rem',
-            fontWeight: 'bold',
-            margin: '0 auto 1rem'
+            justifyContent: 'center'
           }}>
-            R
+            <img 
+              src="/logo.png" 
+              alt="rifKANDI" 
+              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+            />
           </div>
           <h1 style={{ fontSize: '1.75rem', marginBottom: '0.5rem' }}>Create Account</h1>
-          <p style={{ color: '#6b7280', fontSize: '0.875rem' }}>Join RifKANDI today</p>
+          <p style={{ color: '#6b7280', fontSize: '0.875rem' }}>Join rifKANDI today</p>
         </div>
 
         {/* Error Message */}

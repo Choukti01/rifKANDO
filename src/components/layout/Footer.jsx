@@ -42,7 +42,11 @@ const Footer = () => {
           <div className="footer-brand">
             <div className="footer-logo">
               <div className="footer-logo-icon">
-                <span>R</span>
+                <img 
+                  src="/logo.png" 
+                  alt="rifKANDI" 
+                  className="footer-logo-img"
+                />
               </div>
               <span className="footer-logo-name">
                 Rif<span className="footer-logo-accent">KANDI</span>
@@ -72,7 +76,7 @@ const Footer = () => {
 
         {/* Bottom */}
         <div className="footer-bottom">
-          <p>&copy; {currentYear} RifKANDI. All rights reserved. Made in Morocco 🇲🇦</p>
+          <p>&copy; {currentYear} rifKANDI. All rights reserved. Made in Morocco 🇲🇦</p>
         </div>
       </div>
 
@@ -102,35 +106,29 @@ const Footer = () => {
         .footer-brand {
           grid-column: span 1;
         }
-        @media (min-width: 1024px) {
-          .footer-brand {
-            grid-column: span 1;
-          }
-        }
         .footer-logo {
           display: flex;
           align-items: center;
-          gap: 0.5rem;
+          gap: 0.75rem;
           margin-bottom: 1rem;
         }
         .footer-logo-icon {
-          width: 36px;
-          height: 36px;
-          background: var(--color-primary);
-          border-radius: var(--radius-lg);
+          width: 38px;
+          height: 38px;
           display: flex;
           align-items: center;
           justify-content: center;
         }
-        .footer-logo-icon span {
-          font-weight: bold;
-          font-size: 1.2rem;
-          color: var(--color-black);
+        .footer-logo-img {
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
         }
         .footer-logo-name {
-          font-size: 1.3rem;
-          font-weight: bold;
+          font-size: 1.5rem;
+          font-weight: 700;
           color: white;
+          letter-spacing: -0.5px;
         }
         .footer-logo-accent {
           color: var(--color-primary);

@@ -27,8 +27,14 @@ const DashboardLayout = () => {
       <div className={`dashboard-sidebar ${isSidebarOpen ? 'open' : 'closed'}`}>
         <div className="sidebar-header">
           <div className="sidebar-logo">
-            <div className="sidebar-logo-icon">R</div>
-            {isSidebarOpen && <span className="sidebar-logo-text">Rif<span className="text-primary">KANDI</span></span>}
+            <div className="sidebar-logo-icon">
+              <img 
+                src="/logo.png" 
+                alt="rifKANDI" 
+                className="sidebar-logo-img"
+              />
+            </div>
+            {isSidebarOpen && <span className="sidebar-logo-text">rif<span className="text-primary">KANDI</span></span>}
           </div>
           <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="sidebar-toggle">
             {isSidebarOpen ? '←' : '→'}
@@ -121,17 +127,21 @@ const DashboardLayout = () => {
         .sidebar-logo-icon {
           width: 32px;
           height: 32px;
-          background: #87CEEB;
-          border-radius: 8px;
           display: flex;
           align-items: center;
           justify-content: center;
-          font-weight: bold;
-          font-size: 1.1rem;
+        }
+        .sidebar-logo-img {
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
         }
         .sidebar-logo-text {
           font-weight: bold;
           font-size: 1.1rem;
+        }
+        .text-primary {
+          color: #87CEEB;
         }
         .sidebar-toggle {
           background: none;
@@ -232,6 +242,15 @@ const DashboardLayout = () => {
         .dashboard-header h1 {
           font-size: 1.5rem;
           margin-bottom: 0;
+        }
+        .btn-primary {
+          background-color: #1a1a1a;
+          color: white;
+          padding: 0.5rem 1rem;
+          border: none;
+          border-radius: 0.5rem;
+          cursor: pointer;
+          font-size: 0.875rem;
         }
         @media (max-width: 768px) {
           .dashboard-sidebar.open {
