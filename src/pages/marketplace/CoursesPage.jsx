@@ -1,24 +1,50 @@
-import React, { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { StarIcon, UserGroupIcon, ClockIcon } from '@heroicons/react/24/outline'
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { StarIcon, UserGroupIcon, ClockIcon } from '@heroicons/react/24/outline';
+import { getCourses } from '../../services/api';
+import toast from 'react-hot-toast';
 
 const CoursesPage = () => {
-  const [selectedLevel, setSelectedLevel] = useState('all')
+  const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedLevel, setSelectedLevel] = useState('all');
 
   const levels = [
     { id: 'all', name: 'All Levels' },
     { id: 'beginner', name: 'Beginner' },
     { id: 'intermediate', name: 'Intermediate' },
     { id: 'advanced', name: 'Advanced' },
-  ]
+  ];
 
-  const courses = [
-    { id: 1, title: 'Complete React.js Course', instructor: 'Ahmed Alawi', price: 499, students: 1234, rating: 4.9, duration: '15 hours', level: 'beginner', image: '⚛️' },
-    { id: 2, title: 'Web Development Bootcamp', instructor: 'Sara Benali', price: 899, students: 2345, rating: 4.8, duration: '40 hours', level: 'beginner', image: '🌐' },
-    { id: 3, title: 'UI/UX Design Masterclass', instructor: 'Fatima Zahra', price: 399, students: 567, rating: 4.7, duration: '12 hours', level: 'intermediate', image: '🎨' },
-  ]
+  useEffect(() => {
+    fetchCourses();
+  }, []);
 
-  const filtered = selectedLevel === 'all' ? courses : courses.filter(c => c.level === selectedLevel)
+  const fetchCourses = async () => {
+    try {
+      setLoading(true);
+      const response = await getCourses();
+      setCourses(response.data.courses || []);
+    } catch (error) {
+      console.error('Error fetching courses:', error);
+      toast.error('Failed to load courses');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredCourses = selectedLevel === 'all' 
+    ? courses 
+    : courses.filter(c => c.level === selectedLevel);
+
+  if (loading) {
+    return (
+      <div className="container text-center py-16">
+        <div className="spinner"></div>
+        <p>Loading courses...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="courses-page">
@@ -41,33 +67,42 @@ const CoursesPage = () => {
         </div>
 
         <div className="courses-grid">
-          {filtered.map(course => (
-            <Link key={course.id} to={`/course/${course.id}`} className="course-card">
-              <div className="course-image">{course.image}</div>
-              <div className="course-content">
-                <h3>{course.title}</h3>
-                <p>by {course.instructor}</p>
-                <div className="course-stats">
-                  <div className="course-rating">
-                    <StarIcon className="star-icon" />
-                    <span>{course.rating}</span>
+          {filteredCourses.length === 0 ? (
+            <p className="text-center col-span-full">No courses found</p>
+          ) : (
+            filteredCourses.map(course => (
+              <Link key={course.id} to={`/course/${course.id}`} className="course-card">
+                <div className="course-image">
+                  {course.image || '📚'}
+                </div>
+                <div className="course-content">
+                  <h3>{course.title}</h3>
+                  <p>by {course.instructor_name}</p>
+                  <div className="course-stats">
+                    <div className="course-rating">
+                      <StarIcon className="star-icon" />
+                      <span>{course.rating || 0}</span>
+                    </div>
+                    <div className="course-students">
+                      <UserGroupIcon className="user-icon" />
+                      <span>{course.students_count || 0}</span>
+                    </div>
+                    <div className="course-duration">
+                      <ClockIcon className="clock-icon" />
+                      <span>{course.duration || 0} hours</span>
+                    </div>
                   </div>
-                  <div className="course-students">
-                    <UserGroupIcon className="user-icon" />
-                    <span>{course.students.toLocaleString()}</span>
-                  </div>
-                  <div className="course-duration">
-                    <ClockIcon className="clock-icon" />
-                    <span>{course.duration}</span>
+                  <div className="course-footer">
+                    <span className="course-price">{course.price} MAD</span>
+                    {course.old_price && (
+                      <span className="old-price">{course.old_price} MAD</span>
+                    )}
+                    <button className="course-btn">View Course</button>
                   </div>
                 </div>
-                <div className="course-footer">
-                  <span className="course-price">{course.price} MAD</span>
-                  <button className="course-btn">Enroll Now</button>
-                </div>
-              </div>
-            </Link>
-          ))}
+              </Link>
+            ))
+          )}
         </div>
       </div>
 
@@ -82,7 +117,6 @@ const CoursesPage = () => {
         }
         .courses-header h1 {
           font-size: 2rem;
-          font-weight: bold;
           margin-bottom: 0.5rem;
         }
         .courses-levels {
@@ -165,14 +199,21 @@ const CoursesPage = () => {
         }
         .course-footer {
           display: flex;
-          justify-content: space-between;
           align-items: center;
+          gap: 0.5rem;
+          flex-wrap: wrap;
         }
         .course-price {
           font-weight: 700;
           color: #1a1a1a;
         }
+        .old-price {
+          font-size: 0.75rem;
+          color: #9ca3af;
+          text-decoration: line-through;
+        }
         .course-btn {
+          margin-left: auto;
           padding: 0.375rem 1rem;
           background: #1a1a1a;
           color: white;
@@ -183,7 +224,7 @@ const CoursesPage = () => {
         }
       `}</style>
     </div>
-  )
-}
+  );
+};
 
-export default CoursesPage
+export default CoursesPage;

@@ -1,75 +1,76 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { PlusIcon, EyeIcon, PencilIcon, TrashIcon, UserGroupIcon, ChartBarIcon } from '@heroicons/react/24/outline';
-import { getMyCourses, deleteCourse } from '../../../services/api';
+import { PlusIcon, EyeIcon, PencilIcon, TrashIcon, CloudArrowDownIcon } from '@heroicons/react/24/outline';
+import { getMyDigitalProducts, deleteDigitalProduct } from '../../../services/api';
 import { useAuth } from '../../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 
-const CoursesDashboard = () => {
-  const [courses, setCourses] = useState([]);
+const DigitalDashboard = () => {
+  const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const { token } = useAuth();
 
   const [stats, setStats] = useState({
-    totalCourses: 0,
-    totalStudents: 0,
+    totalProducts: 0,
+    totalSales: 0,
     totalRevenue: 0,
     avgRating: 0
   });
 
   useEffect(() => {
-    fetchCourses();
+    fetchProducts();
   }, []);
 
-  const fetchCourses = async () => {
+  const fetchProducts = async () => {
     try {
       setLoading(true);
-      const response = await getMyCourses();
-      const coursesData = response.data.courses || [];
-      setCourses(coursesData);
+      const response = await getMyDigitalProducts();
+      console.log('My digital products:', response.data);
+      const productsData = response.data.products || [];
+      setProducts(productsData);
       
-      const totalStudents = coursesData.reduce((sum, c) => sum + (c.students_count || 0), 0);
-      const totalRevenue = coursesData.reduce((sum, c) => sum + ((c.price || 0) * (c.students_count || 0)), 0);
-      const avgRating = coursesData.length > 0 
-        ? coursesData.reduce((sum, c) => sum + (c.rating || 0), 0) / coursesData.length 
+      const totalSales = productsData.reduce((sum, p) => sum + (p.sales_count || 0), 0);
+      const totalRevenue = productsData.reduce((sum, p) => sum + ((p.price || 0) * (p.sales_count || 0)), 0);
+      const avgRating = productsData.length > 0 
+        ? productsData.reduce((sum, p) => sum + (p.rating || 0), 0) / productsData.length 
         : 0;
       
       setStats({
-        totalCourses: coursesData.length,
-        totalStudents,
+        totalProducts: productsData.length,
+        totalSales,
         totalRevenue,
         avgRating: avgRating.toFixed(1)
       });
     } catch (error) {
-      console.error('Failed to fetch courses:', error);
-      toast.error('Failed to load courses');
+      console.error('Failed to fetch products:', error);
+      toast.error('Failed to load products');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = async (courseId) => {
-    if (window.confirm('Are you sure you want to delete this course?')) {
+  const handleDelete = async (productId) => {
+    if (window.confirm('Are you sure you want to delete this product?')) {
       try {
-        await deleteCourse(courseId);
-        toast.success('Course deleted successfully');
-        fetchCourses();
+        await deleteDigitalProduct(productId);
+        toast.success('Product deleted successfully');
+        fetchProducts();
       } catch (error) {
-        toast.error('Failed to delete course');
+        toast.error('Failed to delete product');
       }
     }
   };
 
   const handleAddNew = () => {
-    navigate('/seller/dashboard/courses/add');
+    navigate('/seller/dashboard/digital/add');
   };
 
   if (loading) {
     return (
       <div className="text-center py-16">
         <div className="spinner"></div>
-        <p>Loading courses...</p>
+        <p>Loading products...</p>
       </div>
     );
   }
@@ -78,83 +79,72 @@ const CoursesDashboard = () => {
     <div>
       <div className="stats-grid">
         <div className="stat-card">
-          <div className="stat-label">Total Courses</div>
-          <div className="stat-value">{stats.totalCourses}</div>
-          <div className="stat-change">{stats.totalCourses > 0 ? '+ recently' : 'Add your first course'}</div>
+          <div className="stat-label">Total Products</div>
+          <div className="stat-value">{stats.totalProducts}</div>
+          <div className="stat-change">Active listings</div>
         </div>
         <div className="stat-card">
-          <div className="stat-label">Total Students</div>
-          <div className="stat-value">{stats.totalStudents}</div>
-          <div className="stat-change">Enrolled learners</div>
+          <div className="stat-label">Total Sales</div>
+          <div className="stat-value">{stats.totalSales}</div>
+          <div className="stat-change">Downloads</div>
         </div>
         <div className="stat-card">
           <div className="stat-label">Total Revenue</div>
           <div className="stat-value">{stats.totalRevenue.toLocaleString()} MAD</div>
-          <div className="stat-change">From course sales</div>
+          <div className="stat-change">From digital sales</div>
         </div>
         <div className="stat-card">
           <div className="stat-label">Average Rating</div>
           <div className="stat-value">{stats.avgRating} ★</div>
-          <div className="stat-change">Student satisfaction</div>
+          <div className="stat-change">Customer satisfaction</div>
         </div>
       </div>
 
-      <div className="courses-card">
+      <div className="products-card">
         <div className="card-header">
-          <h3>Your Courses</h3>
+          <h3>Your Digital Products</h3>
           <button onClick={handleAddNew} className="btn btn-primary btn-sm">
             <PlusIcon className="w-4 h-4" />
-            New Course
+            Add Product
           </button>
         </div>
 
-        {courses.length === 0 ? (
+        {products.length === 0 ? (
           <div className="empty-state">
-            <div className="empty-icon">📚</div>
-            <p>No courses yet</p>
+            <div className="empty-icon">💻</div>
+            <p>No digital products yet</p>
             <button onClick={handleAddNew} className="btn btn-primary">
-              Create Your First Course
+              Create Your First Product
             </button>
           </div>
         ) : (
-          <div className="courses-list">
-            {courses.map(course => (
-              <div key={course.id} className="course-item">
-                <div className="course-info">
-                  <div className="course-image-placeholder">
-                    {course.image || '📚'}
+          <div className="products-list">
+            {products.map(product => (
+              <div key={product.id} className="product-item">
+                <div className="product-info">
+                  <div className="product-image-placeholder">
+                    {product.image || '💻'}
                   </div>
-                  <div className="course-details">
-                    <h4>{course.title}</h4>
-                    <div className="course-stats">
+                  <div className="product-details">
+                    <h4>{product.title}</h4>
+                    <div className="product-stats">
                       <span>
-                        <UserGroupIcon className="stat-icon" />
-                        {course.students_count || 0} students
+                        <CloudArrowDownIcon className="stat-icon" />
+                        {product.sales_count || 0} sales
                       </span>
-                      <span>
-                        <ChartBarIcon className="stat-icon" />
-                        {course.rating || 0} ★
-                      </span>
-                      <span>{course.price} MAD</span>
-                    </div>
-                    <div className="course-status">
-                      <span className={`status-badge ${course.status === 'published' ? 'published' : 'draft'}`}>
-                        {course.status || 'published'}
-                      </span>
+                      <span>{product.price} MAD</span>
+                      <span>{product.category || 'Digital'}</span>
                     </div>
                   </div>
                 </div>
-                <div className="course-actions">
-                  <Link to={`/course/${course.id}`} className="action-btn" target="_blank">
+                <div className="product-actions">
+                  <Link to={`/digital/${product.id}`} className="action-btn" target="_blank">
                     <EyeIcon className="w-4 h-4" />
                   </Link>
-                  <Link to={`/seller/dashboard/courses/${course.id}/edit`} className="action-btn">
+                  <Link to={`/seller/dashboard/digital/${product.id}/edit`} className="action-btn">
                     <PencilIcon className="w-4 h-4" />
                   </Link>
-                  <Link to={`/seller/dashboard/courses/${course.id}/lessons`} className="action-btn manage-btn">
-                    Manage Lessons
-                  </Link>
-                  <button onClick={() => handleDelete(course.id)} className="action-btn delete">
+                  <button onClick={() => handleDelete(product.id)} className="action-btn delete">
                     <TrashIcon className="w-4 h-4" />
                   </button>
                 </div>
@@ -191,7 +181,7 @@ const CoursesDashboard = () => {
           font-size: 0.75rem;
           color: #10b981;
         }
-        .courses-card {
+        .products-card {
           background: white;
           border-radius: 1rem;
           box-shadow: 0 1px 3px rgba(0,0,0,0.1);
@@ -217,10 +207,10 @@ const CoursesDashboard = () => {
           font-size: 4rem;
           margin-bottom: 1rem;
         }
-        .courses-list {
+        .products-list {
           padding: 0.5rem;
         }
-        .course-item {
+        .product-item {
           display: flex;
           justify-content: space-between;
           align-items: center;
@@ -229,13 +219,13 @@ const CoursesDashboard = () => {
           flex-wrap: wrap;
           gap: 1rem;
         }
-        .course-info {
+        .product-info {
           display: flex;
           align-items: center;
           gap: 1rem;
           flex: 1;
         }
-        .course-image-placeholder {
+        .product-image-placeholder {
           width: 60px;
           height: 60px;
           background: #f3f4f6;
@@ -245,16 +235,15 @@ const CoursesDashboard = () => {
           justify-content: center;
           font-size: 2rem;
         }
-        .course-details h4 {
+        .product-details h4 {
           font-size: 1rem;
           margin-bottom: 0.5rem;
         }
-        .course-stats {
+        .product-stats {
           display: flex;
           gap: 1rem;
           font-size: 0.75rem;
           color: #6b7280;
-          margin-bottom: 0.5rem;
           flex-wrap: wrap;
         }
         .stat-icon {
@@ -262,22 +251,7 @@ const CoursesDashboard = () => {
           height: 0.875rem;
           margin-right: 0.25rem;
         }
-        .status-badge {
-          display: inline-block;
-          padding: 0.25rem 0.5rem;
-          border-radius: 9999px;
-          font-size: 0.7rem;
-          font-weight: 500;
-        }
-        .status-badge.published {
-          background: #d1fae5;
-          color: #065f46;
-        }
-        .status-badge.draft {
-          background: #fef3c7;
-          color: #92400e;
-        }
-        .course-actions {
+        .product-actions {
           display: flex;
           gap: 0.5rem;
           align-items: center;
@@ -298,15 +272,6 @@ const CoursesDashboard = () => {
         }
         .action-btn.delete:hover {
           color: #ef4444;
-        }
-        .manage-btn {
-          background: #87CEEB20;
-          color: #87CEEB;
-          padding: 0.25rem 0.75rem;
-          font-size: 0.75rem;
-        }
-        .manage-btn:hover {
-          background: #87CEEB40;
         }
         .btn-sm {
           display: inline-flex;
@@ -329,4 +294,4 @@ const CoursesDashboard = () => {
   );
 };
 
-export default CoursesDashboard;
+export default DigitalDashboard;

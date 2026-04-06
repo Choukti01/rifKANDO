@@ -1,25 +1,51 @@
-import React, { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { StarIcon, CalendarIcon, ClockIcon } from '@heroicons/react/24/outline'
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { StarIcon, CalendarIcon, ClockIcon, MapPinIcon } from '@heroicons/react/24/outline';
+import { getBookings } from '../../services/api';
+import toast from 'react-hot-toast';
 
 const BookingsPage = () => {
-  const [selectedType, setSelectedType] = useState('all')
+  const [bookings, setBookings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedCategory, setSelectedCategory] = useState('all');
 
-  const types = [
+  const categories = [
     { id: 'all', name: 'All' },
     { id: 'consultation', name: 'Consultations' },
     { id: 'training', name: 'Training' },
     { id: 'classes', name: 'Classes' },
-  ]
+    { id: 'events', name: 'Events' },
+  ];
 
-  const bookings = [
-    { id: 1, title: 'Business Consultation', provider: 'Ahmed Benjelloun', price: 500, duration: '1 hour', rating: 4.9, image: '💼', type: 'consultation' },
-    { id: 2, title: 'Personal Training Session', provider: 'Karim Fitness', price: 300, duration: '45 min', rating: 4.8, image: '💪', type: 'training' },
-    { id: 3, title: 'Legal Consultation', provider: 'Law Office', price: 800, duration: '1 hour', rating: 4.7, image: '⚖️', type: 'consultation' },
-    { id: 4, title: 'Yoga Class', provider: 'Yoga Studio', price: 150, duration: '1 hour', rating: 4.9, image: '🧘', type: 'classes' },
-  ]
+  useEffect(() => {
+    fetchBookings();
+  }, []);
 
-  const filtered = selectedType === 'all' ? bookings : bookings.filter(b => b.type === selectedType)
+  const fetchBookings = async () => {
+    try {
+      setLoading(true);
+      const response = await getBookings();
+      setBookings(response.data.bookings || []);
+    } catch (error) {
+      console.error('Error fetching bookings:', error);
+      toast.error('Failed to load bookings');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredBookings = selectedCategory === 'all' 
+    ? bookings 
+    : bookings.filter(b => b.category === selectedCategory);
+
+  if (loading) {
+    return (
+      <div className="container text-center py-16">
+        <div className="spinner"></div>
+        <p>Loading bookings...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="bookings-page">
@@ -29,42 +55,55 @@ const BookingsPage = () => {
           <p>Book appointments, consultations, and classes with professionals</p>
         </div>
 
-        <div className="bookings-types">
-          {types.map(type => (
+        <div className="bookings-categories">
+          {categories.map(cat => (
             <button
-              key={type.id}
-              onClick={() => setSelectedType(type.id)}
-              className={`type-btn ${selectedType === type.id ? 'active' : ''}`}
+              key={cat.id}
+              onClick={() => setSelectedCategory(cat.id)}
+              className={`cat-btn ${selectedCategory === cat.id ? 'active' : ''}`}
             >
-              {type.name}
+              {cat.name}
             </button>
           ))}
         </div>
 
         <div className="bookings-grid">
-          {filtered.map(booking => (
-            <Link key={booking.id} to={`/booking/${booking.id}`} className="booking-card">
-              <div className="booking-image">{booking.image}</div>
-              <div className="booking-content">
-                <h3>{booking.title}</h3>
-                <p>{booking.provider}</p>
-                <div className="booking-details">
-                  <div className="booking-rating">
-                    <StarIcon className="star-icon" />
-                    <span>{booking.rating}</span>
+          {filteredBookings.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-icon">📅</div>
+              <p>No bookings available</p>
+            </div>
+          ) : (
+            filteredBookings.map(booking => (
+              <Link key={booking.id} to={`/booking/${booking.id}`} className="booking-card">
+                <div className="booking-image">
+                  {booking.image || '📅'}
+                </div>
+                <div className="booking-content">
+                  <h3>{booking.title}</h3>
+                  <p>by {booking.provider_name}</p>
+                  <div className="booking-details">
+                    <div className="booking-rating">
+                      <StarIcon className="star-icon" />
+                      <span>{booking.rating || 0}</span>
+                    </div>
+                    <div className="booking-duration">
+                      <ClockIcon className="clock-icon" />
+                      <span>{booking.duration || 60} min</span>
+                    </div>
+                    <div className="booking-location">
+                      <MapPinIcon className="map-icon" />
+                      <span>{booking.location_type === 'online' ? 'Online' : 'In Person'}</span>
+                    </div>
                   </div>
-                  <div className="booking-duration">
-                    <ClockIcon className="clock-icon" />
-                    <span>{booking.duration}</span>
+                  <div className="booking-footer">
+                    <span className="booking-price">{booking.price} MAD</span>
+                    <button className="booking-btn">Book Now</button>
                   </div>
                 </div>
-                <div className="booking-footer">
-                  <span className="booking-price">{booking.price} MAD</span>
-                  <button className="booking-btn">Book Now</button>
-                </div>
-              </div>
-            </Link>
-          ))}
+              </Link>
+            ))
+          )}
         </div>
       </div>
 
@@ -79,31 +118,23 @@ const BookingsPage = () => {
         }
         .bookings-header h1 {
           font-size: 2rem;
-          font-weight: bold;
           margin-bottom: 0.5rem;
         }
-        .bookings-header p {
-          color: #6b7280;
-        }
-        .bookings-types {
+        .bookings-categories {
           display: flex;
           justify-content: center;
           gap: 1rem;
           margin-bottom: 2rem;
           flex-wrap: wrap;
         }
-        .type-btn {
+        .cat-btn {
           padding: 0.5rem 1.5rem;
           border-radius: 2rem;
           border: 1px solid #e5e7eb;
           background: white;
           cursor: pointer;
-          transition: all 0.2s;
         }
-        .type-btn:hover {
-          border-color: #87CEEB;
-        }
-        .type-btn.active {
+        .cat-btn.active {
           background: #87CEEB;
           border-color: #87CEEB;
           color: #1a1a1a;
@@ -151,15 +182,11 @@ const BookingsPage = () => {
           display: flex;
           gap: 1rem;
           margin-bottom: 1rem;
-        }
-        .booking-rating, .booking-duration {
-          display: flex;
-          align-items: center;
-          gap: 0.25rem;
-          font-size: 0.75rem;
+          font-size: 0.7rem;
           color: #6b7280;
+          flex-wrap: wrap;
         }
-        .star-icon, .clock-icon {
+        .star-icon, .clock-icon, .map-icon {
           width: 0.875rem;
           height: 0.875rem;
         }
@@ -184,14 +211,19 @@ const BookingsPage = () => {
           border-radius: 2rem;
           font-size: 0.75rem;
           cursor: pointer;
-          transition: background 0.2s;
         }
-        .booking-btn:hover {
-          background: #2c2c2c;
+        .empty-state {
+          text-align: center;
+          padding: 3rem;
+          grid-column: 1 / -1;
+        }
+        .empty-icon {
+          font-size: 4rem;
+          margin-bottom: 1rem;
         }
       `}</style>
     </div>
-  )
-}
+  );
+};
 
-export default BookingsPage
+export default BookingsPage;

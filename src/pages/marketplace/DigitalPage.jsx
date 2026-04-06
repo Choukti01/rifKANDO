@@ -1,9 +1,13 @@
-import React, { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { StarIcon, CloudArrowDownIcon } from '@heroicons/react/24/outline'
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { StarIcon, CloudArrowDownIcon } from '@heroicons/react/24/outline';
+import { getDigitalProducts } from '../../services/api';
+import toast from 'react-hot-toast';
 
 const DigitalPage = () => {
-  const [selectedType, setSelectedType] = useState('all')
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedType, setSelectedType] = useState('all');
 
   const types = [
     { id: 'all', name: 'All' },
@@ -11,16 +15,38 @@ const DigitalPage = () => {
     { id: 'ebook', name: 'E-books' },
     { id: 'software', name: 'Software' },
     { id: 'graphics', name: 'Graphics' },
-  ]
+  ];
 
-  const digitalProducts = [
-    { id: 1, title: 'Business Website Template', price: 299, seller: 'DesignMarket', rating: 4.8, downloads: 1234, image: '📄', type: 'template' },
-    { id: 2, title: 'Mobile App UI Kit', price: 149, seller: 'UI Studio', rating: 4.7, downloads: 2345, image: '📱', type: 'template' },
-    { id: 3, title: 'E-book: Digital Marketing', price: 49, seller: 'Marketing Pro', rating: 4.9, downloads: 3456, image: '📖', type: 'ebook' },
-    { id: 4, title: 'Stock Photos Bundle', price: 89, seller: 'PhotoStock', rating: 4.6, downloads: 4567, image: '📸', type: 'graphics' },
-  ]
+  useEffect(() => {
+    fetchProducts();
+  }, []);
 
-  const filtered = selectedType === 'all' ? digitalProducts : digitalProducts.filter(p => p.type === selectedType)
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      const response = await getDigitalProducts();
+      console.log('Digital products:', response.data);
+      setProducts(response.data.products || []);
+    } catch (error) {
+      console.error('Error fetching digital products:', error);
+      toast.error('Failed to load products');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredProducts = selectedType === 'all' 
+    ? products 
+    : products.filter(p => p.category === selectedType);
+
+  if (loading) {
+    return (
+      <div className="container text-center py-16">
+        <div className="spinner"></div>
+        <p>Loading digital products...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="digital-page">
@@ -43,29 +69,39 @@ const DigitalPage = () => {
         </div>
 
         <div className="digital-grid">
-          {filtered.map(product => (
-            <Link key={product.id} to={`/digital/${product.id}`} className="digital-card">
-              <div className="digital-image">{product.image}</div>
-              <div className="digital-content">
-                <h3>{product.title}</h3>
-                <p>{product.seller}</p>
-                <div className="digital-stats">
-                  <div className="digital-rating">
-                    <StarIcon className="star-icon" />
-                    <span>{product.rating}</span>
+          {filteredProducts.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-icon">💻</div>
+              <p>No digital products available</p>
+              <p className="empty-subtitle">Check back later for new products</p>
+            </div>
+          ) : (
+            filteredProducts.map(product => (
+              <Link key={product.id} to={`/digital/${product.id}`} className="digital-card">
+                <div className="digital-image">
+                  {product.image || '💻'}
+                </div>
+                <div className="digital-content">
+                  <h3>{product.title}</h3>
+                  <p>by {product.seller_name || 'Digital Creator'}</p>
+                  <div className="digital-stats">
+                    <div className="digital-rating">
+                      <StarIcon className="star-icon" />
+                      <span>{product.rating || 0}</span>
+                    </div>
+                    <div className="digital-downloads">
+                      <CloudArrowDownIcon className="download-icon" />
+                      <span>{product.downloads || 0}</span>
+                    </div>
                   </div>
-                  <div className="digital-downloads">
-                    <CloudArrowDownIcon className="download-icon" />
-                    <span>{product.downloads.toLocaleString()}</span>
+                  <div className="digital-footer">
+                    <span className="digital-price">{product.price} MAD</span>
+                    <button className="digital-btn">View Details</button>
                   </div>
                 </div>
-                <div className="digital-footer">
-                  <span className="digital-price">{product.price} MAD</span>
-                  <button className="digital-btn">Download</button>
-                </div>
-              </div>
-            </Link>
-          ))}
+              </Link>
+            ))
+          )}
         </div>
       </div>
 
@@ -80,7 +116,6 @@ const DigitalPage = () => {
         }
         .digital-header h1 {
           font-size: 2rem;
-          font-weight: bold;
           margin-bottom: 0.5rem;
         }
         .digital-header p {
@@ -99,7 +134,6 @@ const DigitalPage = () => {
           border: 1px solid #e5e7eb;
           background: white;
           cursor: pointer;
-          transition: all 0.2s;
         }
         .type-btn.active {
           background: #87CEEB;
@@ -157,15 +191,13 @@ const DigitalPage = () => {
           font-size: 0.75rem;
           color: #6b7280;
         }
-        .star-icon {
+        .star-icon, .download-icon {
           width: 0.875rem;
           height: 0.875rem;
+        }
+        .star-icon {
           color: #f59e0b;
           fill: #f59e0b;
-        }
-        .download-icon {
-          width: 0.875rem;
-          height: 0.875rem;
         }
         .digital-footer {
           display: flex;
@@ -185,9 +217,23 @@ const DigitalPage = () => {
           font-size: 0.75rem;
           cursor: pointer;
         }
+        .empty-state {
+          text-align: center;
+          padding: 3rem;
+          grid-column: 1 / -1;
+        }
+        .empty-icon {
+          font-size: 4rem;
+          margin-bottom: 1rem;
+        }
+        .empty-subtitle {
+          font-size: 0.875rem;
+          color: #9ca3af;
+          margin-top: 0.5rem;
+        }
       `}</style>
     </div>
-  )
-}
+  );
+};
 
-export default DigitalPage
+export default DigitalPage;

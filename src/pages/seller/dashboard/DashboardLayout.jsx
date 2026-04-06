@@ -1,14 +1,17 @@
 import React, { useState } from 'react'
-import { Outlet, NavLink, useNavigate } from 'react-router-dom'
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { 
   HomeIcon, ChartBarIcon, ShoppingBagIcon, AcademicCapIcon, 
   WrenchScrewdriverIcon, CurrencyDollarIcon, Cog6ToothIcon, 
   ArrowLeftOnRectangleIcon, ComputerDesktopIcon, CalendarIcon
 } from '@heroicons/react/24/outline'
+import { useAuth } from '../../../contexts/AuthContext'
 
 const DashboardLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const navigate = useNavigate()
+  const location = useLocation()
+  const { user, logout } = useAuth()
 
   const navItems = [
     { name: 'Overview', icon: HomeIcon, path: 'overview' },
@@ -20,6 +23,11 @@ const DashboardLayout = () => {
     { name: 'Earnings', icon: CurrencyDollarIcon, path: 'earnings' },
     { name: 'Settings', icon: Cog6ToothIcon, path: 'settings' },
   ]
+
+  const handleLogout = () => {
+    logout()
+    navigate('/')
+  }
 
   return (
     <div className="dashboard-container">
@@ -42,11 +50,17 @@ const DashboardLayout = () => {
         </div>
 
         <div className="sidebar-user">
-          <div className="sidebar-avatar">A</div>
+          <div className="sidebar-avatar">
+            {user?.name?.charAt(0) || 'S'}
+          </div>
           {isSidebarOpen && (
             <div className="sidebar-user-info">
-              <h4>Ahmed Store</h4>
-              <p>Product Seller</p>
+              <h4>{user?.name || 'Seller'}</h4>
+              <p>{user?.sellerType === 'product' ? 'Product Seller' : 
+                     user?.sellerType === 'course' ? 'Course Instructor' :
+                     user?.sellerType === 'service' ? 'Service Provider' : 
+                     user?.sellerType === 'digital' ? 'Digital Creator' :
+                     user?.sellerType === 'booking' ? 'Booking Professional' : 'Seller'}</p>
             </div>
           )}
         </div>
@@ -68,7 +82,7 @@ const DashboardLayout = () => {
         </nav>
 
         <div className="sidebar-footer">
-          <button onClick={() => navigate('/')} className="sidebar-logout">
+          <button onClick={handleLogout} className="sidebar-logout">
             <ArrowLeftOnRectangleIcon className="sidebar-nav-icon" />
             {isSidebarOpen && <span>Exit Dashboard</span>}
           </button>
@@ -79,9 +93,7 @@ const DashboardLayout = () => {
       <main className={`dashboard-main ${isSidebarOpen ? 'with-sidebar' : 'without-sidebar'}`}>
         <div className="dashboard-header">
           <h1>Dashboard</h1>
-          <div className="dashboard-actions">
-            <button className="btn btn-sm btn-primary">+ Add New</button>
-          </div>
+          {/* Add New button removed - use buttons inside each dashboard page instead */}
         </div>
         <div className="dashboard-content">
           <Outlet />
@@ -160,12 +172,13 @@ const DashboardLayout = () => {
         .sidebar-avatar {
           width: 40px;
           height: 40px;
-          background: #e5e7eb;
+          background: #87CEEB;
           border-radius: 50%;
           display: flex;
           align-items: center;
           justify-content: center;
           font-weight: bold;
+          font-size: 1rem;
         }
         .sidebar-user-info h4 {
           font-size: 0.875rem;
@@ -242,15 +255,6 @@ const DashboardLayout = () => {
         .dashboard-header h1 {
           font-size: 1.5rem;
           margin-bottom: 0;
-        }
-        .btn-primary {
-          background-color: #1a1a1a;
-          color: white;
-          padding: 0.5rem 1rem;
-          border: none;
-          border-radius: 0.5rem;
-          cursor: pointer;
-          font-size: 0.875rem;
         }
         @media (max-width: 768px) {
           .dashboard-sidebar.open {

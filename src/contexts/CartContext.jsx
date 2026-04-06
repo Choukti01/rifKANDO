@@ -1,115 +1,178 @@
-import React, { createContext, useContext, useState, useEffect } from 'react'
-import toast from 'react-hot-toast'
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import api from '../services/api';
+import toast from 'react-hot-toast';
+import { useAuth } from './AuthContext';
 
-const CartContext = createContext()
+const CartContext = createContext();
 
 export const useCart = () => {
-  const context = useContext(CartContext)
+  const context = useContext(CartContext);
   if (!context) {
-    throw new Error('useCart must be used within CartProvider')
+    throw new Error('useCart must be used within CartProvider');
   }
-  return context
-}
+  return context;
+};
 
 export const CartProvider = ({ children }) => {
-  const [cart, setCart] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [cart, setCart] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const { isAuthenticated, token } = useAuth();
 
+  // Load cart from backend when user is authenticated
   useEffect(() => {
-    const loadCart = () => {
-      try {
-        const savedCart = localStorage.getItem('rifkandi_cart')
-        if (savedCart) {
-          setCart(JSON.parse(savedCart))
-        }
-      } catch (error) {
-        console.error('Failed to load cart:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
-    loadCart()
-  }, [])
-
-  const saveCart = (newCart) => {
-    localStorage.setItem('rifkandi_cart', JSON.stringify(newCart))
-    setCart(newCart)
-  }
-
-  const addToCart = (item, quantity = 1, type = 'product') => {
-    setCart(prevCart => {
-      const existingItem = prevCart.find(i => i.id === item.id && i.type === type)
-      
-      let newCart
-      if (existingItem) {
-        newCart = prevCart.map(i =>
-          i.id === item.id && i.type === type
-            ? { ...i, quantity: i.quantity + quantity }
-            : i
-        )
-        toast.success(`Updated ${item.title} quantity`)
+    let isMounted = true;
+    
+    const loadData = async () => {
+      if (isAuthenticated && token) {
+        await loadCartFromBackend(isMounted);
       } else {
-        newCart = [...prevCart, { 
-          ...item, 
-          quantity: quantity, 
-          type: type,
-          addedAt: new Date().toISOString()
-        }]
-        toast.success(`${item.title} added to cart`)
+        loadCartFromLocal(isMounted);
       }
+    };
+    
+    loadData();
+    
+    return () => {
+      isMounted = false;
+    };
+  }, [isAuthenticated, token]);
+
+  // Load cart from backend API
+  const loadCartFromBackend = async (isMounted) => {
+    try {
+      setLoading(true);
+      const response = await api.get('/cart');
+      const cartItems = response.data.cart || [];
       
-      saveCart(newCart)
-      return newCart
-    })
-  }
+      const formattedCart = cartItems.map(item => ({
+        id: item.product_id,
+        title: item.title,
+        price: item.price,
+        image: item.image,
+        quantity: item.quantity,
+        type: 'product',
+        seller: item.seller_name || 'Seller',
+        addedAt: item.created_at
+      }));
+      
+      if (isMounted) {
+        setCart(formattedCart);
+        localStorage.setItem('rifkandi_cart', JSON.stringify(formattedCart));
+      }
+    } catch (error) {
+      console.error('Failed to load cart from backend:', error);
+      loadCartFromLocal(isMounted);
+    } finally {
+      if (isMounted) setLoading(false);
+    }
+  };
 
-  const removeFromCart = (itemId, type) => {
-    setCart(prevCart => {
-      const newCart = prevCart.filter(item => !(item.id === itemId && item.type === type))
-      saveCart(newCart)
-      toast.success('Item removed from cart')
-      return newCart
-    })
-  }
+  // Load cart from localStorage (fallback)
+  const loadCartFromLocal = (isMounted) => {
+    try {
+      const savedCart = localStorage.getItem('rifkandi_cart');
+      if (savedCart && isMounted) {
+        setCart(JSON.parse(savedCart));
+      }
+    } catch (error) {
+      console.error('Failed to load cart from localStorage:', error);
+    } finally {
+      if (isMounted) setLoading(false);
+    }
+  };
 
-  const updateQuantity = (itemId, type, quantity) => {
-    if (quantity < 1) {
-      removeFromCart(itemId, type)
-      return
+  const addToCart = async (item, quantity = 1, type = 'product') => {
+    const newCart = [...cart];
+    const existingIndex = newCart.findIndex(i => i.id === item.id && i.type === type);
+    
+    if (existingIndex !== -1) {
+      newCart[existingIndex].quantity += quantity;
+      toast.success(`Updated ${item.title} quantity`);
+    } else {
+      newCart.push({ 
+        ...item, 
+        quantity, 
+        type,
+        addedAt: new Date().toISOString()
+      });
+      toast.success(`${item.title} added to cart`);
     }
     
-    setCart(prevCart => {
-      const newCart = prevCart.map(item =>
-        item.id === itemId && item.type === type 
-          ? { ...item, quantity: quantity } 
-          : item
-      )
-      saveCart(newCart)
-      return newCart
-    })
-  }
+    setCart(newCart);
+    localStorage.setItem('rifkandi_cart', JSON.stringify(newCart));
+    
+    // Sync to backend if authenticated (don't await to avoid blocking)
+    if (isAuthenticated && token) {
+      api.post('/cart', {
+        product_id: item.id,
+        quantity: quantity
+      }).catch(error => {
+        console.error('Failed to add to backend cart:', error);
+      });
+    }
+  };
 
-  const clearCart = () => {
-    setCart([])
-    localStorage.removeItem('rifkandi_cart')
-    toast.success('Cart cleared')
-  }
+  const removeFromCart = async (itemId, type) => {
+    const newCart = cart.filter(item => !(item.id === itemId && item.type === type));
+    setCart(newCart);
+    localStorage.setItem('rifkandi_cart', JSON.stringify(newCart));
+    
+    if (isAuthenticated && token) {
+      api.delete(`/cart/${itemId}`).catch(error => {
+        console.error('Failed to remove from backend cart:', error);
+      });
+    }
+    
+    toast.success('Item removed from cart');
+  };
+
+  const updateQuantity = async (itemId, type, quantity) => {
+    if (quantity < 1) {
+      removeFromCart(itemId, type);
+      return;
+    }
+    
+    const newCart = cart.map(item =>
+      item.id === itemId && item.type === type 
+        ? { ...item, quantity } 
+        : item
+    );
+    
+    setCart(newCart);
+    localStorage.setItem('rifkandi_cart', JSON.stringify(newCart));
+    
+    if (isAuthenticated && token) {
+      api.put(`/cart/${itemId}`, { quantity }).catch(error => {
+        console.error('Failed to update backend cart:', error);
+      });
+    }
+  };
+
+  const clearCart = async () => {
+    if (isAuthenticated && token) {
+      for (const item of cart) {
+        await api.delete(`/cart/${item.id}`).catch(error => {
+          console.error('Failed to clear cart item:', error);
+        });
+      }
+    }
+    
+    setCart([]);
+    localStorage.removeItem('rifkandi_cart');
+    toast.success('Cart cleared');
+  };
 
   const getCartTotal = () => {
-    return cart.reduce((total, item) => total + (item.price * item.quantity), 0)
-  }
+    return cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+  };
 
   const getCartCount = () => {
-    return cart.reduce((count, item) => count + item.quantity, 0)
-  }
+    return cart.reduce((count, item) => count + item.quantity, 0);
+  };
 
   const getItemsByType = (type) => {
-    return cart.filter(item => item.type === type)
-  }
-
-  const cartCount = getCartCount()
-  const cartTotal = getCartTotal()
-  const isEmpty = cart.length === 0
+    return cart.filter(item => item.type === type);
+  };
 
   const value = {
     cart,
@@ -121,10 +184,14 @@ export const CartProvider = ({ children }) => {
     getCartTotal,
     getCartCount,
     getItemsByType,
-    cartCount,
-    cartTotal,
-    isEmpty
-  }
+    cartCount: getCartCount(),
+    cartTotal: getCartTotal(),
+    isEmpty: cart.length === 0
+  };
 
-  return React.createElement(CartContext.Provider, { value: value }, children)
-}
+  return (
+    <CartContext.Provider value={value}>
+      {children}
+    </CartContext.Provider>
+  );
+};

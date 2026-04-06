@@ -1,14 +1,49 @@
-import React, { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { StarIcon } from '@heroicons/react/24/outline'
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { getProducts } from '../../services/api';
+import { useCart } from '../../contexts/CartContext';
+import { useAuth } from '../../contexts/AuthContext';
+import toast from 'react-hot-toast';
 
 const ProductsPage = () => {
-  const products = [
-    { id: 1, title: 'iPhone 13 Pro', price: 9500, oldPrice: 10500, seller: 'TechStore', rating: 4.8, image: '📱', category: 'electronics' },
-    { id: 2, title: 'Nike Air Max', price: 890, seller: 'Sportify', rating: 4.5, image: '👟', category: 'fashion' },
-    { id: 3, title: 'Moroccan Leather Bag', price: 1200, oldPrice: 1500, seller: 'Artisanat Maroc', rating: 4.9, image: '👜', category: 'handicrafts' },
-    { id: 4, title: 'Smart Watch Series 7', price: 2200, seller: 'GadgetHub', rating: 4.6, image: '⌚', category: 'electronics' },
-  ]
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const { addToCart } = useCart();
+  const { isAuthenticated } = useAuth();
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      const response = await getProducts();
+      setProducts(response.data.products || []);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      toast.error('Failed to load products');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddToCart = (product) => {
+    if (!isAuthenticated) {
+      toast.error('Please login to add items to cart');
+      return;
+    }
+    addToCart(product, 1, 'product');
+  };
+
+  if (loading) {
+    return (
+      <div className="container text-center py-16">
+        <div className="spinner"></div>
+        <p>Loading products...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="products-page">
@@ -19,24 +54,35 @@ const ProductsPage = () => {
         </div>
 
         <div className="products-grid">
-          {products.map(product => (
-            <Link key={product.id} to={`/product/${product.id}`} className="product-card">
-              <div className="product-image">{product.image}</div>
-              <div className="product-content">
-                <h3>{product.title}</h3>
-                <p>{product.seller}</p>
-                <div className="product-price">
-                  <span className="current-price">{product.price} MAD</span>
-                  {product.oldPrice && <span className="old-price">{product.oldPrice} MAD</span>}
-                </div>
-                <div className="product-rating">
-                  <StarIcon className="star-icon" />
-                  <span>{product.rating}</span>
-                </div>
-                <button className="product-btn">Add to Cart</button>
+          {products.length === 0 ? (
+            <p className="text-center col-span-full">No products found</p>
+          ) : (
+            products.map(product => (
+              <div key={product.id} className="product-card">
+                <Link to={`/product/${product.id}`}>
+                  <div className="product-image">
+                    {product.image || '📦'}
+                  </div>
+                  <div className="product-content">
+                    <h3>{product.title}</h3>
+                    <p>{product.seller?.name || 'Unknown Seller'}</p>
+                    <div className="product-price">
+                      <span className="current-price">{product.price} MAD</span>
+                      {product.old_price && (
+                        <span className="old-price">{product.old_price} MAD</span>
+                      )}
+                    </div>
+                  </div>
+                </Link>
+                <button 
+                  onClick={() => handleAddToCart(product)}
+                  className="product-btn"
+                >
+                  Add to Cart
+                </button>
               </div>
-            </Link>
-          ))}
+            ))
+          )}
         </div>
       </div>
 
@@ -51,7 +97,6 @@ const ProductsPage = () => {
         }
         .products-header h1 {
           font-size: 2rem;
-          font-weight: bold;
           margin-bottom: 0.5rem;
         }
         .products-grid {
@@ -64,12 +109,15 @@ const ProductsPage = () => {
           border-radius: 1rem;
           overflow: hidden;
           box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-          text-decoration: none;
           transition: all 0.3s;
         }
         .product-card:hover {
           transform: translateY(-4px);
           box-shadow: 0 12px 24px rgba(0,0,0,0.1);
+        }
+        .product-card a {
+          text-decoration: none;
+          color: inherit;
         }
         .product-image {
           height: 200px;
@@ -86,7 +134,6 @@ const ProductsPage = () => {
           font-size: 1rem;
           font-weight: 600;
           margin-bottom: 0.25rem;
-          color: #1a1a1a;
         }
         .product-content p {
           font-size: 0.75rem;
@@ -97,7 +144,6 @@ const ProductsPage = () => {
           display: flex;
           align-items: center;
           gap: 0.5rem;
-          margin-bottom: 0.5rem;
         }
         .current-price {
           font-weight: 700;
@@ -108,27 +154,16 @@ const ProductsPage = () => {
           color: #9ca3af;
           text-decoration: line-through;
         }
-        .product-rating {
-          display: flex;
-          align-items: center;
-          gap: 0.25rem;
-          margin-bottom: 1rem;
-          color: #f59e0b;
-          font-size: 0.75rem;
-        }
-        .star-icon {
-          width: 0.875rem;
-          height: 0.875rem;
-          fill: #f59e0b;
-        }
         .product-btn {
-          width: 100%;
-          padding: 0.5rem;
+          width: calc(100% - 2rem);
+          margin: 0 1rem 1rem 1rem;
+          padding: 0.6rem;
           background: #1a1a1a;
           color: white;
           border: none;
           border-radius: 2rem;
-          font-size: 0.75rem;
+          font-size: 0.875rem;
+          font-weight: 500;
           cursor: pointer;
           transition: background 0.2s;
         }
@@ -137,7 +172,7 @@ const ProductsPage = () => {
         }
       `}</style>
     </div>
-  )
-}
+  );
+};
 
-export default ProductsPage
+export default ProductsPage;

@@ -15,11 +15,16 @@ import CourseDetailsPage from './pages/marketplace/CourseDetailsPage'
 import ServicesPage from './pages/marketplace/ServicesPage'
 import ServiceDetailsPage from './pages/marketplace/ServiceDetailsPage'
 import DigitalPage from './pages/marketplace/DigitalPage'
+import DigitalDetailsPage from './pages/marketplace/DigitalDetailsPage'
 import BookingsPage from './pages/marketplace/BookingsPage'
+import BookingDetailsPage from './pages/marketplace/BookingDetailsPage'
 import CartPage from './pages/buyer/CartPage'
 import FavoritesPage from './pages/buyer/FavoritesPage'
 import CheckoutPage from './pages/buyer/CheckoutPage'
 import OrdersPage from './pages/buyer/OrdersPage'
+import OrderDetailsPage from './pages/buyer/OrderDetailsPage'
+import MyPurchasesPage from './pages/buyer/MyPurchasesPage'
+import MyAppointmentsPage from './pages/buyer/MyAppointmentsPage'
 import LoginPage from './pages/auth/LoginPage'
 import RegisterPage from './pages/auth/RegisterPage'
 import SellerTypePage from './pages/seller/SellerTypePage'
@@ -36,6 +41,10 @@ import CoursesDashboard from './pages/seller/courses/CoursesDashboard'
 import AddCourse from './pages/seller/courses/AddCourse'
 import ServicesDashboard from './pages/seller/services/ServicesDashboard'
 import AddService from './pages/seller/services/AddService'
+import DigitalDashboard from './pages/seller/digital/DigitalDashboard'
+import AddDigitalProduct from './pages/seller/digital/AddDigitalProduct'
+import BookingsDashboard from './pages/seller/bookings/BookingsDashboard'
+import AddBooking from './pages/seller/bookings/AddBooking'
 
 // Footer Pages
 import SellerGuidelines from './pages/seller/SellerGuidelines'
@@ -50,6 +59,9 @@ import { AuthProvider } from './contexts/AuthContext'
 import { CartProvider } from './contexts/CartContext'
 import { FavoritesProvider } from './contexts/FavoritesContext'
 
+// Protected Route Component
+import ProtectedRoute from './components/common/ProtectedRoute'
+
 function App() {
   return (
     <BrowserRouter>
@@ -60,7 +72,7 @@ function App() {
               <Navbar />
               <main style={{ flexGrow: 1, paddingTop: '80px' }}>
                 <Routes>
-                  {/* Main Pages */}
+                  {/* Public Routes */}
                   <Route path="/" element={<HomePage />} />
                   <Route path="/products" element={<ProductsPage />} />
                   <Route path="/product/:id" element={<ProductDetailsPage />} />
@@ -69,22 +81,14 @@ function App() {
                   <Route path="/services" element={<ServicesPage />} />
                   <Route path="/service/:id" element={<ServiceDetailsPage />} />
                   <Route path="/digital" element={<DigitalPage />} />
+                  <Route path="/digital/:id" element={<DigitalDetailsPage />} />
                   <Route path="/bookings" element={<BookingsPage />} />
-                  
-                  {/* Buyer Pages */}
-                  <Route path="/cart" element={<CartPage />} />
-                  <Route path="/favorites" element={<FavoritesPage />} />
-                  <Route path="/checkout" element={<CheckoutPage />} />
-                  <Route path="/orders" element={<OrdersPage />} />
+                  <Route path="/booking/:id" element={<BookingDetailsPage />} />
+                  <Route path="/search" element={<SearchPage />} />
                   
                   {/* Auth Pages */}
                   <Route path="/login" element={<LoginPage />} />
                   <Route path="/register" element={<RegisterPage />} />
-                  
-                  {/* Seller Pages */}
-                  <Route path="/choose-seller-type" element={<SellerTypePage />} />
-                  <Route path="/profile" element={<ProfilePage />} />
-                  <Route path="/search" element={<SearchPage />} />
                   
                   {/* Footer Pages */}
                   <Route path="/seller-guidelines" element={<SellerGuidelines />} />
@@ -94,8 +98,59 @@ function App() {
                   <Route path="/terms" element={<TermsPage />} />
                   <Route path="/privacy" element={<PrivacyPage />} />
 
-                  {/* Seller Dashboard Routes */}
-                  <Route path="/seller/dashboard" element={<DashboardLayout />}>
+                  {/* Protected Routes - Require Authentication */}
+                  <Route path="/cart" element={
+                    <ProtectedRoute>
+                      <CartPage />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/favorites" element={
+                    <ProtectedRoute>
+                      <FavoritesPage />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/checkout" element={
+                    <ProtectedRoute>
+                      <CheckoutPage />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/orders" element={
+                    <ProtectedRoute>
+                      <OrdersPage />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/orders/:id" element={
+                    <ProtectedRoute>
+                      <OrderDetailsPage />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/my-purchases" element={
+                    <ProtectedRoute>
+                      <MyPurchasesPage />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/my-appointments" element={
+                    <ProtectedRoute>
+                      <MyAppointmentsPage />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/profile" element={
+                    <ProtectedRoute>
+                      <ProfilePage />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/choose-seller-type" element={
+                    <ProtectedRoute>
+                      <SellerTypePage />
+                    </ProtectedRoute>
+                  } />
+
+                  {/* Seller Dashboard Routes - Require Seller Role */}
+                  <Route path="/seller/dashboard" element={
+                    <ProtectedRoute requiredRole="seller">
+                      <DashboardLayout />
+                    </ProtectedRoute>
+                  }>
                     <Route index element={<Overview />} />
                     <Route path="overview" element={<Overview />} />
                     <Route path="earnings" element={<Earnings />} />
@@ -105,6 +160,10 @@ function App() {
                     <Route path="courses/add" element={<AddCourse />} />
                     <Route path="services" element={<ServicesDashboard />} />
                     <Route path="services/add" element={<AddService />} />
+                    <Route path="digital" element={<DigitalDashboard />} />
+                    <Route path="digital/add" element={<AddDigitalProduct />} />
+                    <Route path="bookings" element={<BookingsDashboard />} />
+                    <Route path="bookings/add" element={<AddBooking />} />
                   </Route>
                 </Routes>
               </main>

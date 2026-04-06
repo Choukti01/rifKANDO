@@ -1,11 +1,14 @@
 import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { MagnifyingGlassIcon, ShoppingBagIcon, HeartIcon, UserIcon, Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline'
+import { MagnifyingGlassIcon, ShoppingBagIcon, HeartIcon, UserIcon, Bars3Icon, XMarkIcon, ChevronDownIcon } from '@heroicons/react/24/outline'
+import { useAuth } from '../../contexts/AuthContext'
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const navigate = useNavigate()
+  const { user, logout, isAuthenticated } = useAuth()
 
   const handleSearch = (e) => {
     e.preventDefault()
@@ -14,6 +17,12 @@ const Navbar = () => {
       setSearchQuery('')
       setIsMenuOpen(false)
     }
+  }
+
+  const handleLogout = () => {
+    logout()
+    setIsProfileOpen(false)
+    navigate('/')
   }
 
   const navLinks = [
@@ -74,9 +83,60 @@ const Navbar = () => {
               <Link to="/cart" className="nav-icon">
                 <ShoppingBagIcon className="icon" />
               </Link>
-              <Link to="/login" className="nav-icon nav-icon-desktop">
-                <UserIcon className="icon" />
-              </Link>
+              
+              {/* Profile Dropdown */}
+              <div className="profile-dropdown">
+                <button 
+                  onClick={() => setIsProfileOpen(!isProfileOpen)}
+                  className="nav-icon profile-btn"
+                >
+                  <UserIcon className="icon" />
+                  {isAuthenticated && user && (
+                    <span className="user-name">
+                      {user.name?.split(' ')[0]}
+                    </span>
+                  )}
+                  <ChevronDownIcon className="chevron-icon" />
+                </button>
+
+                {isProfileOpen && (
+                  <div className="dropdown-menu">
+                    {isAuthenticated ? (
+                      <>
+                        <div className="dropdown-header">
+                          <p className="dropdown-name">{user?.name}</p>
+                          <p className="dropdown-email">{user?.email}</p>
+                        </div>
+                        <Link to="/profile" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>
+                          My Profile
+                        </Link>
+                        <Link to="/orders" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>
+                          My Orders
+                        </Link>
+                        <Link to="/favorites" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>
+                          Favorites
+                        </Link>
+                        <Link to="/choose-seller-type" className="dropdown-item seller-link" onClick={() => setIsProfileOpen(false)}>
+                          Become a Seller
+                        </Link>
+                        <button onClick={handleLogout} className="dropdown-item logout-btn">
+                          Logout
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <Link to="/login" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>
+                          Login
+                        </Link>
+                        <Link to="/register" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>
+                          Register
+                        </Link>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+
               <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="mobile-menu-btn">
                 {isMenuOpen ? <XMarkIcon className="icon" /> : <Bars3Icon className="icon" />}
               </button>
@@ -109,8 +169,19 @@ const Navbar = () => {
               </Link>
             ))}
             <div className="mobile-menu-divider"></div>
-            <Link to="/login" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>Login</Link>
-            <Link to="/register" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>Register</Link>
+            {isAuthenticated ? (
+              <>
+                <Link to="/profile" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>My Profile</Link>
+                <Link to="/orders" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>My Orders</Link>
+                <Link to="/favorites" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>Favorites</Link>
+                <button onClick={handleLogout} className="mobile-nav-link logout-mobile">Logout</button>
+              </>
+            ) : (
+              <>
+                <Link to="/login" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>Login</Link>
+                <Link to="/register" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>Register</Link>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -131,7 +202,6 @@ const Navbar = () => {
           align-items: center;
           justify-content: space-between;
         }
-        /* Brand Section */
         .brand-link {
           display: flex;
           align-items: center;
@@ -160,7 +230,6 @@ const Navbar = () => {
         .brand-accent {
           color: var(--color-primary);
         }
-        /* Desktop Navigation */
         .nav-links-desktop {
           display: none;
           align-items: center;
@@ -192,7 +261,6 @@ const Navbar = () => {
         .nav-link:hover::after {
           width: 100%;
         }
-        /* Search Bar */
         .search-form-desktop {
           display: none;
           flex: 1;
@@ -227,7 +295,6 @@ const Navbar = () => {
           background: var(--color-white);
           box-shadow: 0 0 0 3px rgba(135,206,235,0.1);
         }
-        /* Icons */
         .nav-icons {
           display: flex;
           align-items: center;
@@ -238,6 +305,10 @@ const Navbar = () => {
           transition: color 0.2s;
           display: flex;
           align-items: center;
+          gap: 0.25rem;
+          background: none;
+          border: none;
+          cursor: pointer;
         }
         .nav-icon:hover {
           color: var(--color-primary);
@@ -246,6 +317,75 @@ const Navbar = () => {
           width: 1.25rem;
           height: 1.25rem;
         }
+        .user-name {
+          font-size: 0.9rem;
+          font-weight: 500;
+          display: none;
+        }
+        .chevron-icon {
+          width: 0.875rem;
+          height: 0.875rem;
+          display: none;
+        }
+        .profile-dropdown {
+          position: relative;
+        }
+        .profile-btn {
+          display: flex;
+          align-items: center;
+          gap: 0.25rem;
+        }
+        .dropdown-menu {
+          position: absolute;
+          right: 0;
+          top: 100%;
+          margin-top: 0.5rem;
+          width: 220px;
+          background: white;
+          border-radius: 0.75rem;
+          box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+          z-index: 100;
+          overflow: hidden;
+        }
+        .dropdown-header {
+          padding: 0.75rem 1rem;
+          border-bottom: 1px solid var(--color-gray-200);
+          background: var(--color-gray-50);
+        }
+        .dropdown-name {
+          font-weight: 600;
+          font-size: 0.875rem;
+          margin-bottom: 0.25rem;
+        }
+        .dropdown-email {
+          font-size: 0.75rem;
+          color: var(--color-gray-500);
+        }
+        .dropdown-item {
+          display: block;
+          padding: 0.625rem 1rem;
+          font-size: 0.875rem;
+          color: var(--color-gray-700);
+          text-decoration: none;
+          transition: background 0.2s;
+          width: 100%;
+          text-align: left;
+          background: none;
+          border: none;
+          cursor: pointer;
+        }
+        .dropdown-item:hover {
+          background: var(--color-gray-100);
+        }
+        .seller-link {
+          color: var(--color-primary);
+          border-top: 1px solid var(--color-gray-200);
+          margin-top: 0.25rem;
+        }
+        .logout-btn {
+          color: var(--color-error);
+          border-top: 1px solid var(--color-gray-200);
+        }
         .mobile-menu-btn {
           background: none;
           border: none;
@@ -253,7 +393,6 @@ const Navbar = () => {
           color: var(--color-gray-600);
           display: block;
         }
-        /* Mobile Menu */
         .mobile-menu {
           position: fixed;
           top: 4rem;
@@ -292,7 +431,14 @@ const Navbar = () => {
           background: var(--color-gray-200);
           margin: 0.75rem 0;
         }
-        /* Desktop Styles */
+        .logout-mobile {
+          color: var(--color-error);
+          width: 100%;
+          text-align: left;
+          background: none;
+          border: none;
+          cursor: pointer;
+        }
         @media (min-width: 768px) {
           .nav-links-desktop {
             display: flex;
@@ -300,14 +446,16 @@ const Navbar = () => {
           .search-form-desktop {
             display: block;
           }
-          .nav-icon-desktop {
-            display: block;
-          }
           .mobile-menu-btn {
             display: none;
           }
+          .user-name {
+            display: inline;
+          }
+          .chevron-icon {
+            display: inline;
+          }
         }
-        /* Responsive Adjustments */
         @media (max-width: 1024px) {
           .brand-link {
             margin-right: 1.5rem;

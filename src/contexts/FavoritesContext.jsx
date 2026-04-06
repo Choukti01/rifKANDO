@@ -1,86 +1,98 @@
-import React, { createContext, useContext, useState, useEffect } from 'react'
-import toast from 'react-hot-toast'
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { getFavorites, addToFavorites, removeFromFavorites } from '../services/api';
+import { useAuth } from './AuthContext';
+import toast from 'react-hot-toast';
 
-const FavoritesContext = createContext()
+const FavoritesContext = createContext();
 
 export const useFavorites = () => {
-  const context = useContext(FavoritesContext)
+  const context = useContext(FavoritesContext);
   if (!context) {
-    throw new Error('useFavorites must be used within FavoritesProvider')
+    throw new Error('useFavorites must be used within FavoritesProvider');
   }
-  return context
-}
+  return context;
+};
 
 export const FavoritesProvider = ({ children }) => {
-  const [favorites, setFavorites] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [favorites, setFavorites] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const { isAuthenticated, token } = useAuth();
 
   useEffect(() => {
-    const loadFavorites = () => {
-      try {
-        const savedFavorites = localStorage.getItem('rifkandi_favorites')
-        if (savedFavorites) {
-          setFavorites(JSON.parse(savedFavorites))
-        }
-      } catch (error) {
-        console.error('Failed to load favorites:', error)
-      } finally {
-        setLoading(false)
-      }
+    if (isAuthenticated && token) {
+      loadFavorites();
+    } else {
+      setFavorites([]);
+      setLoading(false);
     }
-    loadFavorites()
-  }, [])
+  }, [isAuthenticated, token]);
 
-  const saveFavorites = (newFavorites) => {
-    localStorage.setItem('rifkandi_favorites', JSON.stringify(newFavorites))
-    setFavorites(newFavorites)
-  }
+  const loadFavorites = async () => {
+    try {
+      setLoading(true);
+      const response = await getFavorites();
+      setFavorites(response.data.favorites || []);
+    } catch (error) {
+      console.error('Failed to load favorites:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const addToFavorites = (item, type = 'product') => {
-    setFavorites(prev => {
-      const existing = prev.find(f => f.id === item.id && f.type === type)
-      if (existing) {
-        toast.error(`${item.title} is already in favorites`)
-        return prev
+  const addToFavoritesHandler = async (item, type) => {
+    if (!isAuthenticated) {
+      toast.error('Please login to add to favorites');
+      return false;
+    }
+
+    try {
+      await addToFavorites(item.id, type);
+      await loadFavorites();
+      toast.success(`${item.title} added to favorites`);
+      return true;
+    } catch (error) {
+      if (error.response?.data?.error === 'Item already in favorites') {
+        toast.error('Item already in favorites');
+      } else {
+        toast.error('Failed to add to favorites');
       }
-      
-      const newFavorites = [...prev, { ...item, type: type, addedAt: new Date().toISOString() }]
-      saveFavorites(newFavorites)
-      toast.success(`${item.title} added to favorites`)
-      return newFavorites
-    })
-  }
+      return false;
+    }
+  };
 
-  const removeFromFavorites = (itemId, type) => {
-    setFavorites(prev => {
-      const newFavorites = prev.filter(item => !(item.id === itemId && item.type === type))
-      saveFavorites(newFavorites)
-      toast.success('Removed from favorites')
-      return newFavorites
-    })
-  }
+  const removeFromFavoritesHandler = async (itemId, type) => {
+    if (!isAuthenticated) {
+      return false;
+    }
+
+    try {
+      await removeFromFavorites(itemId, type);
+      setFavorites(prev => prev.filter(fav => !(fav.item_id === itemId && fav.type === type)));
+      toast.success('Removed from favorites');
+      return true;
+    } catch (error) {
+      toast.error('Failed to remove from favorites');
+      return false;
+    }
+  };
 
   const isFavorite = (itemId, type) => {
-    return favorites.some(item => item.id === itemId && item.type === type)
-  }
-
-  const getFavoritesByType = (type) => {
-    return favorites.filter(item => item.type === type)
-  }
-
-  const favoritesCount = favorites.length
-  const isEmpty = favorites.length === 0
+    return favorites.some(fav => fav.item_id === itemId && fav.type === type);
+  };
 
   const value = {
     favorites,
     loading,
-    addToFavorites,
-    removeFromFavorites,
+    addToFavorites: addToFavoritesHandler,
+    removeFromFavorites: removeFromFavoritesHandler,
     isFavorite,
-    getFavoritesByType,
-    favoritesCount,
-    isEmpty
-  }
+    favoritesCount: favorites.length,
+    isEmpty: favorites.length === 0
+  };
 
-  return React.createElement(FavoritesContext.Provider, { value: value }, children)
-}
+  return (
+    <FavoritesContext.Provider value={value}>
+      {children}
+    </FavoritesContext.Provider>
+  );
+};

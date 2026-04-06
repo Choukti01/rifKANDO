@@ -1,29 +1,86 @@
-import React, { useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
-import { StarIcon, HeartIcon, TruckIcon, ShieldCheckIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
+import React, { useState, useEffect } from 'react';
+import { useParams, Link } from 'react-router-dom';
+import { StarIcon, HeartIcon, TruckIcon, ShieldCheckIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import { useCart } from '../../contexts/CartContext';
+import { useFavorites } from '../../contexts/FavoritesContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { getProduct } from '../../services/api';
+import toast from 'react-hot-toast';
 
 const ProductDetailsPage = () => {
-  const { id } = useParams()
-  const [quantity, setQuantity] = useState(1)
-  const [activeTab, setActiveTab] = useState('description')
+  const { id } = useParams();
+  const [product, setProduct] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [quantity, setQuantity] = useState(1);
+  const [activeTab, setActiveTab] = useState('description');
+  const [isFav, setIsFav] = useState(false);
+  
+  const { addToCart } = useCart();
+  const { addToFavorites, removeFromFavorites, isFavorite } = useFavorites();
+  const { isAuthenticated } = useAuth();
 
-  const product = {
-    id: 1,
-    title: 'iPhone 13 Pro',
-    price: 9500,
-    oldPrice: 10500,
-    seller: 'TechStore',
-    rating: 4.8,
-    reviews: 128,
-    inStock: true,
-    image: '📱',
-    description: 'The iPhone 13 Pro features the A15 Bionic chip, Pro camera system, and Super Retina XDR display.',
-    specifications: [
-      { label: 'Display', value: '6.1-inch Super Retina XDR' },
-      { label: 'Processor', value: 'A15 Bionic' },
-      { label: 'Camera', value: 'Triple 12MP system' },
-      { label: 'Battery', value: 'Up to 22 hours' },
-    ]
+  useEffect(() => {
+    fetchProduct();
+  }, [id]);
+
+  useEffect(() => {
+    if (product && isAuthenticated) {
+      setIsFav(isFavorite(product.id, 'product'));
+    }
+  }, [product, isAuthenticated, isFavorite]);
+
+  const fetchProduct = async () => {
+    try {
+      setLoading(true);
+      const response = await getProduct(id);
+      setProduct(response.data.product);
+    } catch (error) {
+      console.error('Error fetching product:', error);
+      toast.error('Failed to load product');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddToCart = () => {
+    if (!isAuthenticated) {
+      toast.error('Please login to add items to cart');
+      return;
+    }
+    addToCart(product, quantity, 'product');
+  };
+
+  const handleFavorite = async () => {
+    if (!isAuthenticated) {
+      toast.error('Please login to add to favorites');
+      return;
+    }
+    
+    if (isFav) {
+      const success = await removeFromFavorites(product.id, 'product');
+      if (success) setIsFav(false);
+    } else {
+      const success = await addToFavorites(product, 'product');
+      if (success) setIsFav(true);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="container text-center py-16">
+        <div className="spinner"></div>
+        <p>Loading product...</p>
+      </div>
+    );
+  }
+
+  if (!product) {
+    return (
+      <div className="container text-center py-16">
+        <p>Product not found</p>
+        <Link to="/products" className="btn btn-primary mt-4">Back to Products</Link>
+      </div>
+    );
   }
 
   return (
@@ -31,7 +88,7 @@ const ProductDetailsPage = () => {
       <div className="container">
         <div className="product-grid">
           <div className="product-image">
-            <div className="image-placeholder">{product.image}</div>
+            <div className="image-placeholder">{product.image || '📦'}</div>
           </div>
 
           <div className="product-info">
@@ -39,21 +96,25 @@ const ProductDetailsPage = () => {
             <div className="product-meta">
               <div className="product-rating">
                 <StarIcon className="star-icon" />
-                <span>{product.rating}</span>
-                <span className="review-count">({product.reviews} reviews)</span>
+                <span>{product.rating || 0}</span>
+                <span className="review-count">({product.reviewsCount || 0} reviews)</span>
               </div>
               <div className="product-seller">
-                by <span>{product.seller}</span>
+                by <span>{product.seller?.name || 'Unknown Seller'}</span>
               </div>
             </div>
 
             <div className="product-price">
               <span className="current-price">{product.price} MAD</span>
-              {product.oldPrice && <span className="old-price">{product.oldPrice} MAD</span>}
+              {product.old_price && <span className="old-price">{product.old_price} MAD</span>}
             </div>
 
             <div className="product-stock">
-              {product.inStock ? <span className="in-stock">In Stock</span> : <span className="out-of-stock">Out of Stock</span>}
+              {product.stock > 0 ? (
+                <span className="in-stock">In Stock ({product.stock} available)</span>
+              ) : (
+                <span className="out-of-stock">Out of Stock</span>
+              )}
             </div>
 
             <div className="product-quantity">
@@ -66,9 +127,15 @@ const ProductDetailsPage = () => {
             </div>
 
             <div className="product-actions">
-              <button className="add-to-cart-btn">Add to Cart</button>
-              <button className="favorite-btn">
-                <HeartIcon className="heart-icon" />
+              <button 
+                className="add-to-cart-btn" 
+                onClick={handleAddToCart}
+                disabled={product.stock === 0}
+              >
+                Add to Cart
+              </button>
+              <button className="favorite-btn" onClick={handleFavorite}>
+                <HeartIcon className={`heart-icon ${isFav ? 'text-red-500 fill-current' : ''}`} />
               </button>
             </div>
 
@@ -98,12 +165,18 @@ const ProductDetailsPage = () => {
             {activeTab === 'description' && <p>{product.description}</p>}
             {activeTab === 'specifications' && (
               <div className="specs-list">
-                {product.specifications.map(spec => (
-                  <div key={spec.label} className="spec-item">
-                    <span className="spec-label">{spec.label}</span>
-                    <span className="spec-value">{spec.value}</span>
-                  </div>
-                ))}
+                <div className="spec-item">
+                  <span className="spec-label">Category</span>
+                  <span className="spec-value">{product.category}</span>
+                </div>
+                <div className="spec-item">
+                  <span className="spec-label">Stock</span>
+                  <span className="spec-value">{product.stock} units</span>
+                </div>
+                <div className="spec-item">
+                  <span className="spec-label">Sold</span>
+                  <span className="spec-value">{product.sold || 0} units</span>
+                </div>
               </div>
             )}
           </div>
@@ -209,6 +282,10 @@ const ProductDetailsPage = () => {
           border-radius: 2rem;
           cursor: pointer;
         }
+        .add-to-cart-btn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
         .favorite-btn {
           padding: 0.75rem;
           border: 1px solid #e5e7eb;
@@ -219,6 +296,12 @@ const ProductDetailsPage = () => {
         .heart-icon {
           width: 1.25rem;
           height: 1.25rem;
+        }
+        .text-red-500 {
+          color: #ef4444;
+        }
+        .fill-current {
+          fill: currentColor;
         }
         .product-shipping {
           border-top: 1px solid #e5e7eb;
@@ -280,7 +363,7 @@ const ProductDetailsPage = () => {
         }
       `}</style>
     </div>
-  )
-}
+  );
+};
 
-export default ProductDetailsPage
+export default ProductDetailsPage;

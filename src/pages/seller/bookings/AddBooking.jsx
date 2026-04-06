@@ -4,7 +4,7 @@ import api from '../../../services/api';
 import { useAuth } from '../../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 
-const AddCourse = () => {
+const AddBooking = () => {
   const navigate = useNavigate();
   const { token } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -13,11 +13,12 @@ const AddCourse = () => {
     description: '',
     price: '',
     old_price: '',
-    level: 'beginner',
-    category: 'programming',
-    duration: '',
-    image: '📚',
-    what_you_learn: ''
+    category: 'consultation',
+    duration: '60',
+    location_type: 'online',
+    location: '',
+    max_participants: '1',
+    image: '📅'
   });
 
   const handleChange = (e) => {
@@ -29,59 +30,54 @@ const AddCourse = () => {
     setLoading(true);
     
     try {
-      const whatYouLearnArray = formData.what_you_learn
-        .split('\n')
-        .filter(item => item.trim())
-        .map(item => item.trim());
-      
-      const courseData = {
+      const bookingData = {
         ...formData,
         price: parseFloat(formData.price),
         old_price: formData.old_price ? parseFloat(formData.old_price) : null,
-        duration: parseInt(formData.duration) || 0,
-        what_you_learn: JSON.stringify(whatYouLearnArray)
+        duration: parseInt(formData.duration),
+        max_participants: parseInt(formData.max_participants)
       };
       
-      await api.post('/courses', courseData, {
+      await api.post('/bookings', bookingData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
-      toast.success('Course created successfully!');
-      navigate('/seller/dashboard/courses');
+      toast.success('Booking service created successfully!');
+      navigate('/seller/dashboard/bookings');
     } catch (error) {
-      console.error('Error creating course:', error);
-      toast.error(error.response?.data?.error || 'Failed to create course');
+      console.error('Error creating booking:', error);
+      toast.error(error.response?.data?.error || 'Failed to create booking');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="add-course">
-      <h2>Create New Course</h2>
-      <form onSubmit={handleSubmit} className="course-form">
+    <div className="add-booking">
+      <h2>Add Booking Service</h2>
+      <form onSubmit={handleSubmit} className="booking-form">
         <div className="form-group">
-          <label>Course Title *</label>
+          <label>Service Title *</label>
           <input
             type="text"
             name="title"
             value={formData.title}
             onChange={handleChange}
             className="form-input"
-            placeholder="e.g., Complete React.js Course"
+            placeholder="e.g., Business Consultation"
             required
           />
         </div>
 
         <div className="form-group">
-          <label>Course Description *</label>
+          <label>Description *</label>
           <textarea
             name="description"
             value={formData.description}
             onChange={handleChange}
             className="form-input"
             rows="4"
-            placeholder="Describe what students will learn..."
+            placeholder="Describe your service..."
             required
           />
         </div>
@@ -95,7 +91,7 @@ const AddCourse = () => {
               value={formData.price}
               onChange={handleChange}
               className="form-input"
-              placeholder="499"
+              placeholder="500"
               required
             />
           </div>
@@ -107,26 +103,12 @@ const AddCourse = () => {
               value={formData.old_price}
               onChange={handleChange}
               className="form-input"
-              placeholder="999"
+              placeholder="800"
             />
           </div>
         </div>
 
         <div className="form-row">
-          <div className="form-group">
-            <label>Level *</label>
-            <select
-              name="level"
-              value={formData.level}
-              onChange={handleChange}
-              className="form-input"
-              required
-            >
-              <option value="beginner">Beginner</option>
-              <option value="intermediate">Intermediate</option>
-              <option value="advanced">Advanced</option>
-            </select>
-          </div>
           <div className="form-group">
             <label>Category *</label>
             <select
@@ -136,61 +118,86 @@ const AddCourse = () => {
               className="form-input"
               required
             >
-              <option value="programming">Programming</option>
-              <option value="design">Design</option>
-              <option value="marketing">Marketing</option>
-              <option value="business">Business</option>
-              <option value="languages">Languages</option>
+              <option value="consultation">Consultation</option>
+              <option value="training">Training</option>
+              <option value="classes">Classes</option>
+              <option value="events">Events</option>
             </select>
           </div>
-        </div>
-
-        <div className="form-row">
           <div className="form-group">
-            <label>Duration (hours) *</label>
+            <label>Duration (minutes) *</label>
             <input
               type="number"
               name="duration"
               value={formData.duration}
               onChange={handleChange}
               className="form-input"
-              placeholder="15"
+              placeholder="60"
               required
             />
           </div>
+        </div>
+
+        <div className="form-row">
           <div className="form-group">
-            <label>Course Icon/Image</label>
+            <label>Location Type *</label>
+            <select
+              name="location_type"
+              value={formData.location_type}
+              onChange={handleChange}
+              className="form-input"
+            >
+              <option value="online">Online (Video Call)</option>
+              <option value="in_person">In Person</option>
+            </select>
+          </div>
+          {formData.location_type === 'in_person' && (
+            <div className="form-group">
+              <label>Location Address</label>
+              <input
+                type="text"
+                name="location"
+                value={formData.location}
+                onChange={handleChange}
+                className="form-input"
+                placeholder="Office address"
+              />
+            </div>
+          )}
+        </div>
+
+        <div className="form-row">
+          <div className="form-group">
+            <label>Max Participants</label>
+            <input
+              type="number"
+              name="max_participants"
+              value={formData.max_participants}
+              onChange={handleChange}
+              className="form-input"
+              placeholder="1"
+            />
+          </div>
+          <div className="form-group">
+            <label>Service Icon</label>
             <input
               type="text"
               name="image"
               value={formData.image}
               onChange={handleChange}
               className="form-input"
-              placeholder="📚"
+              placeholder="📅"
             />
           </div>
         </div>
 
-        <div className="form-group">
-          <label>What Students Will Learn (one per line)</label>
-          <textarea
-            name="what_you_learn"
-            value={formData.what_you_learn}
-            onChange={handleChange}
-            className="form-input"
-            rows="4"
-            placeholder="Build React applications from scratch&#10;Master React Hooks and Context API&#10;Learn React Router for navigation"
-          />
-          <small>Enter each point on a new line</small>
-        </div>
-
         <div className="form-actions">
           <button type="submit" className="btn btn-primary" disabled={loading}>
-            {loading ? 'Creating...' : 'Create Course'}
+            {loading ? 'Creating...' : 'Create Service'}
           </button>
           <button
             type="button"
-            onClick={() => navigate('/seller/dashboard/courses')}
+            onClick={() => navigate('/seller/dashboard/bookings')}
             className="btn btn-outline"
           >
             Cancel
@@ -199,15 +206,15 @@ const AddCourse = () => {
       </form>
 
       <style>{`
-        .add-course {
+        .add-booking {
           max-width: 800px;
           margin: 0 auto;
         }
-        .add-course h2 {
+        .add-booking h2 {
           font-size: 1.25rem;
           margin-bottom: 1.5rem;
         }
-        .course-form {
+        .booking-form {
           background: white;
           border-radius: 1rem;
           padding: 1.5rem;
@@ -239,15 +246,24 @@ const AddCourse = () => {
           gap: 1rem;
           margin-top: 1.5rem;
         }
-        small {
-          display: block;
-          font-size: 0.7rem;
-          color: #6b7280;
-          margin-top: 0.25rem;
+        .btn-primary {
+          background: #1a1a1a;
+          color: white;
+          padding: 0.625rem 1.25rem;
+          border: none;
+          border-radius: 0.5rem;
+          cursor: pointer;
+        }
+        .btn-outline {
+          background: transparent;
+          border: 1px solid #e5e7eb;
+          padding: 0.625rem 1.25rem;
+          border-radius: 0.5rem;
+          cursor: pointer;
         }
       `}</style>
     </div>
   );
 };
 
-export default AddCourse;
+export default AddBooking;

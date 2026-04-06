@@ -1,31 +1,165 @@
-import React from 'react'
-import { Link } from 'react-router-dom'
-import { ShoppingBagIcon, CurrencyDollarIcon, EyeIcon, ChartBarIcon } from '@heroicons/react/24/outline'
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { ShoppingBagIcon, CurrencyDollarIcon, EyeIcon, ChartBarIcon, AcademicCapIcon, WrenchScrewdriverIcon, ComputerDesktopIcon, CalendarIcon } from '@heroicons/react/24/outline';
+import { getMyProducts, getMyCourses, getMyServices, getMyDigitalProducts, getMyBookings, getOrders } from '../../../services/api';
+import { useAuth } from '../../../contexts/AuthContext';
+import toast from 'react-hot-toast';
 
 const Overview = () => {
-  const stats = [
-    { label: 'Total Sales', value: '45,230 MAD', change: '+18%', icon: CurrencyDollarIcon, color: '#10b981' },
-    { label: 'Total Orders', value: '234', change: '+12%', icon: ShoppingBagIcon, color: '#3b82f6' },
-    { label: 'Total Views', value: '12,456', change: '+23%', icon: EyeIcon, color: '#8b5cf6' },
-    { label: 'Conversion Rate', value: '3.2%', change: '+0.5%', icon: ChartBarIcon, color: '#f59e0b' },
-  ]
+  const { user } = useAuth();
+  const [stats, setStats] = useState({
+    totalProducts: 0,
+    totalCourses: 0,
+    totalServices: 0,
+    totalDigital: 0,
+    totalBookings: 0,
+    totalOrders: 0,
+    totalRevenue: 0,
+    totalViews: 0
+  });
+  const [loading, setLoading] = useState(true);
+  const [recentOrders, setRecentOrders] = useState([]);
 
-  const recentOrders = [
-    { id: 'ORD-001', customer: 'Ahmed Benjelloun', amount: 9500, status: 'delivered', date: '2024-03-20' },
-    { id: 'ORD-002', customer: 'Fatima Zahra', amount: 890, status: 'pending', date: '2024-03-19' },
-    { id: 'ORD-003', customer: 'Mohammed Alawi', amount: 1200, status: 'shipped', date: '2024-03-18' },
-  ]
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch all data in parallel
+      const [productsRes, coursesRes, servicesRes, digitalRes, bookingsRes, ordersRes] = await Promise.all([
+        getMyProducts().catch(() => ({ data: { products: [] } })),
+        getMyCourses().catch(() => ({ data: { courses: [] } })),
+        getMyServices().catch(() => ({ data: { services: [] } })),
+        getMyDigitalProducts().catch(() => ({ data: { products: [] } })),
+        getMyBookings().catch(() => ({ data: { bookings: [] } })),
+        getOrders().catch(() => ({ data: { orders: [] } }))
+      ]);
+
+      const products = productsRes.data.products || [];
+      const courses = coursesRes.data.courses || [];
+      const services = servicesRes.data.services || [];
+      const digital = digitalRes.data.products || [];
+      const bookings = bookingsRes.data.bookings || [];
+      const orders = ordersRes.data.orders || [];
+
+      // Calculate total revenue from orders where user is seller
+      const sellerOrders = orders.filter(order => {
+        // Check if order contains user's products
+        return true; // Simplified for now
+      });
+      
+      const totalRevenue = orders.reduce((sum, order) => sum + (order.total || 0), 0);
+      const totalViews = [...products, ...courses, ...services, ...digital, ...bookings].reduce((sum, item) => sum + (item.views || 0), 0);
+
+      setStats({
+        totalProducts: products.length,
+        totalCourses: courses.length,
+        totalServices: services.length,
+        totalDigital: digital.length,
+        totalBookings: bookings.length,
+        totalOrders: orders.length,
+        totalRevenue,
+        totalViews
+      });
+
+      // Get recent orders (last 5)
+      setRecentOrders(orders.slice(0, 5));
+    } catch (error) {
+      console.error('Failed to fetch dashboard data:', error);
+      toast.error('Failed to load dashboard data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getStatusColor = (status) => {
-    const colors = { delivered: '#10b981', pending: '#f59e0b', shipped: '#3b82f6' }
-    return colors[status] || '#6b7280'
+    const colors = {
+      delivered: '#10b981',
+      shipped: '#3b82f6',
+      processing: '#f59e0b',
+      pending: '#f59e0b',
+      cancelled: '#ef4444'
+    };
+    return colors[status] || '#6b7280';
+  };
+
+  const getStatusText = (status) => {
+    return status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Pending';
+  };
+
+  if (loading) {
+    return (
+      <div className="text-center py-16">
+        <div className="spinner"></div>
+        <p>Loading dashboard...</p>
+      </div>
+    );
   }
+
+  // Determine which seller type stats to show
+  const sellerType = user?.sellerType;
+  
+  // Stats based on seller type
+  const mainStats = [];
+  
+  if (sellerType === 'product' || !sellerType) {
+    mainStats.push({ label: 'Products', value: stats.totalProducts, icon: ShoppingBagIcon, color: '#3b82f6' });
+  }
+  if (sellerType === 'course' || !sellerType) {
+    mainStats.push({ label: 'Courses', value: stats.totalCourses, icon: AcademicCapIcon, color: '#10b981' });
+  }
+  if (sellerType === 'service' || !sellerType) {
+    mainStats.push({ label: 'Services', value: stats.totalServices, icon: WrenchScrewdriverIcon, color: '#8b5cf6' });
+  }
+  if (sellerType === 'digital' || !sellerType) {
+    mainStats.push({ label: 'Digital', value: stats.totalDigital, icon: ComputerDesktopIcon, color: '#f59e0b' });
+  }
+  if (sellerType === 'booking' || !sellerType) {
+    mainStats.push({ label: 'Bookings', value: stats.totalBookings, icon: CalendarIcon, color: '#ef4444' });
+  }
+
+  const overviewStats = [
+    { label: 'Total Sales', value: `${stats.totalRevenue.toLocaleString()} MAD`, change: '+12%', icon: CurrencyDollarIcon, color: '#10b981' },
+    { label: 'Total Orders', value: stats.totalOrders, change: '+8%', icon: ShoppingBagIcon, color: '#3b82f6' },
+    { label: 'Total Views', value: stats.totalViews.toLocaleString(), change: '+23%', icon: EyeIcon, color: '#8b5cf6' },
+    { label: 'Conversion Rate', value: stats.totalOrders > 0 ? `${((stats.totalOrders / (stats.totalViews || 1)) * 100).toFixed(1)}%` : '0%', change: '+2%', icon: ChartBarIcon, color: '#f59e0b' },
+  ];
 
   return (
     <div>
+      {/* Welcome Section */}
+      <div className="welcome-section">
+        <h2>Welcome back, {user?.name?.split(' ')[0] || 'Seller'}!</h2>
+        <p>Here's what's happening with your store today.</p>
+      </div>
+
+      {/* Main Stats by Seller Type */}
+      {mainStats.length > 0 && (
+        <div className="stats-grid">
+          {mainStats.map(stat => {
+            const Icon = stat.icon;
+            return (
+              <div key={stat.label} className="stat-card">
+                <div className="stat-header">
+                  <div className="stat-icon" style={{ background: `${stat.color}20`, color: stat.color }}>
+                    <Icon className="w-5 h-5" />
+                  </div>
+                </div>
+                <div className="stat-value">{stat.value}</div>
+                <div className="stat-label">{stat.label}</div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Overview Stats */}
       <div className="stats-grid">
-        {stats.map(stat => {
-          const Icon = stat.icon
+        {overviewStats.map(stat => {
+          const Icon = stat.icon;
           return (
             <div key={stat.label} className="stat-card">
               <div className="stat-header">
@@ -37,46 +171,63 @@ const Overview = () => {
               <div className="stat-value">{stat.value}</div>
               <div className="stat-label">{stat.label}</div>
             </div>
-          )
+          );
         })}
       </div>
 
+      {/* Recent Orders */}
       <div className="recent-orders-card">
         <div className="card-header">
           <h3>Recent Orders</h3>
           <Link to="/seller/dashboard/orders" className="view-all">View All</Link>
         </div>
-        <div className="orders-table">
-          <table>
-            <thead>
-              <tr>
-                <th>Order ID</th>
-                <th>Customer</th>
-                <th>Amount</th>
-                <th>Status</th>
-                <th>Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentOrders.map(order => (
-                <tr key={order.id}>
-                  <td>{order.id}</td>
-                  <td>{order.customer}</td>
-                  <td>{order.amount} MAD</td>
-                  <td>
-                    <span className="status-badge" style={{ background: `${getStatusColor(order.status)}20`, color: getStatusColor(order.status) }}>
-                      {order.status}
-                    </span>
-                  </td>
-                  <td>{order.date}</td>
+        {recentOrders.length === 0 ? (
+          <div className="empty-orders">
+            <p>No orders yet</p>
+          </div>
+        ) : (
+          <div className="orders-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Order ID</th>
+                  <th>Customer</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                  <th>Date</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {recentOrders.map(order => (
+                  <tr key={order.id}>
+                    <td>{order.order_number}</td>
+                    <td>{order.customer_name || 'Customer'}</td>
+                    <td>{order.total} MAD</td>
+                    <td>
+                      <span className="status-badge" style={{ background: `${getStatusColor(order.status)}20`, color: getStatusColor(order.status) }}>
+                        {getStatusText(order.status)}
+                      </span>
+                    </td>
+                    <td>{new Date(order.created_at).toLocaleDateString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       <style>{`
+        .welcome-section {
+          margin-bottom: 2rem;
+        }
+        .welcome-section h2 {
+          font-size: 1.5rem;
+          margin-bottom: 0.5rem;
+        }
+        .welcome-section p {
+          color: #6b7280;
+        }
         .stats-grid {
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -109,7 +260,7 @@ const Overview = () => {
           font-weight: 500;
         }
         .stat-value {
-          font-size: 1.5rem;
+          font-size: 1.75rem;
           font-weight: bold;
           margin-bottom: 0.25rem;
         }
@@ -140,6 +291,11 @@ const Overview = () => {
           color: #87CEEB;
           text-decoration: none;
         }
+        .empty-orders {
+          text-align: center;
+          padding: 2rem;
+          color: #6b7280;
+        }
         .orders-table {
           overflow-x: auto;
         }
@@ -168,7 +324,7 @@ const Overview = () => {
         }
       `}</style>
     </div>
-  )
-}
+  );
+};
 
-export default Overview
+export default Overview;

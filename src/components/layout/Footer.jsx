@@ -49,7 +49,7 @@ const Footer = () => {
                 />
               </div>
               <span className="footer-logo-name">
-                Rif<span className="footer-logo-accent">KANDI</span>
+                rif<span className="footer-logo-accent">KANDI</span>
               </span>
             </div>
             <p className="footer-description">

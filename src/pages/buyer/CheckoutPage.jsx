@@ -1,43 +1,101 @@
 import React, { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { ShieldCheckIcon, TruckIcon, CreditCardIcon } from '@heroicons/react/24/outline'
+import { useCart } from '../../contexts/CartContext'
+import { useAuth } from '../../contexts/AuthContext'
+import api from '../../services/api'
+import toast from 'react-hot-toast'
 
 const CheckoutPage = () => {
   const navigate = useNavigate()
+  const { cart, getCartTotal, clearCart } = useCart()
+  const { user } = useAuth()
+  const [loading, setLoading] = useState(false)
   const [step, setStep] = useState(1)
   const [formData, setFormData] = useState({
-    fullName: '',
-    email: '',
-    phone: '',
+    fullName: user?.name || '',
+    email: user?.email || '',
+    phone: user?.phone || '',
     address: '',
     city: '',
     postalCode: '',
-    paymentMethod: 'card',
-    cardNumber: '',
-    cardName: '',
-    cardExpiry: '',
-    cardCvv: ''
+    notes: ''
   })
+
+  const subtotal = getCartTotal()
+  const shipping = subtotal > 500 ? 0 : 50
+  const tax = subtotal * 0.2
+  const total = subtotal + shipping + tax
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value })
   }
 
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    navigate('/orders')
+  const handlePlaceOrder = async () => {
+    // Validate required fields
+    if (!formData.fullName || !formData.email || !formData.phone || !formData.address || !formData.city) {
+      toast.error('Please fill in all required fields')
+      return
+    }
+
+    setLoading(true)
+    
+    try {
+      const orderData = {
+        shippingAddress: {
+          fullName: formData.fullName,
+          email: formData.email,
+          phone: formData.phone,
+          address: formData.address,
+          city: formData.city,
+          postalCode: formData.postalCode
+        },
+        paymentMethod: 'cash',
+        notes: formData.notes,
+        items: cart.map(item => ({
+          id: item.id,
+          title: item.title,
+          price: item.price,
+          quantity: item.quantity,
+          type: item.type
+        })),
+        total: total
+      }
+
+      const response = await api.post('/orders', orderData)
+      
+      if (response.data.success) {
+        toast.success('Order placed successfully!')
+        clearCart()
+        navigate(`/orders`)
+      }
+    } catch (error) {
+      console.error('Order failed:', error)
+      toast.error(error.response?.data?.error || 'Failed to place order')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const subtotal = 9999
-  const shipping = 50
-  const tax = 1999.8
-  const total = subtotal + shipping + tax
+  if (cart.length === 0) {
+    return (
+      <div className="container text-center py-16">
+        <div className="text-6xl mb-4">🛒</div>
+        <h2 className="text-2xl font-bold mb-2">Your cart is empty</h2>
+        <p className="text-gray-500 mb-6">Add items to your cart before checking out</p>
+        <button onClick={() => navigate('/products')} className="btn btn-primary">
+          Continue Shopping
+        </button>
+      </div>
+    )
+  }
 
   return (
     <div className="checkout-page">
       <div className="container">
         <h1 className="checkout-title">Checkout</h1>
 
+        {/* Progress Steps */}
         <div className="checkout-steps">
           <div className="step-item">
             <div className={`step-circle ${step >= 1 ? 'active' : ''}`}>1</div>
@@ -51,112 +109,110 @@ const CheckoutPage = () => {
           <div className={`step-line ${step >= 3 ? 'active' : ''}`}></div>
           <div className="step-item">
             <div className={`step-circle ${step >= 3 ? 'active' : ''}`}>3</div>
-            <span>Review</span>
+            <span>Confirm</span>
           </div>
         </div>
 
         <div className="checkout-grid">
           <div className="checkout-form-container">
-            <form onSubmit={handleSubmit}>
-              {step === 1 && (
-                <div className="checkout-form">
-                  <h2>Shipping Information</h2>
-                  <div className="form-row">
-                    <div className="form-field">
-                      <label>Full Name</label>
-                      <input type="text" name="fullName" value={formData.fullName} onChange={handleChange} required />
-                    </div>
-                    <div className="form-field">
-                      <label>Email</label>
-                      <input type="email" name="email" value={formData.email} onChange={handleChange} required />
-                    </div>
-                  </div>
-                  <div className="form-row">
-                    <div className="form-field">
-                      <label>Phone</label>
-                      <input type="tel" name="phone" value={formData.phone} onChange={handleChange} required />
-                    </div>
-                    <div className="form-field">
-                      <label>City</label>
-                      <input type="text" name="city" value={formData.city} onChange={handleChange} required />
-                    </div>
+            {step === 1 && (
+              <div className="checkout-form">
+                <h2>Shipping Information</h2>
+                <div className="form-row">
+                  <div className="form-field">
+                    <label>Full Name *</label>
+                    <input type="text" name="fullName" value={formData.fullName} onChange={handleChange} required />
                   </div>
                   <div className="form-field">
-                    <label>Address</label>
-                    <input type="text" name="address" value={formData.address} onChange={handleChange} required />
+                    <label>Email *</label>
+                    <input type="email" name="email" value={formData.email} onChange={handleChange} required />
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-field">
+                    <label>Phone *</label>
+                    <input type="tel" name="phone" value={formData.phone} onChange={handleChange} required />
                   </div>
                   <div className="form-field">
-                    <label>Postal Code</label>
-                    <input type="text" name="postalCode" value={formData.postalCode} onChange={handleChange} required />
+                    <label>City *</label>
+                    <input type="text" name="city" value={formData.city} onChange={handleChange} required />
                   </div>
-                  <button type="button" onClick={() => setStep(2)} className="next-btn">Continue to Payment</button>
                 </div>
-              )}
+                <div className="form-field">
+                  <label>Address *</label>
+                  <input type="text" name="address" value={formData.address} onChange={handleChange} required />
+                </div>
+                <div className="form-field">
+                  <label>Postal Code</label>
+                  <input type="text" name="postalCode" value={formData.postalCode} onChange={handleChange} />
+                </div>
+                <div className="form-field">
+                  <label>Order Notes (Optional)</label>
+                  <textarea rows="3" name="notes" value={formData.notes} onChange={handleChange} placeholder="Special delivery instructions..."></textarea>
+                </div>
+                <button type="button" onClick={() => setStep(2)} className="next-btn">Continue to Payment</button>
+              </div>
+            )}
 
-              {step === 2 && (
-                <div className="checkout-form">
-                  <h2>Payment Method</h2>
-                  <div className="payment-options">
-                    <label className="payment-option">
-                      <input type="radio" name="paymentMethod" value="card" checked={formData.paymentMethod === 'card'} onChange={handleChange} />
-                      <CreditCardIcon className="payment-icon" />
-                      <span>Credit Card (CMI)</span>
-                    </label>
-                    <label className="payment-option">
-                      <input type="radio" name="paymentMethod" value="cash" checked={formData.paymentMethod === 'cash'} onChange={handleChange} />
-                      <TruckIcon className="payment-icon" />
-                      <span>Cash on Delivery</span>
-                    </label>
-                  </div>
-
-                  {formData.paymentMethod === 'card' && (
-                    <div className="card-details">
-                      <div className="form-field">
-                        <label>Card Number</label>
-                        <input type="text" name="cardNumber" placeholder="1234 5678 9012 3456" />
-                      </div>
-                      <div className="form-field">
-                        <label>Cardholder Name</label>
-                        <input type="text" name="cardName" placeholder="John Doe" />
-                      </div>
-                      <div className="form-row">
-                        <div className="form-field">
-                          <label>Expiry Date</label>
-                          <input type="text" name="cardExpiry" placeholder="MM/YY" />
-                        </div>
-                        <div className="form-field">
-                          <label>CVV</label>
-                          <input type="text" name="cardCvv" placeholder="123" />
-                        </div>
-                      </div>
+            {step === 2 && (
+              <div className="checkout-form">
+                <h2>Payment Method</h2>
+                <div className="payment-options">
+                  <label className="payment-option active">
+                    <input type="radio" name="paymentMethod" value="cash" defaultChecked />
+                    <TruckIcon className="payment-icon" />
+                    <div>
+                      <strong>Cash on Delivery</strong>
+                      <p>Pay when you receive your order</p>
                     </div>
-                  )}
-
-                  <div className="form-buttons">
-                    <button type="button" onClick={() => setStep(1)} className="back-btn">Back</button>
-                    <button type="button" onClick={() => setStep(3)} className="next-btn">Review Order</button>
-                  </div>
+                  </label>
                 </div>
-              )}
-
-              {step === 3 && (
-                <div className="checkout-form">
-                  <h2>Review Your Order</h2>
-                  <div className="review-section">
-                    <h3>Shipping Address</h3>
-                    <p>{formData.fullName}<br />{formData.address}<br />{formData.city}, {formData.postalCode}<br />{formData.phone}</p>
-                  </div>
-                  <div className="review-section">
-                    <h3>Payment Method</h3>
-                    <p>{formData.paymentMethod === 'card' ? 'Credit Card (CMI)' : 'Cash on Delivery'}</p>
-                  </div>
-                  <div className="form-buttons">
-                    <button type="button" onClick={() => setStep(2)} className="back-btn">Back</button>
-                    <button type="submit" className="place-order-btn">Place Order</button>
-                  </div>
+                <div className="form-buttons">
+                  <button type="button" onClick={() => setStep(1)} className="back-btn">Back</button>
+                  <button type="button" onClick={() => setStep(3)} className="next-btn">Review Order</button>
                 </div>
-              )}
-            </form>
+              </div>
+            )}
+
+            {step === 3 && (
+              <div className="checkout-form">
+                <h2>Review Your Order</h2>
+                <div className="review-section">
+                  <h3>Shipping Address</h3>
+                  <p>
+                    {formData.fullName}<br />
+                    {formData.address}<br />
+                    {formData.city}, {formData.postalCode}<br />
+                    {formData.phone}<br />
+                    {formData.email}
+                  </p>
+                </div>
+                <div className="review-section">
+                  <h3>Payment Method</h3>
+                  <p>Cash on Delivery</p>
+                </div>
+                <div className="review-section">
+                  <h3>Order Items</h3>
+                  {cart.map(item => (
+                    <div key={item.id} className="review-item">
+                      <span>{item.title} x {item.quantity}</span>
+                      <span>{item.price * item.quantity} MAD</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="form-buttons">
+                  <button type="button" onClick={() => setStep(2)} className="back-btn">Back</button>
+                  <button 
+                    type="button" 
+                    onClick={handlePlaceOrder} 
+                    className="place-order-btn"
+                    disabled={loading}
+                  >
+                    {loading ? 'Placing Order...' : 'Place Order'}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="order-summary">
@@ -167,7 +223,7 @@ const CheckoutPage = () => {
             </div>
             <div className="summary-row">
               <span>Shipping</span>
-              <span>{shipping} MAD</span>
+              <span>{shipping === 0 ? 'Free' : `${shipping} MAD`}</span>
             </div>
             <div className="summary-row">
               <span>Tax (20%)</span>
@@ -179,7 +235,7 @@ const CheckoutPage = () => {
             </div>
             <div className="secure-badge">
               <ShieldCheckIcon className="shield-icon" />
-              <span>Secure payment guaranteed</span>
+              <span>Secure checkout</span>
             </div>
           </div>
         </div>
@@ -248,7 +304,6 @@ const CheckoutPage = () => {
         }
         .checkout-form h2 {
           font-size: 1.25rem;
-          font-weight: bold;
           margin-bottom: 1.5rem;
         }
         .form-row {
@@ -266,7 +321,7 @@ const CheckoutPage = () => {
           margin-bottom: 0.25rem;
           color: #374151;
         }
-        .form-field input {
+        .form-field input, .form-field textarea {
           width: 100%;
           padding: 0.5rem 0.75rem;
           border: 1px solid #e5e7eb;
@@ -274,27 +329,31 @@ const CheckoutPage = () => {
           font-size: 0.875rem;
         }
         .payment-options {
-          display: flex;
-          flex-direction: column;
-          gap: 0.75rem;
           margin-bottom: 1.5rem;
         }
         .payment-option {
           display: flex;
           align-items: center;
-          gap: 0.75rem;
-          padding: 0.75rem;
+          gap: 1rem;
+          padding: 1rem;
           border: 1px solid #e5e7eb;
           border-radius: 0.75rem;
           cursor: pointer;
+          transition: all 0.2s;
+        }
+        .payment-option.active {
+          border-color: #87CEEB;
+          background: rgba(135,206,235,0.05);
         }
         .payment-icon {
-          width: 1.25rem;
-          height: 1.25rem;
-          color: #6b7280;
+          width: 1.5rem;
+          height: 1.5rem;
+          color: #87CEEB;
         }
-        .card-details {
-          margin-top: 1rem;
+        .payment-option p {
+          font-size: 0.75rem;
+          color: #6b7280;
+          margin: 0;
         }
         .form-buttons {
           display: flex;
@@ -311,6 +370,10 @@ const CheckoutPage = () => {
         .next-btn, .place-order-btn {
           background: #1a1a1a;
           color: white;
+        }
+        .next-btn:disabled, .place-order-btn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
         }
         .back-btn {
           background: #e5e7eb;
@@ -329,6 +392,13 @@ const CheckoutPage = () => {
         .review-section p {
           font-size: 0.875rem;
           color: #6b7280;
+          margin: 0;
+        }
+        .review-item {
+          display: flex;
+          justify-content: space-between;
+          padding: 0.5rem 0;
+          font-size: 0.875rem;
         }
         .order-summary {
           background: white;
@@ -357,6 +427,7 @@ const CheckoutPage = () => {
           border-top: 1px solid #e5e7eb;
           margin-top: 0.5rem;
           font-weight: bold;
+          font-size: 1rem;
         }
         .secure-badge {
           display: flex;

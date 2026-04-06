@@ -1,24 +1,52 @@
-import React, { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { StarIcon, ClockIcon } from '@heroicons/react/24/outline'
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { StarIcon, ClockIcon, ChatBubbleLeftRightIcon } from '@heroicons/react/24/outline';
+import { getServices } from '../../services/api';
+import toast from 'react-hot-toast';
 
 const ServicesPage = () => {
-  const [selectedCategory, setSelectedCategory] = useState('all')
+  const [services, setServices] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedCategory, setSelectedCategory] = useState('all');
 
   const categories = [
     { id: 'all', name: 'All Services' },
     { id: 'design', name: 'Design & Creative' },
     { id: 'development', name: 'Development & IT' },
+    { id: 'marketing', name: 'Marketing' },
     { id: 'consulting', name: 'Consulting' },
-  ]
+    { id: 'writing', name: 'Writing & Translation' },
+  ];
 
-  const services = [
-    { id: 1, title: 'Logo Design', provider: 'Creative Studio', price: 800, rating: 4.9, deliveryTime: '3 days', image: '🎨', category: 'design' },
-    { id: 2, title: 'Website Development', provider: 'DevPro', price: 2500, rating: 4.8, deliveryTime: '7 days', image: '💻', category: 'development' },
-    { id: 3, title: 'Business Consulting', provider: 'BizConsult', price: 1200, rating: 4.8, deliveryTime: '1 day', image: '💼', category: 'consulting' },
-  ]
+  useEffect(() => {
+    fetchServices();
+  }, []);
 
-  const filtered = selectedCategory === 'all' ? services : services.filter(s => s.category === selectedCategory)
+  const fetchServices = async () => {
+    try {
+      setLoading(true);
+      const response = await getServices();
+      setServices(response.data.services || []);
+    } catch (error) {
+      console.error('Error fetching services:', error);
+      toast.error('Failed to load services');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredServices = selectedCategory === 'all' 
+    ? services 
+    : services.filter(s => s.category === selectedCategory);
+
+  if (loading) {
+    return (
+      <div className="container text-center py-16">
+        <div className="spinner"></div>
+        <p>Loading services...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="services-page">
@@ -41,29 +69,35 @@ const ServicesPage = () => {
         </div>
 
         <div className="services-grid">
-          {filtered.map(service => (
-            <Link key={service.id} to={`/service/${service.id}`} className="service-card">
-              <div className="service-image">{service.image}</div>
-              <div className="service-content">
-                <h3>{service.title}</h3>
-                <p>{service.provider}</p>
-                <div className="service-details">
-                  <div className="service-rating">
-                    <StarIcon className="star-icon" />
-                    <span>{service.rating}</span>
+          {filteredServices.length === 0 ? (
+            <p className="text-center col-span-full">No services found</p>
+          ) : (
+            filteredServices.map(service => (
+              <Link key={service.id} to={`/service/${service.id}`} className="service-card">
+                <div className="service-image">
+                  {service.image || '🛠️'}
+                </div>
+                <div className="service-content">
+                  <h3>{service.title}</h3>
+                  <p>by {service.provider_name}</p>
+                  <div className="service-details">
+                    <div className="service-rating">
+                      <StarIcon className="star-icon" />
+                      <span>{service.rating || 0}</span>
+                    </div>
+                    <div className="service-delivery">
+                      <ClockIcon className="clock-icon" />
+                      <span>{service.delivery_time || '3 days'}</span>
+                    </div>
                   </div>
-                  <div className="service-delivery">
-                    <ClockIcon className="clock-icon" />
-                    <span>{service.deliveryTime}</span>
+                  <div className="service-footer">
+                    <span className="service-price">From {service.price} MAD</span>
+                    <button className="service-btn">View Details</button>
                   </div>
                 </div>
-                <div className="service-footer">
-                  <span className="service-price">From {service.price} MAD</span>
-                  <button className="service-btn">Order Now</button>
-                </div>
-              </div>
-            </Link>
-          ))}
+              </Link>
+            ))
+          )}
         </div>
       </div>
 
@@ -78,7 +112,6 @@ const ServicesPage = () => {
         }
         .services-header h1 {
           font-size: 2rem;
-          font-weight: bold;
           margin-bottom: 0.5rem;
         }
         .services-categories {
@@ -179,7 +212,7 @@ const ServicesPage = () => {
         }
       `}</style>
     </div>
-  )
-}
+  );
+};
 
-export default ServicesPage
+export default ServicesPage;

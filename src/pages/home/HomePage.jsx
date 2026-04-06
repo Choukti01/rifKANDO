@@ -1,22 +1,134 @@
-import React from 'react'
-import { Link } from 'react-router-dom'
-import { ShoppingBagIcon, AcademicCapIcon, WrenchScrewdriverIcon, ComputerDesktopIcon, CalendarIcon, ArrowRightIcon } from '@heroicons/react/24/outline'
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { ShoppingBagIcon, AcademicCapIcon, WrenchScrewdriverIcon, ComputerDesktopIcon, CalendarIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
+// CHANGE THIS LINE - use absolute path from src
+import { getProducts, getCourses, getServices, getDigitalProducts, getBookings } from '/src/services/api';
+import toast from 'react-hot-toast';
 
 const HomePage = () => {
-  const categories = [
-    { name: 'Products', icon: ShoppingBagIcon, path: '/products', color: '#3B82F6', count: '10k+' },
-    { name: 'Courses', icon: AcademicCapIcon, path: '/courses', color: '#10B981', count: '500+' },
-    { name: 'Services', icon: WrenchScrewdriverIcon, path: '/services', color: '#8B5CF6', count: '1k+' },
-    { name: 'Digital', icon: ComputerDesktopIcon, path: '/digital', color: '#F59E0B', count: '2k+' },
-    { name: 'Bookings', icon: CalendarIcon, path: '/bookings', color: '#EF4444', count: '300+' },
-  ]
+  const [featuredItems, setFeaturedItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    productsCount: 0,
+    coursesCount: 0,
+    servicesCount: 0,
+    digitalCount: 0,
+    bookingsCount: 0
+  });
 
-  const featuredItems = [
-    { id: 1, title: 'iPhone 13 Pro', price: 9500, oldPrice: 10500, seller: 'TechStore', rating: 4.8, image: '📱', type: 'product' },
-    { id: 2, title: 'Complete React.js Course', price: 499, oldPrice: 999, seller: 'Ahmed Alawi', rating: 4.9, image: '📚', type: 'course' },
-    { id: 3, title: 'Logo Design Service', price: 800, seller: 'Creative Studio', rating: 4.7, image: '🎨', type: 'service' },
-    { id: 4, title: 'Business Website Template', price: 299, seller: 'DesignMarket', rating: 4.8, image: '📄', type: 'digital' },
-  ]
+  useEffect(() => {
+    fetchHomeData();
+  }, []);
+
+  const fetchHomeData = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch each individually to avoid one failing the whole batch
+      let products = [];
+      let courses = [];
+      let services = [];
+      let digital = [];
+      let bookings = [];
+      
+      try {
+        const productsRes = await getProducts();
+        products = productsRes.data.products || [];
+      } catch (e) {
+        console.log('Products error:', e);
+      }
+      
+      try {
+        const coursesRes = await getCourses();
+        courses = coursesRes.data.courses || [];
+      } catch (e) {
+        console.log('Courses error:', e);
+      }
+      
+      try {
+        const servicesRes = await getServices();
+        services = servicesRes.data.services || [];
+      } catch (e) {
+        console.log('Services error:', e);
+      }
+      
+      try {
+        const digitalRes = await getDigitalProducts();
+        digital = digitalRes.data.products || [];
+      } catch (e) {
+        console.log('Digital error:', e);
+      }
+      
+      try {
+        const bookingsRes = await getBookings();
+        bookings = bookingsRes.data.bookings || [];
+      } catch (e) {
+        console.log('Bookings error:', e);
+      }
+
+      setStats({
+        productsCount: products.length,
+        coursesCount: courses.length,
+        servicesCount: services.length,
+        digitalCount: digital.length,
+        bookingsCount: bookings.length
+      });
+
+      const allItems = [
+        ...products.slice(0, 2).map(item => ({ ...item, type: 'product' })),
+        ...courses.slice(0, 2).map(item => ({ ...item, type: 'course' })),
+        ...services.slice(0, 2).map(item => ({ ...item, type: 'service' })),
+        ...digital.slice(0, 2).map(item => ({ ...item, type: 'digital' })),
+        ...bookings.slice(0, 2).map(item => ({ ...item, type: 'booking' }))
+      ].slice(0, 8);
+
+      setFeaturedItems(allItems);
+    } catch (error) {
+      console.error('Error fetching home data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const categories = [
+    { name: 'Products', icon: ShoppingBagIcon, path: '/products', color: '#3B82F6', count: stats.productsCount },
+    { name: 'Courses', icon: AcademicCapIcon, path: '/courses', color: '#10B981', count: stats.coursesCount },
+    { name: 'Services', icon: WrenchScrewdriverIcon, path: '/services', color: '#8B5CF6', count: stats.servicesCount },
+    { name: 'Digital', icon: ComputerDesktopIcon, path: '/digital', color: '#F59E0B', count: stats.digitalCount },
+    { name: 'Bookings', icon: CalendarIcon, path: '/bookings', color: '#EF4444', count: stats.bookingsCount },
+  ];
+
+  const getItemUrl = (item) => {
+    switch(item.type) {
+      case 'product': return `/product/${item.id}`;
+      case 'course': return `/course/${item.id}`;
+      case 'service': return `/service/${item.id}`;
+      case 'digital': return `/digital/${item.id}`;
+      case 'booking': return `/booking/${item.id}`;
+      default: return '#';
+    }
+  };
+
+  const getItemIcon = (item) => {
+    if (item.image) return item.image;
+    const icons = {
+      product: '📦',
+      course: '📚',
+      service: '🛠️',
+      digital: '💻',
+      booking: '📅'
+    };
+    return icons[item.type] || '📦';
+  };
+
+  if (loading) {
+    return (
+      <div className="container text-center py-16">
+        <div className="spinner"></div>
+        <p>Loading...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="home-page">
@@ -49,15 +161,15 @@ const HomePage = () => {
             Explore <span>Categories</span>
           </h2>
           <div className="categories-grid">
-            {categories.map((cat, index) => {
-              const Icon = cat.icon
+            {categories.map((cat) => {
+              const Icon = cat.icon;
               return (
                 <Link key={cat.name} to={cat.path} className="category-card">
                   <div className="category-icon" style={{ backgroundColor: cat.color }}>
                     <Icon className="category-icon-svg" />
                   </div>
                   <h3 className="category-name">{cat.name}</h3>
-                  <p className="category-count">{cat.count} items</p>
+                  <p className="category-count">{cat.count.toLocaleString()} items</p>
                 </Link>
               )
             })}
@@ -76,28 +188,57 @@ const HomePage = () => {
           </div>
           <div className="featured-grid">
             {featuredItems.map(item => (
-              <Link key={item.id} to={`/${item.type}/${item.id}`} className="card">
+              <Link key={`${item.type}-${item.id}`} to={getItemUrl(item)} className="card">
                 <div className="card-image">
-                  {item.image}
+                  {getItemIcon(item)}
                 </div>
                 <div className="card-content">
+                  <div className="card-type-badge">
+                    {item.type}
+                  </div>
                   <h3 className="card-title">{item.title}</h3>
-                  <p className="card-seller">{item.seller}</p>
+                  <p className="card-seller">
+                    {item.seller_name || item.provider_name || item.instructor_name || 'Seller'}
+                  </p>
                   <div className="card-price-row">
                     <div>
                       <span className="card-price">{item.price} MAD</span>
-                      {item.oldPrice && (
-                        <span className="card-old-price">{item.oldPrice} MAD</span>
+                      {item.old_price && (
+                        <span className="card-old-price">{item.old_price} MAD</span>
                       )}
                     </div>
                     <div className="card-rating">
-                      ★ {item.rating}
+                      ★ {item.rating || 0}
                     </div>
                   </div>
-                  <button className="btn btn-primary btn-sm btn-block">Add to Cart</button>
+                  <button className="btn btn-primary btn-sm btn-block">View Details</button>
                 </div>
               </Link>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Stats Section */}
+      <section className="stats-section">
+        <div className="container">
+          <div className="stats-grid">
+            <div className="stat-item">
+              <div className="stat-number">{stats.productsCount + stats.digitalCount}</div>
+              <div className="stat-label">Products Available</div>
+            </div>
+            <div className="stat-item">
+              <div className="stat-number">{stats.coursesCount}</div>
+              <div className="stat-label">Online Courses</div>
+            </div>
+            <div className="stat-item">
+              <div className="stat-number">{stats.servicesCount + stats.bookingsCount}</div>
+              <div className="stat-label">Services Offered</div>
+            </div>
+            <div className="stat-item">
+              <div className="stat-number">500+</div>
+              <div className="stat-label">Happy Customers</div>
+            </div>
           </div>
         </div>
       </section>
@@ -108,7 +249,7 @@ const HomePage = () => {
           <h2 className="cta-title">Ready to start selling?</h2>
           <p className="cta-description">Join thousands of sellers on rifKANDI</p>
           <Link to="/choose-seller-type">
-            <button className="btn cta-button">Become a Seller</button>
+            <button className="cta-button">Become a Seller</button>
           </Link>
         </div>
       </section>
@@ -149,13 +290,11 @@ const HomePage = () => {
           justify-content: center;
         }
         
-        /* Large Buttons */
         .btn-large {
           padding: 0.875rem 2rem;
           font-size: 1rem;
         }
         
-        /* Categories */
         .categories-grid {
           display: grid;
           grid-template-columns: repeat(2, 1fr);
@@ -214,7 +353,6 @@ const HomePage = () => {
           color: #6b7280;
         }
         
-        /* Featured Section */
         .bg-gray-50 {
           background-color: #f9fafb;
         }
@@ -259,7 +397,6 @@ const HomePage = () => {
           }
         }
         
-        /* Card */
         .card {
           background: white;
           border-radius: 1rem;
@@ -274,24 +411,35 @@ const HomePage = () => {
           box-shadow: 0 12px 24px rgba(0,0,0,0.1);
         }
         .card-image {
-          height: 200px;
+          height: 180px;
           background: #f3f4f6;
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 4rem;
+          font-size: 3rem;
+        }
+        .card-type-badge {
+          display: inline-block;
+          padding: 0.25rem 0.5rem;
+          background: #87CEEB20;
+          color: #87CEEB;
+          border-radius: 0.5rem;
+          font-size: 0.7rem;
+          font-weight: 500;
+          margin-bottom: 0.5rem;
+          text-transform: capitalize;
         }
         .card-content {
-          padding: 1.25rem;
+          padding: 1rem;
         }
         .card-title {
           font-weight: 600;
-          font-size: 1.125rem;
-          margin-bottom: 0.5rem;
+          font-size: 1rem;
+          margin-bottom: 0.25rem;
           color: #1a1a1a;
         }
         .card-seller {
-          font-size: 0.875rem;
+          font-size: 0.7rem;
           color: #6b7280;
           margin-bottom: 0.5rem;
         }
@@ -302,29 +450,54 @@ const HomePage = () => {
           margin-bottom: 1rem;
         }
         .card-price {
-          font-size: 1.25rem;
+          font-size: 1.125rem;
           font-weight: 700;
           color: #1a1a1a;
         }
         .card-old-price {
-          font-size: 0.875rem;
+          font-size: 0.75rem;
           color: #9ca3af;
           text-decoration: line-through;
           margin-left: 0.5rem;
         }
         .card-rating {
-          font-size: 0.875rem;
+          font-size: 0.75rem;
           color: #f59e0b;
         }
         .btn-sm {
           padding: 0.5rem 1rem;
-          font-size: 0.875rem;
+          font-size: 0.75rem;
         }
         .btn-block {
           width: 100%;
         }
         
-        /* CTA Section */
+        .stats-section {
+          padding: 3rem 0;
+          background: linear-gradient(135deg, #1a1a1a 0%, #2c2c2c 100%);
+          color: white;
+        }
+        .stats-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 2rem;
+          text-align: center;
+        }
+        @media (min-width: 768px) {
+          .stats-grid {
+            grid-template-columns: repeat(4, 1fr);
+          }
+        }
+        .stat-number {
+          font-size: 2rem;
+          font-weight: bold;
+          margin-bottom: 0.5rem;
+        }
+        .stat-label {
+          font-size: 0.875rem;
+          color: #9ca3af;
+        }
+        
         .cta-section {
           background: #87CEEB;
           padding: 4rem 0;
@@ -346,6 +519,10 @@ const HomePage = () => {
           color: white;
           padding: 0.875rem 2rem;
           font-size: 1rem;
+          border: none;
+          border-radius: 2rem;
+          cursor: pointer;
+          transition: all 0.2s;
         }
         .cta-button:hover {
           background: #2c2c2c;
@@ -353,7 +530,7 @@ const HomePage = () => {
         }
       `}</style>
     </div>
-  )
-}
+  );
+};
 
-export default HomePage
+export default HomePage;

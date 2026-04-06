@@ -1,130 +1,125 @@
-import React, { createContext, useContext, useState, useEffect } from 'react'
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { register as registerApi, login as loginApi, getMe } from '../services/api';
+import toast from 'react-hot-toast';
 
-const AuthContext = createContext()
+const AuthContext = createContext();
 
 export const useAuth = () => {
-  const context = useContext(AuthContext)
+  const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth must be used within AuthProvider')
+    throw new Error('useAuth must be used within AuthProvider');
   }
-  return context
-}
+  return context;
+};
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [token, setToken] = useState(localStorage.getItem('rifkandi_token'))
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [token, setToken] = useState(localStorage.getItem('token'));
 
   useEffect(() => {
-    const loadUser = () => {
-      if (token) {
-        // Mock user data - will be replaced with real API call
-        const mockUser = {
-          id: '1',
-          name: 'Ahmed Benjelloun',
-          email: 'ahmed@example.com',
-          phone: '0612345678',
-          roles: ['buyer'],
-          avatar: null,
-          createdAt: new Date().toISOString()
-        }
-        setUser(mockUser)
-      }
-      setLoading(false)
+    if (token) {
+      fetchUser();
+    } else {
+      setLoading(false);
     }
-    loadUser()
-  }, [token])
+  }, [token]);
+
+  const fetchUser = async () => {
+    try {
+      const response = await getMe();
+      const userData = response.data.data?.user || response.data.user;
+      setUser(userData);
+      localStorage.setItem('user', JSON.stringify(userData));
+    } catch (error) {
+      console.error('Failed to fetch user:', error);
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      setToken(null);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const login = async (email, password) => {
     try {
-      setLoading(true)
-      // Mock login - will be replaced with API call
-      const mockToken = 'mock-jwt-token-' + Date.now()
-      const mockUser = {
-        id: '1',
-        name: email.split('@')[0],
-        email: email,
-        phone: '0612345678',
-        roles: ['buyer'],
-        createdAt: new Date().toISOString()
-      }
+      const response = await loginApi({ email, password });
+      const { token, user } = response.data;
       
-      localStorage.setItem('rifkandi_token', mockToken)
-      setToken(mockToken)
-      setUser(mockUser)
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user));
+      setToken(token);
+      setUser(user);
       
-      return { success: true }
+      toast.success('Login successful!');
+      return { success: true, user };
     } catch (error) {
-      return { success: false, error: error.message }
-    } finally {
-      setLoading(false)
+      const message = error.response?.data?.error || 'Login failed';
+      toast.error(message);
+      return { success: false, error: message };
     }
-  }
+  };
 
   const register = async (userData) => {
     try {
-      setLoading(true)
-      // Mock registration - will be replaced with API call
-      const mockToken = 'mock-jwt-token-' + Date.now()
-      const mockUser = {
-        id: '2',
-        name: userData.name,
-        email: userData.email,
-        phone: userData.phone,
-        roles: ['buyer'],
-        createdAt: new Date().toISOString()
-      }
+      const response = await registerApi(userData);
+      const { token, user } = response.data;
       
-      localStorage.setItem('rifkandi_token', mockToken)
-      setToken(mockToken)
-      setUser(mockUser)
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user));
+      setToken(token);
+      setUser(user);
       
-      return { success: true }
+      toast.success('Registration successful!');
+      return { success: true, user };
     } catch (error) {
-      return { success: false, error: error.message }
-    } finally {
-      setLoading(false)
+      const message = error.response?.data?.error || 'Registration failed';
+      toast.error(message);
+      return { success: false, error: message };
     }
-  }
+  };
 
   const logout = () => {
-    localStorage.removeItem('rifkandi_token')
-    setToken(null)
-    setUser(null)
-  }
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setToken(null);
+    setUser(null);
+    toast.success('Logged out successfully');
+  };
 
   const updateUser = (updatedUser) => {
-    setUser(updatedUser)
-  }
+    setUser(updatedUser);
+    localStorage.setItem('user', JSON.stringify(updatedUser));
+  };
 
   const hasRole = (role) => {
-    if (!user || !user.roles) return false
-    return user.roles.includes(role)
-  }
+    return user?.role === role || user?.roles?.includes(role);
+  };
 
   const updateSellerType = (sellerType) => {
     if (user) {
-      const updatedUser = {
-        ...user,
-        sellerType: sellerType,
-        roles: [...user.roles, 'seller']
-      }
-      setUser(updatedUser)
+      const updatedUser = { ...user, sellerType, role: 'seller' };
+      setUser(updatedUser);
+      localStorage.setItem('user', JSON.stringify(updatedUser));
     }
-  }
+  };
 
   const value = {
     user,
     loading,
     token,
-    isAuthenticated: user !== null,
+    isAuthenticated: !!user,
     login,
     register,
     logout,
     updateUser,
     updateSellerType,
     hasRole
-  }
+  };
 
-  return React.createElement(AuthContext.Provider, { value: value }, children)
-}
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
+};

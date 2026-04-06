@@ -1,24 +1,67 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import api from '../../services/api'
+import { useAuth } from '../../contexts/AuthContext'
+import toast from 'react-hot-toast'
 
 const OrdersPage = () => {
-  const orders = [
-    { id: 'ORD-001', date: '2024-03-20', total: 9500, status: 'delivered', items: 1 },
-    { id: 'ORD-002', date: '2024-03-15', total: 890, status: 'shipped', items: 1 },
-    { id: 'ORD-003', date: '2024-03-10', total: 1200, status: 'processing', items: 1 },
-  ]
+  const [orders, setOrders] = useState([])
+  const [loading, setLoading] = useState(true)
+  const { isAuthenticated } = useAuth()
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchOrders()
+    }
+  }, [isAuthenticated])
+
+  const fetchOrders = async () => {
+    try {
+      setLoading(true)
+      const response = await api.get('/orders')
+      setOrders(response.data.orders || [])
+    } catch (error) {
+      console.error('Failed to fetch orders:', error)
+      toast.error('Failed to load orders')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const getStatusColor = (status) => {
     const colors = {
+      pending: '#f59e0b',
+      confirmed: '#3b82f6',
+      processing: '#8b5cf6',
+      shipped: '#10b981',
       delivered: '#10b981',
-      shipped: '#3b82f6',
-      processing: '#f59e0b'
+      cancelled: '#ef4444'
     }
     return colors[status] || '#6b7280'
   }
 
   const getStatusText = (status) => {
     return status.charAt(0).toUpperCase() + status.slice(1)
+  }
+
+  if (loading) {
+    return (
+      <div className="container text-center py-16">
+        <div className="spinner"></div>
+        <p>Loading orders...</p>
+      </div>
+    )
+  }
+
+  if (orders.length === 0) {
+    return (
+      <div className="container text-center py-16">
+        <div className="text-6xl mb-4">📦</div>
+        <h2 className="text-2xl font-bold mb-2">No orders yet</h2>
+        <p className="text-gray-500 mb-6">Your order history will appear here</p>
+        <Link to="/products" className="btn btn-primary">Start Shopping</Link>
+      </div>
+    )
   }
 
   return (
@@ -31,15 +74,21 @@ const OrdersPage = () => {
             <div key={order.id} className="order-card">
               <div className="order-header">
                 <div>
-                  <span className="order-id">{order.id}</span>
-                  <span className="order-date">{order.date}</span>
+                  <span className="order-number">{order.order_number}</span>
+                  <span className="order-date">{new Date(order.created_at).toLocaleDateString()}</span>
                 </div>
-                <span className="order-status" style={{ background: `${getStatusColor(order.status)}20`, color: getStatusColor(order.status) }}>
+                <span 
+                  className="order-status" 
+                  style={{ 
+                    background: `${getStatusColor(order.status)}20`, 
+                    color: getStatusColor(order.status) 
+                  }}
+                >
                   {getStatusText(order.status)}
                 </span>
               </div>
               <div className="order-body">
-                <div className="order-items">{order.items} item(s)</div>
+                <div className="order-items">{order.item_count} item(s)</div>
                 <div className="order-total">{order.total} MAD</div>
               </div>
               <div className="order-footer">
@@ -79,7 +128,7 @@ const OrdersPage = () => {
           border-bottom: 1px solid #e5e7eb;
           margin-bottom: 0.75rem;
         }
-        .order-id {
+        .order-number {
           font-weight: 600;
           color: #1a1a1a;
         }
