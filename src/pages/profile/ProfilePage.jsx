@@ -1,11 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { UserIcon, EnvelopeIcon, PhoneIcon, MapPinIcon, KeyIcon, BellIcon, PencilIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+import { UserIcon, EnvelopeIcon, PhoneIcon, MapPinIcon, KeyIcon, BellIcon, PencilIcon } from '@heroicons/react/24/outline';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
+import ProfilePictureUpload from '../../components/ProfilePictureUpload';
+import { useNavigate } from 'react-router-dom';
 
 const ProfilePage = () => {
   const { user, updateUser } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('profile');
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -23,6 +26,7 @@ const ProfilePage = () => {
     favoritesCount: 0,
     memberSince: ''
   });
+  const hasRefreshed = useRef(false); // Prevents infinite loop
 
   useEffect(() => {
     if (user) {
@@ -38,27 +42,38 @@ const ProfilePage = () => {
     }
   }, [user]);
 
+  // Refresh user data once to get sellerType from server
+  useEffect(() => {
+    const refreshUser = async () => {
+      if (!user || hasRefreshed.current) return;
+      try {
+        const response = await api.get('/auth/me');
+        const freshUser = response.data.data?.user || response.data.user;
+        if (freshUser && freshUser.sellerType !== user?.sellerType) {
+          updateUser(freshUser);
+        }
+        hasRefreshed.current = true;
+      } catch (err) {
+        console.error('Failed to refresh user:', err);
+      }
+    };
+    refreshUser();
+  }, [user, updateUser]);
+
   const fetchUserStats = async () => {
     try {
-      // Fetch user's products count
       try {
         const productsRes = await api.get('/my-products');
         setStats(prev => ({ ...prev, productsCount: productsRes.data.products?.length || 0 }));
-      } catch (e) { console.log('No products endpoint'); }
-      
-      // Fetch user's orders count
+      } catch (e) {}
       try {
         const ordersRes = await api.get('/orders');
         setStats(prev => ({ ...prev, ordersCount: ordersRes.data.orders?.length || 0 }));
-      } catch (e) { console.log('No orders endpoint'); }
-      
-      // Fetch favorites count
+      } catch (e) {}
       try {
         const favRes = await api.get('/favorites');
         setStats(prev => ({ ...prev, favoritesCount: favRes.data.favorites?.length || 0 }));
-      } catch (e) { console.log('No favorites endpoint'); }
-      
-      // Member since
+      } catch (e) {}
       if (user?.createdAt) {
         setStats(prev => ({ ...prev, memberSince: new Date(user.createdAt).toLocaleDateString() }));
       }
@@ -87,6 +102,10 @@ const ProfilePage = () => {
     }
   };
 
+  const handleProfilePictureUpdate = (newImageUrl) => {
+    updateUser({ ...user, profilePicture: newImageUrl });
+  };
+
   const tabs = [
     { id: 'profile', name: 'Profile Information', icon: UserIcon },
     { id: 'security', name: 'Security', icon: KeyIcon },
@@ -109,13 +128,15 @@ const ProfilePage = () => {
           {/* Sidebar */}
           <div className="profile-sidebar">
             <div className="profile-avatar-section">
-              <div className="profile-avatar">
-                {user.name?.charAt(0) || 'U'}
-              </div>
+              <ProfilePictureUpload 
+                currentImage={user.profilePicture}
+                userName={user.name}
+                onUploadSuccess={handleProfilePictureUpdate}
+              />
               <h3>{user.name}</h3>
               <p className="profile-email">{user.email}</p>
               <div className="profile-badge">
-                {user.sellerType ? (
+                {user?.sellerType && user.sellerType !== null && user.sellerType !== '' ? (
                   <span className="badge-seller">
                     {user.sellerType === 'product' ? '🛍️ Product Seller' :
                      user.sellerType === 'course' ? '📚 Course Instructor' :
@@ -124,7 +145,9 @@ const ProfilePage = () => {
                      user.sellerType === 'booking' ? '📅 Booking Pro' : 'Seller'}
                   </span>
                 ) : (
-                  <span className="badge-buyer">🛒 Buyer</span>
+                  <button onClick={() => navigate('/choose-seller-type')} className="become-seller-btn">
+                    Become a Seller
+                  </button>
                 )}
               </div>
             </div>
@@ -190,103 +213,49 @@ const ProfilePage = () => {
                   <div className="profile-form">
                     <div className="form-group">
                       <label>Full Name</label>
-                      <input
-                        type="text"
-                        name="name"
-                        value={formData.name}
-                        onChange={handleChange}
-                        className="form-input"
-                      />
+                      <input type="text" name="name" value={formData.name} onChange={handleChange} className="form-input" />
                     </div>
                     <div className="form-group">
                       <label>Email</label>
-                      <input
-                        type="email"
-                        name="email"
-                        value={formData.email}
-                        onChange={handleChange}
-                        className="form-input"
-                        disabled
-                      />
+                      <input type="email" name="email" value={formData.email} onChange={handleChange} className="form-input" disabled />
                       <small>Email cannot be changed</small>
                     </div>
                     <div className="form-group">
                       <label>Phone Number</label>
-                      <input
-                        type="tel"
-                        name="phone"
-                        value={formData.phone}
-                        onChange={handleChange}
-                        className="form-input"
-                      />
+                      <input type="tel" name="phone" value={formData.phone} onChange={handleChange} className="form-input" />
                     </div>
                     <div className="form-group">
                       <label>Bio</label>
-                      <textarea
-                        name="bio"
-                        value={formData.bio}
-                        onChange={handleChange}
-                        className="form-input"
-                        rows="4"
-                        placeholder="Tell us about yourself..."
-                      />
+                      <textarea name="bio" value={formData.bio} onChange={handleChange} className="form-input" rows="4" placeholder="Tell us about yourself..." />
                     </div>
                     <div className="form-row">
                       <div className="form-group">
                         <label>City</label>
-                        <input
-                          type="text"
-                          name="city"
-                          value={formData.city}
-                          onChange={handleChange}
-                          className="form-input"
-                          placeholder="Casablanca"
-                        />
+                        <input type="text" name="city" value={formData.city} onChange={handleChange} className="form-input" placeholder="Casablanca" />
                       </div>
                       <div className="form-group">
                         <label>Country</label>
-                        <input
-                          type="text"
-                          name="country"
-                          value={formData.country}
-                          onChange={handleChange}
-                          className="form-input"
-                          placeholder="Morocco"
-                        />
+                        <input type="text" name="country" value={formData.country} onChange={handleChange} className="form-input" placeholder="Morocco" />
                       </div>
                     </div>
                   </div>
                 ) : (
                   <div className="profile-info-display">
                     <div className="info-row">
-                      <div className="info-label">
-                        <UserIcon className="info-icon" />
-                        Full Name
-                      </div>
+                      <div className="info-label"><UserIcon className="info-icon" />Full Name</div>
                       <div className="info-value">{user.name}</div>
                     </div>
                     <div className="info-row">
-                      <div className="info-label">
-                        <EnvelopeIcon className="info-icon" />
-                        Email
-                      </div>
+                      <div className="info-label"><EnvelopeIcon className="info-icon" />Email</div>
                       <div className="info-value">{user.email}</div>
                     </div>
                     <div className="info-row">
-                      <div className="info-label">
-                        <PhoneIcon className="info-icon" />
-                        Phone
-                      </div>
+                      <div className="info-label"><PhoneIcon className="info-icon" />Phone</div>
                       <div className="info-value">{user.phone || 'Not provided'}</div>
                     </div>
                     <div className="info-row">
-                      <div className="info-label">
-                        <MapPinIcon className="info-icon" />
-                        Location
-                      </div>
-                      <div className="info-value">
-                        {user.city ? `${user.city}, ${user.country || 'Morocco'}` : 'Not provided'}
-                      </div>
+                      <div className="info-label"><MapPinIcon className="info-icon" />Location</div>
+                      <div className="info-value">{user.city ? `${user.city}, ${user.country || 'Morocco'}` : 'Not provided'}</div>
                     </div>
                     <div className="info-row bio-row">
                       <div className="info-label">Bio</div>
@@ -306,22 +275,16 @@ const ProfilePage = () => {
                   const currentPassword = form.currentPassword.value;
                   const newPassword = form.newPassword.value;
                   const confirmPassword = form.confirmPassword.value;
-                  
                   if (newPassword !== confirmPassword) {
                     toast.error('New passwords do not match');
                     return;
                   }
-                  
                   if (newPassword.length < 6) {
                     toast.error('Password must be at least 6 characters');
                     return;
                   }
-                  
                   try {
-                    await api.patch('/users/update-password', {
-                      currentPassword,
-                      newPassword
-                    });
+                    await api.patch('/users/update-password', { currentPassword, newPassword });
                     toast.success('Password updated successfully!');
                     form.reset();
                   } catch (error) {
@@ -349,22 +312,10 @@ const ProfilePage = () => {
               <div className="profile-card">
                 <h2>Notification Preferences</h2>
                 <div className="notification-settings">
-                  <label className="notification-item">
-                    <input type="checkbox" defaultChecked />
-                    <span>Email Notifications</span>
-                  </label>
-                  <label className="notification-item">
-                    <input type="checkbox" defaultChecked />
-                    <span>Order Updates</span>
-                  </label>
-                  <label className="notification-item">
-                    <input type="checkbox" />
-                    <span>Promotional Offers</span>
-                  </label>
-                  <label className="notification-item">
-                    <input type="checkbox" defaultChecked />
-                    <span>New Messages</span>
-                  </label>
+                  <label className="notification-item"><input type="checkbox" defaultChecked /><span>Email Notifications</span></label>
+                  <label className="notification-item"><input type="checkbox" defaultChecked /><span>Order Updates</span></label>
+                  <label className="notification-item"><input type="checkbox" /><span>Promotional Offers</span></label>
+                  <label className="notification-item"><input type="checkbox" defaultChecked /><span>New Messages</span></label>
                   <button className="btn btn-primary mt-4">Save Preferences</button>
                 </div>
               </div>
@@ -374,260 +325,53 @@ const ProfilePage = () => {
       </div>
 
       <style>{`
-        .profile-page {
-          padding: 2rem 0;
-          min-height: calc(100vh - 80px);
-          background: #f9fafb;
-        }
-        .profile-grid {
-          display: grid;
-          grid-template-columns: 320px 1fr;
-          gap: 2rem;
-        }
-        @media (max-width: 768px) {
-          .profile-grid {
-            grid-template-columns: 1fr;
-          }
-        }
-        .profile-sidebar {
-          background: white;
-          border-radius: 1rem;
-          padding: 1.5rem;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-          position: sticky;
-          top: 100px;
-        }
-        .profile-avatar-section {
-          text-align: center;
-          margin-bottom: 1.5rem;
-        }
-        .profile-avatar {
-          width: 100px;
-          height: 100px;
-          background: linear-gradient(135deg, #87CEEB 0%, #5F9EA0 100%);
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 2.5rem;
-          font-weight: bold;
-          color: white;
-          margin: 0 auto 1rem;
-        }
-        .profile-avatar-section h3 {
-          font-size: 1.125rem;
-          margin-bottom: 0.25rem;
-        }
-        .profile-email {
-          font-size: 0.75rem;
-          color: #6b7280;
-          margin-bottom: 0.75rem;
-        }
-        .profile-badge {
-          display: inline-block;
-        }
-        .badge-seller, .badge-buyer {
-          display: inline-block;
-          padding: 0.25rem 0.75rem;
-          border-radius: 2rem;
-          font-size: 0.7rem;
-          font-weight: 500;
-        }
-        .badge-seller {
-          background: #d1fae5;
-          color: #065f46;
-        }
-        .badge-buyer {
-          background: #e0e7ff;
-          color: #3730a3;
-        }
-        .profile-stats {
-          display: flex;
-          justify-content: space-around;
-          padding: 1rem 0;
-          border-top: 1px solid #e5e7eb;
-          border-bottom: 1px solid #e5e7eb;
-          margin-bottom: 1rem;
-        }
-        .stat-item {
-          text-align: center;
-        }
-        .stat-value {
-          font-size: 1.25rem;
-          font-weight: bold;
-        }
-        .stat-label {
-          font-size: 0.7rem;
-          color: #6b7280;
-        }
-        .profile-tabs {
-          display: flex;
-          flex-direction: column;
-          gap: 0.5rem;
-          margin-bottom: 1rem;
-        }
-        .tab-btn {
-          display: flex;
-          align-items: center;
-          gap: 0.75rem;
-          padding: 0.75rem;
-          border: none;
-          background: none;
-          border-radius: 0.75rem;
-          cursor: pointer;
-          font-size: 0.875rem;
-          width: 100%;
-          text-align: left;
-          transition: all 0.2s;
-        }
-        .tab-btn:hover {
-          background: #f3f4f6;
-        }
-        .tab-btn.active {
-          background: #87CEEB;
-          color: #1a1a1a;
-        }
-        .tab-icon {
-          width: 1.25rem;
-          height: 1.25rem;
-        }
-        .member-since {
-          font-size: 0.7rem;
-          color: #9ca3af;
-          text-align: center;
-          padding-top: 1rem;
-          border-top: 1px solid #e5e7eb;
-        }
-        .profile-card {
-          background: white;
-          border-radius: 1rem;
-          padding: 1.5rem;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-        .card-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 1.5rem;
-          padding-bottom: 1rem;
-          border-bottom: 1px solid #e5e7eb;
-        }
-        .card-header h2 {
-          font-size: 1.25rem;
-          margin: 0;
-        }
-        .edit-btn {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          padding: 0.5rem 1rem;
-          background: #f3f4f6;
-          border: none;
-          border-radius: 0.5rem;
-          cursor: pointer;
-          font-size: 0.875rem;
-        }
-        .edit-actions {
-          display: flex;
-          gap: 0.5rem;
-        }
-        .save-btn, .cancel-btn {
-          padding: 0.5rem 1rem;
-          border-radius: 0.5rem;
-          cursor: pointer;
-          font-size: 0.875rem;
-        }
-        .save-btn {
-          background: #1a1a1a;
-          color: white;
-          border: none;
-        }
-        .cancel-btn {
-          background: #e5e7eb;
-          color: #374151;
-          border: none;
-        }
-        .profile-form {
-          display: flex;
-          flex-direction: column;
-          gap: 1rem;
-        }
-        .form-group {
-          display: flex;
-          flex-direction: column;
-          gap: 0.25rem;
-        }
-        .form-group label {
-          font-size: 0.875rem;
-          font-weight: 500;
-        }
-        .form-input {
-          padding: 0.75rem;
-          border: 1px solid #e5e7eb;
-          border-radius: 0.5rem;
-          font-size: 0.875rem;
-        }
-        .form-input:focus {
-          outline: none;
-          border-color: #87CEEB;
-        }
-        .form-row {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 1rem;
-        }
-        .profile-info-display {
-          display: flex;
-          flex-direction: column;
-          gap: 1rem;
-        }
-        .info-row {
-          display: flex;
-          padding: 0.75rem 0;
-          border-bottom: 1px solid #e5e7eb;
-        }
-        .info-label {
-          width: 120px;
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          font-weight: 500;
-          color: #374151;
-        }
-        .info-icon {
-          width: 1rem;
-          height: 1rem;
-          color: #87CEEB;
-        }
-        .info-value {
-          flex: 1;
-          color: #6b7280;
-        }
-        .bio-row {
-          flex-direction: column;
-        }
-        .bio-row .info-label {
-          margin-bottom: 0.5rem;
-        }
-        .notification-item {
-          display: flex;
-          align-items: center;
-          gap: 0.75rem;
-          padding: 0.75rem 0;
-          cursor: pointer;
-        }
-        .btn-primary {
-          background: #1a1a1a;
-          color: white;
-          padding: 0.625rem 1.25rem;
-          border: none;
-          border-radius: 0.5rem;
-          cursor: pointer;
-        }
-        small {
-          font-size: 0.7rem;
-          color: #9ca3af;
-        }
+        .profile-page { padding: 2rem 0; min-height: calc(100vh - 80px); background: #f9fafb; }
+        .profile-grid { display: grid; grid-template-columns: 320px 1fr; gap: 2rem; }
+        @media (max-width: 768px) { .profile-grid { grid-template-columns: 1fr; } }
+        .profile-sidebar { background: white; border-radius: 1rem; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); position: sticky; top: 100px; }
+        .profile-avatar-section { text-align: center; margin-bottom: 1.5rem; }
+        .profile-avatar-section h3 { font-size: 1.125rem; margin-bottom: 0.25rem; margin-top: 0.75rem; }
+        .profile-email { font-size: 0.75rem; color: #6b7280; margin-bottom: 0.75rem; }
+        .profile-badge { display: inline-block; }
+        .badge-seller, .badge-buyer { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 2rem; font-size: 0.7rem; font-weight: 500; }
+        .badge-seller { background: #d1fae5; color: #065f46; }
+        .become-seller-btn { background: #87CEEB; color: #1a1a1a; border: none; padding: 0.5rem 1rem; border-radius: 2rem; font-size: 0.75rem; font-weight: 500; cursor: pointer; transition: all 0.2s; }
+        .become-seller-btn:hover { background: #6bb5d4; transform: translateY(-1px); }
+        .badge-buyer { background: #e0e7ff; color: #3730a3; }
+        .profile-stats { display: flex; justify-content: space-around; padding: 1rem 0; border-top: 1px solid #e5e7eb; border-bottom: 1px solid #e5e7eb; margin-bottom: 1rem; }
+        .stat-item { text-align: center; }
+        .stat-value { font-size: 1.25rem; font-weight: bold; }
+        .stat-label { font-size: 0.7rem; color: #6b7280; }
+        .profile-tabs { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem; }
+        .tab-btn { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border: none; background: none; border-radius: 0.75rem; cursor: pointer; font-size: 0.875rem; width: 100%; text-align: left; transition: all 0.2s; }
+        .tab-btn:hover { background: #f3f4f6; }
+        .tab-btn.active { background: #87CEEB; color: #1a1a1a; }
+        .tab-icon { width: 1.25rem; height: 1.25rem; }
+        .member-since { font-size: 0.7rem; color: #9ca3af; text-align: center; padding-top: 1rem; border-top: 1px solid #e5e7eb; }
+        .profile-card { background: white; border-radius: 1rem; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid #e5e7eb; }
+        .card-header h2 { font-size: 1.25rem; margin: 0; }
+        .edit-btn { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: #f3f4f6; border: none; border-radius: 0.5rem; cursor: pointer; font-size: 0.875rem; }
+        .edit-actions { display: flex; gap: 0.5rem; }
+        .save-btn, .cancel-btn { padding: 0.5rem 1rem; border-radius: 0.5rem; cursor: pointer; font-size: 0.875rem; }
+        .save-btn { background: #1a1a1a; color: white; border: none; }
+        .cancel-btn { background: #e5e7eb; color: #374151; border: none; }
+        .profile-form { display: flex; flex-direction: column; gap: 1rem; }
+        .form-group { display: flex; flex-direction: column; gap: 0.25rem; }
+        .form-group label { font-size: 0.875rem; font-weight: 500; }
+        .form-input { width: 100%; padding: 0.75rem; border: 1px solid #e5e7eb; border-radius: 0.5rem; font-size: 0.875rem; }
+        .form-input:focus { outline: none; border-color: #87CEEB; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .profile-info-display { display: flex; flex-direction: column; gap: 1rem; }
+        .info-row { display: flex; padding: 0.75rem 0; border-bottom: 1px solid #e5e7eb; }
+        .info-label { width: 120px; display: flex; align-items: center; gap: 0.5rem; font-weight: 500; color: #374151; }
+        .info-icon { width: 1rem; height: 1rem; color: #87CEEB; }
+        .info-value { flex: 1; color: #6b7280; }
+        .bio-row { flex-direction: column; }
+        .bio-row .info-label { margin-bottom: 0.5rem; }
+        .notification-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 0; cursor: pointer; }
+        .btn-primary { background: #1a1a1a; color: white; padding: 0.625rem 1.25rem; border: none; border-radius: 0.5rem; cursor: pointer; }
+        small { font-size: 0.7rem; color: #9ca3af; }
       `}</style>
     </div>
   );

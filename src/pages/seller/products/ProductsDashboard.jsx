@@ -134,12 +134,16 @@ const ProductsDashboard = () => {
                     <td>
                       <div className="product-cell">
                         <div className="product-image">
-                          {product.image || '📦'}
-                        </div>
-                        <div className="product-name">
-                          {product.title}
-                          <span className="product-category">{product.category}</span>
-                        </div>
+                          {product.media && product.media.length > 0 ? (
+                           <img 
+                             src={`http://localhost:5000${product.media[0].media_url}`} 
+                             alt={product.title}
+                      style={{ width: '48px', height: '48px', objectFit: 'cover', borderRadius: '0.5rem' }}
+                    />
+                    ) : (
+                    '📦'
+                  )}
+                </div>
                       </div>
                     </td>
                     <td className="product-price">{product.price} MAD</td>

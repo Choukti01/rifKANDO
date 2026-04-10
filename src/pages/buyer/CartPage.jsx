@@ -10,6 +10,22 @@ const CartPage = () => {
   const tax = subtotal * 0.2
   const total = subtotal + shipping + tax
 
+  // Helper to get product image URL
+  const getProductImage = (item) => {
+    if (item.media && item.media.length > 0) {
+      return `http://localhost:5000${item.media[0].media_url || item.media[0].url}`
+    }
+    if (item.image && item.image.startsWith('/uploads')) {
+      return `http://localhost:5000${item.image}`
+    }
+    // Fallback emoji based on type/category
+    if (item.type === 'course') return '📚'
+    if (item.type === 'service') return '🛠️'
+    if (item.type === 'digital') return '💻'
+    if (item.type === 'booking') return '📅'
+    return '📦'
+  }
+
   if (isEmpty) {
     return (
       <div className="empty-cart">
@@ -47,29 +63,43 @@ const CartPage = () => {
 
         <div className="cart-grid">
           <div className="cart-items">
-            {cart.map(item => (
-              <div key={`${item.id}-${item.type}`} className="cart-item">
-                <div className="cart-item-image">{item.image}</div>
-                <div className="cart-item-info">
-                  <Link to={`/${item.type}/${item.id}`} className="cart-item-title">{item.title}</Link>
-                  <p className="cart-item-seller">{item.seller}</p>
-                  <div className="cart-item-price">{item.price} MAD</div>
-                </div>
-                <div className="cart-item-quantity">
-                  <button onClick={() => updateQuantity(item.id, item.type, item.quantity - 1)}>
-                    <MinusIcon className="w-4 h-4" />
+            {cart.map(item => {
+              const imageSrc = getProductImage(item)
+              const isImageUrl = typeof imageSrc === 'string' && imageSrc.startsWith('http')
+              return (
+                <div key={`${item.id}-${item.type}`} className="cart-item">
+                  <div className="cart-item-image">
+                    {isImageUrl ? (
+                      <img 
+                        src={imageSrc} 
+                        alt={item.title}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '0.5rem' }}
+                      />
+                    ) : (
+                      <span style={{ fontSize: '2rem' }}>{imageSrc}</span>
+                    )}
+                  </div>
+                  <div className="cart-item-info">
+                    <Link to={`/${item.type}/${item.id}`} className="cart-item-title">{item.title}</Link>
+                    <p className="cart-item-seller">{item.seller}</p>
+                    <div className="cart-item-price">{item.price} MAD</div>
+                  </div>
+                  <div className="cart-item-quantity">
+                    <button onClick={() => updateQuantity(item.id, item.type, item.quantity - 1)}>
+                      <MinusIcon className="w-4 h-4" />
+                    </button>
+                    <span>{item.quantity}</span>
+                    <button onClick={() => updateQuantity(item.id, item.type, item.quantity + 1)}>
+                      <PlusIcon className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="cart-item-total">{item.price * item.quantity} MAD</div>
+                  <button onClick={() => removeFromCart(item.id, item.type)} className="cart-item-remove">
+                    <TrashIcon className="w-5 h-5" />
                   </button>
-                  <span>{item.quantity}</span>
-                  <button onClick={() => updateQuantity(item.id, item.type, item.quantity + 1)}>
-                    <PlusIcon className="w-4 h-4" />
-                  </button>
                 </div>
-                <div className="cart-item-total">{item.price * item.quantity} MAD</div>
-                <button onClick={() => removeFromCart(item.id, item.type)} className="cart-item-remove">
-                  <TrashIcon className="w-5 h-5" />
-                </button>
-              </div>
-            ))}
+              )
+            })}
             <div className="cart-continue">
               <Link to="/products">← Continue Shopping</Link>
             </div>
@@ -159,7 +189,7 @@ const CartPage = () => {
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 2rem;
+          overflow: hidden;
         }
         .cart-item-title {
           font-weight: 600;

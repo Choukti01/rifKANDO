@@ -29,6 +29,7 @@ import LoginPage from './pages/auth/LoginPage'
 import RegisterPage from './pages/auth/RegisterPage'
 import SellerTypePage from './pages/seller/SellerTypePage'
 import ProfilePage from './pages/profile/ProfilePage'
+import PublicProfilePage from './pages/profile/PublicProfilePage'   // NEW IMPORT
 import SearchPage from './pages/search/SearchPage'
 
 // Seller Dashboard Pages
@@ -97,6 +98,9 @@ function App() {
                   <Route path="/contact" element={<ContactPage />} />
                   <Route path="/terms" element={<TermsPage />} />
                   <Route path="/privacy" element={<PrivacyPage />} />
+
+                  {/* Public Profile Route (view seller info) */}
+                  <Route path="/profile/:userId" element={<PublicProfilePage />} />
 
                   {/* Protected Routes - Require Authentication */}
                   <Route path="/cart" element={

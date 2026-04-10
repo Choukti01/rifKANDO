@@ -107,7 +107,7 @@ const Navbar = () => {
                           <p className="dropdown-name">{user?.name}</p>
                           <p className="dropdown-email">{user?.email}</p>
                         </div>
-                        <Link to="/profile" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>
+                        <Link to="seller/dashboard" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>
                           My Profile
                         </Link>
                         <Link to="/orders" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>

@@ -51,7 +51,15 @@ const DashboardLayout = () => {
 
         <div className="sidebar-user">
           <div className="sidebar-avatar">
-            {user?.name?.charAt(0) || 'S'}
+            {user?.profilePicture ? (
+              <img 
+                src={`http://localhost:5000${user.profilePicture}`} 
+                alt={user?.name}
+                className="sidebar-avatar-img"
+              />
+            ) : (
+              <span>{user?.name?.charAt(0) || 'S'}</span>
+            )}
           </div>
           {isSidebarOpen && (
             <div className="sidebar-user-info">
@@ -93,7 +101,6 @@ const DashboardLayout = () => {
       <main className={`dashboard-main ${isSidebarOpen ? 'with-sidebar' : 'without-sidebar'}`}>
         <div className="dashboard-header">
           <h1>Dashboard</h1>
-          {/* Add New button removed - use buttons inside each dashboard page instead */}
         </div>
         <div className="dashboard-content">
           <Outlet />
@@ -179,6 +186,12 @@ const DashboardLayout = () => {
           justify-content: center;
           font-weight: bold;
           font-size: 1rem;
+          overflow: hidden;
+        }
+        .sidebar-avatar-img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
         }
         .sidebar-user-info h4 {
           font-size: 0.875rem;
