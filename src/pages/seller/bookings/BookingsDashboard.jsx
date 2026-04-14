@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { PlusIcon, EyeIcon, PencilIcon, TrashIcon, CalendarIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, EyeIcon, PencilIcon, TrashIcon, XMarkIcon, CalendarIcon } from '@heroicons/react/24/outline';
 import { getMyBookings, deleteBooking } from '../../../services/api';
+import api from '../../../services/api';
 import { useAuth } from '../../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 
@@ -49,8 +50,20 @@ const BookingsDashboard = () => {
     }
   };
 
+  const handleEndItem = async (id, type) => {
+    if (window.confirm('Mark this booking service as ended? It will no longer appear in marketplace listings.')) {
+      try {
+        await api.patch(`/${type}/${id}/status`, { status: 'ended' });
+        toast.success('Service marked as ended');
+        fetchBookings();
+      } catch (error) {
+        toast.error('Failed to update status');
+      }
+    }
+  };
+
   const handleDelete = async (bookingId) => {
-    if (window.confirm('Are you sure you want to delete this booking?')) {
+    if (window.confirm('Are you sure you want to delete this booking service?')) {
       try {
         await deleteBooking(bookingId);
         toast.success('Booking deleted successfully');
@@ -77,217 +90,218 @@ const BookingsDashboard = () => {
   return (
     <div>
       <div className="stats-grid">
-        <div className="stat-card">
-          <div className="stat-label">Total Services</div>
-          <div className="stat-value">{stats.totalBookings}</div>
-          <div className="stat-change">Active listings</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Total Appointments</div>
-          <div className="stat-value">{stats.totalAppointments}</div>
-          <div className="stat-change">Booked appointments</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Total Revenue</div>
-          <div className="stat-value">{stats.totalRevenue.toLocaleString()} MAD</div>
-          <div className="stat-change">From bookings</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Average Rating</div>
-          <div className="stat-value">{stats.avgRating} ★</div>
-          <div className="stat-change">Client satisfaction</div>
-        </div>
+        <div className="stat-card"><div className="stat-label">Total Services</div><div className="stat-value">{stats.totalBookings}</div><div className="stat-change">Active listings</div></div>
+        <div className="stat-card"><div className="stat-label">Total Appointments</div><div className="stat-value">{stats.totalAppointments}</div><div className="stat-change">Booked appointments</div></div>
+        <div className="stat-card"><div className="stat-label">Total Revenue</div><div className="stat-value">{stats.totalRevenue.toLocaleString()} MAD</div><div className="stat-change">From bookings</div></div>
+        <div className="stat-card"><div className="stat-label">Average Rating</div><div className="stat-value">{stats.avgRating} ★</div><div className="stat-change">Client satisfaction</div></div>
       </div>
 
       <div className="bookings-card">
         <div className="card-header">
           <h3>Your Services</h3>
-          <button onClick={handleAddNew} className="btn btn-primary btn-sm">
-            <PlusIcon className="w-4 h-4" />
-            Add Service
-          </button>
+          <button onClick={handleAddNew} className="btn btn-primary btn-sm"><PlusIcon className="w-4 h-4" />Add Service</button>
         </div>
 
         {bookings.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-icon">📅</div>
-            <p>No booking services yet</p>
-            <button onClick={handleAddNew} className="btn btn-primary">
-              Create Your First Service
-            </button>
-          </div>
+          <div className="empty-state"><div className="empty-icon">📅</div><p>No booking services yet</p><button onClick={handleAddNew} className="btn btn-primary">Create Your First Service</button></div>
         ) : (
           <div className="bookings-list">
-            {bookings.map(booking => (
-              <div key={booking.id} className="booking-item">
-                <div className="booking-info">
-                  <div className="booking-image-placeholder">
-                    {booking.image || '📅'}
-                  </div>
-                  <div className="booking-details">
-                    <h4>{booking.title}</h4>
-                    <div className="booking-stats">
-                      <span>
-                        <CalendarIcon className="stat-icon" />
-                        {booking.appointments_count || 0} appointments
-                      </span>
-                      <span>{booking.price} MAD</span>
-                      <span>{booking.duration || 60} min</span>
+            {bookings.map(booking => {
+              const primaryImage = booking.media?.find(m => m.is_primary) || booking.media?.[0];
+              return (
+                <div key={booking.id} className="booking-item">
+                  <div className="booking-info">
+                    <div className="booking-image-placeholder">
+                      {primaryImage ? (
+                        <img src={`http://localhost:5000${primaryImage.media_url}`} alt={booking.title} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '0.5rem' }} />
+                      ) : (
+                        booking.image || '📅'
+                      )}
+                    </div>
+                    <div className="booking-details">
+                      <h4>{booking.title}</h4>
+                      <div className="booking-stats">
+                        <span><CalendarIcon className="stat-icon" />{booking.appointments_count || 0} appointments</span>
+                        <span>{booking.price} MAD</span>
+                        <span>{booking.duration || 60} min</span>
+                      </div>
+                      <div className="booking-status">
+                        <span className={`status-badge ${booking.status === 'published' ? 'published' : 'ended'}`}>
+                          {booking.status === 'published' ? 'Active' : 'Ended'}
+                        </span>
+                      </div>
                     </div>
                   </div>
+                  <div className="booking-actions">
+                    <Link to={`/booking/${booking.id}`} className="action-btn view" title="View Booking" target="_blank"><EyeIcon className="w-4 h-4" /></Link>
+                    <Link to={`/seller/dashboard/bookings/${booking.id}/edit`} className="action-btn edit" title="Edit Booking"><PencilIcon className="w-4 h-4" /></Link>
+                    {booking.status !== 'ended' && (
+                      <button onClick={() => handleEndItem(booking.id, 'bookings')} className="action-btn end" title="Mark as Ended">
+                        <XMarkIcon className="w-4 h-4" />
+                      </button>
+                    )}
+                    <button onClick={() => handleDelete(booking.id)} className="action-btn delete" title="Delete Permanently">
+                      <TrashIcon className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
-                <div className="booking-actions">
-                  <Link to={`/booking/${booking.id}`} className="action-btn" target="_blank">
-                    <EyeIcon className="w-4 h-4" />
-                  </Link>
-                  <Link to={`/seller/dashboard/bookings/${booking.id}/edit`} className="action-btn">
-                    <PencilIcon className="w-4 h-4" />
-                  </Link>
-                  <button onClick={() => handleDelete(booking.id)} className="action-btn delete">
-                    <TrashIcon className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
 
       <style>{`
-        .stats-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-          gap: 1.5rem;
-          margin-bottom: 2rem;
-        }
-        .stat-card {
-          background: white;
-          border-radius: 1rem;
-          padding: 1.25rem;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-        .stat-label {
-          font-size: 0.875rem;
-          color: #6b7280;
-          margin-bottom: 0.5rem;
-        }
-        .stat-value {
-          font-size: 1.75rem;
-          font-weight: bold;
-          margin-bottom: 0.25rem;
-        }
-        .stat-change {
-          font-size: 0.75rem;
-          color: #10b981;
-        }
-        .bookings-card {
-          background: white;
-          border-radius: 1rem;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-          overflow: hidden;
-        }
-        .card-header {
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
+        .stat-card { background: white; border-radius: 1rem; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .stat-label { font-size: 0.875rem; color: #6b7280; margin-bottom: 0.5rem; }
+        .stat-value { font-size: 1.75rem; font-weight: bold; margin-bottom: 0.25rem; }
+        .stat-change { font-size: 0.75rem; color: #10b981; }
+        .bookings-card { background: white; border-radius: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow: hidden; }
+        .card-header { display: flex; justify-content: space-between; align-items: center; padding: 1.25rem; border-bottom: 1px solid #e5e7eb; }
+        .card-header h3 { font-size: 1rem; font-weight: 600; margin: 0; }
+        .empty-state { text-align: center; padding: 3rem; }
+        .empty-icon { font-size: 4rem; margin-bottom: 1rem; }
+        .bookings-list { padding: 0.5rem; }
+        .booking-item { display: flex; justify-content: space-between; align-items: center; padding: 1rem; border-bottom: 1px solid #e5e7eb; flex-wrap: wrap; gap: 1rem; }
+        .booking-info { display: flex; align-items: center; gap: 1rem; flex: 1; }
+        .booking-image-placeholder { width: 60px; height: 60px; background: #f3f4f6; border-radius: 0.5rem; display: flex; align-items: center; justify-content: center; font-size: 2rem; overflow: hidden; }
+        .booking-details h4 { font-size: 1rem; margin-bottom: 0.5rem; }
+        .booking-stats { display: flex; gap: 1rem; font-size: 0.75rem; color: #6b7280; margin-bottom: 0.5rem; flex-wrap: wrap; }
+        .stat-icon { width: 0.875rem; height: 0.875rem; margin-right: 0.25rem; }
+        .status-badge { display: inline-block; padding: 0.25rem 0.5rem; border-radius: 9999px; font-size: 0.7rem; font-weight: 500; }
+        .status-badge.published { background: #d1fae5; color: #065f46; }
+        .status-badge.ended { background: #fee2e2; color: #991b1b; }
+        .booking-actions { display: flex; gap: 0.5rem; align-items: center; }
+
+        /* ========== MODERN ACTION BUTTONS ========== */
+        .action-buttons, .product-actions, .course-actions, .service-actions, .digital-actions, .booking-actions {
           display: flex;
-          justify-content: space-between;
+          gap: 0.75rem;
           align-items: center;
-          padding: 1.25rem;
-          border-bottom: 1px solid #e5e7eb;
         }
-        .card-header h3 {
-          font-size: 1rem;
-          font-weight: 600;
-          margin: 0;
-        }
-        .empty-state {
-          text-align: center;
-          padding: 3rem;
-        }
-        .empty-icon {
-          font-size: 4rem;
-          margin-bottom: 1rem;
-        }
-        .bookings-list {
-          padding: 0.5rem;
-        }
-        .booking-item {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 1rem;
-          border-bottom: 1px solid #e5e7eb;
-          flex-wrap: wrap;
-          gap: 1rem;
-        }
-        .booking-info {
-          display: flex;
-          align-items: center;
-          gap: 1rem;
-          flex: 1;
-        }
-        .booking-image-placeholder {
-          width: 60px;
-          height: 60px;
-          background: #f3f4f6;
-          border-radius: 0.5rem;
-          display: flex;
+
+        .action-btn {
+          position: relative;
+          padding: 0;
+          width: 36px;
+          height: 36px;
+          background: transparent;
+          border: none;
+          border-radius: 12px;
+          cursor: pointer;
+          color: #64748b;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+          display: inline-flex;
           align-items: center;
           justify-content: center;
-          font-size: 2rem;
+          overflow: hidden;
         }
-        .booking-details h4 {
-          font-size: 1rem;
-          margin-bottom: 0.5rem;
+
+        .action-btn svg {
+          width: 18px;
+          height: 18px;
+          transition: transform 0.2s ease;
+          position: relative;
+          z-index: 2;
         }
-        .booking-stats {
-          display: flex;
-          gap: 1rem;
-          font-size: 0.75rem;
-          color: #6b7280;
-          flex-wrap: wrap;
+
+        .action-btn::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: #f1f5f9;
+          border-radius: 12px;
+          transform: scale(0.8);
+          opacity: 0;
+          transition: all 0.2s ease;
+          z-index: 1;
         }
-        .stat-icon {
-          width: 0.875rem;
-          height: 0.875rem;
-          margin-right: 0.25rem;
+
+        .action-btn:hover::before {
+          transform: scale(1);
+          opacity: 1;
         }
-        .booking-actions {
-          display: flex;
-          gap: 0.5rem;
-          align-items: center;
+
+        .action-btn:hover svg {
+          transform: translateY(-2px);
         }
+
+        .action-btn:active {
+          transform: scale(0.95);
+        }
+
+        /* View button (eye) - Sky Blue */
+        .action-btn.view {
+          color: #0ea5e9;
+        }
+
+        .action-btn.view::before {
+          background: #e0f2fe;
+        }
+
+        /* Edit button (pencil) - Amber */
+        .action-btn.edit {
+          color: #f59e0b;
+        }
+
+        .action-btn.edit::before {
+          background: #fef3c7;
+        }
+
+        /* End button (X) - Orange */
+        .action-btn.end {
+          color: #ea580c;
+        }
+
+        .action-btn.end::before {
+          background: #ffedd5;
+        }
+
+        /* Delete button (trash) - Rose/Red */
+        .action-btn.delete {
+          color: #e11d48;
+        }
+
+        .action-btn.delete::before {
+          background: #ffe4e6;
+        }
+
+        /* Tooltip on hover */
         .action-btn {
-          padding: 0.5rem;
-          background: none;
-          border: none;
-          cursor: pointer;
-          color: #6b7280;
-          border-radius: 0.5rem;
-          text-decoration: none;
-          display: inline-flex;
-          align-items: center;
+          position: relative;
         }
-        .action-btn:hover {
-          background: #f3f4f6;
-        }
-        .action-btn.delete:hover {
-          color: #ef4444;
-        }
-        .btn-sm {
-          display: inline-flex;
-          align-items: center;
-          gap: 0.5rem;
-          padding: 0.5rem 1rem;
-          font-size: 0.875rem;
-          background: #1a1a1a;
+
+        .action-btn::after {
+          content: attr(title);
+          position: absolute;
+          bottom: -30px;
+          left: 50%;
+          transform: translateX(-50%);
+          background: #1e293b;
           color: white;
-          border: none;
-          border-radius: 0.5rem;
-          cursor: pointer;
+          font-size: 0.7rem;
+          padding: 0.25rem 0.5rem;
+          border-radius: 6px;
+          white-space: nowrap;
+          opacity: 0;
+          visibility: hidden;
+          transition: all 0.2s;
+          pointer-events: none;
+          z-index: 10;
         }
-        .btn-primary {
-          background: #1a1a1a;
-          color: white;
+
+        .action-btn:hover::after {
+          opacity: 1;
+          visibility: visible;
+          bottom: -28px;
         }
+
+        .btn-sm { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; font-size: 0.875rem; background: #1a1a1a; color: white; border: none; border-radius: 0.5rem; cursor: pointer; }
+        .btn-primary { background: #1a1a1a; color: white; }
       `}</style>
     </div>
   );

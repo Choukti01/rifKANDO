@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { PlusIcon, EyeIcon, PencilIcon, TrashIcon, ShoppingBagIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, EyeIcon, PencilIcon, TrashIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { getMyProducts, deleteProduct } from '../../../services/api';
+import api from '../../../services/api';
 import { useAuth } from '../../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 
@@ -29,7 +30,6 @@ const ProductsDashboard = () => {
       const productsData = response.data.products || [];
       setProducts(productsData);
       
-      // Calculate stats
       const totalValue = productsData.reduce((sum, p) => sum + (p.price * p.stock), 0);
       const totalSold = productsData.reduce((sum, p) => sum + (p.sold || 0), 0);
       const lowStock = productsData.filter(p => p.stock < 10 && p.stock > 0).length;
@@ -45,6 +45,18 @@ const ProductsDashboard = () => {
       toast.error('Failed to load products');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleEndItem = async (id, type) => {
+    if (window.confirm('Mark this product as ended? It will no longer appear in marketplace listings.')) {
+      try {
+        await api.patch(`/${type}/${id}/status`, { status: 'ended' });
+        toast.success('Product marked as ended');
+        fetchProducts();
+      } catch (error) {
+        toast.error('Failed to update status');
+      }
     }
   };
 
@@ -135,15 +147,15 @@ const ProductsDashboard = () => {
                       <div className="product-cell">
                         <div className="product-image">
                           {product.media && product.media.length > 0 ? (
-                           <img 
-                             src={`http://localhost:5000${product.media[0].media_url}`} 
-                             alt={product.title}
-                      style={{ width: '48px', height: '48px', objectFit: 'cover', borderRadius: '0.5rem' }}
-                    />
-                    ) : (
-                    '📦'
-                  )}
-                </div>
+                            <img src={`http://localhost:5000${product.media[0].media_url}`} alt="" style={{ width: '48px', height: '48px', objectFit: 'cover', borderRadius: '0.5rem' }} />
+                          ) : (
+                            product.image || '📦'
+                          )}
+                        </div>
+                        <div className="product-name">
+                          {product.title}
+                          <span className="product-category">{product.category}</span>
+                        </div>
                       </div>
                     </td>
                     <td className="product-price">{product.price} MAD</td>
@@ -153,19 +165,24 @@ const ProductsDashboard = () => {
                     </td>
                     <td>{product.sold || 0}</td>
                     <td>
-                      <span className={`status-badge ${product.status === 'published' ? 'published' : 'draft'}`}>
-                        {product.status === 'published' ? 'Active' : 'Draft'}
+                      <span className={`status-badge ${product.status === 'published' ? 'published' : 'ended'}`}>
+                        {product.status === 'published' ? 'Active' : 'Ended'}
                       </span>
                     </td>
                     <td>
                       <div className="action-buttons">
-                        <Link to={`/product/${product.id}`} className="action-btn" target="_blank">
+                        <Link to={`/product/${product.id}`} className="action-btn view" title="View Product" target="_blank">
                           <EyeIcon className="w-4 h-4" />
                         </Link>
-                        <Link to={`/seller/dashboard/products/${product.id}/edit`} className="action-btn">
+                        <Link to={`/seller/dashboard/products/${product.id}/edit`} className="action-btn edit" title="Edit Product">
                           <PencilIcon className="w-4 h-4" />
                         </Link>
-                        <button onClick={() => handleDelete(product.id)} className="action-btn delete">
+                        {product.status !== 'ended' && (
+                          <button onClick={() => handleEndItem(product.id, 'products')} className="action-btn end" title="Mark as Ended">
+                            <XMarkIcon className="w-4 h-4" />
+                          </button>
+                        )}
+                        <button onClick={() => handleDelete(product.id)} className="action-btn delete" title="Delete Permanently">
                           <TrashIcon className="w-4 h-4" />
                         </button>
                       </div>
@@ -264,6 +281,7 @@ const ProductsDashboard = () => {
           align-items: center;
           justify-content: center;
           font-size: 1.5rem;
+          overflow: hidden;
         }
         .product-name {
           font-weight: 500;
@@ -300,31 +318,142 @@ const ProductsDashboard = () => {
           background: #d1fae5;
           color: #065f46;
         }
-        .status-badge.draft {
-          background: #fef3c7;
-          color: #92400e;
+        .status-badge.ended {
+          background: #fee2e2;
+          color: #991b1b;
         }
         .action-buttons {
           display: flex;
           gap: 0.5rem;
-        }
-        .action-btn {
-          padding: 0.375rem;
-          background: none;
-          border: none;
-          cursor: pointer;
-          color: #6b7280;
-          border-radius: 0.375rem;
-          text-decoration: none;
-          display: inline-flex;
           align-items: center;
         }
-        .action-btn:hover {
-          background: #f3f4f6;
+
+        /* ========== MODERN ACTION BUTTONS ========== */
+        .action-buttons, .product-actions, .course-actions, .service-actions, .digital-actions, .booking-actions {
+          display: flex;
+          gap: 0.75rem;
+          align-items: center;
         }
-        .action-btn.delete:hover {
-          color: #ef4444;
+
+        .action-btn {
+          position: relative;
+          padding: 0;
+          width: 36px;
+          height: 36px;
+          background: transparent;
+          border: none;
+          border-radius: 12px;
+          cursor: pointer;
+          color: #64748b;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          overflow: hidden;
         }
+
+        .action-btn svg {
+          width: 18px;
+          height: 18px;
+          transition: transform 0.2s ease;
+          position: relative;
+          z-index: 2;
+        }
+
+        .action-btn::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: #f1f5f9;
+          border-radius: 12px;
+          transform: scale(0.8);
+          opacity: 0;
+          transition: all 0.2s ease;
+          z-index: 1;
+        }
+
+        .action-btn:hover::before {
+          transform: scale(1);
+          opacity: 1;
+        }
+
+        .action-btn:hover svg {
+          transform: translateY(-2px);
+        }
+
+        .action-btn:active {
+          transform: scale(0.95);
+        }
+
+        /* View button (eye) - Sky Blue */
+        .action-btn.view {
+          color: #0ea5e9;
+        }
+
+        .action-btn.view::before {
+          background: #e0f2fe;
+        }
+
+        /* Edit button (pencil) - Amber */
+        .action-btn.edit {
+          color: #f59e0b;
+        }
+
+        .action-btn.edit::before {
+          background: #fef3c7;
+        }
+
+        /* End button (X) - Orange */
+        .action-btn.end {
+          color: #ea580c;
+        }
+
+        .action-btn.end::before {
+          background: #ffedd5;
+        }
+
+        /* Delete button (trash) - Rose/Red */
+        .action-btn.delete {
+          color: #e11d48;
+        }
+
+        .action-btn.delete::before {
+          background: #ffe4e6;
+        }
+
+        /* Tooltip on hover */
+        .action-btn {
+          position: relative;
+        }
+
+        .action-btn::after {
+          content: attr(title);
+          position: absolute;
+          bottom: -30px;
+          left: 50%;
+          transform: translateX(-50%);
+          background: #1e293b;
+          color: white;
+          font-size: 0.7rem;
+          padding: 0.25rem 0.5rem;
+          border-radius: 6px;
+          white-space: nowrap;
+          opacity: 0;
+          visibility: hidden;
+          transition: all 0.2s;
+          pointer-events: none;
+          z-index: 10;
+        }
+
+        .action-btn:hover::after {
+          opacity: 1;
+          visibility: visible;
+          bottom: -28px;
+        }
+
         .btn-sm {
           display: inline-flex;
           align-items: center;

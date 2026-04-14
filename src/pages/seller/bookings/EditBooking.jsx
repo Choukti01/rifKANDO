@@ -1,14 +1,16 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import api from '../../../services/api';
 import { useAuth } from '../../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import MediaUploader from '../../../components/MediaUploader';
 
-const AddBooking = () => {
+const EditBooking = () => {
+  const { id } = useParams();
   const navigate = useNavigate();
   const { token } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [fetching, setFetching] = useState(true);
   const [media, setMedia] = useState([]);
   const [formData, setFormData] = useState({
     title: '',
@@ -23,6 +25,39 @@ const AddBooking = () => {
     image: '📅'
   });
 
+  useEffect(() => {
+    fetchBooking();
+  }, [id]);
+
+  const fetchBooking = async () => {
+    try {
+      setFetching(true);
+      const response = await api.get(`/bookings/${id}`);
+      const booking = response.data.booking;
+      setFormData({
+        title: booking.title || '',
+        description: booking.description || '',
+        price: booking.price || '',
+        old_price: booking.old_price || '',
+        category: booking.category || 'consultation',
+        duration: booking.duration || '60',
+        location_type: booking.location_type || 'online',
+        location: booking.location || '',
+        max_participants: booking.max_participants || '1',
+        image: booking.image || '📅'
+      });
+      if (booking.media && booking.media.length) {
+        setMedia(booking.media.map(m => ({ url: m.media_url, type: m.media_type })));
+      }
+    } catch (error) {
+      console.error('Error fetching booking:', error);
+      toast.error('Failed to load booking data');
+      navigate('/seller/dashboard/bookings');
+    } finally {
+      setFetching(false);
+    }
+  };
+
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -30,7 +65,6 @@ const AddBooking = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    
     try {
       const bookingData = {
         ...formData,
@@ -41,23 +75,32 @@ const AddBooking = () => {
         media: media.map((m, idx) => ({ ...m, order: idx, isPrimary: idx === 0 }))
       };
       
-      await api.post('/bookings', bookingData, {
+      await api.put(`/bookings/${id}`, bookingData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
-      toast.success('Booking service created successfully!');
+      toast.success('Booking service updated successfully!');
       navigate('/seller/dashboard/bookings');
     } catch (error) {
-      console.error('Error creating booking:', error);
-      toast.error(error.response?.data?.error || 'Failed to create booking');
+      console.error('Error updating booking:', error);
+      toast.error(error.response?.data?.error || 'Failed to update booking');
     } finally {
       setLoading(false);
     }
   };
 
+  if (fetching) {
+    return (
+      <div className="text-center py-16">
+        <div className="spinner"></div>
+        <p>Loading booking data...</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="add-booking">
-      <h2>Add Booking Service</h2>
+    <div className="edit-booking">
+      <h2>Edit Booking Service</h2>
       <form onSubmit={handleSubmit} className="booking-form">
         <div className="form-group">
           <label>Service Title *</label>
@@ -107,7 +150,7 @@ const AddBooking = () => {
           {formData.location_type === 'in_person' && (
             <div className="form-group">
               <label>Location Address</label>
-              <input type="text" name="location" value={formData.location} onChange={handleChange} className="form-input" placeholder="Office address" />
+              <input type="text" name="location" value={formData.location} onChange={handleChange} className="form-input" />
             </div>
           )}
         </div>
@@ -115,29 +158,30 @@ const AddBooking = () => {
         <div className="form-row">
           <div className="form-group">
             <label>Max Participants</label>
-            <input type="number" name="max_participants" value={formData.max_participants} onChange={handleChange} className="form-input" placeholder="1" />
+            <input type="number" name="max_participants" value={formData.max_participants} onChange={handleChange} className="form-input" />
           </div>
           <div className="form-group">
-            <label>Service Icon (optional)</label>
+            <label>Service Icon</label>
             <input type="text" name="image" value={formData.image} onChange={handleChange} className="form-input" placeholder="📅" />
           </div>
         </div>
 
-        {/* Media Upload Section */}
         <div className="form-group">
           <label>Service Images & Videos (max 10)</label>
-          <MediaUploader onMediaUploaded={setMedia} maxFiles={10} />
+          <MediaUploader onMediaUploaded={setMedia} existingMedia={media} maxFiles={10} />
         </div>
 
         <div className="form-actions">
-          <button type="submit" className="btn btn-primary" disabled={loading}>{loading ? 'Creating...' : 'Create Service'}</button>
+          <button type="submit" className="btn btn-primary" disabled={loading}>
+            {loading ? 'Saving...' : 'Update Service'}
+          </button>
           <button type="button" onClick={() => navigate('/seller/dashboard/bookings')} className="btn btn-outline">Cancel</button>
         </div>
       </form>
 
       <style>{`
-        .add-booking { max-width: 800px; margin: 0 auto; }
-        .add-booking h2 { font-size: 1.25rem; margin-bottom: 1.5rem; }
+        .edit-booking { max-width: 800px; margin: 0 auto; }
+        .edit-booking h2 { font-size: 1.25rem; margin-bottom: 1.5rem; }
         .booking-form { background: white; border-radius: 1rem; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
         .form-group { margin-bottom: 1rem; }
@@ -151,4 +195,4 @@ const AddBooking = () => {
   );
 };
 
-export default AddBooking;
+export default EditBooking;

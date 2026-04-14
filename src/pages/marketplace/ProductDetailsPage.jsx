@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { StarIcon, HeartIcon, TruckIcon, ShieldCheckIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 import { useCart } from '../../contexts/CartContext';
 import { useFavorites } from '../../contexts/FavoritesContext';
@@ -10,6 +10,7 @@ import MediaGallery from '../../components/MediaGallery';
 
 const ProductDetailsPage = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
@@ -20,8 +21,15 @@ const ProductDetailsPage = () => {
   const { addToFavorites, removeFromFavorites, isFavorite } = useFavorites();
   const { isAuthenticated } = useAuth();
 
-  useEffect(() => { fetchProduct(); }, [id]);
-  useEffect(() => { if (product && isAuthenticated) setIsFav(isFavorite(product.id, 'product')); }, [product, isAuthenticated, isFavorite]);
+  useEffect(() => {
+    fetchProduct();
+  }, [id]);
+
+  useEffect(() => {
+    if (product && isAuthenticated) {
+      setIsFav(isFavorite(product.id, 'product'));
+    }
+  }, [product, isAuthenticated, isFavorite]);
 
   const fetchProduct = async () => {
     try {
@@ -29,6 +37,7 @@ const ProductDetailsPage = () => {
       const response = await getProduct(id);
       setProduct(response.data.product);
     } catch (error) {
+      console.error('Error fetching product:', error);
       toast.error('Failed to load product');
     } finally {
       setLoading(false);
@@ -36,12 +45,18 @@ const ProductDetailsPage = () => {
   };
 
   const handleAddToCart = () => {
-    if (!isAuthenticated) { toast.error('Please login'); return; }
+    if (!isAuthenticated) {
+      toast.error('Please login to add items to cart');
+      return;
+    }
     addToCart(product, quantity, 'product');
   };
 
   const handleFavorite = async () => {
-    if (!isAuthenticated) { toast.error('Please login'); return; }
+    if (!isAuthenticated) {
+      toast.error('Please login to add to favorites');
+      return;
+    }
     if (isFav) {
       const success = await removeFromFavorites(product.id, 'product');
       if (success) setIsFav(false);
@@ -52,7 +67,7 @@ const ProductDetailsPage = () => {
   };
 
   if (loading) return <div className="container text-center py-16"><div className="spinner"></div><p>Loading product...</p></div>;
-  if (!product) return <div className="container text-center py-16"><p>Product not found</p><Link to="/products" className="btn btn-primary mt-4">Back</Link></div>;
+  if (!product) return <div className="container text-center py-16"><p>Product not found</p><Link to="/products" className="btn btn-primary">Back</Link></div>;
 
   const primaryMedia = product.media?.find(m => m.is_primary) || product.media?.[0];
 
@@ -113,11 +128,14 @@ const ProductDetailsPage = () => {
           <div className="tabs-content">{activeTab==='description'?<p>{product.description}</p>:<div className="specs-list"><div className="spec-item"><span className="spec-label">Category</span><span className="spec-value">{product.category}</span></div><div className="spec-item"><span className="spec-label">Stock</span><span className="spec-value">{product.stock} units</span></div><div className="spec-item"><span className="spec-label">Sold</span><span className="spec-value">{product.sold || 0} units</span></div></div>}</div>
         </div>
       </div>
-      {showGallery && product.media && (
-        <MediaGallery media={product.media.map(m => ({ url: `http://localhost:5000${m.media_url}`, type: m.media_type }))} onClose={() => setShowGallery(false)} />
+      {showGallery && (
+        <MediaGallery
+          media={product.media.map(m => ({ url: `http://localhost:5000${m.media_url}`, type: m.media_type }))}
+          onClose={() => setShowGallery(false)}
+        />
       )}
       <style>{`
-        .product-details { padding: 2rem 0; }
+        .product-details { padding: 2rem 0; min-height: calc(100vh - 80px); }
         .product-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; margin-bottom: 3rem; }
         @media (max-width: 768px) { .product-grid { grid-template-columns: 1fr; } }
         .main-image { background: #f3f4f6; border-radius: 1rem; height: 400px; display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden; }
@@ -132,6 +150,8 @@ const ProductDetailsPage = () => {
         .product-meta { display: flex; gap: 1rem; margin-bottom: 1rem; }
         .product-rating { display: flex; align-items: center; gap: 0.25rem; color: #f59e0b; }
         .star-icon { width: 1rem; height: 1rem; fill: #f59e0b; }
+        .seller-link { color: #87CEEB; text-decoration: none; font-weight: 500; }
+        .seller-link:hover { text-decoration: underline; }
         .current-price { font-size: 1.5rem; font-weight: bold; }
         .old-price { font-size: 1rem; color: #9ca3af; text-decoration: line-through; margin-left: 0.5rem; }
         .in-stock { color: #10b981; }
@@ -155,8 +175,6 @@ const ProductDetailsPage = () => {
         .spec-item { display: flex; padding: 0.5rem 0; border-bottom: 1px solid #e5e7eb; }
         .spec-label { width: 150px; font-weight: 500; }
         .spec-value { color: #6b7280; }
-        .seller-link { color: #87CEEB; text-decoration: none; font-weight: 500; }
-        .seller-link:hover { text-decoration: underline; }
       `}</style>
     </div>
   );

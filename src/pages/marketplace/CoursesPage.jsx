@@ -1,20 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { StarIcon, UserGroupIcon, ClockIcon } from '@heroicons/react/24/outline';
 import { getCourses } from '../../services/api';
 import toast from 'react-hot-toast';
+import MediaGallery from '../../components/MediaGallery';
 
 const CoursesPage = () => {
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedLevel, setSelectedLevel] = useState('all');
-
-  const levels = [
-    { id: 'all', name: 'All Levels' },
-    { id: 'beginner', name: 'Beginner' },
-    { id: 'intermediate', name: 'Intermediate' },
-    { id: 'advanced', name: 'Advanced' },
-  ];
+  const [galleryCourse, setGalleryCourse] = useState(null);
 
   useEffect(() => {
     fetchCourses();
@@ -24,6 +17,7 @@ const CoursesPage = () => {
     try {
       setLoading(true);
       const response = await getCourses();
+      console.log('Courses response:', response.data); // Debug: check if media exists
       setCourses(response.data.courses || []);
     } catch (error) {
       console.error('Error fetching courses:', error);
@@ -32,10 +26,6 @@ const CoursesPage = () => {
       setLoading(false);
     }
   };
-
-  const filteredCourses = selectedLevel === 'all' 
-    ? courses 
-    : courses.filter(c => c.level === selectedLevel);
 
   if (loading) {
     return (
@@ -50,61 +40,84 @@ const CoursesPage = () => {
     <div className="courses-page">
       <div className="container">
         <div className="courses-header">
-          <h1>Online Courses</h1>
+          <h1>Courses</h1>
           <p>Learn new skills from expert instructors</p>
         </div>
 
-        <div className="courses-levels">
-          {levels.map(level => (
-            <button
-              key={level.id}
-              onClick={() => setSelectedLevel(level.id)}
-              className={`level-btn ${selectedLevel === level.id ? 'active' : ''}`}
-            >
-              {level.name}
-            </button>
-          ))}
-        </div>
-
         <div className="courses-grid">
-          {filteredCourses.length === 0 ? (
+          {courses.length === 0 ? (
             <p className="text-center col-span-full">No courses found</p>
           ) : (
-            filteredCourses.map(course => (
-              <Link key={course.id} to={`/course/${course.id}`} className="course-card">
-                <div className="course-image">
-                  {course.image || '📚'}
-                </div>
-                <div className="course-content">
-                  <h3>{course.title}</h3>
-                  <p>by {course.instructor_name}</p>
-                  <div className="course-stats">
-                    <div className="course-rating">
-                      <StarIcon className="star-icon" />
-                      <span>{course.rating || 0}</span>
-                    </div>
-                    <div className="course-students">
-                      <UserGroupIcon className="user-icon" />
-                      <span>{course.students_count || 0}</span>
-                    </div>
-                    <div className="course-duration">
-                      <ClockIcon className="clock-icon" />
-                      <span>{course.duration || 0} hours</span>
-                    </div>
-                  </div>
-                  <div className="course-footer">
-                    <span className="course-price">{course.price} MAD</span>
-                    {course.old_price && (
-                      <span className="old-price">{course.old_price} MAD</span>
+            courses.map(course => {
+              // Get primary image from media array
+              const primaryMedia = course.media && course.media.length > 0 
+                ? (course.media.find(m => m.is_primary) || course.media[0])
+                : null;
+              
+              return (
+                <div key={course.id} className="course-card">
+                  {/* Course image – click opens gallery if media exists */}
+                  <div 
+                    className="course-image" 
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (course.media && course.media.length > 0) {
+                        setGalleryCourse(course);
+                      }
+                    }}
+                    style={{ cursor: course.media && course.media.length > 0 ? 'pointer' : 'default' }}
+                  >
+                    {primaryMedia ? (
+                      <>
+                        {primaryMedia.media_type === 'video' && <div className="video-badge">🎬 Video</div>}
+                        <img 
+                          src={`http://localhost:5000${primaryMedia.media_url}`} 
+                          alt={course.title}
+                        />
+                        {course.media.length > 1 && (
+                          <div className="media-count">{course.media.length} items</div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="image-placeholder">📚</div>
                     )}
-                    <button className="course-btn">View Course</button>
+                  </div>
+                  
+                  {/* Course title */}
+                  <Link to={`/course/${course.id}`}>
+                    <h3>{course.title}</h3>
+                  </Link>
+                  
+                  {/* Instructor name */}
+                  <p className="instructor-name">
+                    by <Link to={`/profile/${course.instructor_id}`} className="instructor-link">
+                      {course.instructor_name || 'Unknown Instructor'}
+                    </Link>
+                  </p>
+                  
+                  <div className="course-meta">
+                    <span>⭐ {course.rating || 0}</span>
+                    <span>👥 {course.students_count || 0} students</span>
+                  </div>
+                  
+                  <div className="course-price">
+                    <span className="current-price">{course.price} MAD</span>
+                    {course.old_price && <span className="old-price">{course.old_price} MAD</span>}
                   </div>
                 </div>
-              </Link>
-            ))
+              );
+            })
           )}
         </div>
       </div>
+
+      {/* Gallery Modal */}
+      {galleryCourse && (
+        <MediaGallery
+          media={galleryCourse.media.map(m => ({ url: `http://localhost:5000${m.media_url}`, type: m.media_type }))}
+          onClose={() => setGalleryCourse(null)}
+        />
+      )}
 
       <style>{`
         .courses-page {
@@ -119,28 +132,12 @@ const CoursesPage = () => {
           font-size: 2rem;
           margin-bottom: 0.5rem;
         }
-        .courses-levels {
-          display: flex;
-          justify-content: center;
-          gap: 1rem;
-          margin-bottom: 2rem;
-          flex-wrap: wrap;
-        }
-        .level-btn {
-          padding: 0.5rem 1.5rem;
-          border-radius: 2rem;
-          border: 1px solid #e5e7eb;
-          background: white;
-          cursor: pointer;
-        }
-        .level-btn.active {
-          background: #87CEEB;
-          border-color: #87CEEB;
-          color: #1a1a1a;
+        .courses-header p {
+          color: #6b7280;
         }
         .courses-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+          grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
           gap: 1.5rem;
         }
         .course-card {
@@ -148,79 +145,95 @@ const CoursesPage = () => {
           border-radius: 1rem;
           overflow: hidden;
           box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-          text-decoration: none;
-          transition: all 0.3s;
+          transition: transform 0.3s;
         }
         .course-card:hover {
           transform: translateY(-4px);
           box-shadow: 0 12px 24px rgba(0,0,0,0.1);
         }
         .course-image {
-          height: 160px;
+          height: 180px;
           background: #f3f4f6;
+          position: relative;
+          overflow: hidden;
+        }
+        .course-image img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+        .image-placeholder {
+          width: 100%;
+          height: 100%;
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 3rem;
+          font-size: 4rem;
         }
-        .course-content {
-          padding: 1rem;
+        .video-badge {
+          position: absolute;
+          top: 0.5rem;
+          left: 0.5rem;
+          background: rgba(0,0,0,0.6);
+          color: white;
+          padding: 0.25rem 0.5rem;
+          border-radius: 0.5rem;
+          font-size: 0.7rem;
+          z-index: 1;
         }
-        .course-content h3 {
+        .media-count {
+          position: absolute;
+          bottom: 0.5rem;
+          right: 0.5rem;
+          background: rgba(0,0,0,0.6);
+          color: white;
+          padding: 0.25rem 0.5rem;
+          border-radius: 0.5rem;
+          font-size: 0.7rem;
+          z-index: 1;
+        }
+        .course-card h3 {
           font-size: 1rem;
           font-weight: 600;
-          margin-bottom: 0.25rem;
+          margin: 0.75rem 1rem 0.25rem;
           color: #1a1a1a;
         }
-        .course-content p {
+        .course-card a {
+          text-decoration: none;
+        }
+        .instructor-name {
           font-size: 0.75rem;
           color: #6b7280;
-          margin-bottom: 0.5rem;
+          margin: 0 1rem 0.5rem;
         }
-        .course-stats {
+        .instructor-link {
+          color: #87CEEB;
+          text-decoration: none;
+        }
+        .instructor-link:hover {
+          text-decoration: underline;
+        }
+        .course-meta {
           display: flex;
           gap: 1rem;
-          margin-bottom: 1rem;
+          margin: 0 1rem 0.5rem;
           font-size: 0.7rem;
           color: #6b7280;
         }
-        .course-rating, .course-students, .course-duration {
-          display: flex;
-          align-items: center;
-          gap: 0.25rem;
-        }
-        .star-icon, .user-icon, .clock-icon {
-          width: 0.75rem;
-          height: 0.75rem;
-        }
-        .star-icon {
-          color: #f59e0b;
-          fill: #f59e0b;
-        }
-        .course-footer {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          flex-wrap: wrap;
-        }
         .course-price {
+          margin: 0 1rem 0.75rem;
+          display: flex;
+          gap: 0.5rem;
+          align-items: baseline;
+        }
+        .current-price {
           font-weight: 700;
-          color: #1a1a1a;
+          font-size: 1rem;
         }
         .old-price {
           font-size: 0.75rem;
           color: #9ca3af;
           text-decoration: line-through;
-        }
-        .course-btn {
-          margin-left: auto;
-          padding: 0.375rem 1rem;
-          background: #1a1a1a;
-          color: white;
-          border: none;
-          border-radius: 2rem;
-          font-size: 0.75rem;
-          cursor: pointer;
         }
       `}</style>
     </div>

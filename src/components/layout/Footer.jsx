@@ -76,7 +76,7 @@ const Footer = () => {
 
         {/* Bottom */}
         <div className="footer-bottom">
-          <p>&copy; {currentYear} rifKANDI. All rights reserved. Made in Morocco 🇲🇦</p>
+          <p>&copy; {currentYear} rifKANDI. All rights reserved.</p>
         </div>
       </div>
 

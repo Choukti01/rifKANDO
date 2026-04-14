@@ -29,8 +29,11 @@ import LoginPage from './pages/auth/LoginPage'
 import RegisterPage from './pages/auth/RegisterPage'
 import SellerTypePage from './pages/seller/SellerTypePage'
 import ProfilePage from './pages/profile/ProfilePage'
-import PublicProfilePage from './pages/profile/PublicProfilePage'   // NEW IMPORT
+import PublicProfilePage from './pages/profile/PublicProfilePage'
 import SearchPage from './pages/search/SearchPage'
+
+import PackagesManager from './pages/seller/services/PackagesManager';
+import LessonsManager from './pages/seller/courses/LessonsManager';
 
 // Seller Dashboard Pages
 import DashboardLayout from './pages/seller/dashboard/DashboardLayout'
@@ -38,14 +41,20 @@ import Overview from './pages/seller/dashboard/Overview'
 import Earnings from './pages/seller/dashboard/Earnings'
 import ProductsDashboard from './pages/seller/products/ProductsDashboard'
 import AddProduct from './pages/seller/products/AddProduct'
+import EditProduct from './pages/seller/products/EditProduct'
 import CoursesDashboard from './pages/seller/courses/CoursesDashboard'
 import AddCourse from './pages/seller/courses/AddCourse'
+import EditCourse from './pages/seller/courses/EditCourse'
 import ServicesDashboard from './pages/seller/services/ServicesDashboard'
 import AddService from './pages/seller/services/AddService'
+import EditService from './pages/seller/services/EditService'
 import DigitalDashboard from './pages/seller/digital/DigitalDashboard'
 import AddDigitalProduct from './pages/seller/digital/AddDigitalProduct'
+import EditDigitalProduct from './pages/seller/digital/EditDigitalProduct'
 import BookingsDashboard from './pages/seller/bookings/BookingsDashboard'
 import AddBooking from './pages/seller/bookings/AddBooking'
+import EditBooking from './pages/seller/bookings/EditBooking'
+import Settings from './pages/seller/dashboard/Settings'
 
 // Footer Pages
 import SellerGuidelines from './pages/seller/SellerGuidelines'
@@ -160,14 +169,22 @@ function App() {
                     <Route path="earnings" element={<Earnings />} />
                     <Route path="products" element={<ProductsDashboard />} />
                     <Route path="products/add" element={<AddProduct />} />
+                    <Route path="products/:id/edit" element={<EditProduct />} />
                     <Route path="courses" element={<CoursesDashboard />} />
                     <Route path="courses/add" element={<AddCourse />} />
+                    <Route path="courses/:id/edit" element={<EditCourse />} />
+                    <Route path="courses/:id/lessons" element={<LessonsManager />} />
                     <Route path="services" element={<ServicesDashboard />} />
                     <Route path="services/add" element={<AddService />} />
+                    <Route path="services/:id/edit" element={<EditService />} />
+                    <Route path="services/:id/packages" element={<PackagesManager />} />
                     <Route path="digital" element={<DigitalDashboard />} />
                     <Route path="digital/add" element={<AddDigitalProduct />} />
+                    <Route path="digital/:id/edit" element={<EditDigitalProduct />} />
                     <Route path="bookings" element={<BookingsDashboard />} />
                     <Route path="bookings/add" element={<AddBooking />} />
+                    <Route path="bookings/:id/edit" element={<EditBooking />} />
+                    <Route path="settings" element={<Settings />} />
                   </Route>
                 </Routes>
               </main>

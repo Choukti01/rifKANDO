@@ -4,6 +4,7 @@ import { StarIcon, CalendarIcon, ClockIcon, MapPinIcon, UserIcon, CheckCircleIco
 import { getBooking, bookAppointment } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import toast from 'react-hot-toast';
+import MediaGallery from '../../components/MediaGallery';
 
 const BookingDetailsPage = () => {
   const { id } = useParams();
@@ -16,6 +17,7 @@ const BookingDetailsPage = () => {
   const [notes, setNotes] = useState('');
   const [showBookingForm, setShowBookingForm] = useState(false);
   const [bookingComplete, setBookingComplete] = useState(false);
+  const [showGallery, setShowGallery] = useState(false);
   const { isAuthenticated, user } = useAuth();
 
   useEffect(() => {
@@ -94,6 +96,7 @@ const BookingDetailsPage = () => {
   }
 
   const truncatedTitle = booking.title.length > 30 ? booking.title.substring(0, 30) + '...' : booking.title;
+  const primaryMedia = booking.media?.find(m => m.is_primary) || booking.media?.[0];
 
   return (
     <div className="booking-details-page">
@@ -130,7 +133,11 @@ const BookingDetailsPage = () => {
                 {booking.provider_name?.charAt(0) || 'P'}
               </div>
               <div>
-                <h3>{booking.provider_name || 'Service Provider'}</h3>
+                <h3>
+                  <Link to={`/profile/${booking.provider_id}`} className="provider-link">
+                    {booking.provider_name || 'Service Provider'}
+                  </Link>
+                </h3>
                 <div className="provider-rating">
                   <StarIcon className="star-icon" />
                   <span>{booking.rating || 0}</span>
@@ -167,14 +174,21 @@ const BookingDetailsPage = () => {
 
           <div className="booking-sidebar">
             <div className="booking-card">
-              <div className="booking-icon">
-                {booking.image || '📅'}
+              <div className="booking-image-large" onClick={() => booking.media?.length && setShowGallery(true)}>
+                {primaryMedia ? (
+                  primaryMedia.media_type === 'video' ? (
+                    <video src={`http://localhost:5000${primaryMedia.media_url}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    <img src={`http://localhost:5000${primaryMedia.media_url}`} alt={booking.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  )
+                ) : (
+                  <span style={{ fontSize: '3rem' }}>{booking.image || '📅'}</span>
+                )}
+                {booking.media?.length > 1 && <div className="gallery-badge">{booking.media.length} items</div>}
               </div>
               <div className="price-section">
                 <span className="current-price">{booking.price} MAD</span>
-                {booking.old_price && (
-                  <span className="old-price">{booking.old_price} MAD</span>
-                )}
+                {booking.old_price && <span className="old-price">{booking.old_price} MAD</span>}
               </div>
               
               {!showBookingForm ? (
@@ -241,215 +255,55 @@ const BookingDetailsPage = () => {
           </div>
         )}
       </div>
-
+      {showGallery && (
+        <MediaGallery
+          media={booking.media.map(m => ({ url: `http://localhost:5000${m.media_url}`, type: m.media_type }))}
+          onClose={() => setShowGallery(false)}
+        />
+      )}
       <style>{`
-        .booking-details-page {
-          padding: 2rem 0;
-          min-height: calc(100vh - 80px);
-          background: #f9fafb;
-        }
-        .breadcrumb-nav {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          margin-bottom: 2rem;
-          padding: 0.75rem 0;
-          font-size: 0.875rem;
-        }
-        .breadcrumb-link {
-          display: flex;
-          align-items: center;
-          gap: 0.25rem;
-          color: #6b7280;
-          text-decoration: none;
-        }
-        .breadcrumb-link:hover {
-          color: #87CEEB;
-        }
-        .breadcrumb-icon {
-          width: 1rem;
-          height: 1rem;
-        }
-        .breadcrumb-separator {
-          color: #d1d5db;
-        }
-        .breadcrumb-current {
-          color: #1a1a1a;
-          font-weight: 500;
-        }
-        .success-message {
-          background: #d1fae5;
-          border-radius: 1rem;
-          padding: 1rem;
-          margin-bottom: 2rem;
-          display: flex;
-          align-items: center;
-          gap: 1rem;
-        }
-        .success-icon {
-          width: 2rem;
-          height: 2rem;
-          color: #10b981;
-        }
-        .booking-details-grid {
-          display: grid;
-          grid-template-columns: 1fr 350px;
-          gap: 2rem;
-        }
-        @media (max-width: 768px) {
-          .booking-details-grid {
-            grid-template-columns: 1fr;
-          }
-        }
-        .booking-main {
-          background: white;
-          border-radius: 1rem;
-          padding: 2rem;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-        .booking-main h1 {
-          font-size: 1.75rem;
-          margin-bottom: 1.5rem;
-        }
-        .provider-info {
-          display: flex;
-          align-items: center;
-          gap: 1rem;
-          padding: 1rem;
-          background: #f9fafb;
-          border-radius: 1rem;
-          margin-bottom: 2rem;
-        }
-        .provider-avatar {
-          width: 56px;
-          height: 56px;
-          background: #87CEEB;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 1.5rem;
-          font-weight: bold;
-        }
-        .section {
-          margin-bottom: 2rem;
-        }
-        .section h2 {
-          font-size: 1.25rem;
-          margin-bottom: 1rem;
-        }
-        .section p {
-          color: #4b5563;
-          line-height: 1.6;
-        }
-        .details-list {
-          display: flex;
-          flex-direction: column;
-          gap: 0.75rem;
-        }
-        .detail-item {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          font-size: 0.875rem;
-          color: #4b5563;
-        }
-        .detail-icon {
-          width: 1rem;
-          height: 1rem;
-          color: #87CEEB;
-        }
-        .booking-sidebar {
-          position: sticky;
-          top: 100px;
-        }
-        .booking-card {
-          background: white;
-          border-radius: 1rem;
-          padding: 1.5rem;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-          text-align: center;
-        }
-        .booking-icon {
-          font-size: 4rem;
-          margin-bottom: 1rem;
-        }
-        .price-section {
-          margin-bottom: 1.5rem;
-        }
-        .current-price {
-          font-size: 1.75rem;
-          font-weight: bold;
-          color: #1a1a1a;
-        }
-        .old-price {
-          font-size: 0.875rem;
-          color: #9ca3af;
-          text-decoration: line-through;
-          margin-left: 0.5rem;
-        }
-        .book-btn {
-          width: 100%;
-          padding: 0.875rem;
-          background: #1a1a1a;
-          color: white;
-          border: none;
-          border-radius: 2rem;
-          font-size: 1rem;
-          font-weight: 600;
-          cursor: pointer;
-        }
-        .booking-form-section {
-          margin-top: 2rem;
-          padding: 2rem;
-          background: white;
-          border-radius: 1rem;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-        .booking-form-section h2 {
-          font-size: 1.25rem;
-          margin-bottom: 1rem;
-        }
-        .booking-form {
-          max-width: 500px;
-        }
-        .form-group {
-          margin-bottom: 1rem;
-        }
-        .form-group label {
-          display: block;
-          font-size: 0.875rem;
-          font-weight: 500;
-          margin-bottom: 0.5rem;
-        }
-        .form-input {
-          width: 100%;
-          padding: 0.75rem;
-          border: 1px solid #e5e7eb;
-          border-radius: 0.5rem;
-          font-size: 0.875rem;
-        }
-        .form-actions {
-          display: flex;
-          gap: 1rem;
-          margin-top: 1rem;
-        }
-        .confirm-book-btn {
-          padding: 0.625rem 1.5rem;
-          background: #1a1a1a;
-          color: white;
-          border: none;
-          border-radius: 0.5rem;
-          cursor: pointer;
-        }
-        .cancel-book-btn {
-          padding: 0.625rem 1.5rem;
-          background: #e5e7eb;
-          color: #374151;
-          border: none;
-          border-radius: 0.5rem;
-          cursor: pointer;
-        }
+        .booking-details-page { padding: 2rem 0; min-height: calc(100vh - 80px); background: #f9fafb; }
+        .breadcrumb-nav { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 2rem; padding: 0.75rem 0; font-size: 0.875rem; }
+        .breadcrumb-link { display: flex; align-items: center; gap: 0.25rem; color: #6b7280; text-decoration: none; }
+        .breadcrumb-link:hover { color: #87CEEB; }
+        .breadcrumb-icon { width: 1rem; height: 1rem; }
+        .breadcrumb-separator { color: #d1d5db; }
+        .breadcrumb-current { color: #1a1a1a; font-weight: 500; }
+        .success-message { background: #d1fae5; border-radius: 1rem; padding: 1rem; margin-bottom: 2rem; display: flex; align-items: center; gap: 1rem; }
+        .success-icon { width: 2rem; height: 2rem; color: #10b981; }
+        .booking-details-grid { display: grid; grid-template-columns: 1fr 350px; gap: 2rem; }
+        @media (max-width: 768px) { .booking-details-grid { grid-template-columns: 1fr; } }
+        .booking-main { background: white; border-radius: 1rem; padding: 2rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .booking-main h1 { font-size: 1.75rem; margin-bottom: 1.5rem; }
+        .provider-info { display: flex; align-items: center; gap: 1rem; padding: 1rem; background: #f9fafb; border-radius: 1rem; margin-bottom: 2rem; }
+        .provider-avatar { width: 56px; height: 56px; background: #87CEEB; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: bold; }
+        .provider-link { color: #1a1a1a; text-decoration: none; }
+        .provider-link:hover { color: #87CEEB; text-decoration: underline; }
+        .provider-rating { display: flex; align-items: center; gap: 0.25rem; }
+        .star-icon { width: 1rem; height: 1rem; color: #f59e0b; fill: #f59e0b; }
+        .section { margin-bottom: 2rem; }
+        .section h2 { font-size: 1.25rem; margin-bottom: 1rem; }
+        .section p { color: #4b5563; line-height: 1.6; }
+        .details-list { display: flex; flex-direction: column; gap: 0.75rem; }
+        .detail-item { display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; color: #4b5563; }
+        .detail-icon { width: 1rem; height: 1rem; color: #87CEEB; }
+        .booking-sidebar { position: sticky; top: 100px; }
+        .booking-card { background: white; border-radius: 1rem; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); text-align: center; }
+        .booking-image-large { height: 150px; background: #f3f4f6; border-radius: 0.75rem; display: flex; align-items: center; justify-content: center; overflow: hidden; margin-bottom: 1rem; cursor: pointer; position: relative; }
+        .gallery-badge { position: absolute; bottom: 0.5rem; right: 0.5rem; background: rgba(0,0,0,0.6); color: white; padding: 0.25rem 0.5rem; border-radius: 0.5rem; font-size: 0.7rem; }
+        .price-section { margin-bottom: 1.5rem; }
+        .current-price { font-size: 1.75rem; font-weight: bold; color: #1a1a1a; }
+        .old-price { font-size: 0.875rem; color: #9ca3af; text-decoration: line-through; margin-left: 0.5rem; }
+        .book-btn { width: 100%; padding: 0.875rem; background: #1a1a1a; color: white; border: none; border-radius: 2rem; font-size: 1rem; font-weight: 600; cursor: pointer; }
+        .booking-form-section { margin-top: 2rem; padding: 2rem; background: white; border-radius: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .booking-form-section h2 { font-size: 1.25rem; margin-bottom: 1rem; }
+        .booking-form { max-width: 500px; }
+        .form-group { margin-bottom: 1rem; }
+        .form-group label { display: block; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem; }
+        .form-input { width: 100%; padding: 0.75rem; border: 1px solid #e5e7eb; border-radius: 0.5rem; font-size: 0.875rem; }
+        .form-actions { display: flex; gap: 1rem; margin-top: 1rem; }
+        .confirm-book-btn { padding: 0.625rem 1.5rem; background: #1a1a1a; color: white; border: none; border-radius: 0.5rem; cursor: pointer; }
+        .cancel-book-btn { padding: 0.625rem 1.5rem; background: #e5e7eb; color: #374151; border: none; border-radius: 0.5rem; cursor: pointer; }
       `}</style>
     </div>
   );

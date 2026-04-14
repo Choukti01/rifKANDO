@@ -1,14 +1,16 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import api from '../../../services/api';
 import { useAuth } from '../../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import MediaUploader from '../../../components/MediaUploader';
 
-const AddService = () => {
+const EditService = () => {
+  const { id } = useParams();
   const navigate = useNavigate();
   const { token } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [fetching, setFetching] = useState(true);
   const [media, setMedia] = useState([]);
   const [formData, setFormData] = useState({
     title: '',
@@ -21,6 +23,37 @@ const AddService = () => {
     image: '🛠️'
   });
 
+  useEffect(() => {
+    fetchService();
+  }, [id]);
+
+  const fetchService = async () => {
+    try {
+      setFetching(true);
+      const response = await api.get(`/services/${id}`);
+      const service = response.data.service;
+      setFormData({
+        title: service.title || '',
+        description: service.description || '',
+        price: service.price || '',
+        old_price: service.old_price || '',
+        category: service.category || 'design',
+        delivery_time: service.delivery_time || '',
+        revisions: service.revisions || '',
+        image: service.image || '🛠️'
+      });
+      if (service.media && service.media.length) {
+        setMedia(service.media.map(m => ({ url: m.media_url, type: m.media_type })));
+      }
+    } catch (error) {
+      console.error('Error fetching service:', error);
+      toast.error('Failed to load service data');
+      navigate('/seller/dashboard/services');
+    } finally {
+      setFetching(false);
+    }
+  };
+
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -28,7 +61,6 @@ const AddService = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    
     try {
       const serviceData = {
         ...formData,
@@ -38,23 +70,32 @@ const AddService = () => {
         media: media.map((m, idx) => ({ ...m, order: idx, isPrimary: idx === 0 }))
       };
       
-      await api.post('/services', serviceData, {
+      await api.put(`/services/${id}`, serviceData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
-      toast.success('Service created successfully!');
+      toast.success('Service updated successfully!');
       navigate('/seller/dashboard/services');
     } catch (error) {
-      console.error('Error creating service:', error);
-      toast.error(error.response?.data?.error || 'Failed to create service');
+      console.error('Error updating service:', error);
+      toast.error(error.response?.data?.error || 'Failed to update service');
     } finally {
       setLoading(false);
     }
   };
 
+  if (fetching) {
+    return (
+      <div className="text-center py-16">
+        <div className="spinner"></div>
+        <p>Loading service data...</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="add-service">
-      <h2>Create New Service</h2>
+    <div className="edit-service">
+      <h2>Edit Service</h2>
       <form onSubmit={handleSubmit} className="service-form">
         <div className="form-group">
           <label>Service Title *</label>
@@ -90,7 +131,7 @@ const AddService = () => {
             </select>
           </div>
           <div className="form-group">
-            <label>Delivery Time (e.g., "2 days")</label>
+            <label>Delivery Time</label>
             <input type="text" name="delivery_time" value={formData.delivery_time} onChange={handleChange} className="form-input" placeholder="2 days" />
           </div>
         </div>
@@ -101,26 +142,27 @@ const AddService = () => {
             <input type="number" name="revisions" value={formData.revisions} onChange={handleChange} className="form-input" placeholder="2" />
           </div>
           <div className="form-group">
-            <label>Service Icon (optional)</label>
+            <label>Service Icon</label>
             <input type="text" name="image" value={formData.image} onChange={handleChange} className="form-input" placeholder="🛠️" />
           </div>
         </div>
 
-        {/* Media Upload Section */}
         <div className="form-group">
           <label>Service Images & Videos (max 10)</label>
-          <MediaUploader onMediaUploaded={setMedia} maxFiles={10} />
+          <MediaUploader onMediaUploaded={setMedia} existingMedia={media} maxFiles={10} />
         </div>
 
         <div className="form-actions">
-          <button type="submit" className="btn btn-primary" disabled={loading}>{loading ? 'Creating...' : 'Create Service'}</button>
+          <button type="submit" className="btn btn-primary" disabled={loading}>
+            {loading ? 'Saving...' : 'Update Service'}
+          </button>
           <button type="button" onClick={() => navigate('/seller/dashboard/services')} className="btn btn-outline">Cancel</button>
         </div>
       </form>
 
       <style>{`
-        .add-service { max-width: 800px; margin: 0 auto; }
-        .add-service h2 { font-size: 1.25rem; margin-bottom: 1.5rem; }
+        .edit-service { max-width: 800px; margin: 0 auto; }
+        .edit-service h2 { font-size: 1.25rem; margin-bottom: 1.5rem; }
         .service-form { background: white; border-radius: 1rem; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
         .form-group { margin-bottom: 1rem; }
@@ -134,4 +176,4 @@ const AddService = () => {
   );
 };
 
-export default AddService;
+export default EditService;

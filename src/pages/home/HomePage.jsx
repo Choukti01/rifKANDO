@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ShoppingBagIcon, AcademicCapIcon, WrenchScrewdriverIcon, ComputerDesktopIcon, CalendarIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
-// CHANGE THIS LINE - use absolute path from src
 import { getProducts, getCourses, getServices, getDigitalProducts, getBookings } from '/src/services/api';
 import toast from 'react-hot-toast';
+import MediaGallery from '../../components/MediaGallery'; // Add this import
 
 const HomePage = () => {
   const [featuredItems, setFeaturedItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [galleryItem, setGalleryItem] = useState(null); // Add this state
   const [stats, setStats] = useState({
     productsCount: 0,
     coursesCount: 0,
@@ -24,7 +25,6 @@ const HomePage = () => {
     try {
       setLoading(true);
       
-      // Fetch each individually to avoid one failing the whole batch
       let products = [];
       let courses = [];
       let services = [];
@@ -109,8 +109,14 @@ const HomePage = () => {
     }
   };
 
-  const getItemIcon = (item) => {
-    if (item.image) return item.image;
+  // UPDATED: Get the first media image URL or fallback to emoji
+  const getItemImage = (item) => {
+    const media = item.media;
+    if (media && media.length > 0) {
+      const primaryMedia = media.find(m => m.is_primary) || media[0];
+      return `http://localhost:5000${primaryMedia.media_url}`;
+    }
+    // Fallback emojis
     const icons = {
       product: '📦',
       course: '📚',
@@ -119,6 +125,11 @@ const HomePage = () => {
       booking: '📅'
     };
     return icons[item.type] || '📦';
+  };
+
+  // Check if item has media (to enable gallery on click)
+  const hasMedia = (item) => {
+    return item.media && item.media.length > 0;
   };
 
   if (loading) {
@@ -187,34 +198,54 @@ const HomePage = () => {
             </Link>
           </div>
           <div className="featured-grid">
-            {featuredItems.map(item => (
-              <Link key={`${item.type}-${item.id}`} to={getItemUrl(item)} className="card">
-                <div className="card-image">
-                  {getItemIcon(item)}
-                </div>
-                <div className="card-content">
-                  <div className="card-type-badge">
-                    {item.type}
+            {featuredItems.map(item => {
+              const itemImage = getItemImage(item);
+              const isImageUrl = typeof itemImage === 'string' && itemImage.startsWith('http');
+              const itemHasMedia = hasMedia(item);
+              
+              return (
+                <div key={`${item.type}-${item.id}`} className="card">
+                  <div 
+                    className="card-image" 
+                    onClick={() => itemHasMedia && setGalleryItem(item)}
+                    style={{ cursor: itemHasMedia ? 'pointer' : 'default' }}
+                  >
+                    {isImageUrl ? (
+                      <img 
+                        src={itemImage} 
+                        alt={item.title}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    ) : (
+                      <span style={{ fontSize: '3rem' }}>{itemImage}</span>
+                    )}
                   </div>
-                  <h3 className="card-title">{item.title}</h3>
-                  <p className="card-seller">
-                    {item.seller_name || item.provider_name || item.instructor_name || 'Seller'}
-                  </p>
-                  <div className="card-price-row">
-                    <div>
-                      <span className="card-price">{item.price} MAD</span>
-                      {item.old_price && (
-                        <span className="card-old-price">{item.old_price} MAD</span>
-                      )}
+                  <div className="card-content">
+                    <div className="card-type-badge">
+                      {item.type}
                     </div>
-                    <div className="card-rating">
-                      ★ {item.rating || 0}
+                    <h3 className="card-title">{item.title}</h3>
+                    <p className="card-seller">
+                      {item.seller_name || item.provider_name || item.instructor_name || 'Seller'}
+                    </p>
+                    <div className="card-price-row">
+                      <div>
+                        <span className="card-price">{item.price} MAD</span>
+                        {item.old_price && (
+                          <span className="card-old-price">{item.old_price} MAD</span>
+                        )}
+                      </div>
+                      <div className="card-rating">
+                        ★ {item.rating || 0}
+                      </div>
                     </div>
+                    <Link to={getItemUrl(item)}>
+                      <button className="btn btn-primary btn-sm btn-block">View Details</button>
+                    </Link>
                   </div>
-                  <button className="btn btn-primary btn-sm btn-block">View Details</button>
                 </div>
-              </Link>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>
@@ -253,6 +284,14 @@ const HomePage = () => {
           </Link>
         </div>
       </section>
+
+      {/* Gallery Modal */}
+      {galleryItem && (
+        <MediaGallery
+          media={galleryItem.media.map(m => ({ url: `http://localhost:5000${m.media_url}`, type: m.media_type }))}
+          onClose={() => setGalleryItem(null)}
+        />
+      )}
 
       <style>{`
         .home-page {
@@ -416,7 +455,12 @@ const HomePage = () => {
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 3rem;
+          overflow: hidden;
+        }
+        .card-image img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
         }
         .card-type-badge {
           display: inline-block;

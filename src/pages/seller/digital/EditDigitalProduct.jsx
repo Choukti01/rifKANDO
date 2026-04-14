@@ -1,65 +1,69 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import api from '../../../services/api';
 import { useAuth } from '../../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import MediaUploader from '../../../components/MediaUploader';
 
-const AddDigitalProduct = () => {
+const EditDigitalProduct = () => {
+  const { id } = useParams();
   const navigate = useNavigate();
   const { token } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [fetching, setFetching] = useState(true);
   const [media, setMedia] = useState([]);
-  const [uploadingFile, setUploadingFile] = useState(false);
-  const [uploadedFile, setUploadedFile] = useState(null);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     price: '',
     old_price: '',
     category: 'ebooks',
+    file_type: 'url',
+    file_url: '',
     file_size: '',
     download_limit: '',
     image: '💻'
   });
 
+  useEffect(() => {
+    fetchProduct();
+  }, [id]);
+
+  const fetchProduct = async () => {
+    try {
+      setFetching(true);
+      const response = await api.get(`/digital/${id}`);
+      const product = response.data.product;
+      setFormData({
+        title: product.title || '',
+        description: product.description || '',
+        price: product.price || '',
+        old_price: product.old_price || '',
+        category: product.category || 'ebooks',
+        file_type: product.file_type || 'url',
+        file_url: product.file_url || '',
+        file_size: product.file_size || '',
+        download_limit: product.download_limit || '',
+        image: product.image || '💻'
+      });
+      if (product.media && product.media.length) {
+        setMedia(product.media.map(m => ({ url: m.media_url, type: m.media_type })));
+      }
+    } catch (error) {
+      console.error('Error fetching digital product:', error);
+      toast.error('Failed to load product data');
+      navigate('/seller/dashboard/digital');
+    } finally {
+      setFetching(false);
+    }
+  };
+
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleFileUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const formDataFile = new FormData();
-    formDataFile.append('media', file);
-
-    setUploadingFile(true);
-    try {
-      const response = await api.post('/upload-media', formDataFile, {
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
-      });
-      if (response.data.success) {
-        setUploadedFile({
-          url: response.data.url,
-          name: file.name,
-          size: file.size
-        });
-        toast.success('File uploaded successfully');
-      }
-    } catch (error) {
-      toast.error('Failed to upload file');
-    } finally {
-      setUploadingFile(false);
-    }
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!uploadedFile) {
-      toast.error('Please upload a digital file');
-      return;
-    }
     setLoading(true);
     try {
       const productData = {
@@ -67,28 +71,35 @@ const AddDigitalProduct = () => {
         price: parseFloat(formData.price),
         old_price: formData.old_price ? parseFloat(formData.old_price) : null,
         download_limit: parseInt(formData.download_limit) || 0,
-        file_url: uploadedFile.url,
-        file_type: 'file',
         media: media.map((m, idx) => ({ ...m, order: idx, isPrimary: idx === 0 }))
       };
       
-      await api.post('/digital', productData, {
+      await api.put(`/digital/${id}`, productData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
-      toast.success('Digital product created successfully!');
+      toast.success('Digital product updated successfully!');
       navigate('/seller/dashboard/digital');
     } catch (error) {
-      console.error('Error creating digital product:', error);
-      toast.error(error.response?.data?.error || 'Failed to create digital product');
+      console.error('Error updating digital product:', error);
+      toast.error(error.response?.data?.error || 'Failed to update product');
     } finally {
       setLoading(false);
     }
   };
 
+  if (fetching) {
+    return (
+      <div className="text-center py-16">
+        <div className="spinner"></div>
+        <p>Loading product data...</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="add-digital">
-      <h2>Add Digital Product</h2>
+    <div className="edit-digital">
+      <h2>Edit Digital Product</h2>
       <form onSubmit={handleSubmit} className="digital-form">
         <div className="form-group">
           <label>Product Title *</label>
@@ -123,8 +134,22 @@ const AddDigitalProduct = () => {
             </select>
           </div>
           <div className="form-group">
+            <label>File Type *</label>
+            <select name="file_type" value={formData.file_type} onChange={handleChange} className="form-input" required>
+              <option value="url">Download URL</option>
+              <option value="file">Upload File</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="form-row">
+          <div className="form-group">
+            <label>File URL *</label>
+            <input type="url" name="file_url" value={formData.file_url} onChange={handleChange} className="form-input" placeholder="https://..." />
+          </div>
+          <div className="form-group">
             <label>File Size (e.g., "5 MB")</label>
-            <input type="text" name="file_size" value={formData.file_size} onChange={handleChange} className="form-input" placeholder="5 MB" />
+            <input type="text" name="file_size" value={formData.file_size} onChange={handleChange} className="form-input" />
           </div>
         </div>
 
@@ -134,44 +159,32 @@ const AddDigitalProduct = () => {
             <input type="number" name="download_limit" value={formData.download_limit} onChange={handleChange} className="form-input" placeholder="0 = unlimited" />
           </div>
           <div className="form-group">
-            <label>Icon (optional)</label>
+            <label>Icon</label>
             <input type="text" name="image" value={formData.image} onChange={handleChange} className="form-input" placeholder="💻" />
           </div>
         </div>
 
-        {/* Digital File Upload (replaces external URL) */}
-        <div className="form-group">
-          <label>Upload Digital File * (PDF, ZIP, MP3, EPUB, etc.)</label>
-          <input type="file" onChange={handleFileUpload} accept=".pdf,.zip,.mp3,.mp4,.epub,.mobi,.jpg,.png" className="form-input" />
-          {uploadingFile && <p>Uploading...</p>}
-          {uploadedFile && (
-            <div className="uploaded-file">
-              ✅ {uploadedFile.name} ({(uploadedFile.size / (1024*1024)).toFixed(2)} MB)
-            </div>
-          )}
-        </div>
-
-        {/* Images/Videos Gallery */}
         <div className="form-group">
           <label>Product Images & Videos (max 10)</label>
-          <MediaUploader onMediaUploaded={setMedia} maxFiles={10} />
+          <MediaUploader onMediaUploaded={setMedia} existingMedia={media} maxFiles={10} />
         </div>
 
         <div className="form-actions">
-          <button type="submit" className="btn btn-primary" disabled={loading || uploadingFile}>{loading ? 'Creating...' : 'Publish Digital Product'}</button>
+          <button type="submit" className="btn btn-primary" disabled={loading}>
+            {loading ? 'Saving...' : 'Update Product'}
+          </button>
           <button type="button" onClick={() => navigate('/seller/dashboard/digital')} className="btn btn-outline">Cancel</button>
         </div>
       </form>
 
       <style>{`
-        .add-digital { max-width: 800px; margin: 0 auto; }
-        .add-digital h2 { font-size: 1.25rem; margin-bottom: 1.5rem; }
+        .edit-digital { max-width: 800px; margin: 0 auto; }
+        .edit-digital h2 { font-size: 1.25rem; margin-bottom: 1.5rem; }
         .digital-form { background: white; border-radius: 1rem; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
         .form-group { margin-bottom: 1rem; }
         .form-group label { display: block; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem; }
         .form-input { width: 100%; padding: 0.75rem; border: 1px solid #e5e7eb; border-radius: 0.5rem; font-size: 0.875rem; }
-        .uploaded-file { margin-top: 0.5rem; padding: 0.5rem; background: #d1fae5; border-radius: 0.5rem; font-size: 0.875rem; color: #065f46; }
         .form-actions { display: flex; gap: 1rem; margin-top: 1.5rem; }
         .btn-primary { background: #1a1a1a; color: white; padding: 0.625rem 1.25rem; border: none; border-radius: 0.5rem; cursor: pointer; }
         .btn-outline { background: transparent; border: 1px solid #e5e7eb; padding: 0.625rem 1.25rem; border-radius: 0.5rem; cursor: pointer; }
@@ -180,4 +193,4 @@ const AddDigitalProduct = () => {
   );
 };
 
-export default AddDigitalProduct;
+export default EditDigitalProduct;
