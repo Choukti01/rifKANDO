@@ -120,9 +120,9 @@ const RegisterPage = () => {
         <div className="container">
           <div className="register-card">
             <div className="register-header">
-              <div className="register-logo">R</div>
+              {/* <div className="register-logo">rifKANDI</div> */}
               <h1>Create Account</h1>
-              <p className="text-gray">Join rifKANDI today</p>
+              <p className="text-gray">Join rifKANDO today</p>
             </div>
 
             {errors.submit && <div className="alert alert-error">{errors.submit}</div>}

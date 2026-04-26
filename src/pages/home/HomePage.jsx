@@ -148,7 +148,7 @@ const HomePage = () => {
         <div className="container">
           <div className="hero-content">
             <h1 className="hero-title">
-              Welcome to <span className="text-primary">rifKANDI</span>
+              Welcome to <span className="text-primary">rifKANDO</span>
             </h1>
             <p className="hero-description">
               Morocco's first multi-service platform. Shop products, take courses, hire professionals, all in one place.

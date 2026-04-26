@@ -71,7 +71,7 @@ const HelpCenter = () => {
 
   const faqs = [
     { question: 'How do I create an account?', answer: 'Click on "Register" in the top right corner, fill in your details, and verify your email address.' },
-    { question: 'What payment methods are accepted?', answer: 'We accept Credit Cards (CMI), Cash on Delivery, and rifKANDI Wallet.' },
+    { question: 'What payment methods are accepted?', answer: 'We accept Credit Cards (CMI), Cash on Delivery, and rifKANDO Wallet.' },
     { question: 'How long does shipping take?', answer: 'Shipping within Morocco takes 24-48 hours for major cities, and 3-5 days for remote areas.' },
     { question: 'Can I return an item?', answer: 'Yes, you can return items within 7 days of delivery. The item must be in original condition.' },
     { question: 'How do I become a seller?', answer: 'Click "Become a Seller" on the homepage, choose your seller type, and complete your profile.' },

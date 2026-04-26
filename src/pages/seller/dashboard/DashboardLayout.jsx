@@ -20,7 +20,7 @@ const DashboardLayout = () => {
     { name: 'Services', icon: WrenchScrewdriverIcon, path: 'services' },
     { name: 'Digital', icon: ComputerDesktopIcon, path: 'digital' },
     { name: 'Bookings', icon: CalendarIcon, path: 'bookings' },
-    { name: 'Earnings', icon: CurrencyDollarIcon, path: 'earnings' },
+    { name: 'Wallet', icon: CurrencyDollarIcon, path: 'wallet' },
     { name: 'Settings', icon: Cog6ToothIcon, path: 'settings' },
   ]
 
@@ -42,7 +42,7 @@ const DashboardLayout = () => {
                 className="sidebar-logo-img"
               />
             </div>
-            {isSidebarOpen && <span className="sidebar-logo-text">rif<span className="text-primary">KANDI</span></span>}
+            {isSidebarOpen && <span className="sidebar-logo-text">rif<span className="text-primary">KANDO</span></span>}
           </div>
           <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="sidebar-toggle">
             {isSidebarOpen ? '←' : '→'}

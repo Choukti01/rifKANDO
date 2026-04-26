@@ -7,8 +7,7 @@ const CartPage = () => {
   const { cart, removeFromCart, updateQuantity, getCartTotal, getCartCount, isEmpty } = useCart()
   const subtotal = getCartTotal()
   const shipping = subtotal > 500 ? 0 : 50
-  const tax = subtotal * 0.2
-  const total = subtotal + shipping + tax
+  const total = subtotal + shipping   // No tax line – matches backend split logic
 
   // Helper to get product image URL
   const getProductImage = (item) => {
@@ -114,10 +113,6 @@ const CartPage = () => {
             <div className="summary-row">
               <span>Shipping</span>
               <span>{shipping === 0 ? 'Free' : `${shipping} MAD`}</span>
-            </div>
-            <div className="summary-row">
-              <span>Tax (20%)</span>
-              <span>{tax} MAD</span>
             </div>
             <div className="summary-total">
               <span>Total</span>

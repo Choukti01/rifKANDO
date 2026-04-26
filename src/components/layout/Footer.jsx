@@ -1,8 +1,25 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 
 const Footer = () => {
   const currentYear = new Date().getFullYear()
+  const [scrolled, setScrolled] = useState(false)
+
+  // Detect when footer is visible to enhance glass effect
+  useEffect(() => {
+    const handleScroll = () => {
+      const windowHeight = window.innerHeight
+      const documentHeight = document.documentElement.scrollHeight
+      const scrollTop = window.scrollY
+      const distanceToBottom = documentHeight - (scrollTop + windowHeight)
+      
+      // Show stronger glass effect when near bottom
+      setScrolled(distanceToBottom < 300)
+    }
+    
+    window.addEventListener('scroll', handleScroll)
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
 
   const sections = [
     {
@@ -35,7 +52,7 @@ const Footer = () => {
   ]
 
   return (
-    <footer className="footer">
+    <footer className={`footer ${scrolled ? 'footer-visible' : ''}`}>
       <div className="container">
         <div className="footer-grid">
           {/* Brand */}
@@ -49,7 +66,7 @@ const Footer = () => {
                 />
               </div>
               <span className="footer-logo-name">
-                rif<span className="footer-logo-accent">KANDI</span>
+                rif<span className="footer-logo-accent">KANDO</span>
               </span>
             </div>
             <p className="footer-description">
@@ -76,42 +93,71 @@ const Footer = () => {
 
         {/* Bottom */}
         <div className="footer-bottom">
-          <p>&copy; {currentYear} rifKANDI. All rights reserved.</p>
+          <p>&copy; {currentYear} rifKANDO. All rights reserved.</p>
         </div>
       </div>
 
       <style>{`
         .footer {
-          background: var(--color-black);
+          /* Dark glass effect - black with transparency */
+          background: rgba(10, 10, 15, 0.85);
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
           color: var(--color-gray-400);
           padding: 3rem 0 1.5rem;
           margin-top: auto;
+          border-top: 1px solid rgba(255, 255, 255, 0.06);
+          transition: all 0.3s ease;
         }
+
+        /* When scrolled near footer - stronger glass effect */
+        .footer.footer-visible {
+          background: rgba(8, 8, 12, 0.92);
+          backdrop-filter: blur(16px);
+          -webkit-backdrop-filter: blur(16px);
+          border-top-color: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Light mode support (if user prefers light, keep dark but adjust) */
+        @media (prefers-color-scheme: light) {
+          .footer {
+            background: rgba(20, 20, 25, 0.88);
+          }
+          .footer.footer-visible {
+            background: rgba(15, 15, 20, 0.94);
+          }
+        }
+
         .footer-grid {
           display: grid;
           grid-template-columns: repeat(1, 1fr);
           gap: 2rem;
           margin-bottom: 2rem;
         }
+
         @media (min-width: 640px) {
           .footer-grid {
             grid-template-columns: repeat(2, 1fr);
           }
         }
+
         @media (min-width: 1024px) {
           .footer-grid {
             grid-template-columns: repeat(4, 1fr);
           }
         }
+
         .footer-brand {
           grid-column: span 1;
         }
+
         .footer-logo {
           display: flex;
           align-items: center;
           gap: 0.75rem;
           margin-bottom: 1rem;
         }
+
         .footer-logo-icon {
           width: 38px;
           height: 38px;
@@ -119,32 +165,39 @@ const Footer = () => {
           align-items: center;
           justify-content: center;
         }
+
         .footer-logo-img {
           width: 100%;
           height: 100%;
           object-fit: contain;
         }
+
         .footer-logo-name {
           font-size: 1.5rem;
           font-weight: 700;
           color: white;
           letter-spacing: -0.5px;
         }
+
         .footer-logo-accent {
           color: var(--color-primary);
         }
+
         .footer-description {
           font-size: 0.875rem;
           line-height: 1.5;
           max-width: 250px;
-          color: var(--color-gray-400);
+          color: rgba(255, 255, 255, 0.6);
         }
+
         .footer-section-title {
           color: white;
           font-weight: 600;
           margin-bottom: 1rem;
           font-size: 1rem;
+          letter-spacing: -0.3px;
         }
+
         .footer-links {
           list-style: none;
           padding: 0;
@@ -153,21 +206,31 @@ const Footer = () => {
           flex-direction: column;
           gap: 0.6rem;
         }
+
         .footer-link {
-          color: var(--color-gray-400);
+          color: rgba(255, 255, 255, 0.55);
           text-decoration: none;
           font-size: 0.875rem;
-          transition: color 0.2s;
+          transition: all 0.2s ease;
+          display: inline-block;
         }
+
         .footer-link:hover {
           color: var(--color-primary);
+          transform: translateX(4px);
         }
+
         .footer-bottom {
-          border-top: 1px solid var(--color-gray-800);
+          border-top: 1px solid rgba(255, 255, 255, 0.06);
           padding-top: 1.5rem;
           text-align: center;
           font-size: 0.8rem;
-          color: var(--color-gray-500);
+          color: rgba(255, 255, 255, 0.4);
+        }
+
+        /* When footer is visible (scrolled near bottom) */
+        .footer-visible .footer-bottom {
+          border-top-color: rgba(255, 255, 255, 0.1);
         }
       `}</style>
     </footer>

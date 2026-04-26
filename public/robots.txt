@@ -1,0 +1,15 @@
+# robots.txt for rifKANDO
+User-agent: *
+Allow: /
+Disallow: /checkout
+Disallow: /cart
+Disallow: /login
+Disallow: /register
+Disallow: /seller/dashboard
+Disallow: /admin
+
+# Sitemap
+Sitemap: https://rifkando.com/sitemap.xml
+
+# Crawl delay for search engines
+Crawl-delay: 5s

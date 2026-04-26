@@ -12,6 +12,7 @@ const CheckoutPage = () => {
   const { user } = useAuth()
   const [loading, setLoading] = useState(false)
   const [step, setStep] = useState(1)
+  const [paymentMethod, setPaymentMethod] = useState('cash')
   const [formData, setFormData] = useState({
     fullName: user?.name || '',
     email: user?.email || '',
@@ -24,15 +25,13 @@ const CheckoutPage = () => {
 
   const subtotal = getCartTotal()
   const shipping = subtotal > 500 ? 0 : 50
-  const tax = subtotal * 0.2
-  const total = subtotal + shipping + tax
+  const total = subtotal + shipping   // No tax line – matches backend split logic
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value })
   }
 
   const handlePlaceOrder = async () => {
-    // Validate required fields
     if (!formData.fullName || !formData.email || !formData.phone || !formData.address || !formData.city) {
       toast.error('Please fill in all required fields')
       return
@@ -50,7 +49,7 @@ const CheckoutPage = () => {
           city: formData.city,
           postalCode: formData.postalCode
         },
-        paymentMethod: 'cash',
+        paymentMethod: paymentMethod,
         notes: formData.notes,
         items: cart.map(item => ({
           id: item.id,
@@ -62,18 +61,45 @@ const CheckoutPage = () => {
         total: total
       }
 
-      const response = await api.post('/orders', orderData)
-      
-      if (response.data.success) {
-        toast.success('Order placed successfully!')
-        clearCart()
-        navigate(`/orders`)
+      if (paymentMethod === 'cmi') {
+        // Create order first
+        const orderResponse = await api.post('/orders', orderData)
+        
+        if (orderResponse.data.success) {
+          const order = orderResponse.data.order
+          
+          // Initiate CMI payment
+          const paymentResponse = await api.post('/payment/cmi/initiate', { orderId: order.id })
+          
+          if (paymentResponse.data.success) {
+            const formContainer = document.createElement('div')
+            formContainer.innerHTML = paymentResponse.data.htmlForm
+            document.body.appendChild(formContainer)
+            const form = formContainer.querySelector('form')
+            if (form) form.submit()
+          } else {
+            toast.error('Failed to initiate payment')
+            setLoading(false)
+          }
+        }
+      } else {
+        // Cash on Delivery flow
+        const response = await api.post('/orders', orderData)
+        
+        if (response.data.success) {
+          toast.success('Order placed successfully!')
+          clearCart()
+          navigate('/orders')
+        }
       }
     } catch (error) {
       console.error('Order failed:', error)
       toast.error(error.response?.data?.error || 'Failed to place order')
-    } finally {
       setLoading(false)
+    } finally {
+      if (paymentMethod !== 'cmi') {
+        setLoading(false)
+      }
     }
   }
 
@@ -158,12 +184,33 @@ const CheckoutPage = () => {
               <div className="checkout-form">
                 <h2>Payment Method</h2>
                 <div className="payment-options">
-                  <label className="payment-option active">
-                    <input type="radio" name="paymentMethod" value="cash" defaultChecked />
+                  <label className={`payment-option ${paymentMethod === 'cash' ? 'active' : ''}`}>
+                    <input 
+                      type="radio" 
+                      name="paymentMethod" 
+                      value="cash" 
+                      checked={paymentMethod === 'cash'}
+                      onChange={() => setPaymentMethod('cash')}
+                    />
                     <TruckIcon className="payment-icon" />
                     <div>
                       <strong>Cash on Delivery</strong>
                       <p>Pay when you receive your order</p>
+                    </div>
+                  </label>
+
+                  <label className={`payment-option ${paymentMethod === 'cmi' ? 'active' : ''}`}>
+                    <input 
+                      type="radio" 
+                      name="paymentMethod" 
+                      value="cmi"
+                      checked={paymentMethod === 'cmi'}
+                      onChange={() => setPaymentMethod('cmi')}
+                    />
+                    <CreditCardIcon className="payment-icon" />
+                    <div>
+                      <strong>Credit Card (Visa / MasterCard)</strong>
+                      <p>Secure payment via CMI</p>
                     </div>
                   </label>
                 </div>
@@ -189,7 +236,7 @@ const CheckoutPage = () => {
                 </div>
                 <div className="review-section">
                   <h3>Payment Method</h3>
-                  <p>Cash on Delivery</p>
+                  <p>{paymentMethod === 'cash' ? 'Cash on Delivery' : 'Credit Card (CMI)'}</p>
                 </div>
                 <div className="review-section">
                   <h3>Order Items</h3>
@@ -208,7 +255,7 @@ const CheckoutPage = () => {
                     className="place-order-btn"
                     disabled={loading}
                   >
-                    {loading ? 'Placing Order...' : 'Place Order'}
+                    {loading ? 'Processing...' : 'Place Order'}
                   </button>
                 </div>
               </div>
@@ -224,10 +271,6 @@ const CheckoutPage = () => {
             <div className="summary-row">
               <span>Shipping</span>
               <span>{shipping === 0 ? 'Free' : `${shipping} MAD`}</span>
-            </div>
-            <div className="summary-row">
-              <span>Tax (20%)</span>
-              <span>{tax} MAD</span>
             </div>
             <div className="summary-total">
               <span>Total</span>
@@ -329,6 +372,9 @@ const CheckoutPage = () => {
           font-size: 0.875rem;
         }
         .payment-options {
+          display: flex;
+          flex-direction: column;
+          gap: 0.75rem;
           margin-bottom: 1.5rem;
         }
         .payment-option {

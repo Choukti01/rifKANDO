@@ -1,6 +1,10 @@
-import React from 'react'
+ import React from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
+
+
+import ChatPage from './pages/messages/ChatPage';
+import MessagesInbox from './pages/messages/MessagesInbox';
 
 // Layout
 import Navbar from './components/layout/Navbar'
@@ -32,13 +36,19 @@ import ProfilePage from './pages/profile/ProfilePage'
 import PublicProfilePage from './pages/profile/PublicProfilePage'
 import SearchPage from './pages/search/SearchPage'
 
+import PaymentSuccess from './pages/PaymentSuccess';
+import PaymentFailed from './pages/PaymentFailed';
+
+import SellerOrders from './pages/seller/dashboard/Orders';
+import AdminDashboard from './pages/admin/AdminDashboard';
+
 import PackagesManager from './pages/seller/services/PackagesManager';
 import LessonsManager from './pages/seller/courses/LessonsManager';
 
 // Seller Dashboard Pages
 import DashboardLayout from './pages/seller/dashboard/DashboardLayout'
 import Overview from './pages/seller/dashboard/Overview'
-import Earnings from './pages/seller/dashboard/Earnings'
+
 import ProductsDashboard from './pages/seller/products/ProductsDashboard'
 import AddProduct from './pages/seller/products/AddProduct'
 import EditProduct from './pages/seller/products/EditProduct'
@@ -55,6 +65,11 @@ import BookingsDashboard from './pages/seller/bookings/BookingsDashboard'
 import AddBooking from './pages/seller/bookings/AddBooking'
 import EditBooking from './pages/seller/bookings/EditBooking'
 import Settings from './pages/seller/dashboard/Settings'
+
+
+
+
+import Wallet from './pages/seller/dashboard/Wallet';
 
 // Footer Pages
 import SellerGuidelines from './pages/seller/SellerGuidelines'
@@ -95,7 +110,34 @@ function App() {
                   <Route path="/bookings" element={<BookingsPage />} />
                   <Route path="/booking/:id" element={<BookingDetailsPage />} />
                   <Route path="/search" element={<SearchPage />} />
+
+
+<Route path="/messages/:userId" element={
+  <ProtectedRoute>
+    <ChatPage />
+  </ProtectedRoute>
+} />
+<Route path="/messages" element={
+  <ProtectedRoute>
+    <MessagesInbox />
+  </ProtectedRoute>
+} />
+
                   
+
+
+                  <Route path="/admin" element={
+  <ProtectedRoute requiredRole="admin">
+    <AdminDashboard />
+  </ProtectedRoute>
+} />
+
+
+
+<Route path="/payment/success" element={<PaymentSuccess />} />
+                    <Route path="/payment/failed" element={<PaymentFailed />} />
+
+
                   {/* Auth Pages */}
                   <Route path="/login" element={<LoginPage />} />
                   <Route path="/register" element={<RegisterPage />} />
@@ -166,7 +208,6 @@ function App() {
                   }>
                     <Route index element={<Overview />} />
                     <Route path="overview" element={<Overview />} />
-                    <Route path="earnings" element={<Earnings />} />
                     <Route path="products" element={<ProductsDashboard />} />
                     <Route path="products/add" element={<AddProduct />} />
                     <Route path="products/:id/edit" element={<EditProduct />} />
@@ -185,6 +226,10 @@ function App() {
                     <Route path="bookings/add" element={<AddBooking />} />
                     <Route path="bookings/:id/edit" element={<EditBooking />} />
                     <Route path="settings" element={<Settings />} />
+                    <Route path="wallet" element={<Wallet />} />
+                    <Route path="orders" element={<SellerOrders />} />
+                    
+
                   </Route>
                 </Routes>
               </main>

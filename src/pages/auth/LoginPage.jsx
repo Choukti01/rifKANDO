@@ -144,9 +144,9 @@ const LoginPage = () => {
       <div className="container">
         <div className="login-card">
           <div className="login-header">
-            <div className="login-logo">R</div>
+            {/* <div className="login-logo">rifKANDO</div> */}
             <h1>Welcome Back</h1>
-            <p className="text-gray">Sign in to your rifKANDI account</p>
+            <p className="text-gray">Sign in to your rifKANDO account</p>
           </div>
 
           {errors.submit && <div className="alert alert-error">{errors.submit}</div>}

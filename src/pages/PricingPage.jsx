@@ -51,7 +51,7 @@ const PricingPage = () => {
       <div className="container">
         <div className="pricing-header">
           <h1>Simple, Transparent Pricing</h1>
-          <p>Start selling on rifKANDI with competitive commission rates</p>
+          <p>Start selling on rifKANDO with competitive commission rates</p>
         </div>
 
         <div className="pricing-grid">

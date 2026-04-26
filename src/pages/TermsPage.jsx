@@ -17,7 +17,7 @@ const TermsPage = () => {
 
           <section>
             <h2>2. Description of Service</h2>
-            <p>rifKANDI is a multi-service platform that connects buyers and sellers. We provide a marketplace for physical products, digital products, courses, services, and bookings.</p>
+            <p>rifKANDO is a multi-service platform that connects buyers and sellers. We provide a marketplace for physical products, digital products, courses, services, and bookings.</p>
           </section>
 
           <section>
@@ -27,12 +27,12 @@ const TermsPage = () => {
 
           <section>
             <h2>4. Buying and Selling</h2>
-            <p>When you purchase an item on rifKANDI, you agree to pay the listed price plus any applicable fees. Sellers agree to deliver the item as described and within the stated timeframe.</p>
+            <p>When you purchase an item on rifKANDO, you agree to pay the listed price plus any applicable fees. Sellers agree to deliver the item as described and within the stated timeframe.</p>
           </section>
 
           <section>
             <h2>5. Payments and Fees</h2>
-            <p>All payments are processed through our secure payment system. rifKANDI charges a commission on each sale, as outlined in our pricing page.</p>
+            <p>All payments are processed through our secure payment system. rifKANDO charges a commission on each sale, as outlined in our pricing page.</p>
           </section>
 
           <section>
@@ -47,12 +47,12 @@ const TermsPage = () => {
 
           <section>
             <h2>8. Intellectual Property</h2>
-            <p>rifKANDI and its content are protected by copyright, trademark, and other laws. You may not copy, modify, or distribute our content without permission.</p>
+            <p>rifKANDO and its content are protected by copyright, trademark, and other laws. You may not copy, modify, or distribute our content without permission.</p>
           </section>
 
           <section>
             <h2>9. Limitation of Liability</h2>
-            <p>rifKANDI is not liable for any damages arising from your use of our platform. We provide the platform "as is" without warranties of any kind.</p>
+            <p>rifKANDO is not liable for any damages arising from your use of our platform. We provide the platform "as is" without warranties of any kind.</p>
           </section>
 
           <section>
@@ -62,7 +62,7 @@ const TermsPage = () => {
 
           <section>
             <h2>11. Contact Information</h2>
-            <p>For questions about these terms, please contact us at legal@rifkandi.com.</p>
+            <p>For questions about these terms, please contact us at legalrifKANDO@gmail.com.</p>
           </section>
         </div>
       </div>

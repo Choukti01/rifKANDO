@@ -7,15 +7,15 @@ const SellerGuidelines = () => {
       <div className="container">
         <div className="page-header">
           <h1>Seller Guidelines</h1>
-          <p>Everything you need to know about selling on rifKANDI</p>
+          <p>Everything you need to know about selling on rifKANDO</p>
         </div>
 
         <div className="guidelines-content">
           <section className="guideline-section">
             <h2>1. Getting Started</h2>
-            <p>To become a seller on rifKANDI, you need to:</p>
+            <p>To become a seller on rifKANDO, you need to:</p>
             <ul>
-              <li>Create a rifKANDI account</li>
+              <li>Create a rifKANDO account</li>
               <li>Choose your seller type (Product, Course, Service, Digital, Booking)</li>
               <li>Complete your seller profile with accurate information</li>
               <li>Verify your identity and contact information</li>
@@ -44,7 +44,7 @@ const SellerGuidelines = () => {
               <li><strong>Digital Products:</strong> 8% commission</li>
               <li><strong>Bookings:</strong> 5% commission</li>
             </ul>
-            <p>Payments are processed and transferred to your rifKANDI wallet. Withdrawals available after 14 days for new sellers.</p>
+            <p>Payments are processed and transferred to your rifKANDO wallet. Withdrawals available after 14 days for new sellers.</p>
           </section>
 
           <section className="guideline-section">

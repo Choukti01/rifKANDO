@@ -3,10 +3,21 @@ import { Link } from 'react-router-dom'
 import api from '../../services/api'
 import { useAuth } from '../../contexts/AuthContext'
 import toast from 'react-hot-toast'
+import { 
+  EyeIcon, 
+  TruckIcon, 
+  CheckCircleIcon, 
+  ClockIcon, 
+  CreditCardIcon, 
+  BanknotesIcon, 
+  WalletIcon,
+  CubeIcon 
+} from '@heroicons/react/24/outline'
 
 const OrdersPage = () => {
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
+  const [downloading, setDownloading] = useState(null)
   const { isAuthenticated } = useAuth()
 
   useEffect(() => {
@@ -28,27 +39,61 @@ const OrdersPage = () => {
     }
   }
 
-  const getStatusColor = (status) => {
-    const colors = {
-      pending: '#f59e0b',
-      confirmed: '#3b82f6',
-      processing: '#8b5cf6',
-      shipped: '#10b981',
-      delivered: '#10b981',
-      cancelled: '#ef4444'
+  const getStatusConfig = (status) => {
+    const configs = {
+      pending: { icon: ClockIcon, text: 'Pending', color: '#f59e0b', bg: '#fef3c7' },
+      processing: { icon: CubeIcon, text: 'Processing', color: '#3b82f6', bg: '#dbeafe' },
+      shipped: { icon: TruckIcon, text: 'Shipped', color: '#8b5cf6', bg: '#ede9fe' },
+      delivered: { icon: CheckCircleIcon, text: 'Delivered', color: '#10b981', bg: '#d1fae5' },
+      cancelled: { icon: CubeIcon, text: 'Cancelled', color: '#ef4444', bg: '#fee2e2' }
     }
-    return colors[status] || '#6b7280'
+    return configs[status] || configs.pending
   }
 
-  const getStatusText = (status) => {
-    return status.charAt(0).toUpperCase() + status.slice(1)
+  const getPaymentIcon = (method) => {
+    switch (method) {
+      case 'cash': return <BanknotesIcon style={{ width: '1rem', height: '1rem' }} />
+      case 'cmi': return <CreditCardIcon style={{ width: '1rem', height: '1rem' }} />
+      case 'wallet': return <WalletIcon style={{ width: '1rem', height: '1rem' }} />
+      default: return <BanknotesIcon style={{ width: '1rem', height: '1rem' }} />
+    }
+  }
+
+  const getPaymentText = (method) => {
+    switch (method) {
+      case 'cash': return 'Cash on Delivery'
+      case 'cmi': return 'Credit Card'
+      case 'wallet': return 'Wallet'
+      default: return method || 'Unknown'
+    }
+  }
+
+  const downloadInvoice = async (orderId, orderNumber) => {
+    setDownloading(orderId)
+    try {
+      const response = await api.get(`/orders/${orderId}/invoice`, { responseType: 'blob' })
+      const url = window.URL.createObjectURL(new Blob([response.data]))
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', `invoice-${orderNumber}.pdf`)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+      toast.success('Invoice downloaded')
+    } catch (error) {
+      console.error('Failed to download invoice:', error)
+      toast.error('Failed to download invoice')
+    } finally {
+      setDownloading(null)
+    }
   }
 
   if (loading) {
     return (
-      <div className="container text-center py-16">
-        <div className="spinner"></div>
-        <p>Loading orders...</p>
+      <div className="container" style={{ padding: '3rem 0', textAlign: 'center' }}>
+        <div style={{ width: '40px', height: '40px', border: '3px solid #e5e7eb', borderTopColor: '#87CEEB', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto' }}></div>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     )
   }
@@ -67,104 +112,96 @@ const OrdersPage = () => {
   return (
     <div className="orders-page">
       <div className="container">
-        <h1 className="orders-title">My Orders</h1>
+        <div className="orders-header">
+          <h1>My Orders</h1>
+          <p className="orders-count">{orders.length} {orders.length === 1 ? 'order' : 'orders'}</p>
+        </div>
 
-        <div className="orders-list">
-          {orders.map(order => (
-            <div key={order.id} className="order-card">
-              <div className="order-header">
-                <div>
-                  <span className="order-number">{order.order_number}</span>
-                  <span className="order-date">{new Date(order.created_at).toLocaleDateString()}</span>
-                </div>
-                <span 
-                  className="order-status" 
-                  style={{ 
-                    background: `${getStatusColor(order.status)}20`, 
-                    color: getStatusColor(order.status) 
-                  }}
-                >
-                  {getStatusText(order.status)}
-                </span>
-              </div>
-              <div className="order-body">
-                <div className="order-items">{order.item_count} item(s)</div>
-                <div className="order-total">{order.total} MAD</div>
-              </div>
-              <div className="order-footer">
-                <Link to={`/orders/${order.id}`} className="order-link">View Details</Link>
-              </div>
-            </div>
-          ))}
+        <div className="orders-table-container">
+          <table className="orders-table">
+            <thead>
+              <tr>
+                <th>Order ID</th>
+                <th>Items</th>
+                <th>Total</th>
+                <th>Payment</th>
+                <th>Status</th>
+                <th>Date</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {orders.map((order) => {
+                const statusConfig = getStatusConfig(order.status)
+                const StatusIcon = statusConfig.icon
+                return (
+                  <tr key={order.id}>
+                    <td className="order-id">
+                      <span className="order-number">{order.order_number}</span>
+                    </td>
+                    <td className="order-items">
+                      <span className="items-count">{order.item_count || 1} item(s)</span>
+                    </td>
+                    <td className="order-amount">
+                      <span className="amount">{order.total} MAD</span>
+                    </td>
+                    <td className="payment-method">
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                        {getPaymentIcon(order.payment_method)}
+                        {getPaymentText(order.payment_method)}
+                      </span>
+                    </td>
+                    <td>
+                      <span className="status-badge" style={{ backgroundColor: statusConfig.bg, color: statusConfig.color }}>
+                        <StatusIcon style={{ width: '0.75rem', height: '0.75rem' }} />
+                        {statusConfig.text}
+                      </span>
+                    </td>
+                    <td className="order-date">
+                      {new Date(order.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                    </td>
+                    <td className="order-action">
+                      <Link to={`/orders/${order.id}`} className="view-order-btn">
+                        <EyeIcon style={{ width: '1rem', height: '1rem' }} />
+                        View
+                      </Link>
+                      <button 
+                        onClick={() => downloadInvoice(order.id, order.order_number)} 
+                        className="invoice-btn"
+                        disabled={downloading === order.id}
+                      >
+                        {downloading === order.id ? '...' : 'PDF'}
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
         </div>
       </div>
 
       <style>{`
-        .orders-page {
-          padding: 2rem 0;
-          min-height: calc(100vh - 80px);
-        }
-        .orders-title {
-          font-size: 2rem;
-          font-weight: bold;
-          margin-bottom: 2rem;
-        }
-        .orders-list {
-          display: flex;
-          flex-direction: column;
-          gap: 1rem;
-        }
-        .order-card {
-          background: white;
-          border-radius: 1rem;
-          padding: 1rem;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-        .order-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding-bottom: 0.75rem;
-          border-bottom: 1px solid #e5e7eb;
-          margin-bottom: 0.75rem;
-        }
-        .order-number {
-          font-weight: 600;
-          color: #1a1a1a;
-        }
-        .order-date {
-          font-size: 0.75rem;
-          color: #6b7280;
-          margin-left: 1rem;
-        }
-        .order-status {
-          padding: 0.25rem 0.75rem;
-          border-radius: 2rem;
-          font-size: 0.75rem;
-          font-weight: 500;
-        }
-        .order-body {
-          display: flex;
-          justify-content: space-between;
-          margin-bottom: 0.75rem;
-        }
-        .order-items {
-          font-size: 0.875rem;
-          color: #6b7280;
-        }
-        .order-total {
-          font-weight: 600;
-        }
-        .order-footer {
-          text-align: right;
-          padding-top: 0.75rem;
-          border-top: 1px solid #e5e7eb;
-        }
-        .order-link {
-          color: #87CEEB;
-          text-decoration: none;
-          font-size: 0.875rem;
-        }
+        .orders-page { padding: 2rem 0; min-height: calc(100vh - 80px); }
+        .orders-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem; }
+        .orders-header h1 { font-size: 1.75rem; font-weight: 700; margin: 0; }
+        .orders-count { color: #6b7280; font-size: 0.875rem; background: #f3f4f6; padding: 0.25rem 0.75rem; border-radius: 2rem; }
+        .orders-table-container { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(8px); border-radius: 1rem; overflow-x: auto; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid rgba(255,255,255,0.3); }
+        .orders-table { width: 100%; border-collapse: collapse; min-width: 800px; }
+        .orders-table thead th { text-align: left; padding: 1rem 1.25rem; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #6b7280; border-bottom: 1px solid #e5e7eb; }
+        .orders-table tbody td { padding: 1rem 1.25rem; font-size: 0.875rem; border-bottom: 1px solid #f3f4f6; }
+        .orders-table tbody tr:hover { background: rgba(135, 206, 235, 0.05); }
+        .order-number { font-weight: 600; font-family: monospace; font-size: 0.8rem; background: #f3f4f6; padding: 0.25rem 0.5rem; border-radius: 0.375rem; }
+        .amount { font-weight: 600; color: #1a1a1a; }
+        .status-badge { display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.25rem 0.75rem; border-radius: 2rem; font-size: 0.75rem; font-weight: 500; }
+        .order-date { color: #6b7280; font-size: 0.75rem; }
+        .order-action { display: flex; gap: 0.5rem; align-items: center; }
+        .view-order-btn { display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.375rem 0.875rem; background: #f3f4f6; border-radius: 2rem; text-decoration: none; font-size: 0.75rem; font-weight: 500; color: #374151; transition: all 0.2s; }
+        .view-order-btn:hover { background: #e5e7eb; transform: translateY(-1px); }
+        .invoice-btn { background: none; border: none; color: #6b7280; font-size: 0.75rem; cursor: pointer; padding: 0.375rem 0.875rem; border-radius: 2rem; transition: all 0.2s; }
+        .invoice-btn:hover { background: #f3f4f6; color: #87CEEB; }
+        .invoice-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-primary { display: inline-block; padding: 0.75rem 1.5rem; background: #1a1a1a; color: white; text-decoration: none; border-radius: 2rem; }
       `}</style>
     </div>
   )

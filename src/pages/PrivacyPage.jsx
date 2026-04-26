@@ -52,7 +52,7 @@ const PrivacyPage = () => {
 
           <section>
             <h2>9. Contact Us</h2>
-            <p>If you have questions about this privacy policy, please contact us at privacy@rifkandi.com.</p>
+            <p>If you have questions about this privacy policy, please contact us at rifKANDO@gmail.com.</p>
           </section>
         </div>
       </div>

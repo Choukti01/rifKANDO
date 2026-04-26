@@ -41,7 +41,7 @@ const SellerTypePage = () => {
     <div className="seller-type-page">
       <div className="container">
         <div className="seller-type-header">
-          <h1>How do you want to sell on <span>rifKANDI</span>?</h1>
+          <h1>How do you want to sell on <span>rifKANDO</span>?</h1>
           <p>Choose your seller type to get a customized dashboard</p>
         </div>
         <div className="seller-type-grid">

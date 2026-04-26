@@ -31,15 +31,15 @@ const ContactPage = () => {
               <EnvelopeIcon className="info-icon" />
               <div>
                 <h3>Email</h3>
-                <p>support@rifkandi.com</p>
-                <p>sellers@rifkandi.com</p>
+                <p>rifKANDO@gmail.com</p>
+                <p>sellersRifKANDO@gmail.com</p>
               </div>
             </div>
             <div className="info-item">
               <PhoneIcon className="info-icon" />
               <div>
                 <h3>Phone</h3>
-                <p>+212 5XX-XXXXXX</p>
+                <p>+212 624483286</p>
                 <p>Available Mon-Fri, 9am-6pm</p>
               </div>
             </div>
@@ -47,8 +47,8 @@ const ContactPage = () => {
               <MapPinIcon className="info-icon" />
               <div>
                 <h3>Office</h3>
-                <p>123 Mohammed V Avenue</p>
-                <p>Casablanca, Morocco</p>
+                <p>Nador</p>
+                <p>Nador, Morocco</p>
               </div>
             </div>
             <div className="info-item">
