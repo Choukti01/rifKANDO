@@ -16,18 +16,62 @@ const ChatPage = () => {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
   const productId = new URLSearchParams(location.search).get('product');
+
+  // Track if user has manually scrolled up
+  const [userScrolledUp, setUserScrolledUp] = useState(false);
+  const lastMessageCountRef = useRef(0);
 
   useEffect(() => {
     fetchOtherUser();
     fetchMessages();
-    const interval = setInterval(fetchMessages, 5000);
+
+    // Poll every 5 seconds, but only fetch if still in chat and no ongoing scroll
+    const interval = setInterval(() => {
+      fetchMessages(true); // silent fetch – do NOT trigger loading spinner
+    }, 5000);
     return () => clearInterval(interval);
   }, [userId, productId]);
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  // Detect scroll to decide whether auto‑scroll should happen
+  const handleScroll = () => {
+    if (messagesContainerRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+      const isAtBottom = scrollHeight - scrollTop - clientHeight < 50; // within 50px
+      setUserScrolledUp(!isAtBottom);
+    }
+  };
+
+  // Auto‑scroll only if user is NOT scrolled up
+  const scrollToBottom = (behavior = 'smooth') => {
+    if (!userScrolledUp && messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior });
+    }
+  };
+
+  // Fetch messages (silent mode = no loading spinner, and no forced scroll if messages unchanged)
+  const fetchMessages = async (silent = false) => {
+    if (!silent) setLoading(true);
+    try {
+      const response = await api.get(`/messages/conversation?other_user_id=${userId}&product_id=${productId || ''}`);
+      const newMessages = response.data.messages || [];
+      
+      // If message count changed, we may need to auto‑scroll (if user was at bottom)
+      const countChanged = newMessages.length !== lastMessageCountRef.current;
+      setMessages(newMessages);
+      lastMessageCountRef.current = newMessages.length;
+      
+      if (countChanged && !userScrolledUp) {
+        // Only scroll when new messages arrive and user hasn't scrolled up
+        setTimeout(() => scrollToBottom(), 100);
+      }
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching messages:', error);
+      if (!silent) setLoading(false);
+    }
+  };
 
   const fetchOtherUser = async () => {
     try {
@@ -36,16 +80,6 @@ const ChatPage = () => {
     } catch (error) {
       toast.error('User not found');
       navigate(-1);
-    }
-  };
-
-  const fetchMessages = async () => {
-    try {
-      const response = await api.get(`/messages/conversation?other_user_id=${userId}&product_id=${productId || ''}`);
-      setMessages(response.data.messages || []);
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching messages:', error);
     }
   };
 
@@ -60,7 +94,11 @@ const ChatPage = () => {
         message: newMessage.trim()
       });
       setNewMessage('');
-      fetchMessages();
+      await fetchMessages(); // refresh
+      // After sending, we assume user wants to see the new message – scroll if not scrolled up
+      if (!userScrolledUp) {
+        setTimeout(() => scrollToBottom(), 100);
+      }
     } catch (error) {
       toast.error('Failed to send message');
     } finally {
@@ -68,7 +106,14 @@ const ChatPage = () => {
     }
   };
 
-  if (loading) {
+  // Scroll to bottom only on initial load (once)
+  useEffect(() => {
+    if (messages.length > 0 && lastMessageCountRef.current === 0) {
+      scrollToBottom('auto');
+    }
+  }, [messages]);
+
+  if (loading && messages.length === 0) {
     return (
       <div className="container text-center py-16">
         <div className="spinner"></div>
@@ -99,7 +144,11 @@ const ChatPage = () => {
           </div>
         </div>
 
-        <div className="messages-area">
+        <div 
+          className="messages-area" 
+          ref={messagesContainerRef}
+          onScroll={handleScroll}
+        >
           {messages.length === 0 ? (
             <div className="no-messages">
               <p>No messages yet. Start the conversation!</p>
@@ -173,7 +222,7 @@ const ChatPage = () => {
           border-radius: 0.5rem;
         }
         .back-btn:hover {
-          background: #f3f4f6;
+          background: #0f2e3a;
         }
         .chat-user-info {
           display: flex;
@@ -267,9 +316,11 @@ const ChatPage = () => {
           outline: none;
           border-color: #87CEEB;
         }
+        /* MODERN SEND BUTTON – brand color, no black */
         .send-btn {
-          padding: 0.75rem;
-          background: #1a1a1a;
+          width: 40px;
+          height: 40px;
+          background: linear-gradient(135deg, #87CEEB, #5F9EA0);
           color: white;
           border: none;
           border-radius: 50%;
@@ -277,14 +328,17 @@ const ChatPage = () => {
           display: flex;
           align-items: center;
           justify-content: center;
-          transition: all 0.2s;
+          transition: all 0.2s ease;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.1);
         }
         .send-btn:hover {
-          background: #2c2c2c;
           transform: scale(1.05);
+          background: linear-gradient(135deg, #7bc4de, #4f8e90);
+          box-shadow: 0 4px 10px rgba(0,0,0,0.15);
         }
         .send-btn:disabled {
           opacity: 0.5;
+          transform: none;
           cursor: not-allowed;
         }
       `}</style>

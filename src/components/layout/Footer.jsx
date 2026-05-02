@@ -100,7 +100,7 @@ const Footer = () => {
       <style>{`
         .footer {
           /* Dark glass effect - black with transparency */
-          background: rgba(10, 10, 15, 0.85);
+          background:rgba(8, 8, 12, 0.92);
           backdrop-filter: blur(12px);
           -webkit-backdrop-filter: blur(12px);
           color: var(--color-gray-400);
@@ -112,7 +112,7 @@ const Footer = () => {
 
         /* When scrolled near footer - stronger glass effect */
         .footer.footer-visible {
-          background: rgba(8, 8, 12, 0.92);
+          background:rgba(8, 8, 12, 0.92);
           backdrop-filter: blur(16px);
           -webkit-backdrop-filter: blur(16px);
           border-top-color: rgba(255, 255, 255, 0.1);

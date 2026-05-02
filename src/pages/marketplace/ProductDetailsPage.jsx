@@ -23,6 +23,12 @@ const ProductDetailsPage = () => {
   const [aiAnswer, setAiAnswer] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
   
+  // Offer modal state (for Joutiya products)
+  const [showOfferModal, setShowOfferModal] = useState(false);
+  const [offerAmount, setOfferAmount] = useState('');
+  const [offerMessage, setOfferMessage] = useState('');
+  const [submittingOffer, setSubmittingOffer] = useState(false);
+  
   // Reviews states
   const [reviews, setReviews] = useState([]);
   const [reviewRating, setReviewRating] = useState(0);
@@ -112,7 +118,7 @@ const ProductDetailsPage = () => {
       setReviewComment('');
       fetchReviews();
       setHasReviewed(true);
-      fetchProduct(); // Refresh product to update rating
+      fetchProduct();
     } catch (error) {
       console.error('Error submitting review:', error);
       toast.error(error.response?.data?.error || 'Failed to submit review');
@@ -127,6 +133,42 @@ const ProductDetailsPage = () => {
       return;
     }
     addToCart(product, quantity, 'product');
+  };
+
+  // Handle "Make Offer" for Joutiya products
+  const handleMakeOffer = () => {
+    if (!isAuthenticated) {
+      toast.error('Please login to make an offer');
+      return;
+    }
+    setOfferAmount('');
+    setOfferMessage('');
+    setShowOfferModal(true);
+  };
+
+  const submitOffer = async () => {
+    if (!offerAmount || parseFloat(offerAmount) <= 0) {
+      toast.error('Please enter a valid offer amount');
+      return;
+    }
+    if (parseFloat(offerAmount) > product.price) {
+      toast.error(`Offer cannot exceed the original price of ${product.price} MAD`);
+      return;
+    }
+    setSubmittingOffer(true);
+    try {
+      await api.post(`/products/${id}/offers`, {
+        amount: parseFloat(offerAmount),
+        message: offerMessage
+      });
+      toast.success(`Offer of ${offerAmount} MAD sent to seller!`);
+      setShowOfferModal(false);
+    } catch (error) {
+      console.error('Error submitting offer:', error);
+      toast.error(error.response?.data?.error || 'Failed to submit offer');
+    } finally {
+      setSubmittingOffer(false);
+    }
   };
 
   const handleFavorite = async () => {
@@ -180,6 +222,7 @@ const ProductDetailsPage = () => {
   const primaryMedia = product.media?.find(m => m.is_primary) || product.media?.[0];
   const averageRating = product.rating || 0;
   const totalReviews = product.reviews_count || 0;
+  const isJoutiya = product.condition === 'joutiya';
 
   return (
     <div className="product-details">
@@ -214,6 +257,12 @@ const ProductDetailsPage = () => {
           </div>
 
           <div className="product-info">
+            {/* Condition Badge */}
+            <div className="product-condition-badge">
+              {product.condition === 'used_as_new' && <span className="badge used">Used as New</span>}
+              {product.condition === 'joutiya' && <span className="badge joutiya">Joutiya (Haggle)</span>}
+              {(!product.condition || product.condition === 'new') && <span className="badge new">New</span>}
+            </div>
             <h1>{product.title}</h1>
             <div className="product-meta">
               <div className="product-rating">
@@ -227,9 +276,16 @@ const ProductDetailsPage = () => {
             </div>
             <div className="product-price"><span className="current-price">{product.price} MAD</span>{product.old_price && <span className="old-price">{product.old_price} MAD</span>}</div>
             <div className="product-stock">{product.stock > 0 ? <span className="in-stock">In Stock ({product.stock} available)</span> : <span className="out-of-stock">Out of Stock</span>}</div>
-            <div className="product-quantity"><label>Quantity</label><div className="quantity-selector"><button onClick={() => setQuantity(Math.max(1, quantity-1))}>-</button><span>{quantity}</span><button onClick={() => setQuantity(quantity+1)}>+</button></div></div>
+            {/* Quantity selector only for non-Joutiya products */}
+            {!isJoutiya && (
+              <div className="product-quantity"><label>Quantity</label><div className="quantity-selector"><button onClick={() => setQuantity(Math.max(1, quantity-1))}>-</button><span>{quantity}</span><button onClick={() => setQuantity(quantity+1)}>+</button></div></div>
+            )}
             <div className="product-actions">
-              <button className="add-to-cart-btn" onClick={handleAddToCart} disabled={product.stock===0}>Add to Cart</button>
+              {isJoutiya ? (
+                <button className="make-offer-btn" onClick={handleMakeOffer} disabled={product.stock===0}>Make Offer</button>
+              ) : (
+                <button className="add-to-cart-btn" onClick={handleAddToCart} disabled={product.stock===0}>Add to Cart</button>
+              )}
               <button className="favorite-btn" onClick={handleFavorite}><HeartIcon className={`heart-icon ${isFav ? 'text-red-500 fill-current' : ''}`} /></button>
               <button className="ai-chat-btn" onClick={() => setShowAIChat(true)} title="Ask AI about this product">
                 <ChatBubbleLeftRightIcon className="w-5 h-5" />
@@ -254,13 +310,15 @@ const ProductDetailsPage = () => {
             {activeTab==='specifications' && (
               <div className="specs-list">
                 <div className="spec-item"><span className="spec-label">Category</span><span className="spec-value">{product.category}</span></div>
+                <div className="spec-item"><span className="spec-label">Condition</span><span className="spec-value">
+                  {product.condition === 'used_as_new' ? 'Used as New' : product.condition === 'joutiya' ? 'Joutiya (Haggle)' : (product.condition || 'New')}
+                </span></div>
                 <div className="spec-item"><span className="spec-label">Stock</span><span className="spec-value">{product.stock} units</span></div>
                 <div className="spec-item"><span className="spec-label">Sold</span><span className="spec-value">{product.sold || 0} units</span></div>
               </div>
             )}
             {activeTab==='reviews' && (
               <div className="reviews-section">
-                {/* Write Review Section */}
                 {isAuthenticated && hasPurchased && !hasReviewed && (
                   <div className="write-review">
                     <h3>Write a Review</h3>
@@ -306,7 +364,6 @@ const ProductDetailsPage = () => {
                   </div>
                 )}
                 
-                {/* Reviews List */}
                 <div className="reviews-list">
                   <h3>Customer Reviews</h3>
                   {reviews.length === 0 ? (
@@ -368,6 +425,48 @@ const ProductDetailsPage = () => {
         </div>
       )}
 
+      {/* Make Offer Modal for Joutiya Products */}
+      {showOfferModal && (
+        <div className="offer-modal" onClick={() => setShowOfferModal(false)}>
+          <div className="offer-container" onClick={(e) => e.stopPropagation()}>
+            <div className="offer-header">
+              <h3>Make an Offer</h3>
+              <button onClick={() => setShowOfferModal(false)} className="close-offer-btn"><XMarkIcon className="w-5 h-5" /></button>
+            </div>
+            <div className="offer-body">
+              <p>Product: <strong>{product.title}</strong></p>
+              <p>Original price: <strong>{product.price} MAD</strong></p>
+              <div className="offer-field">
+                <label>Your offer (MAD):</label>
+                <input
+                  type="number"
+                  value={offerAmount}
+                  onChange={(e) => setOfferAmount(e.target.value)}
+                  placeholder="e.g., 50"
+                  min="1"
+                  max={product.price}
+                />
+              </div>
+              <div className="offer-field">
+                <label>Message to seller (optional):</label>
+                <textarea
+                  value={offerMessage}
+                  onChange={(e) => setOfferMessage(e.target.value)}
+                  placeholder="e.g., I love this product, can you do a better price?"
+                  rows="3"
+                />
+              </div>
+            </div>
+            <div className="offer-footer">
+              <button onClick={() => setShowOfferModal(false)} className="cancel-offer-btn">Cancel</button>
+              <button onClick={submitOffer} disabled={submittingOffer} className="submit-offer-btn">
+                {submittingOffer ? 'Sending...' : 'Submit Offer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showGallery && (
         <MediaGallery
           media={product.media.map(m => ({ url: `http://localhost:5000${m.media_url}`, type: m.media_type }))}
@@ -387,6 +486,11 @@ const ProductDetailsPage = () => {
         .thumbnail img { width: 100%; height: 100%; object-fit: cover; }
         .video-thumb { width: 100%; height: 100%; background: #1a1a1a; display: flex; align-items: center; justify-content: center; font-size: 2rem; }
         .product-info h1 { font-size: 1.75rem; margin-bottom: 1rem; }
+        .product-condition-badge { margin-bottom: 0.5rem; }
+        .badge { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 2rem; font-size: 0.7rem; font-weight: 500; }
+        .badge.new { background: #10b981; color: white; }
+        .badge.used { background: #f59e0b; color: white; }
+        .badge.joutiya { background: #8b5cf6; color: white; }
         .product-meta { display: flex; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; align-items: center; }
         .product-rating { display: flex; align-items: center; gap: 0.25rem; color: #f59e0b; }
         .star-icon { width: 1rem; height: 1rem; fill: #f59e0b; }
@@ -397,7 +501,8 @@ const ProductDetailsPage = () => {
         .quantity-selector { display: flex; align-items: center; gap: 1rem; margin-top: 0.5rem; }
         .quantity-selector button { width: 2rem; height: 2rem; border: 1px solid #e5e7eb; background: white; border-radius: 0.5rem; cursor: pointer; }
         .product-actions { display: flex; gap: 1rem; margin-bottom: 2rem; margin-top: 1rem; align-items: center; }
-        .add-to-cart-btn { flex: 1; padding: 0.75rem; background: #1a1a1a; color: white; border: none; border-radius: 2rem; cursor: pointer; }
+        .add-to-cart-btn, .make-offer-btn { flex: 1; padding: 0.75rem; background: #1a1a1a; color: white; border: none; border-radius: 2rem; cursor: pointer; }
+        .make-offer-btn { background: #8b5cf6; }
         .favorite-btn { padding: 0.75rem; border: 1px solid #e5e7eb; background: white; border-radius: 2rem; cursor: pointer; }
         .ai-chat-btn { padding: 0.75rem; border: 1px solid #e5e7eb; background: white; border-radius: 2rem; cursor: pointer; color: #87CEEB; transition: all 0.2s; }
         .ai-chat-btn:hover { background: #87CEEB; color: white; border-color: #87CEEB; }
@@ -416,7 +521,6 @@ const ProductDetailsPage = () => {
         .spec-item { display: flex; padding: 0.5rem 0; border-bottom: 1px solid #e5e7eb; }
         .spec-label { width: 150px; font-weight: 500; }
         .spec-value { color: #6b7280; }
-        /* Reviews Section */
         .reviews-section { max-width: 100%; }
         .write-review { background: #f9fafb; padding: 1.5rem; border-radius: 1rem; margin-bottom: 2rem; }
         .write-review h3 { margin-bottom: 1rem; font-size: 1rem; }
@@ -442,9 +546,20 @@ const ProductDetailsPage = () => {
         /* AI Chat Modal */
         .ai-chat-modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1001; }
         .ai-chat-container { background: white; border-radius: 1rem; width: 90%; max-width: 450px; max-height: 80vh; display: flex; flex-direction: column; overflow: hidden; }
-        .ai-chat-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem; border-bottom: 1px solid #e5e7eb; background: linear-gradient(135deg, #87CEEB, #5F9EA0); color: white; }
-        .ai-chat-header h3 { margin: 0; font-size: 1rem; }
-        .close-chat-btn { background: none; border: none; color: white; cursor: pointer; }
+        /* Offer Modal */
+        .offer-modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1002; }
+        .offer-container { background: white; border-radius: 1rem; width: 90%; max-width: 450px; max-height: 80vh; display: flex; flex-direction: column; overflow: hidden; }
+        .offer-header, .ai-chat-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem; border-bottom: 1px solid #e5e7eb; background: #1a1a1a; color: white; }
+        .offer-header h3, .ai-chat-header h3 { margin: 0; font-size: 1rem; }
+        .close-offer-btn, .close-chat-btn { background: none; border: none; color: white; cursor: pointer; }
+        .offer-body { padding: 1rem; }
+        .offer-field { margin-bottom: 1rem; }
+        .offer-field label { display: block; margin-bottom: 0.25rem; font-weight: 500; font-size: 0.875rem; }
+        .offer-field input, .offer-field textarea { width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 0.5rem; font-size: 0.875rem; }
+        .offer-footer { padding: 1rem; border-top: 1px solid #e5e7eb; display: flex; gap: 0.5rem; justify-content: flex-end; }
+        .cancel-offer-btn { background: #9ca3af; color: white; border: none; padding: 0.5rem 1rem; border-radius: 2rem; cursor: pointer; }
+        .submit-offer-btn { background: #8b5cf6; color: white; border: none; padding: 0.5rem 1rem; border-radius: 2rem; cursor: pointer; }
+        .submit-offer-btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .ai-chat-body { flex: 1; padding: 1rem; overflow-y: auto; min-height: 150px; }
         .ai-welcome { color: #6b7280; font-size: 0.875rem; margin-bottom: 0.5rem; }
         .ai-examples { font-size: 0.7rem; color: #9ca3af; margin-bottom: 1rem; }

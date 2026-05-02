@@ -1,64 +1,57 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom'
-import { MagnifyingGlassIcon, ShoppingBagIcon, HeartIcon, UserIcon, Bars3Icon, XMarkIcon, ChevronDownIcon, ChatBubbleLeftIcon } from '@heroicons/react/24/outline'
-import { useAuth } from '../../contexts/AuthContext'
-import api from '../../services/api'
+import { Link, useNavigate } from 'react-router-dom';
+import { MagnifyingGlassIcon, ShoppingBagIcon, HeartIcon, UserIcon, Bars3Icon, XMarkIcon, ChevronDownIcon, ChatBubbleLeftIcon } from '@heroicons/react/24/outline';
+import { useAuth } from '../../contexts/AuthContext';
+import api from '../../services/api';
+import LanguageSwitcher from '../LanguageSwitcher';
 
 const Navbar = () => {
-  const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const [isProfileOpen, setIsProfileOpen] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [unreadCount, setUnreadCount] = useState(0)
-  const [scrolled, setScrolled] = useState(false)
-  const navigate = useNavigate()
-  const { user, logout, isAuthenticated } = useAuth()
-  
-  // Ref for dropdown menu to detect clicks outside
-  const dropdownRef = useRef(null)
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [scrolled, setScrolled] = useState(false);
+  const navigate = useNavigate();
+  const { user, logout, isAuthenticated } = useAuth();
 
-  // Handle scroll effect for glass navbar
+  const dropdownRef = useRef(null);
+
   useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 10)
-    }
-    window.addEventListener('scroll', handleScroll)
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [])
+    const handleScroll = () => setScrolled(window.scrollY > 10);
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsProfileOpen(false)
+        setIsProfileOpen(false);
       }
-    }
-    
+    };
     const handleEscKey = (event) => {
       if (event.key === 'Escape') {
-        setIsProfileOpen(false)
-        setIsMenuOpen(false)
+        setIsProfileOpen(false);
+        setIsMenuOpen(false);
       }
-    }
-    
+    };
     if (isProfileOpen) {
-      document.addEventListener('mousedown', handleClickOutside)
-      document.addEventListener('keydown', handleEscKey)
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleEscKey);
     }
-    
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-      document.removeEventListener('keydown', handleEscKey)
-    }
-  }, [isProfileOpen])
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscKey);
+    };
+  }, [isProfileOpen]);
 
   const handleSearch = (e) => {
-    e.preventDefault()
+    e.preventDefault();
     if (searchQuery.trim()) {
-      navigate(`/search?q=${encodeURIComponent(searchQuery)}`)
-      setSearchQuery('')
-      setIsMenuOpen(false)
+      navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
+      setSearchQuery('');
+      setIsMenuOpen(false);
     }
-  }
+  };
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -78,10 +71,10 @@ const Navbar = () => {
   };
 
   const handleLogout = () => {
-    logout()
-    setIsProfileOpen(false)
-    navigate('/')
-  }
+    logout();
+    setIsProfileOpen(false);
+    navigate('/');
+  };
 
   const navLinks = [
     { name: 'Products', path: '/products' },
@@ -89,7 +82,7 @@ const Navbar = () => {
     { name: 'Services', path: '/services' },
     { name: 'Digital', path: '/digital' },
     { name: 'Bookings', path: '/bookings' },
-  ]
+  ];
 
   return (
     <>
@@ -99,15 +92,9 @@ const Navbar = () => {
             {/* Logo and Brand */}
             <Link to="/" className="brand-link">
               <div className="logo-icon">
-                <img 
-                  src="/logo.png" 
-                  alt="rifKANDO" 
-                  className="logo-img"
-                />
+                <img src="/logo.png" alt="rifKANDO" className="logo-img" />
               </div>
-              <span className="brand-name">
-                rif<span className="brand-accent">KANDO</span>
-              </span>
+              <span className="brand-name">rif<span className="brand-accent">KANDO</span></span>
             </Link>
 
             {/* Desktop Navigation */}
@@ -119,7 +106,7 @@ const Navbar = () => {
               ))}
             </div>
 
-            {/* Search Bar - FIXED */}
+            {/* Search Bar - FIXED ALIGNMENT */}
             <form onSubmit={handleSearch} className="search-form-desktop">
               <div className="search-wrapper">
                 <MagnifyingGlassIcon className="search-icon" />
@@ -135,36 +122,23 @@ const Navbar = () => {
 
             {/* Icons */}
             <div className="nav-icons">
-              <Link to="/favorites" className="nav-icon">
-                <HeartIcon className="icon" />
-              </Link>
-              <Link to="/cart" className="nav-icon">
-                <ShoppingBagIcon className="icon" />
-              </Link>
-              
-              {/* Messages Icon */}
+              <Link to="/favorites" className="nav-icon"><HeartIcon className="icon" /></Link>
+              <Link to="/cart" className="nav-icon"><ShoppingBagIcon className="icon" /></Link>
               <Link to="/messages" className="nav-icon">
                 <ChatBubbleLeftIcon className="icon" />
-                {unreadCount > 0 && (
-                  <span className="unread-badge-nav">{unreadCount}</span>
-                )}
+                {unreadCount > 0 && <span className="unread-badge-nav">{unreadCount}</span>}
               </Link>
-              
+
+              {/* Language Switcher (now only EN/AR) */}
+              <LanguageSwitcher />
+
               {/* Profile Dropdown */}
               <div className="profile-dropdown" ref={dropdownRef}>
-                <button 
-                  onClick={() => setIsProfileOpen(!isProfileOpen)}
-                  className="nav-icon profile-btn"
-                >
+                <button onClick={() => setIsProfileOpen(!isProfileOpen)} className="nav-icon profile-btn">
                   <UserIcon className="icon" />
-                  {isAuthenticated && user && (
-                    <span className="user-name">
-                      {user.name?.split(' ')[0]}
-                    </span>
-                  )}
+                  {isAuthenticated && user && <span className="user-name">{user.name?.split(' ')[0]}</span>}
                   <ChevronDownIcon className="chevron-icon" />
                 </button>
-
                 {isProfileOpen && (
                   <div className="dropdown-menu">
                     {isAuthenticated ? (
@@ -173,30 +147,16 @@ const Navbar = () => {
                           <p className="dropdown-name">{user?.name}</p>
                           <p className="dropdown-email">{user?.email}</p>
                         </div>
-                        <Link to="/seller/dashboard" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>
-                          My Profile
-                        </Link>
-                        <Link to="/orders" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>
-                          My Orders
-                        </Link>
-                        <Link to="/favorites" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>
-                          Favorites
-                        </Link>
-                        <Link to="/choose-seller-type" className="dropdown-item seller-link" onClick={() => setIsProfileOpen(false)}>
-                          Become a Seller
-                        </Link>
-                        <button onClick={handleLogout} className="dropdown-item logout-btn">
-                          Logout
-                        </button>
+                        <Link to="/seller/dashboard" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>My Profile</Link>
+                        <Link to="/orders" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>My Orders</Link>
+                        <Link to="/favorites" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>Favorites</Link>
+                        <Link to="/choose-seller-type" className="dropdown-item seller-link" onClick={() => setIsProfileOpen(false)}>Become a Seller</Link>
+                        <button onClick={handleLogout} className="dropdown-item logout-btn">Logout</button>
                       </>
                     ) : (
                       <>
-                        <Link to="/login" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>
-                          Login
-                        </Link>
-                        <Link to="/register" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>
-                          Register
-                        </Link>
+                        <Link to="/login" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>Login</Link>
+                        <Link to="/register" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>Register</Link>
                       </>
                     )}
                   </div>
@@ -225,16 +185,15 @@ const Navbar = () => {
               />
             </form>
             {navLinks.map(link => (
-              <Link
-                key={link.name}
-                to={link.path}
-                className="mobile-nav-link"
-                onClick={() => setIsMenuOpen(false)}
-              >
+              <Link key={link.name} to={link.path} className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>
                 {link.name}
               </Link>
             ))}
             <div className="mobile-menu-divider"></div>
+            {/* Language Switcher in mobile menu */}
+            <div className="mobile-lang-section">
+              <LanguageSwitcher />
+            </div>
             {isAuthenticated ? (
               <>
                 <Link to="/profile" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>My Profile</Link>
@@ -283,7 +242,6 @@ const Navbar = () => {
           border-bottom-color: rgba(0, 0, 0, 0.05);
         }
 
-        /* Dark mode support */
         @media (prefers-color-scheme: dark) {
           .navbar {
             --glass-bg: rgba(10, 10, 10, 0.75);
@@ -412,7 +370,7 @@ const Navbar = () => {
           width: 100%;
         }
 
-        /* SEARCH BAR - FIXED */
+        /* SEARCH BAR - FIXED ALIGNMENT */
         .search-form-desktop {
           display: none;
           flex: 1;
@@ -432,8 +390,8 @@ const Navbar = () => {
           left: 1rem;
           top: 50%;
           transform: translateY(-50%);
-          width: 1.125rem;
-          height: 1.125rem;
+          width: 1rem;
+          height: 1rem;
           color: #9ca3af;
           pointer-events: none;
           z-index: 1;
@@ -441,8 +399,8 @@ const Navbar = () => {
 
         .search-input {
           width: 100%;
-          height: 42px;
-          padding: 0 1rem 0 2.75rem;
+          height: 40px;
+          padding: 0.5rem 1rem 0.5rem 2.5rem;
           border: 1px solid #e5e7eb;
           border-radius: 2rem;
           font-size: 0.875rem;
@@ -450,6 +408,7 @@ const Navbar = () => {
           transition: all 0.2s ease;
           background: rgba(255, 255, 255, 0.8);
           color: #1f2937;
+          line-height: normal;
         }
 
         .search-input:focus {
@@ -546,14 +505,8 @@ const Navbar = () => {
         }
 
         @keyframes fadeInDown {
-          from {
-            opacity: 0;
-            transform: translateY(-10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
+          from { opacity: 0; transform: translateY(-10px); }
+          to { opacity: 1; transform: translateY(0); }
         }
 
         .dropdown-header {
@@ -625,14 +578,8 @@ const Navbar = () => {
         }
 
         @keyframes slideDown {
-          from {
-            opacity: 0;
-            transform: translateY(-20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
+          from { opacity: 0; transform: translateY(-20px); }
+          to { opacity: 1; transform: translateY(0); }
         }
 
         .mobile-search {
@@ -673,6 +620,12 @@ const Navbar = () => {
           margin: 0.75rem 0;
         }
 
+        .mobile-lang-section {
+          padding: 0.5rem 0;
+          margin-bottom: 0.5rem;
+          border-bottom: 1px solid #f3f4f6;
+        }
+
         .logout-mobile {
           color: #ef4444;
           width: 100%;
@@ -682,7 +635,48 @@ const Navbar = () => {
           cursor: pointer;
         }
 
-        /* Tablet & Desktop */
+        .language-switcher {
+          display: flex;
+          gap: 0.25rem;
+          background: rgba(0, 0, 0, 0.05);
+          border-radius: 2rem;
+          padding: 0.2rem;
+          margin: 0 0.5rem;
+        }
+        .lang-btn {
+          background: transparent;
+          border: none;
+          padding: 0.3rem 0.65rem;
+          border-radius: 2rem;
+          font-size: 0.75rem;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.2s;
+          color: #4b5563;
+        }
+        .lang-btn.active {
+          background: #87CEEB;
+          color: #1a1a1a;
+          box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+        .lang-btn:hover:not(.active) {
+          background: rgba(135, 206, 235, 0.2);
+          color: #87CEEB;
+        }
+        @media (prefers-color-scheme: dark) {
+          .lang-btn {
+            color: #e5e5e5;
+          }
+          .lang-btn.active {
+            background: #87CEEB;
+            color: #1a1a1a;
+          }
+        }
+        .mobile-lang-section .language-switcher {
+          margin: 0;
+          justify-content: center;
+        }
+
         @media (min-width: 768px) {
           .nav-links-desktop {
             display: flex;
@@ -701,7 +695,6 @@ const Navbar = () => {
           }
         }
 
-        /* Large screens */
         @media (min-width: 1280px) {
           .search-form-desktop {
             max-width: 450px;
@@ -711,7 +704,6 @@ const Navbar = () => {
           }
         }
 
-        /* Tablet adjustments */
         @media (max-width: 1024px) {
           .brand-link {
             margin-right: 0;
@@ -730,7 +722,6 @@ const Navbar = () => {
           }
         }
 
-        /* Small tablets */
         @media (max-width: 900px) {
           .search-form-desktop {
             max-width: 180px;
@@ -744,7 +735,7 @@ const Navbar = () => {
         }
       `}</style>
     </>
-  )
-}
+  );
+};
 
-export default Navbar
+export default Navbar;
