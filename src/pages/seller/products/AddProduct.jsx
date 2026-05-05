@@ -18,6 +18,7 @@ const AddProduct = () => {
     old_price: '',
     category: 'electronics',
     stock: '',
+    condition: 'new',
   });
 
   const handleChange = (e) => {
@@ -57,13 +58,12 @@ const AddProduct = () => {
         price: parseFloat(formData.price),
         old_price: formData.old_price ? parseFloat(formData.old_price) : null,
         stock: parseInt(formData.stock) || 0,
+        condition: formData.condition,
         media: media.map((m, idx) => ({ ...m, order: idx, isPrimary: idx === 0 }))
       };
-      
       const response = await api.post('/products', productData, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      
       if (response.data.success) {
         toast.success('Product created successfully!');
         navigate('/seller/dashboard/products');
@@ -82,13 +82,25 @@ const AddProduct = () => {
       <form onSubmit={handleSubmit} className="product-form">
         <div className="form-group">
           <label>Product Title *</label>
-          <input type="text" name="title" value={formData.title} onChange={handleChange} className="form-input" required />
+          <input
+            type="text"
+            name="title"
+            value={formData.title}
+            onChange={handleChange}
+            className="form-input"
+            required
+          />
         </div>
 
         <div className="form-group">
           <div className="description-header">
             <label>Description *</label>
-            <button type="button" onClick={generateDescription} disabled={generatingDesc} className="ai-btn">
+            <button
+              type="button"
+              onClick={generateDescription}
+              disabled={generatingDesc}
+              className="ai-btn"
+            >
               ✨ {generatingDesc ? 'Generating...' : 'Generate with AI'}
             </button>
           </div>
@@ -105,18 +117,37 @@ const AddProduct = () => {
         <div className="form-row">
           <div className="form-group">
             <label>Price (MAD) *</label>
-            <input type="number" name="price" value={formData.price} onChange={handleChange} className="form-input" required />
+            <input
+              type="number"
+              name="price"
+              value={formData.price}
+              onChange={handleChange}
+              className="form-input"
+              required
+            />
           </div>
           <div className="form-group">
             <label>Original Price (Optional)</label>
-            <input type="number" name="old_price" value={formData.old_price} onChange={handleChange} className="form-input" />
+            <input
+              type="number"
+              name="old_price"
+              value={formData.old_price}
+              onChange={handleChange}
+              className="form-input"
+            />
           </div>
         </div>
 
         <div className="form-row">
           <div className="form-group">
             <label>Category *</label>
-            <select name="category" value={formData.category} onChange={handleChange} className="form-input" required>
+            <select
+              name="category"
+              value={formData.category}
+              onChange={handleChange}
+              className="form-input"
+              required
+            >
               <option value="electronics">Electronics</option>
               <option value="fashion">Fashion</option>
               <option value="handicrafts">Handicrafts</option>
@@ -126,8 +157,36 @@ const AddProduct = () => {
           </div>
           <div className="form-group">
             <label>Stock Quantity *</label>
-            <input type="number" name="stock" value={formData.stock} onChange={handleChange} className="form-input" required />
+            <input
+              type="number"
+              name="stock"
+              value={formData.stock}
+              onChange={handleChange}
+              className="form-input"
+              required
+            />
           </div>
+        </div>
+
+        {/* NEW: Condition selector */}
+        <div className="form-group">
+          <label>Condition *</label>
+          <select
+            name="condition"
+            value={formData.condition}
+            onChange={handleChange}
+            className="form-input"
+            required
+          >
+            <option value="new">New</option>
+            <option value="used_as_new">Used as New</option>
+            <option value="joutiya">Joutiya (Haggle)</option>
+          </select>
+          <small className="form-hint">
+            {formData.condition === 'joutiya' && "Buyers can make offers instead of buying directly."}
+            {formData.condition === 'used_as_new' && "Item is pre‑owned but in perfect condition."}
+            {formData.condition === 'new' && "Brand new, never used."}
+          </small>
         </div>
 
         <div className="form-group">
@@ -139,25 +198,102 @@ const AddProduct = () => {
           <button type="submit" className="btn btn-primary" disabled={loading}>
             {loading ? 'Creating...' : 'Publish Product'}
           </button>
-          <button type="button" onClick={() => navigate('/seller/dashboard/products')} className="btn btn-outline">Cancel</button>
+          <button
+            type="button"
+            onClick={() => navigate('/seller/dashboard/products')}
+            className="btn btn-outline"
+          >
+            Cancel
+          </button>
         </div>
       </form>
 
       <style>{`
-        .add-product { max-width: 800px; margin: 0 auto; }
-        .add-product h2 { font-size: 1.25rem; margin-bottom: 1.5rem; }
-        .product-form { background: white; border-radius: 1rem; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-        .form-group { margin-bottom: 1rem; }
-        .form-group label { display: block; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem; }
-        .form-input { width: 100%; padding: 0.75rem; border: 1px solid #e5e7eb; border-radius: 0.5rem; font-size: 0.875rem; }
-        .description-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
-        .ai-btn { background: linear-gradient(135deg, #87CEEB, #5F9EA0); color: #1a1a1a; border: none; padding: 0.25rem 0.75rem; border-radius: 2rem; font-size: 0.75rem; cursor: pointer; transition: all 0.2s; }
-        .ai-btn:hover { transform: translateY(-1px); box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .ai-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        .form-actions { display: flex; gap: 1rem; margin-top: 1.5rem; }
-        .btn-primary { background: #1a1a1a; color: white; padding: 0.625rem 1.25rem; border: none; border-radius: 0.5rem; cursor: pointer; }
-        .btn-outline { background: transparent; border: 1px solid #e5e7eb; padding: 0.625rem 1.25rem; border-radius: 0.5rem; cursor: pointer; }
+        .add-product {
+          max-width: 800px;
+          margin: 0 auto;
+        }
+        .add-product h2 {
+          font-size: 1.25rem;
+          margin-bottom: 1.5rem;
+        }
+        .product-form {
+          background: white;
+          border-radius: 1rem;
+          padding: 1.5rem;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .form-row {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 1rem;
+        }
+        .form-group {
+          margin-bottom: 1rem;
+        }
+        .form-group label {
+          display: block;
+          font-size: 0.875rem;
+          font-weight: 500;
+          margin-bottom: 0.5rem;
+        }
+        .form-input {
+          width: 100%;
+          padding: 0.75rem;
+          border: 1px solid #e5e7eb;
+          border-radius: 0.5rem;
+          font-size: 0.875rem;
+        }
+        .description-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 0.5rem;
+        }
+        .ai-btn {
+          background: linear-gradient(135deg, #87CEEB, #5F9EA0);
+          color: #1a1a1a;
+          border: none;
+          padding: 0.25rem 0.75rem;
+          border-radius: 2rem;
+          font-size: 0.75rem;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .ai-btn:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .ai-btn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+        .form-hint {
+          display: block;
+          font-size: 0.7rem;
+          color: #6b7280;
+          margin-top: 0.25rem;
+        }
+        .form-actions {
+          display: flex;
+          gap: 1rem;
+          margin-top: 1.5rem;
+        }
+        .btn-primary {
+          background: #1a1a1a;
+          color: white;
+          padding: 0.625rem 1.25rem;
+          border: none;
+          border-radius: 0.5rem;
+          cursor: pointer;
+        }
+        .btn-outline {
+          background: transparent;
+          border: 1px solid #e5e7eb;
+          padding: 0.625rem 1.25rem;
+          border-radius: 0.5rem;
+          cursor: pointer;
+        }
       `}</style>
     </div>
   );

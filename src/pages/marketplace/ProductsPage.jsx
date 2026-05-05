@@ -5,6 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import MediaGallery from '../../components/MediaGallery';
 import api from '../../services/api';
+import VerifiedBadge from '../../components/common/VerifiedBadge';
 
 const ProductsPage = () => {
   const [products, setProducts] = useState([]);
@@ -13,10 +14,7 @@ const ProductsPage = () => {
   const { addToCart } = useCart();
   const { isAuthenticated } = useAuth();
   
-  // Tab state: 'new', 'used_as_new', 'joutiya'
   const [activeCondition, setActiveCondition] = useState('new');
-  
-  // Filter states
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [minPrice, setMinPrice] = useState('');
@@ -26,12 +24,13 @@ const ProductsPage = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalProducts, setTotalProducts] = useState(0);
   const [searchInput, setSearchInput] = useState('');
+  const [verifiedOnly, setVerifiedOnly] = useState(false);
 
   const categories = ['electronics', 'fashion', 'handicrafts', 'books', 'home'];
 
   useEffect(() => {
     fetchProducts();
-  }, [searchTerm, selectedCategory, minPrice, maxPrice, sortBy, currentPage, activeCondition]);
+  }, [searchTerm, selectedCategory, minPrice, maxPrice, sortBy, currentPage, activeCondition, verifiedOnly]);
 
   const fetchProducts = async () => {
     try {
@@ -44,7 +43,8 @@ const ProductsPage = () => {
       if (sortBy) params.append('sortBy', sortBy);
       params.append('page', currentPage);
       params.append('limit', 20);
-      params.append('condition', activeCondition);  // ← send the condition
+      params.append('condition', activeCondition);
+      if (verifiedOnly) params.append('verified', 'true');
       
       const response = await api.get(`/products?${params.toString()}`);
       setProducts(response.data.products || []);
@@ -65,11 +65,6 @@ const ProductsPage = () => {
 
   const handleSearch = (e) => {
     e.preventDefault();
-    setCurrentPage(1);
-    fetchProducts();
-  };
-
-  const handleFilterChange = () => {
     setCurrentPage(1);
     fetchProducts();
   };
@@ -95,66 +90,24 @@ const ProductsPage = () => {
           <p>Discover the best products from Moroccan sellers</p>
         </div>
 
-        {/* Condition Tabs */}
         <div className="condition-tabs">
-          <button
-            className={`tab-btn ${activeCondition === 'new' ? 'active' : ''}`}
-            onClick={() => { setActiveCondition('new'); setCurrentPage(1); }}
-          >
-            New
-          </button>
-          <button
-            className={`tab-btn ${activeCondition === 'used_as_new' ? 'active' : ''}`}
-            onClick={() => { setActiveCondition('used_as_new'); setCurrentPage(1); }}
-          >
-            Used as New
-          </button>
-          <button
-            className={`tab-btn ${activeCondition === 'joutiya' ? 'active' : ''}`}
-            onClick={() => { setActiveCondition('joutiya'); setCurrentPage(1); }}
-          >
-            Joutiya (Haggle)
-          </button>
+          <button className={`tab-btn ${activeCondition === 'new' ? 'active' : ''}`} onClick={() => { setActiveCondition('new'); setCurrentPage(1); }}>New</button>
+          <button className={`tab-btn ${activeCondition === 'used_as_new' ? 'active' : ''}`} onClick={() => { setActiveCondition('used_as_new'); setCurrentPage(1); }}>Used as New</button>
+          <button className={`tab-btn ${activeCondition === 'joutiya' ? 'active' : ''}`} onClick={() => { setActiveCondition('joutiya'); setCurrentPage(1); }}>Joutiya (Haggle)</button>
         </div>
 
-        {/* Search and Filters Bar */}
         <div className="filters-bar">
           <div className="search-form">
-            <input
-              type="text"
-              placeholder="Search products..."
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              className="search-input"
-              onKeyPress={(e) => {
-                if (e.key === 'Enter') {
-                  setSearchTerm(searchInput);
-                  setCurrentPage(1);
-                  fetchProducts();
-                }
-              }}
-            />
-            <button 
-              onClick={() => {
-                setSearchTerm(searchInput);
-                setCurrentPage(1);
-                fetchProducts();
-              }} 
-              className="search-btn"
-            >
-              Search
-            </button>
+            <input type="text" placeholder="Search products..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} className="search-input" onKeyPress={(e) => { if (e.key === 'Enter') { setSearchTerm(searchInput); setCurrentPage(1); } }} />
+            <button onClick={() => { setSearchTerm(searchInput); setCurrentPage(1); }} className="search-btn">Search</button>
           </div>
-          
           <div className="filters">
             <select value={selectedCategory} onChange={(e) => { setSelectedCategory(e.target.value); setCurrentPage(1); }} className="filter-select">
               <option value="">All Categories</option>
               {categories.map(cat => <option key={cat} value={cat}>{cat.charAt(0).toUpperCase() + cat.slice(1)}</option>)}
             </select>
-            
             <input type="number" placeholder="Min Price" value={minPrice} onChange={(e) => { setMinPrice(e.target.value); setCurrentPage(1); }} className="price-input" />
             <input type="number" placeholder="Max Price" value={maxPrice} onChange={(e) => { setMaxPrice(e.target.value); setCurrentPage(1); }} className="price-input" />
-            
             <select value={sortBy} onChange={(e) => { setSortBy(e.target.value); setCurrentPage(1); }} className="filter-select">
               <option value="newest">Newest First</option>
               <option value="price_asc">Price: Low to High</option>
@@ -163,11 +116,15 @@ const ProductsPage = () => {
               <option value="popular">Most Popular</option>
             </select>
           </div>
-          
+          <div className="filter-verified">
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+              <input type="checkbox" checked={verifiedOnly} onChange={(e) => { setVerifiedOnly(e.target.checked); setCurrentPage(1); }} />
+              <span>Verified sellers only</span>
+            </label>
+          </div>
           <div className="results-count">{totalProducts} products found</div>
         </div>
 
-        {/* Products Grid */}
         <div className="products-grid">
           {products.length === 0 ? (
             <p className="text-center col-span-full">No products found</p>
@@ -184,11 +141,13 @@ const ProductsPage = () => {
                   ) : (
                     <div className="image-placeholder">📦</div>
                   )}
-                  {/* Condition badge */}
                   <div className="condition-badge">{conditionLabels[product.condition] || 'New'}</div>
                 </div>
                 <Link to={`/product/${product.id}`}><h3>{product.title}</h3></Link>
-                <p>by <Link to={`/profile/${product.seller_id}`} className="seller-link">{product.seller_name || 'Unknown Seller'}</Link></p>
+                <p>
+                  by <Link to={`/profile/${product.seller_id}`} className="seller-link">{product.seller_name || 'Unknown Seller'}</Link>
+                  {product.seller_verified === 1 && <VerifiedBadge size="small" />}
+                </p>
                 <div className="product-rating">⭐ {product.rating || 0} ({product.reviews_count || 0} reviews)</div>
                 <div className="product-price">
                   <span className="current-price">{product.price} MAD</span>
@@ -204,7 +163,6 @@ const ProductsPage = () => {
           )}
         </div>
 
-        {/* Pagination */}
         {totalPages > 1 && (
           <div className="pagination">
             <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} className="page-btn">← Previous</button>
@@ -222,37 +180,13 @@ const ProductsPage = () => {
       )}
 
       <style>{`
+        /* (keep your existing styles unchanged) */
         .products-page { padding: 2rem 0; min-height: calc(100vh - 80px); }
         .products-header { text-align: center; margin-bottom: 2rem; }
-        
-        /* Condition Tabs */
-        .condition-tabs {
-          display: flex;
-          justify-content: center;
-          gap: 1rem;
-          margin-bottom: 2rem;
-          border-bottom: 1px solid #e5e7eb;
-          padding-bottom: 0.5rem;
-        }
-        .condition-tabs .tab-btn {
-          padding: 0.5rem 1.5rem;
-          background: none;
-          border: none;
-          font-size: 1rem;
-          font-weight: 500;
-          cursor: pointer;
-          border-radius: 2rem;
-          transition: all 0.2s;
-          color: #6b7280;
-        }
-        .condition-tabs .tab-btn.active {
-          background: #87CEEB;
-          color: #1a1a1a;
-        }
-        .condition-tabs .tab-btn:hover:not(.active) {
-          background: #f3f4f6;
-        }
-        
+        .condition-tabs { display: flex; justify-content: center; gap: 1rem; margin-bottom: 2rem; border-bottom: 1px solid #e5e7eb; padding-bottom: 0.5rem; }
+        .condition-tabs .tab-btn { padding: 0.5rem 1.5rem; background: none; border: none; font-size: 1rem; font-weight: 500; cursor: pointer; border-radius: 2rem; transition: all 0.2s; color: #6b7280; }
+        .condition-tabs .tab-btn.active { background: #87CEEB; color: #1a1a1a; }
+        .condition-tabs .tab-btn:hover:not(.active) { background: #f3f4f6; }
         .filters-bar { background: white; border-radius: 1rem; padding: 1rem; margin-bottom: 2rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         .search-form { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
         .search-input { flex: 1; padding: 0.75rem; border: 1px solid #e5e7eb; border-radius: 0.5rem; font-size: 0.875rem; }
@@ -260,6 +194,7 @@ const ProductsPage = () => {
         .filters { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1rem; }
         .filter-select, .price-input { padding: 0.5rem 0.75rem; border: 1px solid #e5e7eb; border-radius: 0.5rem; font-size: 0.875rem; }
         .price-input { width: 100px; }
+        .filter-verified { margin-bottom: 1rem; font-size: 0.875rem; }
         .results-count { font-size: 0.875rem; color: #6b7280; text-align: right; }
         .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
         .product-card { background: white; border-radius: 1rem; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); transition: all 0.3s; position: relative; }
@@ -269,17 +204,7 @@ const ProductsPage = () => {
         .image-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 4rem; }
         .video-badge { position: absolute; top: 0.5rem; left: 0.5rem; background: rgba(0,0,0,0.6); color: white; padding: 0.25rem 0.5rem; border-radius: 0.5rem; font-size: 0.7rem; }
         .media-count { position: absolute; bottom: 0.5rem; right: 0.5rem; background: rgba(0,0,0,0.6); color: white; padding: 0.25rem 0.5rem; border-radius: 0.5rem; font-size: 0.7rem; }
-        .condition-badge {
-          position: absolute;
-          top: 0.5rem;
-          right: 0.5rem;
-          background: #87CEEB;
-          color: #1a1a1a;
-          padding: 0.25rem 0.5rem;
-          border-radius: 0.5rem;
-          font-size: 0.7rem;
-          font-weight: 500;
-        }
+        .condition-badge { position: absolute; top: 0.5rem; right: 0.5rem; background: #87CEEB; color: #1a1a1a; padding: 0.25rem 0.5rem; border-radius: 0.5rem; font-size: 0.7rem; font-weight: 500; }
         .product-card h3 { font-size: 1rem; margin: 0.75rem 1rem 0.25rem; }
         .product-card p { font-size: 0.75rem; color: #6b7280; margin: 0 1rem 0.5rem; }
         .seller-link { color: #87CEEB; text-decoration: none; }

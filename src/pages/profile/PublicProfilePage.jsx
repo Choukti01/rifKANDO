@@ -1,143 +1,98 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
-import { MapPinIcon, EnvelopeIcon, PhoneIcon, ChatBubbleLeftIcon } from '@heroicons/react/24/outline';
+import { useParams, Link } from 'react-router-dom';
 import api from '../../services/api';
-import { useAuth } from '../../contexts/AuthContext';
-import toast from 'react-hot-toast';
+import VerifiedBadge from '../../components/common/VerifiedBadge';
 
 const PublicProfilePage = () => {
   const { userId } = useParams();
-  const navigate = useNavigate();
-  const { user, isAuthenticated } = useAuth();
-  const [profile, setProfile] = useState(null);
+  const [user, setUser] = useState(null);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        setLoading(true);
-        const userRes = await api.get(`/users/${userId}`);
-        setProfile(userRes.data.user);
-        const productsRes = await api.get(`/users/${userId}/products`);
-        setProducts(productsRes.data.products || []);
-      } catch (error) {
-        console.error('Error fetching profile:', error);
-        toast.error('Seller not found');
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchProfile();
   }, [userId]);
 
-  const handleSendMessage = () => {
-    navigate(`/messages/${userId}`);
+  const fetchProfile = async () => {
+    try {
+      const [userRes, productsRes] = await Promise.all([
+        api.get(`/users/${userId}`),
+        api.get(`/users/${userId}/products`)
+      ]);
+      setUser(userRes.data.user);
+      setProducts(productsRes.data.products || []);
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  if (loading) return <div className="container text-center py-16"><div className="spinner"></div><p>Loading profile...</p></div>;
-  if (!profile) return <div className="container text-center py-16"><p>Seller not found</p><Link to="/">Go Home</Link></div>;
-
-  const isSeller = profile.seller_type && profile.seller_type !== null && profile.seller_type !== '';
-  const sellerTypeLabel = {
-    product: '🛍️ Product Seller',
-    course: '📚 Course Instructor',
-    service: '🛠️ Service Provider',
-    digital: '💻 Digital Creator',
-    booking: '📅 Booking Pro'
-  }[profile.seller_type] || 'Seller';
+  if (loading) return <div className="text-center py-16"><div className="spinner"></div><p>Loading profile...</p></div>;
+  if (!user) return <div className="text-center py-16">User not found</div>;
 
   return (
     <div className="public-profile">
-      <div className="container">
-        <div className="profile-header">
-          <div className="profile-avatar">
-            {profile.profilePicture ? (
-              <img src={`http://localhost:5000${profile.profilePicture}`} alt={profile.name} />
-            ) : (
-              <div className="avatar-initial">{profile.name?.charAt(0) || 'U'}</div>
-            )}
-          </div>
-          <div className="profile-info">
-            <h1>{profile.name}</h1>
-            <div className="profile-badge">
-              {isSeller ? (
-                <span className="badge-seller">{sellerTypeLabel}</span>
-              ) : (
-                <span className="badge-buyer">🛒 Buyer</span>
-              )}
-            </div>
-            {profile.bio && <p className="profile-bio">{profile.bio}</p>}
-            <div className="profile-details">
-              {profile.city && (
-                <div className="detail-item">
-                  <MapPinIcon className="detail-icon" />
-                  <span>{profile.city}, {profile.country || 'Morocco'}</span>
-                </div>
-              )}
-              
-              {/* Chat Button - only show if logged in and not viewing own profile */}
-              {isAuthenticated && user?.id !== profile.id && (
-                <button onClick={handleSendMessage} className="chat-btn">
-                  <ChatBubbleLeftIcon className="w-4 h-4" />
-                  Message {profile.name}
-                </button>
-              )}
-            </div>
-          </div>
+      <div className="profile-header">
+        <div className="profile-avatar">
+          {user.profilePicture ? (
+            <img src={`http://localhost:5000${user.profilePicture}`} alt={user.name} />
+          ) : (
+            <span>{user.name.charAt(0)}</span>
+          )}
         </div>
-        
-        {products.length > 0 && (
-          <div className="seller-products">
-            <h2>Products by {profile.name}</h2>
-            <div className="products-grid">
-              {products.map(product => (
-                <div key={product.id} className="product-card">
-                  <Link to={`/product/${product.id}`}>
-                    <div className="product-image">
-                      {product.media && product.media.length > 0 ? (
-                        <img src={`http://localhost:5000${product.media[0].media_url}`} alt={product.title} />
-                      ) : (
-                        <div className="image-placeholder">📦</div>
-                      )}
-                    </div>
-                    <h3>{product.title}</h3>
-                    <p className="price">{product.price} MAD</p>
-                  </Link>
+        <div className="profile-info">
+          <h1>
+            {user.name}
+            {user.is_verified_seller === 1 && <VerifiedBadge size="medium" />}
+          </h1>
+          <p className="profile-bio">{user.bio || 'No bio yet'}</p>
+          <p className="profile-location">{user.city}, {user.country}</p>
+          <p className="profile-role">{user.seller_type ? `${user.seller_type} seller` : 'Buyer'}</p>
+        </div>
+      </div>
+
+      <div className="profile-products">
+        <h2>Products by {user.name}</h2>
+        {products.length === 0 ? (
+          <p>No products listed yet.</p>
+        ) : (
+          <div className="products-grid">
+            {products.map(product => (
+              <Link to={`/product/${product.id}`} key={product.id} className="product-card">
+                <div className="product-image">
+                  {product.media && product.media[0] ? (
+                    <img src={`http://localhost:5000${product.media[0].media_url}`} alt={product.title} />
+                  ) : (
+                    <div className="image-placeholder">📦</div>
+                  )}
                 </div>
-              ))}
-            </div>
+                <h3>{product.title}</h3>
+                <div className="product-price">{product.price} MAD</div>
+              </Link>
+            ))}
           </div>
         )}
       </div>
+
       <style>{`
-        .public-profile { padding: 2rem 0; min-height: calc(100vh - 80px); }
-        .profile-header { display: flex; gap: 2rem; align-items: center; background: white; border-radius: 1rem; padding: 2rem; margin-bottom: 2rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        @media (max-width: 768px) { .profile-header { flex-direction: column; text-align: center; } }
-        .profile-avatar { width: 120px; height: 120px; border-radius: 50%; overflow: hidden; background: linear-gradient(135deg, #87CEEB, #5F9EA0); display: flex; align-items: center; justify-content: center; }
+        .public-profile { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+        .profile-header { display: flex; gap: 2rem; margin-bottom: 3rem; align-items: center; flex-wrap: wrap; }
+        .profile-avatar { width: 120px; height: 120px; background: #87CEEB; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 3rem; overflow: hidden; }
         .profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
-        .avatar-initial { font-size: 3rem; color: white; font-weight: bold; }
-        .profile-info h1 { font-size: 1.75rem; margin-bottom: 0.5rem; }
-        .profile-badge { margin-bottom: 1rem; }
-        .badge-seller, .badge-buyer { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 2rem; font-size: 0.75rem; font-weight: 500; }
-        .badge-seller { background: #d1fae5; color: #065f46; }
-        .badge-buyer { background: #e0e7ff; color: #3730a3; }
-        .profile-bio { color: #4b5563; margin-bottom: 1rem; }
-        .profile-details { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; }
-        .detail-item { display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; color: #6b7280; }
-        .detail-icon { width: 1rem; height: 1rem; }
-        .chat-btn { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: #87CEEB; color: #1a1a1a; border: none; border-radius: 2rem; cursor: pointer; font-size: 0.875rem; font-weight: 500; transition: all 0.2s; }
-        .chat-btn:hover { background: #6bb5d4; transform: translateY(-1px); }
-        .seller-products h2 { font-size: 1.25rem; margin-bottom: 1rem; }
-        .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1.5rem; }
-        .product-card { background: white; border-radius: 0.75rem; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); transition: transform 0.2s; }
-        .product-card:hover { transform: translateY(-4px); }
-        .product-card a { text-decoration: none; color: inherit; }
-        .product-image { height: 160px; background: #f3f4f6; overflow: hidden; }
+        .profile-info h1 { font-size: 1.75rem; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem; }
+        .profile-bio { color: #6b7280; margin-bottom: 0.5rem; }
+        .profile-location { font-size: 0.875rem; color: #6b7280; }
+        .profile-role { font-size: 0.75rem; background: #f3f4f6; display: inline-block; padding: 0.25rem 0.5rem; border-radius: 0.5rem; margin-top: 0.5rem; }
+        .profile-products h2 { font-size: 1.25rem; margin-bottom: 1rem; }
+        .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1.5rem; }
+        .product-card { background: white; border-radius: 1rem; overflow: hidden; text-decoration: none; color: inherit; box-shadow: 0 1px 3px rgba(0,0,0,0.1); transition: transform 0.2s; }
+        .product-card:hover { transform: translateY(-4px); box-shadow: 0 12px 24px rgba(0,0,0,0.1); }
+        .product-image { height: 150px; background: #f3f4f6; overflow: hidden; }
         .product-image img { width: 100%; height: 100%; object-fit: cover; }
         .image-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 3rem; }
-        .product-card h3 { font-size: 0.9rem; margin: 0.75rem; font-weight: 600; }
-        .product-card .price { margin: 0 0.75rem 0.75rem; font-weight: bold; color: #1a1a1a; }
+        .product-card h3 { font-size: 0.9rem; padding: 0.5rem; margin: 0; }
+        .product-price { padding: 0 0.5rem 0.5rem; font-weight: bold; }
       `}</style>
     </div>
   );

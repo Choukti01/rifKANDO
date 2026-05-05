@@ -8,6 +8,7 @@ import { getProduct } from '../../services/api';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 import MediaGallery from '../../components/MediaGallery';
+import VerifiedBadge from '../../components/common/VerifiedBadge';
 
 const ProductDetailsPage = () => {
   const { id } = useParams();
@@ -272,6 +273,7 @@ const ProductDetailsPage = () => {
               </div>
               <div className="product-seller">
                 by <Link to={`/profile/${product.seller_id}`} className="seller-link">{product.seller_name || 'Unknown Seller'}</Link>
+                {product.seller_verified === 1 && <VerifiedBadge size="small" />}
               </div>
             </div>
             <div className="product-price"><span className="current-price">{product.price} MAD</span>{product.old_price && <span className="old-price">{product.old_price} MAD</span>}</div>

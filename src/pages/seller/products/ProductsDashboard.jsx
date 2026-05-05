@@ -11,7 +11,6 @@ const ProductsDashboard = () => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const { token } = useAuth();
-
   const [stats, setStats] = useState({
     totalProducts: 0,
     totalValue: 0,
@@ -29,11 +28,9 @@ const ProductsDashboard = () => {
       const response = await getMyProducts();
       const productsData = response.data.products || [];
       setProducts(productsData);
-      
       const totalValue = productsData.reduce((sum, p) => sum + (p.price * p.stock), 0);
       const totalSold = productsData.reduce((sum, p) => sum + (p.sold || 0), 0);
       const lowStock = productsData.filter(p => p.stock < 10 && p.stock > 0).length;
-      
       setStats({
         totalProducts: productsData.length,
         totalValue,
@@ -76,6 +73,15 @@ const ProductsDashboard = () => {
     navigate('/seller/dashboard/products/add');
   };
 
+  // Helper to display condition label
+  const getConditionLabel = (condition) => {
+    switch (condition) {
+      case 'used_as_new': return 'Used as New';
+      case 'joutiya': return 'Joutiya';
+      default: return 'New';
+    }
+  };
+
   if (loading) {
     return (
       <div className="text-center py-16">
@@ -87,6 +93,7 @@ const ProductsDashboard = () => {
 
   return (
     <div>
+      {/* Stats Grid */}
       <div className="stats-grid">
         <div className="stat-card">
           <div className="stat-label">Total Products</div>
@@ -110,12 +117,12 @@ const ProductsDashboard = () => {
         </div>
       </div>
 
+      {/* Products Table */}
       <div className="products-card">
         <div className="card-header">
           <h3>Your Products</h3>
           <button onClick={handleAddNew} className="btn btn-primary btn-sm">
-            <PlusIcon className="w-4 h-4" />
-            Add Product
+            <PlusIcon className="w-4 h-4" /> Add Product
           </button>
         </div>
 
@@ -134,6 +141,7 @@ const ProductsDashboard = () => {
                 <tr>
                   <th>Product</th>
                   <th>Price</th>
+                  <th>Condition</th>
                   <th>Stock</th>
                   <th>Sold</th>
                   <th>Status</th>
@@ -147,7 +155,11 @@ const ProductsDashboard = () => {
                       <div className="product-cell">
                         <div className="product-image">
                           {product.media && product.media.length > 0 ? (
-                            <img src={`http://localhost:5000${product.media[0].media_url}`} alt="" style={{ width: '48px', height: '48px', objectFit: 'cover', borderRadius: '0.5rem' }} />
+                            <img
+                              src={`http://localhost:5000${product.media[0].media_url}`}
+                              alt=""
+                              style={{ width: '48px', height: '48px', objectFit: 'cover', borderRadius: '0.5rem' }}
+                            />
                           ) : (
                             product.image || '📦'
                           )}
@@ -159,6 +171,11 @@ const ProductsDashboard = () => {
                       </div>
                     </td>
                     <td className="product-price">{product.price} MAD</td>
+                    <td>
+                      <span className={`condition-badge ${product.condition || 'new'}`}>
+                        {getConditionLabel(product.condition)}
+                      </span>
+                    </td>
                     <td className={product.stock < 10 ? 'text-warning' : ''}>
                       {product.stock}
                       {product.stock < 5 && <span className="stock-badge low">Low stock!</span>}
@@ -307,6 +324,25 @@ const ProductsDashboard = () => {
           border-radius: 0.25rem;
           font-size: 0.7rem;
         }
+        .condition-badge {
+          display: inline-block;
+          padding: 0.25rem 0.5rem;
+          border-radius: 9999px;
+          font-size: 0.7rem;
+          font-weight: 500;
+        }
+        .condition-badge.new {
+          background: #d1fae5;
+          color: #065f46;
+        }
+        .condition-badge.used_as_new {
+          background: #fef3c7;
+          color: #92400e;
+        }
+        .condition-badge.joutiya {
+          background: #ede9fe;
+          color: #5b21b6;
+        }
         .status-badge {
           display: inline-block;
           padding: 0.25rem 0.5rem;
@@ -324,17 +360,9 @@ const ProductsDashboard = () => {
         }
         .action-buttons {
           display: flex;
-          gap: 0.5rem;
-          align-items: center;
-        }
-
-        /* ========== MODERN ACTION BUTTONS ========== */
-        .action-buttons, .product-actions, .course-actions, .service-actions, .digital-actions, .booking-actions {
-          display: flex;
           gap: 0.75rem;
           align-items: center;
         }
-
         .action-btn {
           position: relative;
           padding: 0;
@@ -351,7 +379,6 @@ const ProductsDashboard = () => {
           justify-content: center;
           overflow: hidden;
         }
-
         .action-btn svg {
           width: 18px;
           height: 18px;
@@ -359,7 +386,6 @@ const ProductsDashboard = () => {
           position: relative;
           z-index: 2;
         }
-
         .action-btn::before {
           content: '';
           position: absolute;
@@ -374,61 +400,24 @@ const ProductsDashboard = () => {
           transition: all 0.2s ease;
           z-index: 1;
         }
-
         .action-btn:hover::before {
           transform: scale(1);
           opacity: 1;
         }
-
         .action-btn:hover svg {
           transform: translateY(-2px);
         }
-
         .action-btn:active {
           transform: scale(0.95);
         }
-
-        /* View button (eye) - Sky Blue */
-        .action-btn.view {
-          color: #0ea5e9;
-        }
-
-        .action-btn.view::before {
-          background: #e0f2fe;
-        }
-
-        /* Edit button (pencil) - Amber */
-        .action-btn.edit {
-          color: #f59e0b;
-        }
-
-        .action-btn.edit::before {
-          background: #fef3c7;
-        }
-
-        /* End button (X) - Orange */
-        .action-btn.end {
-          color: #ea580c;
-        }
-
-        .action-btn.end::before {
-          background: #ffedd5;
-        }
-
-        /* Delete button (trash) - Rose/Red */
-        .action-btn.delete {
-          color: #e11d48;
-        }
-
-        .action-btn.delete::before {
-          background: #ffe4e6;
-        }
-
-        /* Tooltip on hover */
-        .action-btn {
-          position: relative;
-        }
-
+        .action-btn.view { color: #0ea5e9; }
+        .action-btn.view::before { background: #e0f2fe; }
+        .action-btn.edit { color: #f59e0b; }
+        .action-btn.edit::before { background: #fef3c7; }
+        .action-btn.end { color: #ea580c; }
+        .action-btn.end::before { background: #ffedd5; }
+        .action-btn.delete { color: #e11d48; }
+        .action-btn.delete::before { background: #ffe4e6; }
         .action-btn::after {
           content: attr(title);
           position: absolute;
@@ -447,13 +436,11 @@ const ProductsDashboard = () => {
           pointer-events: none;
           z-index: 10;
         }
-
         .action-btn:hover::after {
           opacity: 1;
           visibility: visible;
           bottom: -28px;
         }
-
         .btn-sm {
           display: inline-flex;
           align-items: center;

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../../services/api';
 
 const AdminDashboard = () => {
@@ -31,6 +32,7 @@ const AdminDashboard = () => {
     <div className="admin-dashboard">
       <h1>Admin Dashboard</h1>
       
+      {/* Stats Grid */}
       <div className="stats-grid">
         <div className="stat-card"><div className="stat-label">Total Users</div><div className="stat-value">{stats.totalUsers || 0}</div></div>
         <div className="stat-card"><div className="stat-label">Total Products</div><div className="stat-value">{stats.totalProducts || 0}</div></div>
@@ -40,6 +42,17 @@ const AdminDashboard = () => {
         <div className="stat-card"><div className="stat-label">Pending Withdrawals</div><div className="stat-value">{stats.pendingWithdrawals || 0}</div></div>
       </div>
 
+      {/* Admin Actions Cards */}
+      <div className="admin-actions">
+        <Link to="/admin/verify-sellers" className="action-card">
+          <div className="action-icon">✓</div>
+          <h3>Verify Sellers</h3>
+          <p>Review and approve seller verification requests</p>
+        </Link>
+        {/* You can add more action cards here later */}
+      </div>
+
+      {/* Recent Orders Table */}
       <div className="recent-orders">
         <h3>Recent Orders</h3>
         <table className="orders-table">
@@ -58,6 +71,15 @@ const AdminDashboard = () => {
             ))}
           </tbody>
         </table>
+
+
+        <Link to="/admin/review-verifications" className="action-card">
+        <div className="action-icon">🪪</div>
+        <h3>Review Verifications</h3>
+        <p>Approve or reject seller ID uploads</p>
+        </Link>
+
+
       </div>
 
       <style>{`
@@ -66,6 +88,14 @@ const AdminDashboard = () => {
         .stat-card { background: white; border-radius: 1rem; padding: 1rem; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         .stat-label { font-size: 0.75rem; color: #6b7280; }
         .stat-value { font-size: 1.5rem; font-weight: bold; }
+        
+        .admin-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+        .action-card { background: white; border-radius: 1rem; padding: 1.5rem; text-align: center; text-decoration: none; color: inherit; box-shadow: 0 1px 3px rgba(0,0,0,0.1); transition: all 0.2s; display: block; }
+        .action-card:hover { transform: translateY(-4px); box-shadow: 0 12px 24px rgba(0,0,0,0.1); }
+        .action-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+        .action-card h3 { font-size: 1rem; margin-bottom: 0.25rem; }
+        .action-card p { font-size: 0.75rem; color: #6b7280; }
+        
         .recent-orders { background: white; border-radius: 1rem; padding: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         .orders-table { width: 100%; border-collapse: collapse; }
         .orders-table th, .orders-table td { padding: 0.75rem; text-align: left; border-bottom: 1px solid #e5e7eb; }

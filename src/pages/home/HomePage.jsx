@@ -278,7 +278,7 @@ const HomePage = () => {
       <section className="cta-section">
         <div className="container text-center">
           <h2 className="cta-title">Ready to start selling?</h2>
-          <p className="cta-description">Join thousands of sellers on rifKANDI</p>
+          <p className="cta-description">Join thousands of sellers on rifKANDO</p>
           <Link to="/choose-seller-type">
             <button className="cta-button">Become a Seller</button>
           </Link>

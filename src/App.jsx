@@ -1,7 +1,6 @@
- import React from 'react'
+import React from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
-
 
 import ChatPage from './pages/messages/ChatPage';
 import MessagesInbox from './pages/messages/MessagesInbox';
@@ -41,6 +40,8 @@ import PaymentFailed from './pages/PaymentFailed';
 
 import SellerOrders from './pages/seller/dashboard/Orders';
 import AdminDashboard from './pages/admin/AdminDashboard';
+import VerifySellers from './pages/admin/VerifySellers';
+import ReviewVerifications from './pages/admin/ReviewVerifications';
 
 import PackagesManager from './pages/seller/services/PackagesManager';
 import LessonsManager from './pages/seller/courses/LessonsManager';
@@ -65,11 +66,9 @@ import BookingsDashboard from './pages/seller/bookings/BookingsDashboard'
 import AddBooking from './pages/seller/bookings/AddBooking'
 import EditBooking from './pages/seller/bookings/EditBooking'
 import Settings from './pages/seller/dashboard/Settings'
-
-
-
-
-import Wallet from './pages/seller/dashboard/Wallet';
+import Wallet from './pages/seller/dashboard/Wallet'
+import SellerOffers from './pages/seller/dashboard/Offers'
+import VerificationUpload from './pages/seller/dashboard/VerificationUpload'   // 👈 IMPORT ADDED
 
 // Footer Pages
 import SellerGuidelines from './pages/seller/SellerGuidelines'
@@ -111,32 +110,28 @@ function App() {
                   <Route path="/booking/:id" element={<BookingDetailsPage />} />
                   <Route path="/search" element={<SearchPage />} />
 
-
-<Route path="/messages/:userId" element={
-  <ProtectedRoute>
-    <ChatPage />
-  </ProtectedRoute>
-} />
-<Route path="/messages" element={
-  <ProtectedRoute>
-    <MessagesInbox />
-  </ProtectedRoute>
-} />
-
-                  
-
+                  <Route path="/messages/:userId" element={
+                    <ProtectedRoute>
+                      <ChatPage />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/messages" element={
+                    <ProtectedRoute>
+                      <MessagesInbox />
+                    </ProtectedRoute>
+                  } />
 
                   <Route path="/admin" element={
-  <ProtectedRoute requiredRole="admin">
-    <AdminDashboard />
-  </ProtectedRoute>
-} />
+                    <ProtectedRoute requiredRole="admin">
+                      <AdminDashboard />
+                    </ProtectedRoute>
+                  }>
+                    <Route path="verify-sellers" element={<VerifySellers />} />
+                    <Route path="review-verifications" element={<ReviewVerifications />} />
+                  </Route>
 
-
-
-<Route path="/payment/success" element={<PaymentSuccess />} />
-                    <Route path="/payment/failed" element={<PaymentFailed />} />
-
+                  <Route path="/payment/success" element={<PaymentSuccess />} />
+                  <Route path="/payment/failed" element={<PaymentFailed />} />
 
                   {/* Auth Pages */}
                   <Route path="/login" element={<LoginPage />} />
@@ -150,7 +145,7 @@ function App() {
                   <Route path="/terms" element={<TermsPage />} />
                   <Route path="/privacy" element={<PrivacyPage />} />
 
-                  {/* Public Profile Route (view seller info) */}
+                  {/* Public Profile Route */}
                   <Route path="/profile/:userId" element={<PublicProfilePage />} />
 
                   {/* Protected Routes - Require Authentication */}
@@ -228,8 +223,8 @@ function App() {
                     <Route path="settings" element={<Settings />} />
                     <Route path="wallet" element={<Wallet />} />
                     <Route path="orders" element={<SellerOrders />} />
-                    
-
+                    <Route path="offers" element={<SellerOffers />} />
+                    <Route path="verification" element={<VerificationUpload />} />
                   </Route>
                 </Routes>
               </main>

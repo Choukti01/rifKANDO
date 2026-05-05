@@ -1,346 +1,141 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useLocation, useNavigate } from 'react-router-dom';
-import { PaperAirplaneIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
+import { useParams, useLocation } from 'react-router-dom';
 import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import toast from 'react-hot-toast';
+import VerifiedBadge from '../../components/common/VerifiedBadge';
 
 const ChatPage = () => {
   const { userId } = useParams();
   const location = useLocation();
-  const navigate = useNavigate();
-  const { user } = useAuth();
-  const [otherUser, setOtherUser] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [otherUser, setOtherUser] = useState(null);
   const messagesEndRef = useRef(null);
-  const messagesContainerRef = useRef(null);
-  const productId = new URLSearchParams(location.search).get('product');
-
-  // Track if user has manually scrolled up
-  const [userScrolledUp, setUserScrolledUp] = useState(false);
-  const lastMessageCountRef = useRef(0);
+  const { user } = useAuth();
+  const productId = location.state?.product_id || null;
 
   useEffect(() => {
-    fetchOtherUser();
+    fetchUser();
     fetchMessages();
-
-    // Poll every 5 seconds, but only fetch if still in chat and no ongoing scroll
-    const interval = setInterval(() => {
-      fetchMessages(true); // silent fetch – do NOT trigger loading spinner
-    }, 5000);
+    const interval = setInterval(fetchMessages, 3000);
     return () => clearInterval(interval);
   }, [userId, productId]);
 
-  // Detect scroll to decide whether auto‑scroll should happen
-  const handleScroll = () => {
-    if (messagesContainerRef.current) {
-      const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
-      const isAtBottom = scrollHeight - scrollTop - clientHeight < 50; // within 50px
-      setUserScrolledUp(!isAtBottom);
-    }
-  };
-
-  // Auto‑scroll only if user is NOT scrolled up
-  const scrollToBottom = (behavior = 'smooth') => {
-    if (!userScrolledUp && messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior });
-    }
-  };
-
-  // Fetch messages (silent mode = no loading spinner, and no forced scroll if messages unchanged)
-  const fetchMessages = async (silent = false) => {
-    if (!silent) setLoading(true);
-    try {
-      const response = await api.get(`/messages/conversation?other_user_id=${userId}&product_id=${productId || ''}`);
-      const newMessages = response.data.messages || [];
-      
-      // If message count changed, we may need to auto‑scroll (if user was at bottom)
-      const countChanged = newMessages.length !== lastMessageCountRef.current;
-      setMessages(newMessages);
-      lastMessageCountRef.current = newMessages.length;
-      
-      if (countChanged && !userScrolledUp) {
-        // Only scroll when new messages arrive and user hasn't scrolled up
-        setTimeout(() => scrollToBottom(), 100);
-      }
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching messages:', error);
-      if (!silent) setLoading(false);
-    }
-  };
-
-  const fetchOtherUser = async () => {
+  const fetchUser = async () => {
     try {
       const response = await api.get(`/users/${userId}`);
       setOtherUser(response.data.user);
     } catch (error) {
-      toast.error('User not found');
-      navigate(-1);
+      console.error('Error fetching user:', error);
     }
   };
 
-  const sendMessage = async (e) => {
-    e.preventDefault();
+  const fetchMessages = async () => {
+    try {
+      const params = { other_user_id: userId };
+      if (productId) params.product_id = productId;
+      const response = await api.get('/messages/conversation', { params });
+      setMessages(response.data.messages || []);
+      scrollToBottom();
+    } catch (error) {
+      console.error('Error fetching messages:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const sendMessage = async () => {
     if (!newMessage.trim()) return;
     setSending(true);
     try {
       await api.post('/messages', {
-        receiver_id: parseInt(userId),
-        product_id: productId || null,
+        receiver_id: userId,
+        product_id: productId,
         message: newMessage.trim()
       });
       setNewMessage('');
-      await fetchMessages(); // refresh
-      // After sending, we assume user wants to see the new message – scroll if not scrolled up
-      if (!userScrolledUp) {
-        setTimeout(() => scrollToBottom(), 100);
-      }
+      fetchMessages();
     } catch (error) {
+      console.error('Error sending message:', error);
       toast.error('Failed to send message');
     } finally {
       setSending(false);
     }
   };
 
-  // Scroll to bottom only on initial load (once)
-  useEffect(() => {
-    if (messages.length > 0 && lastMessageCountRef.current === 0) {
-      scrollToBottom('auto');
-    }
-  }, [messages]);
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
-  if (loading && messages.length === 0) {
-    return (
-      <div className="container text-center py-16">
-        <div className="spinner"></div>
-        <p>Loading conversation...</p>
-      </div>
-    );
+  const formatTime = (dateStr) => {
+    return new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  if (loading) {
+    return <div className="text-center py-16"><div className="spinner"></div><p>Loading chat...</p></div>;
   }
 
   return (
     <div className="chat-page">
-      <div className="chat-container">
-        <div className="chat-header">
-          <button onClick={() => navigate(-1)} className="back-btn">
-            <ArrowLeftIcon className="w-5 h-5" />
-          </button>
-          <div className="chat-user-info">
-            <div className="chat-avatar">
-              {otherUser?.profilePicture ? (
-                <img src={`http://localhost:5000${otherUser.profilePicture}`} alt="" />
-              ) : (
-                <span>{otherUser?.name?.charAt(0)}</span>
-              )}
+      <div className="chat-header">
+        <h2>
+          Chat with {otherUser?.name || 'User'}
+          {otherUser?.is_verified_seller === 1 && <VerifiedBadge size="small" />}
+        </h2>
+        {productId && <small>Regarding product ID: {productId}</small>}
+      </div>
+      <div className="chat-messages">
+        {messages.length === 0 ? (
+          <div className="no-messages">No messages yet. Start the conversation.</div>
+        ) : (
+          messages.map((msg, idx) => (
+            <div
+              key={idx}
+              className={`message ${msg.sender_id === user?.id ? 'sent' : 'received'}`}
+            >
+              <div className="message-text">{msg.message}</div>
+              <div className="message-time">{formatTime(msg.created_at)}</div>
             </div>
-            <div>
-              <h3>{otherUser?.name}</h3>
-              <p>{otherUser?.seller_type ? 'Seller' : 'Buyer'}</p>
-            </div>
-          </div>
-        </div>
-
-        <div 
-          className="messages-area" 
-          ref={messagesContainerRef}
-          onScroll={handleScroll}
-        >
-          {messages.length === 0 ? (
-            <div className="no-messages">
-              <p>No messages yet. Start the conversation!</p>
-            </div>
-          ) : (
-            messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={`message ${msg.sender_id === user?.id ? 'sent' : 'received'}`}
-              >
-                <div className="message-bubble">
-                  <p>{msg.message}</p>
-                  <span className="message-time">
-                    {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                </div>
-              </div>
-            ))
-          )}
-          <div ref={messagesEndRef} />
-        </div>
-
-        <form onSubmit={sendMessage} className="message-input-area">
-          <input
-            type="text"
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            placeholder="Type your message..."
-            className="message-input"
-          />
-          <button type="submit" disabled={sending} className="send-btn">
-            <PaperAirplaneIcon className="w-5 h-5" />
-          </button>
-        </form>
+          ))
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+      <div className="chat-input-area">
+        <textarea
+          value={newMessage}
+          onChange={(e) => setNewMessage(e.target.value)}
+          placeholder="Type your message..."
+          rows="2"
+          onKeyPress={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              sendMessage();
+            }
+          }}
+        />
+        <button onClick={sendMessage} disabled={sending}>
+          {sending ? 'Sending...' : 'Send'}
+        </button>
       </div>
 
       <style>{`
-        .chat-page {
-          min-height: calc(100vh - 80px);
-          background: #f9fafb;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 2rem;
-        }
-        .chat-container {
-          max-width: 800px;
-          width: 100%;
-          height: 70vh;
-          background: white;
-          border-radius: 1rem;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-          display: flex;
-          flex-direction: column;
-          overflow: hidden;
-        }
-        .chat-header {
-          display: flex;
-          align-items: center;
-          gap: 1rem;
-          padding: 1rem;
-          border-bottom: 1px solid #e5e7eb;
-          background: white;
-        }
-        .back-btn {
-          background: none;
-          border: none;
-          cursor: pointer;
-          color: #6b7280;
-          padding: 0.25rem;
-          border-radius: 0.5rem;
-        }
-        .back-btn:hover {
-          background: #0f2e3a;
-        }
-        .chat-user-info {
-          display: flex;
-          align-items: center;
-          gap: 0.75rem;
-        }
-        .chat-avatar {
-          width: 40px;
-          height: 40px;
-          background: #87CEEB;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-weight: bold;
-          font-size: 1rem;
-          overflow: hidden;
-        }
-        .chat-avatar img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-        }
-        .chat-user-info h3 {
-          font-size: 1rem;
-          font-weight: 600;
-        }
-        .chat-user-info p {
-          font-size: 0.7rem;
-          color: #6b7280;
-        }
-        .messages-area {
-          flex: 1;
-          overflow-y: auto;
-          padding: 1rem;
-          display: flex;
-          flex-direction: column;
-          gap: 0.75rem;
-        }
-        .message {
-          display: flex;
-        }
-        .message.sent {
-          justify-content: flex-end;
-        }
-        .message.received {
-          justify-content: flex-start;
-        }
-        .message-bubble {
-          max-width: 70%;
-          padding: 0.75rem 1rem;
-          border-radius: 1rem;
-          position: relative;
-        }
-        .message.sent .message-bubble {
-          background: #87CEEB;
-          color: #1a1a1a;
-          border-bottom-right-radius: 0.25rem;
-        }
-        .message.received .message-bubble {
-          background: #f3f4f6;
-          color: #1a1a1a;
-          border-bottom-left-radius: 0.25rem;
-        }
-        .message-time {
-          font-size: 0.6rem;
-          opacity: 0.7;
-          display: block;
-          margin-top: 0.25rem;
-        }
-        .no-messages {
-          text-align: center;
-          padding: 2rem;
-          color: #6b7280;
-        }
-        .message-input-area {
-          display: flex;
-          gap: 0.5rem;
-          padding: 1rem;
-          border-top: 1px solid #e5e7eb;
-          background: white;
-        }
-        .message-input {
-          flex: 1;
-          padding: 0.75rem;
-          border: 1px solid #e5e7eb;
-          border-radius: 2rem;
-          font-size: 0.875rem;
-        }
-        .message-input:focus {
-          outline: none;
-          border-color: #87CEEB;
-        }
-        /* MODERN SEND BUTTON – brand color, no black */
-        .send-btn {
-          width: 40px;
-          height: 40px;
-          background: linear-gradient(135deg, #87CEEB, #5F9EA0);
-          color: white;
-          border: none;
-          border-radius: 50%;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: all 0.2s ease;
-          box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-        }
-        .send-btn:hover {
-          transform: scale(1.05);
-          background: linear-gradient(135deg, #7bc4de, #4f8e90);
-          box-shadow: 0 4px 10px rgba(0,0,0,0.15);
-        }
-        .send-btn:disabled {
-          opacity: 0.5;
-          transform: none;
-          cursor: not-allowed;
-        }
+        .chat-page { max-width: 800px; margin: 0 auto; background: white; border-radius: 1rem; overflow: hidden; display: flex; flex-direction: column; height: calc(100vh - 160px); }
+        .chat-header { padding: 1rem; background: #f9fafb; border-bottom: 1px solid #e5e7eb; }
+        .chat-header h2 { font-size: 1.25rem; margin: 0; display: flex; align-items: center; gap: 0.5rem; }
+        .chat-header small { font-size: 0.7rem; color: #6b7280; }
+        .chat-messages { flex: 1; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: 0.75rem; }
+        .message { max-width: 70%; padding: 0.5rem 0.75rem; border-radius: 1rem; font-size: 0.875rem; position: relative; }
+        .message.sent { align-self: flex-end; background: #87CEEB; color: #1a1a1a; border-bottom-right-radius: 0.25rem; }
+        .message.received { align-self: flex-start; background: #f3f4f6; color: #1f2937; border-bottom-left-radius: 0.25rem; }
+        .message-time { font-size: 0.6rem; color: #6b7280; margin-top: 0.25rem; text-align: right; }
+        .no-messages { text-align: center; color: #9ca3af; padding: 2rem; }
+        .chat-input-area { padding: 1rem; border-top: 1px solid #e5e7eb; display: flex; gap: 0.5rem; }
+        .chat-input-area textarea { flex: 1; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 0.5rem; resize: none; }
+        .chat-input-area button { padding: 0.5rem 1rem; background: #1a1a1a; color: white; border: none; border-radius: 0.5rem; cursor: pointer; }
+        .chat-input-area button:disabled { opacity: 0.5; cursor: not-allowed; }
       `}</style>
     </div>
   );

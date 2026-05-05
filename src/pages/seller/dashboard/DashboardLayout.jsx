@@ -3,7 +3,8 @@ import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { 
   HomeIcon, ChartBarIcon, ShoppingBagIcon, AcademicCapIcon, 
   WrenchScrewdriverIcon, CurrencyDollarIcon, Cog6ToothIcon, 
-  ArrowLeftOnRectangleIcon, ComputerDesktopIcon, CalendarIcon
+  ArrowLeftOnRectangleIcon, ComputerDesktopIcon, CalendarIcon,
+  ChatBubbleLeftRightIcon, ShieldCheckIcon
 } from '@heroicons/react/24/outline'
 import { useAuth } from '../../../contexts/AuthContext'
 
@@ -20,7 +21,9 @@ const DashboardLayout = () => {
     { name: 'Services', icon: WrenchScrewdriverIcon, path: 'services' },
     { name: 'Digital', icon: ComputerDesktopIcon, path: 'digital' },
     { name: 'Bookings', icon: CalendarIcon, path: 'bookings' },
+    { name: 'Offers', icon: ChatBubbleLeftRightIcon, path: 'offers' },
     { name: 'Wallet', icon: CurrencyDollarIcon, path: 'wallet' },
+    { name: 'Verification', icon: ShieldCheckIcon, path: 'verification' },   // 👈 ADDED
     { name: 'Settings', icon: Cog6ToothIcon, path: 'settings' },
   ]
 
