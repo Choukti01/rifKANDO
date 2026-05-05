@@ -1,0 +1,11 @@
+name = "rifkando-backend"
+compatibility_date = "2025-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "rifkando-db"
+database_id = "2f528eea-e552-4481-90e8-7c411e2e3215"
+
+[[r2_buckets]]
+binding = "R2"
+bucket_name = "rifkando-uploads"
