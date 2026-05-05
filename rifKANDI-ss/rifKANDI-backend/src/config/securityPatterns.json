@@ -1,0 +1,44 @@
+{
+  "attack_patterns": [
+    {
+      "name": "SQL Injection",
+      "pattern": "(%27)|(')|(--)|(%23)|(#)|(union.*select)|(drop table)|(insert into)|(delete from)",
+      "severity": "critical",
+      "action": "block_ip"
+    },
+    {
+      "name": "XSS Attack",
+      "pattern": "(<script)|(javascript:)|(onerror=)|(onload=)|(alert\\()|(document.cookie)",
+      "severity": "high",
+      "action": "block_ip"
+    },
+    {
+      "name": "Path Traversal",
+      "pattern": "(\\.\\./)|(\\.\\.\\\\)|(%2e%2e/)",
+      "severity": "high",
+      "action": "block_ip"
+    },
+    {
+      "name": "Command Injection",
+      "pattern": "(;.*ls)|(\\|.*cat)|(\\|.*echo)|(`.*`)|(\\$\\(.*\\))",
+      "severity": "critical",
+      "action": "block_ip"
+    },
+    {
+      "name": "Brute Force",
+      "pattern": "login.*failed",
+      "severity": "medium",
+      "action": "rate_limit"
+    }
+  ],
+  "auto_actions": {
+    "block_ip": {
+      "enabled": true,
+      "duration_minutes": 60
+    },
+    "rate_limit": {
+      "enabled": true,
+      "requests_per_minute": 10
+    }
+  }
+}

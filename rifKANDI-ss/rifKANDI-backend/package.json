@@ -1,0 +1,37 @@
+{
+  "type": "commonjs",
+  "name": "rifkandi-backend",
+  "version": "1.0.0",
+  "description": "rifKANDI - Multi-Service Platform Backend API",
+  "main": "server.js",
+  "scripts": {
+    "dev": "set NODE_OPTIONS=--dns-result-order=ipv4first && nodemon server.js",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1042.0",
+    "@getbrevo/brevo": "^5.0.3",
+    "@google/generative-ai": "^0.24.1",
+    "@sendgrid/mail": "^8.1.6",
+    "bcryptjs": "^2.4.3",
+    "cmi-payment-nodejs": "^1.1.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "google-auth-library": "^10.6.2",
+    "jsonwebtoken": "^9.0.3",
+    "morgan": "^1.10.0",
+    "multer": "^2.1.1",
+    "node-fetch": "^3.3.2",
+    "nodemailer": "^8.0.5",
+    "pdfkit": "^0.18.0",
+    "pg": "^8.20.0",
+    "serverless-http": "^4.0.0",
+    "sharp": "^0.34.5",
+    "sqlite3": "^6.0.1",
+    "twilio": "^5.13.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}
