@@ -1,18 +1,36 @@
-import React, { useState } from 'react'
-import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
+import React, { useState, useEffect } from 'react';
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { 
   HomeIcon, ChartBarIcon, ShoppingBagIcon, AcademicCapIcon, 
   WrenchScrewdriverIcon, CurrencyDollarIcon, Cog6ToothIcon, 
   ArrowLeftOnRectangleIcon, ComputerDesktopIcon, CalendarIcon,
-  ChatBubbleLeftRightIcon, ShieldCheckIcon
-} from '@heroicons/react/24/outline'
-import { useAuth } from '../../../contexts/AuthContext'
+  ChatBubbleLeftRightIcon, ShieldCheckIcon, Bars3Icon, XMarkIcon
+} from '@heroicons/react/24/outline';
+import { useAuth } from '../../../contexts/AuthContext';
 
 const DashboardLayout = () => {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true)
-  const navigate = useNavigate()
-  const location = useLocation()
-  const { user, logout } = useAuth()
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { user, logout } = useAuth();
+
+  // Close mobile menu on route change
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [location.pathname]);
+
+  // Auto‑close mobile menu when resizing to desktop
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 768) {
+        setIsMobileMenuOpen(false);
+        setIsSidebarOpen(true);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const navItems = [
     { name: 'Overview', icon: HomeIcon, path: 'overview' },
@@ -23,32 +41,47 @@ const DashboardLayout = () => {
     { name: 'Bookings', icon: CalendarIcon, path: 'bookings' },
     { name: 'Offers', icon: ChatBubbleLeftRightIcon, path: 'offers' },
     { name: 'Wallet', icon: CurrencyDollarIcon, path: 'wallet' },
-    { name: 'Verification', icon: ShieldCheckIcon, path: 'verification' },   // 👈 ADDED
+    { name: 'Verification', icon: ShieldCheckIcon, path: 'verification' },
     { name: 'Settings', icon: Cog6ToothIcon, path: 'settings' },
-  ]
+  ];
 
   const handleLogout = () => {
-    logout()
-    navigate('/')
-  }
+    logout();
+    navigate('/');
+  };
+
+  const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
+  const closeMobileMenu = () => setIsMobileMenuOpen(false);
 
   return (
     <div className="dashboard-container">
+      {/* Mobile header with hamburger */}
+      <div className="mobile-dashboard-header">
+        <button className="mobile-menu-btn" onClick={toggleMobileMenu}>
+          <Bars3Icon className="icon" />
+        </button>
+        <h1>Dashboard</h1>
+        <div className="placeholder" />
+      </div>
+
+      {/* Overlay for mobile sidebar */}
+      <div className={`mobile-overlay ${isMobileMenuOpen ? 'open' : ''}`} onClick={closeMobileMenu} />
+
       {/* Sidebar */}
-      <div className={`dashboard-sidebar ${isSidebarOpen ? 'open' : 'closed'}`}>
+      <div className={`dashboard-sidebar ${isSidebarOpen ? 'open' : 'closed'} ${isMobileMenuOpen ? 'mobile-open' : ''}`}>
         <div className="sidebar-header">
           <div className="sidebar-logo">
             <div className="sidebar-logo-icon">
-              <img 
-                src="/logo.png" 
-                alt="rifKANDI" 
-                className="sidebar-logo-img"
-              />
+              <img src="/logo.png" alt="rifKANDO" className="sidebar-logo-img" />
             </div>
             {isSidebarOpen && <span className="sidebar-logo-text">rif<span className="text-primary">KANDO</span></span>}
           </div>
           <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="sidebar-toggle">
             {isSidebarOpen ? '←' : '→'}
+          </button>
+          {/* Close button for mobile */}
+          <button className="mobile-close-btn" onClick={closeMobileMenu}>
+            <XMarkIcon className="icon" />
           </button>
         </div>
 
@@ -78,17 +111,18 @@ const DashboardLayout = () => {
 
         <nav className="sidebar-nav">
           {navItems.map(item => {
-            const Icon = item.icon
+            const Icon = item.icon;
             return (
               <NavLink
                 key={item.name}
                 to={item.path}
                 className={({ isActive }) => `sidebar-nav-link ${isActive ? 'active' : ''}`}
+                onClick={closeMobileMenu}
               >
                 <Icon className="sidebar-nav-icon" />
                 {isSidebarOpen && <span>{item.name}</span>}
               </NavLink>
-            )
+            );
           })}
         </nav>
 
@@ -102,7 +136,7 @@ const DashboardLayout = () => {
 
       {/* Main Content */}
       <main className={`dashboard-main ${isSidebarOpen ? 'with-sidebar' : 'without-sidebar'}`}>
-        <div className="dashboard-header">
+        <div className="dashboard-header desktop-only">
           <h1>Dashboard</h1>
         </div>
         <div className="dashboard-content">
@@ -115,7 +149,64 @@ const DashboardLayout = () => {
           min-height: calc(100vh - 80px);
           background: #f9fafb;
           display: flex;
+          position: relative;
         }
+
+        /* Mobile header (visible only on small screens) */
+        .mobile-dashboard-header {
+          display: none;
+          position: fixed;
+          top: 80px;
+          left: 0;
+          right: 0;
+          background: white;
+          padding: 0.75rem 1rem;
+          border-bottom: 1px solid #e5e7eb;
+          align-items: center;
+          justify-content: space-between;
+          z-index: 45;
+        }
+        .mobile-dashboard-header h1 {
+          font-size: 1.25rem;
+          margin: 0;
+        }
+        .mobile-menu-btn {
+          background: none;
+          border: none;
+          cursor: pointer;
+          padding: 0.5rem;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #4b5563;
+        }
+        .mobile-menu-btn .icon {
+          width: 1.5rem;
+          height: 1.5rem;
+        }
+        .placeholder {
+          width: 2.5rem;
+        }
+
+        /* Overlay for mobile */
+        .mobile-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: rgba(0, 0, 0, 0.5);
+          z-index: 39;
+          opacity: 0;
+          visibility: hidden;
+          transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        .mobile-overlay.open {
+          opacity: 1;
+          visibility: visible;
+        }
+
+        /* Sidebar modifications */
         .dashboard-sidebar {
           position: fixed;
           top: 80px;
@@ -123,7 +214,7 @@ const DashboardLayout = () => {
           height: calc(100vh - 80px);
           background: white;
           box-shadow: 1px 0 3px rgba(0,0,0,0.05);
-          transition: width 0.3s ease;
+          transition: width 0.3s ease, transform 0.3s ease;
           z-index: 40;
           display: flex;
           flex-direction: column;
@@ -134,6 +225,54 @@ const DashboardLayout = () => {
         .dashboard-sidebar.closed {
           width: 80px;
         }
+
+        /* Mobile sidebar behaviour */
+        @media (max-width: 768px) {
+          .dashboard-sidebar {
+            top: 128px; /* below mobile header */
+            transform: translateX(-100%);
+            width: 280px !important;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+          }
+          .dashboard-sidebar.mobile-open {
+            transform: translateX(0);
+          }
+          .dashboard-sidebar.closed {
+            width: 280px !important;
+          }
+          .mobile-dashboard-header {
+            display: flex;
+          }
+          .dashboard-header.desktop-only {
+            display: none;
+          }
+          .dashboard-main {
+            margin-left: 0 !important;
+            padding-top: 60px; /* space for mobile header */
+          }
+          .sidebar-toggle {
+            display: none;
+          }
+          .mobile-close-btn {
+            display: block;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0.5rem;
+            color: #6b7280;
+          }
+          .mobile-close-btn .icon {
+            width: 1.25rem;
+            height: 1.25rem;
+          }
+        }
+
+        @media (min-width: 769px) {
+          .mobile-close-btn {
+            display: none;
+          }
+        }
+
         .sidebar-header {
           padding: 1.25rem;
           border-bottom: 1px solid #e5e7eb;
@@ -273,16 +412,14 @@ const DashboardLayout = () => {
           margin-bottom: 0;
         }
         @media (max-width: 768px) {
-          .dashboard-sidebar.open {
-            width: 240px;
-          }
-          .dashboard-main.with-sidebar {
-            margin-left: 240px;
+          .dashboard-main.with-sidebar,
+          .dashboard-main.without-sidebar {
+            margin-left: 0;
           }
         }
       `}</style>
     </div>
-  )
-}
+  );
+};
 
-export default DashboardLayout
+export default DashboardLayout;
