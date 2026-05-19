@@ -16,7 +16,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
 
 // Create tables
 db.serialize(() => {
-  // Users table
+  // Users table (with is_verified_seller column included directly)
   db.run(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -31,6 +31,7 @@ db.serialize(() => {
       country TEXT DEFAULT 'Morocco',
       profilePicture TEXT DEFAULT '',
       is_verified BOOLEAN DEFAULT 0,
+      is_verified_seller BOOLEAN DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
