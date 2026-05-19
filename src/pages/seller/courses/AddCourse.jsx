@@ -100,6 +100,7 @@ const AddCourse = () => {
               <option value="marketing">Marketing</option>
               <option value="business">Business</option>
               <option value="languages">Languages</option>
+              <option value="languages">Others</option>
             </select>
           </div>
         </div>

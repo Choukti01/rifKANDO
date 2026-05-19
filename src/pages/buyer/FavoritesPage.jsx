@@ -47,7 +47,7 @@ const FavoritesPage = () => {
   if (isEmpty) {
     return (
       <div className="empty-favorites">
-        <div className="empty-icon">❤️</div>
+        <div className="empty-icon"></div>
         <h2>No favorites yet</h2>
         <p>Start adding items to your favorites</p>
         <Link to="/products" className="btn-primary">Explore Products</Link>
@@ -94,10 +94,10 @@ const FavoritesPage = () => {
             <div key={`${item.type}-${item.item_id}`} className="favorite-card">
               <Link to={getDetailUrl(item)} className="favorite-image-link">
                 <div className="favorite-image">
-                  {item.image || (item.type === 'product' ? '📦' : 
-                                 item.type === 'course' ? '📚' : 
-                                 item.type === 'service' ? '🛠️' : 
-                                 item.type === 'digital' ? '💻' : '📅')}
+                  {item.image || (item.type === 'product' ? '' : 
+                                 item.type === 'course' ? '' : 
+                                 item.type === 'service' ? '' : 
+                                 item.type === 'digital' ? '' : '')}
                 </div>
               </Link>
               <div className="favorite-content">

@@ -20,7 +20,7 @@ const AddDigitalProduct = () => {
     category: 'ebooks',
     file_size: '',
     download_limit: '',
-    image: '💻'
+    image: ''
   });
 
   const handleChange = (e) => {
@@ -120,6 +120,8 @@ const AddDigitalProduct = () => {
               <option value="templates">Templates</option>
               <option value="music">Music & Audio</option>
               <option value="graphics">Graphics & Design</option>
+              <option value="graphics">Others</option>
+
             </select>
           </div>
           <div className="form-group">
@@ -135,7 +137,7 @@ const AddDigitalProduct = () => {
           </div>
           <div className="form-group">
             <label>Icon (optional)</label>
-            <input type="text" name="image" value={formData.image} onChange={handleChange} className="form-input" placeholder="💻" />
+            <input type="text" name="image" value={formData.image} onChange={handleChange} className="form-input" placeholder="" />
           </div>
         </div>
 

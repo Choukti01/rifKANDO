@@ -180,7 +180,7 @@ const AddProduct = () => {
           >
             <option value="new">New</option>
             <option value="used_as_new">Used as New</option>
-            <option value="joutiya">Joutiya (Haggle)</option>
+            <option value="joutiya">Joutiya </option>
           </select>
           <small className="form-hint">
             {formData.condition === 'joutiya' && "Buyers can make offers instead of buying directly."}

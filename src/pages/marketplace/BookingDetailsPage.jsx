@@ -182,7 +182,7 @@ const BookingDetailsPage = () => {
                     <img src={`http://localhost:5000${primaryMedia.media_url}`} alt={booking.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   )
                 ) : (
-                  <span style={{ fontSize: '3rem' }}>{booking.image || '📅'}</span>
+                  <span style={{ fontSize: '3rem' }}>{booking.image || ''}</span>
                 )}
                 {booking.media?.length > 1 && <div className="gallery-badge">{booking.media.length} items</div>}
               </div>

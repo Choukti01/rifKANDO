@@ -142,7 +142,7 @@ const CourseDetailsPage = () => {
                     <img src={`http://localhost:5000${primaryMedia.media_url}`} alt={course.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   )
                 ) : (
-                  <span style={{ fontSize: '3rem' }}>📚</span>
+                  <span style={{ fontSize: '3rem' }}></span>
                 )}
                 {course.media?.length > 1 && <div className="gallery-badge">{course.media.length} items</div>}
               </div>

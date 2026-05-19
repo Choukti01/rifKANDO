@@ -20,7 +20,7 @@ const AddBooking = () => {
     location_type: 'online',
     location: '',
     max_participants: '1',
-    image: '📅'
+    image: ''
   });
 
   const handleChange = (e) => {
@@ -88,6 +88,8 @@ const AddBooking = () => {
               <option value="training">Training</option>
               <option value="classes">Classes</option>
               <option value="events">Events</option>
+              <option value="events">Others</option>
+
             </select>
           </div>
           <div className="form-group">
@@ -119,7 +121,7 @@ const AddBooking = () => {
           </div>
           <div className="form-group">
             <label>Service Icon (optional)</label>
-            <input type="text" name="image" value={formData.image} onChange={handleChange} className="form-input" placeholder="📅" />
+            <input type="text" name="image" value={formData.image} onChange={handleChange} className="form-input" placeholder="" />
           </div>
         </div>
 

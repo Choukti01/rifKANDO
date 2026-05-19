@@ -116,15 +116,15 @@ const HomePage = () => {
       const primaryMedia = media.find(m => m.is_primary) || media[0];
       return `http://localhost:5000${primaryMedia.media_url}`;
     }
-    // Fallback emojis
+    // Fallback saying something
     const icons = {
-      product: '📦',
-      course: '📚',
-      service: '🛠️',
-      digital: '💻',
-      booking: '📅'
+      product: '',
+      course: '',
+      service: '',
+      digital: '',
+      booking: ''
     };
-    return icons[item.type] || '📦';
+    return icons[item.type] || '';
   };
 
   // Check if item has media (to enable gallery on click)

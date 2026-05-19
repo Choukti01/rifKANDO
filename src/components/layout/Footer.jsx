@@ -68,7 +68,7 @@ const Footer = () => {
                 <div className="footer-logo-icon">
                   <img 
                     src="/logo.png" 
-                    alt="rifKANDI" 
+                    alt="rifKANDO" 
                     className="footer-logo-img"
                   />
                 </div>
@@ -79,6 +79,9 @@ const Footer = () => {
               <p className="footer-description">
                 Morocco's first multi-service platform. Buy products, take courses, hire professionals, all in one place.
               </p>
+
+
+              
               {/* Social Icons - Added for mobile */}
               <div className="footer-social">
                 <a href="#" target="_blank" rel="noopener noreferrer" className="social-icon" aria-label="WhatsApp">

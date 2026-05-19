@@ -68,7 +68,7 @@ import EditBooking from './pages/seller/bookings/EditBooking'
 import Settings from './pages/seller/dashboard/Settings'
 import Wallet from './pages/seller/dashboard/Wallet'
 import SellerOffers from './pages/seller/dashboard/Offers'
-import VerificationUpload from './pages/seller/dashboard/VerificationUpload'   // 👈 IMPORT ADDED
+import VerificationUpload from './pages/seller/dashboard/VerificationUpload'   
 
 // Footer Pages
 import SellerGuidelines from './pages/seller/SellerGuidelines'
