@@ -2,6 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
 
+
+
+
+
+
 const AdminDashboard = () => {
   const [stats, setStats] = useState({});
   const [recentOrders, setRecentOrders] = useState([]);
@@ -49,7 +54,7 @@ const AdminDashboard = () => {
           <h3>Verify Sellers</h3>
           <p>Review and approve seller verification requests</p>
         </Link>
-        {/* You can add more action cards here later */}
+        {/* We can add more action cards here later */}
       </div>
 
       {/* Recent Orders Table */}

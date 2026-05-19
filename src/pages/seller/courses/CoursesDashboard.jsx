@@ -103,7 +103,7 @@ const CoursesDashboard = () => {
         </div>
 
         {courses.length === 0 ? (
-          <div className="empty-state"><div className="empty-icon">📚</div><p>No courses yet</p><button onClick={handleAddNew} className="btn btn-primary">Create Your First Course</button></div>
+          <div className="empty-state"><div className="empty-icon"></div><p>No courses yet</p><button onClick={handleAddNew} className="btn btn-primary">Create Your First Course</button></div>
         ) : (
           <div className="courses-list">
             {courses.map(course => {
@@ -115,7 +115,7 @@ const CoursesDashboard = () => {
                       {primaryImage ? (
                         <img src={`http://localhost:5000${primaryImage.media_url}`} alt={course.title} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '0.5rem' }} />
                       ) : (
-                        course.image || '📚'
+                        course.image || ''
                       )}
                     </div>
                     <div className="course-details">

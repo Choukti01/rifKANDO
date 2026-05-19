@@ -69,7 +69,7 @@ const MyAppointmentsPage = () => {
     return (
       <div className="empty-state-container">
         <div className="empty-state">
-          <div className="empty-icon">📅</div>
+          <div className="empty-icon"></div>
           <h2>No appointments yet</h2>
           <p>You haven't booked any appointments yet</p>
           <Link to="/bookings" className="browse-btn">Browse Services</Link>
@@ -90,7 +90,7 @@ const MyAppointmentsPage = () => {
           {appointments.map(appointment => (
             <div key={appointment.id} className="appointment-card">
               <div className="appointment-icon">
-                {appointment.image || '📅'}
+                {appointment.image || ''}
               </div>
               <div className="appointment-info">
                 <h3>{appointment.title}</h3>

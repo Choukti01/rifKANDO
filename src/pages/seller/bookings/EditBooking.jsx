@@ -22,7 +22,7 @@ const EditBooking = () => {
     location_type: 'online',
     location: '',
     max_participants: '1',
-    image: '📅'
+    image: ''
   });
 
   useEffect(() => {
@@ -44,7 +44,7 @@ const EditBooking = () => {
         location_type: booking.location_type || 'online',
         location: booking.location || '',
         max_participants: booking.max_participants || '1',
-        image: booking.image || '📅'
+        image: booking.image || ''
       });
       if (booking.media && booking.media.length) {
         setMedia(booking.media.map(m => ({ url: m.media_url, type: m.media_type })));

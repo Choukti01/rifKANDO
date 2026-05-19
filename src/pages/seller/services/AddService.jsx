@@ -18,7 +18,7 @@ const AddService = () => {
     category: 'design',
     delivery_time: '',
     revisions: '',
-    image: '🛠️'
+    image: ''
   });
 
   const handleChange = (e) => {

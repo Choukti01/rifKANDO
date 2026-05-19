@@ -18,7 +18,7 @@ export const CartProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const { isAuthenticated, token } = useAuth();
 
-  // Load cart from backend when user is authenticated
+  // Loading cart from backend when user is authenticated
   useEffect(() => {
     let isMounted = true;
     
@@ -37,7 +37,7 @@ export const CartProvider = ({ children }) => {
     };
   }, [isAuthenticated, token]);
 
-  // Load cart from backend API
+  // Loading cart from backend API
   const loadCartFromBackend = async (isMounted) => {
     try {
       setLoading(true);
@@ -67,7 +67,7 @@ export const CartProvider = ({ children }) => {
     }
   };
 
-  // Load cart from localStorage (fallback)
+  // Loading cart from localStorage (fallback)
   const loadCartFromLocal = (isMounted) => {
     try {
       const savedCart = localStorage.getItem('rifkandi_cart');

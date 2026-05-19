@@ -17,11 +17,11 @@ const CartPage = () => {
     if (item.image && item.image.startsWith('/uploads')) {
       return `http://localhost:5000${item.image}`
     }
-    // Fallback emoji based on type/category
-    if (item.type === 'course') return '📚'
-    if (item.type === 'service') return '🛠️'
-    if (item.type === 'digital') return '💻'
-    if (item.type === 'booking') return '📅'
+    // Fallback based on type/category
+    if (item.type === 'course') return ''
+    if (item.type === 'service') return ''
+    if (item.type === 'digital') return ''
+    if (item.type === 'booking') return ''
     return '📦'
   }
 

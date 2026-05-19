@@ -72,7 +72,7 @@ const BookingsPage = () => {
         <div className="bookings-grid">
           {filteredBookings.length === 0 ? (
             <div className="empty-state">
-              <div className="empty-icon">📅</div>
+              <div className="empty-icon"></div>
               <p>No bookings available</p>
             </div>
           ) : (
@@ -94,7 +94,7 @@ const BookingsPage = () => {
                         {booking.media.length > 1 && <div className="media-count">{booking.media.length} items</div>}
                       </>
                     ) : (
-                      <div className="image-placeholder">{booking.image || '📅'}</div>
+                      <div className="image-placeholder">{booking.image || ''}</div>
                     )}
                   </div>
                   <div className="booking-content">
