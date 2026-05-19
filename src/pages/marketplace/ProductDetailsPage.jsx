@@ -9,6 +9,7 @@ import api from '../../services/api';
 import toast from 'react-hot-toast';
 import MediaGallery from '../../components/MediaGallery';
 import VerifiedBadge from '../../components/common/VerifiedBadge';
+import { getImageUrl } from '../../utils/imageUtils';
 
 const ProductDetailsPage = () => {
   const { id } = useParams();
@@ -136,7 +137,6 @@ const ProductDetailsPage = () => {
     addToCart(product, quantity, 'product');
   };
 
-  // Handle "Make Offer" for Joutiya products
   const handleMakeOffer = () => {
     if (!isAuthenticated) {
       toast.error('Please login to make an offer');
@@ -233,9 +233,9 @@ const ProductDetailsPage = () => {
             <div className="main-image" onClick={() => product.media?.length && setShowGallery(true)}>
               {primaryMedia ? (
                 primaryMedia.media_type === 'video' ? (
-                  <video src={`http://localhost:5000${primaryMedia.media_url}`} />
+                  <video src={getImageUrl(primaryMedia.media_url)} controls />
                 ) : (
-                  <img src={`http://localhost:5000${primaryMedia.media_url}`} alt={product.title} />
+                  <img src={getImageUrl(primaryMedia.media_url)} alt={product.title} />
                 )
               ) : (
                 <div className="image-placeholder">📦</div>
@@ -250,7 +250,7 @@ const ProductDetailsPage = () => {
                     [newMedia[0], newMedia[index]] = [newMedia[index], newMedia[0]];
                     setProduct({ ...product, media: newMedia });
                   }}>
-                    {media.media_type === 'video' ? <div className="video-thumb">🎬</div> : <img src={`http://localhost:5000${media.media_url}`} alt="" />}
+                    {media.media_type === 'video' ? <div className="video-thumb">🎬</div> : <img src={getImageUrl(media.media_url)} alt="" />}
                   </div>
                 ))}
               </div>
@@ -278,7 +278,6 @@ const ProductDetailsPage = () => {
             </div>
             <div className="product-price"><span className="current-price">{product.price} MAD</span>{product.old_price && <span className="old-price">{product.old_price} MAD</span>}</div>
             <div className="product-stock">{product.stock > 0 ? <span className="in-stock">In Stock ({product.stock} available)</span> : <span className="out-of-stock">Out of Stock</span>}</div>
-            {/* Quantity selector only for non-Joutiya products */}
             {!isJoutiya && (
               <div className="product-quantity"><label>Quantity</label><div className="quantity-selector"><button onClick={() => setQuantity(Math.max(1, quantity-1))}>-</button><span>{quantity}</span><button onClick={() => setQuantity(quantity+1)}>+</button></div></div>
             )}
@@ -471,11 +470,13 @@ const ProductDetailsPage = () => {
 
       {showGallery && (
         <MediaGallery
-          media={product.media.map(m => ({ url: `http://localhost:5000${m.media_url}`, type: m.media_type }))}
+          media={product.media.map(m => ({ url: getImageUrl(m.media_url), type: m.media_type }))}
           onClose={() => setShowGallery(false)}
         />
       )}
+
       <style>{`
+        /* (keep all existing styles unchanged) */
         .product-details { padding: 2rem 0; min-height: calc(100vh - 80px); }
         .product-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; margin-bottom: 3rem; }
         @media (max-width: 768px) { .product-grid { grid-template-columns: 1fr; } }
@@ -545,10 +546,8 @@ const ProductDetailsPage = () => {
         .review-date { font-size: 0.7rem; color: #9ca3af; }
         .review-comment-text { color: #4b5563; font-size: 0.875rem; line-height: 1.5; }
         .no-reviews { color: #6b7280; text-align: center; padding: 2rem; }
-        /* AI Chat Modal */
         .ai-chat-modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1001; }
         .ai-chat-container { background: white; border-radius: 1rem; width: 90%; max-width: 450px; max-height: 80vh; display: flex; flex-direction: column; overflow: hidden; }
-        /* Offer Modal */
         .offer-modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1002; }
         .offer-container { background: white; border-radius: 1rem; width: 90%; max-width: 450px; max-height: 80vh; display: flex; flex-direction: column; overflow: hidden; }
         .offer-header, .ai-chat-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem; border-bottom: 1px solid #e5e7eb; background: #1a1a1a; color: white; }

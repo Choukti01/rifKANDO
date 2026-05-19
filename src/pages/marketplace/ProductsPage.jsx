@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import MediaGallery from '../../components/MediaGallery';
 import api from '../../services/api';
 import VerifiedBadge from '../../components/common/VerifiedBadge';
+import { getImageUrl } from '../../utils/imageUtils';
 
 const ProductsPage = () => {
   const [products, setProducts] = useState([]);
@@ -135,7 +136,7 @@ const ProductsPage = () => {
                   {product.media && product.media.length > 0 ? (
                     <>
                       {product.media[0].media_type === 'video' && <div className="video-badge">🎬 Video</div>}
-                      <img src={`http://localhost:5000${product.media[0].media_url}`} alt={product.title} />
+                      <img src={getImageUrl(product.media[0].media_url)} alt={product.title} />
                       {product.media.length > 1 && <div className="media-count">{product.media.length} items</div>}
                     </>
                   ) : (
@@ -174,13 +175,13 @@ const ProductsPage = () => {
 
       {galleryProduct && (
         <MediaGallery
-          media={galleryProduct.media.map(m => ({ url: `http://localhost:5000${m.media_url}`, type: m.media_type }))}
+          media={galleryProduct.media.map(m => ({ url: getImageUrl(m.media_url), type: m.media_type }))}
           onClose={() => setGalleryProduct(null)}
         />
       )}
 
       <style>{`
-        /* (keep your existing styles unchanged) */
+        /* keep your existing styles unchanged */
         .products-page { padding: 2rem 0; min-height: calc(100vh - 80px); }
         .products-header { text-align: center; margin-bottom: 2rem; }
         .condition-tabs { display: flex; justify-content: center; gap: 1rem; margin-bottom: 2rem; border-bottom: 1px solid #e5e7eb; padding-bottom: 0.5rem; }

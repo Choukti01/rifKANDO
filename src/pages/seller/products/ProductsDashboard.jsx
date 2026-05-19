@@ -5,6 +5,7 @@ import { getMyProducts, deleteProduct } from '../../../services/api';
 import api from '../../../services/api';
 import { useAuth } from '../../../contexts/AuthContext';
 import toast from 'react-hot-toast';
+import { getImageUrl } from '../../../utils/imageUtils';
 
 const ProductsDashboard = () => {
   const [products, setProducts] = useState([]);
@@ -156,7 +157,7 @@ const ProductsDashboard = () => {
                         <div className="product-image">
                           {product.media && product.media.length > 0 ? (
                             <img
-                              src={`http://localhost:5000${product.media[0].media_url}`}
+                              src={getImageUrl(product.media[0].media_url)}
                               alt=""
                               style={{ width: '48px', height: '48px', objectFit: 'cover', borderRadius: '0.5rem' }}
                             />
