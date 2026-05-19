@@ -5,9 +5,10 @@
   "description": "rifKANDI - Multi-Service Platform Backend API",
   "main": "server.js",
   "scripts": {
-    "dev": "set NODE_OPTIONS=--dns-result-order=ipv4first && nodemon server.js",
-    "start": "node server.js"
-  },
+  "postinstall": "npm rebuild sqlite3 --build-from-source",
+  "dev": "set NODE_OPTIONS=--dns-result-order=ipv4first && nodemon server.js",
+  "start": "node server.js"
+},
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1042.0",
     "@getbrevo/brevo": "^5.0.3",
