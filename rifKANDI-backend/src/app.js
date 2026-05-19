@@ -1,5 +1,8 @@
 const express = require('express');
-const cors = require('cors');
+app.use(cors({
+  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  credentials: true
+}));
 const db = require('./config/database');
 const { protect } = require('./middleware/auth');
 const path = require('path');
