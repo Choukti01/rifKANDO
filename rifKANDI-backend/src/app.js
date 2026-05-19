@@ -1,8 +1,5 @@
 const express = require('express');
-app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
-  credentials: true
-}));
+const cors = require('cors');
 const db = require('./config/database');
 const { protect } = require('./middleware/auth');
 const path = require('path');
@@ -18,6 +15,12 @@ const uploadDir = path.join(__dirname, 'uploads/profile-pictures');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
+
+
+app.use(cors({
+  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  credentials: true
+}));
 
 // Configure multer for memory storage
 const storage = multer.memoryStorage();
