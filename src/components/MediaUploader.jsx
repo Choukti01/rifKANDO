@@ -1,7 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { ArrowUpTrayIcon, XMarkIcon } from '@heroicons/react/24/outline';
-import api from '../services/api';  // <-- USE YOUR API INSTANCE
+import api from '../services/api';
 import toast from 'react-hot-toast';
+import { getImageUrl } from '../utils/imageUtils';
 
 const MediaUploader = ({ onMediaUploaded, existingMedia = [], maxFiles = 10 }) => {
   const [uploading, setUploading] = useState(false);
@@ -35,7 +36,6 @@ const MediaUploader = ({ onMediaUploaded, existingMedia = [], maxFiles = 10 }) =
       const formData = new FormData();
       formData.append('media', file);
       try {
-        // USE THE AXIOS API INSTANCE (automatically adds token and correct baseURL)
         const response = await api.post('/upload-media', formData, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
@@ -67,9 +67,9 @@ const MediaUploader = ({ onMediaUploaded, existingMedia = [], maxFiles = 10 }) =
         {mediaList.map((media, idx) => (
           <div key={idx} className="media-item">
             {media.type === 'image' ? (
-              <img src={`http://localhost:5000${media.url}`} alt="upload" />
+              <img src={getImageUrl(media.url)} alt="upload" />
             ) : (
-              <video src={`http://localhost:5000${media.url}`} />
+              <video src={getImageUrl(media.url)} />
             )}
             <button className="remove-media" onClick={() => removeMedia(idx)}>
               <XMarkIcon className="w-4 h-4" />
