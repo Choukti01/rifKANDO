@@ -2,7 +2,8 @@ const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
 const isProduction = process.env.NODE_ENV === 'production';
-const dbPath = isProduction ? '/data/rifkandi.db' : path.join(__dirname, '../../rifkandi.db');
+// Use /tmp/rifkandi.db on Render (writable), otherwise local path
+const dbPath = isProduction ? '/tmp/rifkandi.db' : path.join(__dirname, '../../rifkandi.db');
 
 const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
