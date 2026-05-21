@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon, XMarkIcon, PlayIcon } from '@heroicons/react/24/outline';
+import { getImageUrl } from '../utils/imageUtils';
 
 const MediaGallery = ({ media = [], onClose }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -20,7 +21,6 @@ const MediaGallery = ({ media = [], onClose }) => {
   const nextSlide = () => setCurrentIndex((prev) => (prev + 1) % media.length);
   const prevSlide = () => setCurrentIndex((prev) => (prev - 1 + media.length) % media.length);
 
-  // Touch swipe handlers
   const handleTouchStart = (e) => {
     touchStartX.current = e.touches[0].clientX;
   };
@@ -29,10 +29,10 @@ const MediaGallery = ({ media = [], onClose }) => {
   };
   const handleTouchEnd = () => {
     if (touchStartX.current - touchEndX.current > 50) {
-      nextSlide(); // swipe left
+      nextSlide();
     }
     if (touchEndX.current - touchStartX.current > 50) {
-      prevSlide(); // swipe right
+      prevSlide();
     }
   };
 
@@ -59,17 +59,23 @@ const MediaGallery = ({ media = [], onClose }) => {
           {current.type === 'video' ? (
             <div className="video-container">
               {!isVideoPlaying && <button className="play-btn" onClick={() => setIsVideoPlaying(true)}><PlayIcon className="w-16 h-16" /></button>}
-              {isVideoPlaying ? <video src={current.url} controls autoPlay className="video-player" /> : <video src={current.url} className="video-poster" />}
+              {isVideoPlaying ? 
+                <video src={getImageUrl(current.url)} controls autoPlay className="video-player" /> : 
+                <video src={getImageUrl(current.url)} className="video-poster" />
+              }
             </div>
           ) : (
-            <img src={current.url} alt="Gallery" className="gallery-image" />
+            <img src={getImageUrl(current.url)} alt="Gallery" className="gallery-image" />
           )}
         </div>
         <div className="counter">{currentIndex+1} / {media.length}</div>
         <div className="thumbnails">
           {media.map((item, idx) => (
             <div key={idx} className={`thumb ${idx === currentIndex ? 'active' : ''}`} onClick={() => setCurrentIndex(idx)}>
-              {item.type === 'video' ? <div className="video-thumb">🎬</div> : <img src={item.url} alt="" />}
+              {item.type === 'video' ? 
+                <div className="video-thumb">🎬</div> : 
+                <img src={getImageUrl(item.url)} alt="" />
+              }
             </div>
           ))}
         </div>

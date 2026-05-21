@@ -3,12 +3,13 @@ import { Link } from 'react-router-dom';
 import { ShoppingBagIcon, AcademicCapIcon, WrenchScrewdriverIcon, ComputerDesktopIcon, CalendarIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
 import { getProducts, getCourses, getServices, getDigitalProducts, getBookings } from '/src/services/api';
 import toast from 'react-hot-toast';
-import MediaGallery from '../../components/MediaGallery'; // Add this import
+import MediaGallery from '../../components/MediaGallery';
+import { getImageUrl } from '../utils/imageUtils'; // <-- added import
 
 const HomePage = () => {
   const [featuredItems, setFeaturedItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [galleryItem, setGalleryItem] = useState(null); // Add this state
+  const [galleryItem, setGalleryItem] = useState(null);
   const [stats, setStats] = useState({
     productsCount: 0,
     coursesCount: 0,
@@ -109,25 +110,24 @@ const HomePage = () => {
     }
   };
 
-  // UPDATED: Get the first media image URL or fallback to emoji
+  // FIXED: use getImageUrl instead of hardcoded localhost
   const getItemImage = (item) => {
     const media = item.media;
     if (media && media.length > 0) {
       const primaryMedia = media.find(m => m.is_primary) || media[0];
-      return `http://localhost:5000${primaryMedia.media_url}`;
+      return getImageUrl(primaryMedia.media_url);
     }
-    // Fallback saying something
+    // Fallback emoji per type
     const icons = {
-      product: '',
-      course: '',
-      service: '',
-      digital: '',
-      booking: ''
+      product: '📦',
+      course: '📚',
+      service: '🔧',
+      digital: '💾',
+      booking: '📅'
     };
-    return icons[item.type] || '';
+    return icons[item.type] || '🛒';
   };
 
-  // Check if item has media (to enable gallery on click)
   const hasMedia = (item) => {
     return item.media && item.media.length > 0;
   };
@@ -285,10 +285,13 @@ const HomePage = () => {
         </div>
       </section>
 
-      {/* Gallery Modal */}
+      {/* Gallery Modal - FIXED: use getImageUrl */}
       {galleryItem && (
         <MediaGallery
-          media={galleryItem.media.map(m => ({ url: `http://localhost:5000${m.media_url}`, type: m.media_type }))}
+          media={galleryItem.media.map(m => ({ 
+            url: getImageUrl(m.media_url), 
+            type: m.media_type 
+          }))}
           onClose={() => setGalleryItem(null)}
         />
       )}
