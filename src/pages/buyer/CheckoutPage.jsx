@@ -5,7 +5,7 @@ import { useCart } from '../../contexts/CartContext'
 import { useAuth } from '../../contexts/AuthContext'
 import api from '../../services/api'
 import toast from 'react-hot-toast'
-import { getImageUrl } from '../../../utils/imageUtils';
+
 
 const CheckoutPage = () => {
   const navigate = useNavigate()
