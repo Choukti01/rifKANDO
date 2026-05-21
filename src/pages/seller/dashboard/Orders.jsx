@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { TruckIcon, CheckCircleIcon, ClockIcon, XCircleIcon, CubeIcon } from '@heroicons/react/24/outline';
+import api from '../../services/api';   // 👈 added import
 
 const SellerOrders = () => {
   const [orders, setOrders] = useState([]);
@@ -14,12 +15,10 @@ const SellerOrders = () => {
   const fetchOrders = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/seller/orders', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await response.json();
-      if (response.ok) {
-        setOrders(data.orders || []);
+      // 👇 replaced fetch with api.get
+      const response = await api.get('/seller/orders');
+      if (response.data.success) {
+        setOrders(response.data.orders || []);
       } else {
         toast.error('Failed to load orders');
       }
@@ -39,24 +38,17 @@ const SellerOrders = () => {
     console.log('🟡 Token exists?', !!token);
     
     try {
-      const response = await fetch(`http://localhost:5000/api/orders/${orderId}/status`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ status })
-      });
+      // 👇 replaced fetch with api.patch
+      const response = await api.patch(`/orders/${orderId}/status`, { status });
       
-      const data = await response.json();
-      console.log('✅ Response:', data);
+      console.log('✅ Response:', response.data);
       
-      if (response.ok) {
+      if (response.data.success) {
         toast.success(`Order status updated to ${status}`);
         fetchOrders();
       } else {
-        toast.error(data.error || 'Failed to update status');
-        console.error('❌ Error response:', data);
+        toast.error(response.data.error || 'Failed to update status');
+        console.error('❌ Error response:', response.data);
       }
     } catch (error) {
       console.error('❌ Network error:', error);
@@ -125,7 +117,7 @@ const SellerOrders = () => {
                   <tr key={order.id}>
                     <td className="order-id">
                       <span className="order-number">{order.order_number}</span>
-                    </td>
+                     </td>
                     <td className="customer-name">{order.buyer_name || 'Customer'}</td>
                     <td className="order-total">{order.total} MAD</td>
                     <td className="payment-method">
