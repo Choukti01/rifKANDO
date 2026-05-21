@@ -2,9 +2,7 @@ import React from 'react'
 import { Link } from 'react-router-dom'
 import { TrashIcon, PlusIcon, MinusIcon } from '@heroicons/react/24/outline'
 import { useCart } from '../../contexts/CartContext'
-import { getImageUrl } from '../../utils/imageUtils';
-
-
+import { getImageUrl } from '../../../utils/imageUtils'   // ✅ added
 
 const CartPage = () => {
   const { cart, removeFromCart, updateQuantity, getCartTotal, getCartCount, isEmpty } = useCart()
@@ -12,7 +10,7 @@ const CartPage = () => {
   const shipping = subtotal > 500 ? 0 : 50
   const total = subtotal + shipping
 
-  // FIXED: use getImageUrl instead of hardcoded localhost
+  // ✅ Fixed: use getImageUrl instead of hardcoded localhost
   const getProductImage = (item) => {
     if (item.media && item.media.length > 0) {
       const mediaUrl = item.media[0].media_url || item.media[0].url;

@@ -4,7 +4,8 @@ import { ShoppingBagIcon, AcademicCapIcon, WrenchScrewdriverIcon, ComputerDeskto
 import { getProducts, getCourses, getServices, getDigitalProducts, getBookings } from '/src/services/api';
 import toast from 'react-hot-toast';
 import MediaGallery from '../../components/MediaGallery';
-// import { getImageUrl } from '../../utils/imageUtils';
+import { getImageUrl } from '../../utils/imageUtils';   // ✅ added
+
 const HomePage = () => {
   const [featuredItems, setFeaturedItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -109,14 +110,13 @@ const HomePage = () => {
     }
   };
 
-  // FIXED: use getImageUrl instead of hardcoded localhost
+  // ✅ Fixed: use getImageUrl instead of hardcoded localhost
   const getItemImage = (item) => {
     const media = item.media;
     if (media && media.length > 0) {
       const primaryMedia = media.find(m => m.is_primary) || media[0];
       return getImageUrl(primaryMedia.media_url);
     }
-    // Fallback emoji per type
     const icons = {
       product: '📦',
       course: '📚',
@@ -284,7 +284,7 @@ const HomePage = () => {
         </div>
       </section>
 
-      {/* Gallery Modal - FIXED: use getImageUrl */}
+      {/* Gallery Modal - ✅ fixed: use getImageUrl */}
       {galleryItem && (
         <MediaGallery
           media={galleryItem.media.map(m => ({ 
