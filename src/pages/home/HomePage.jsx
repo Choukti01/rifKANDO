@@ -4,8 +4,7 @@ import { ShoppingBagIcon, AcademicCapIcon, WrenchScrewdriverIcon, ComputerDeskto
 import { getProducts, getCourses, getServices, getDigitalProducts, getBookings } from '/src/services/api';
 import toast from 'react-hot-toast';
 import MediaGallery from '../../components/MediaGallery';
-import { getImageUrl } from '../utils/imageUtils'; // <-- added import
-
+import { getImageUrl } from '../../utils/imageUtils';
 const HomePage = () => {
   const [featuredItems, setFeaturedItems] = useState([]);
   const [loading, setLoading] = useState(true);

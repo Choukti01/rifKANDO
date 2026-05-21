@@ -2,7 +2,9 @@ import React from 'react'
 import { Link } from 'react-router-dom'
 import { TrashIcon, PlusIcon, MinusIcon } from '@heroicons/react/24/outline'
 import { useCart } from '../../contexts/CartContext'
-import { getImageUrl } from '../../utils/imageUtils' // <-- added import
+import { getImageUrl } from '../../../utils/imageUtils';
+
+
 
 const CartPage = () => {
   const { cart, removeFromCart, updateQuantity, getCartTotal, getCartCount, isEmpty } = useCart()

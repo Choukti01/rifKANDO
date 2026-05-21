@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon, XMarkIcon, PlayIcon } from '@heroicons/react/24/outline';
-import { getImageUrl } from '../utils/imageUtils';
+import { getImageUrl } from '../../../utils/imageUtils';
+
 
 const MediaGallery = ({ media = [], onClose }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
