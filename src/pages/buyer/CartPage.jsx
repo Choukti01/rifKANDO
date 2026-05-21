@@ -2,27 +2,29 @@ import React from 'react'
 import { Link } from 'react-router-dom'
 import { TrashIcon, PlusIcon, MinusIcon } from '@heroicons/react/24/outline'
 import { useCart } from '../../contexts/CartContext'
+import { getImageUrl } from '../../utils/imageUtils' // <-- added import
 
 const CartPage = () => {
   const { cart, removeFromCart, updateQuantity, getCartTotal, getCartCount, isEmpty } = useCart()
   const subtotal = getCartTotal()
   const shipping = subtotal > 500 ? 0 : 50
-  const total = subtotal + shipping   // No tax line – matches backend split logic
+  const total = subtotal + shipping
 
-  // Helper to get product image URL
+  // FIXED: use getImageUrl instead of hardcoded localhost
   const getProductImage = (item) => {
     if (item.media && item.media.length > 0) {
-      return `http://localhost:5000${item.media[0].media_url || item.media[0].url}`
+      const mediaUrl = item.media[0].media_url || item.media[0].url;
+      return getImageUrl(mediaUrl);
     }
     if (item.image && item.image.startsWith('/uploads')) {
-      return `http://localhost:5000${item.image}`
+      return getImageUrl(item.image);
     }
     // Fallback based on type/category
-    if (item.type === 'course') return ''
-    if (item.type === 'service') return ''
-    if (item.type === 'digital') return ''
-    if (item.type === 'booking') return ''
-    return '📦'
+    if (item.type === 'course') return '📚';
+    if (item.type === 'service') return '🔧';
+    if (item.type === 'digital') return '💾';
+    if (item.type === 'booking') return '📅';
+    return '📦';
   }
 
   if (isEmpty) {
