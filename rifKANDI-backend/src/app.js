@@ -18,7 +18,7 @@ if (!fs.existsSync(uploadDir)) {
 
 
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  origin: process.env.CLIENT_URL || 'https://www.rifkando.com',
   credentials: true
 }));
 
@@ -71,7 +71,7 @@ const processAndSaveImage = async (req, res, next) => {
 
 // CORS
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  origin: process.env.CLIENT_URL || 'https://www.rifkando.com',
   credentials: true
 }));
 
