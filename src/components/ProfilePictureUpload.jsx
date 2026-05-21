@@ -2,8 +2,7 @@ import React, { useState, useRef } from 'react';
 import { CameraIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import toast from 'react-hot-toast';
-import { getImageUrl } from '../../../utils/imageUtils';
-
+import { getImageUrl } from '../utils/imageUtils';
 
 const ProfilePictureUpload = ({ currentImage, userName, onUploadSuccess }) => {
   const [uploading, setUploading] = useState(false);

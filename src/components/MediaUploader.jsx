@@ -2,8 +2,7 @@ import React, { useState, useRef } from 'react';
 import { ArrowUpTrayIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import api from '../services/api';
 import toast from 'react-hot-toast';
-import { getImageUrl } from '../../../utils/imageUtils';
-
+import { getImageUrl } from '../utils/imageUtils';
 
 const MediaUploader = ({ onMediaUploaded, existingMedia = [], maxFiles = 10 }) => {
   const [uploading, setUploading] = useState(false);
