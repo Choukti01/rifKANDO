@@ -129,7 +129,7 @@ const Navbar = () => {
                 {unreadCount > 0 && <span className="unread-badge-nav">{unreadCount}</span>}
               </Link>
 
-              {/* Language Switcher */}
+              {/* Language Switcher (now only EN/AR) */}
               <LanguageSwitcher />
 
               {/* Profile Dropdown */}
@@ -172,44 +172,44 @@ const Navbar = () => {
       </nav>
 
       {/* Mobile Menu */}
-      <div className={`mobile-menu ${!isMenuOpen ? 'closed' : ''}`}>
-        <div className="container">
-          <form onSubmit={handleSearch} className="mobile-search">
-            <input
-              type="text"
-              placeholder="Search..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="mobile-search-input"
-            />
-          </form>
-          {navLinks.map(link => (
-            <Link key={link.name} to={link.path} className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>
-              {link.name}
-            </Link>
-          ))}
-          <div className="mobile-menu-divider"></div>
-          <div className="mobile-lang-section">
-            <LanguageSwitcher />
+      {isMenuOpen && (
+        <div className="mobile-menu">
+          <div className="container">
+            <form onSubmit={handleSearch} className="mobile-search">
+              <input
+                type="text"
+                placeholder="Search..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="mobile-search-input"
+              />
+            </form>
+            {navLinks.map(link => (
+              <Link key={link.name} to={link.path} className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>
+                {link.name}
+              </Link>
+            ))}
+            <div className="mobile-menu-divider"></div>
+            {/* Language Switcher in mobile menu */}
+            <div className="mobile-lang-section">
+              <LanguageSwitcher />
+            </div>
+            {isAuthenticated ? (
+              <>
+                <Link to="/profile" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>My Profile</Link>
+                <Link to="/orders" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>My Orders</Link>
+                <Link to="/favorites" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>Favorites</Link>
+                <button onClick={handleLogout} className="mobile-nav-link logout-mobile">Logout</button>
+              </>
+            ) : (
+              <>
+                <Link to="/login" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>Login</Link>
+                <Link to="/register" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>Register</Link>
+              </>
+            )}
           </div>
-          {isAuthenticated ? (
-            <>
-              <Link to="/profile" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>My Profile</Link>
-              <Link to="/orders" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>My Orders</Link>
-              <Link to="/favorites" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>Favorites</Link>
-              <button onClick={handleLogout} className="mobile-nav-link logout-mobile">Logout</button>
-            </>
-          ) : (
-            <>
-              <Link to="/login" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>Login</Link>
-              <Link to="/register" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>Register</Link>
-            </>
-          )}
         </div>
-      </div>
-
-      {/* Overlay */}
-      <div className={`menu-overlay ${isMenuOpen ? 'open' : ''}`} onClick={() => setIsMenuOpen(false)} />
+      )}
 
       <style>{`
         :root {
@@ -218,25 +218,6 @@ const Navbar = () => {
           --glass-border: rgba(255, 255, 255, 0.2);
           --glass-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
           --glass-shadow-scrolled: 0 8px 30px rgba(0, 0, 0, 0.08);
-        }
-
-        /* Overlay */
-        .menu-overlay {
-          position: fixed;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          background: rgba(0, 0, 0, 0.5);
-          z-index: 998;
-          opacity: 0;
-          visibility: hidden;
-          transition: opacity 0.3s ease, visibility 0.3s ease;
-        }
-
-        .menu-overlay.open {
-          opacity: 1;
-          visibility: visible;
         }
 
         .navbar {
@@ -389,6 +370,7 @@ const Navbar = () => {
           width: 100%;
         }
 
+        /* SEARCH BAR - FIXED ALIGNMENT */
         .search-form-desktop {
           display: none;
           flex: 1;
@@ -443,7 +425,7 @@ const Navbar = () => {
         .nav-icons {
           display: flex;
           align-items: center;
-          gap: 1rem;
+          gap: 1.25rem;
           flex-shrink: 0;
         }
 
@@ -579,8 +561,6 @@ const Navbar = () => {
           cursor: pointer;
           color: #4b5563;
           display: block;
-          margin-left: 0;
-          padding: 0.5rem;
         }
 
         .mobile-menu {
@@ -588,20 +568,13 @@ const Navbar = () => {
           top: 4rem;
           left: 0;
           right: 0;
-          bottom: 0;
           background: rgba(255, 255, 255, 0.98);
           backdrop-filter: blur(16px);
           box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
           z-index: 999;
           padding: 1.25rem 0;
-          transform: translateX(0);
-          transition: transform 0.3s ease;
-          overflow-y: auto;
-        }
-
-        .mobile-menu.closed {
-          transform: translateX(-100%);
-          display: none;
+          border-top: 1px solid rgba(0, 0, 0, 0.05);
+          animation: slideDown 0.3s ease;
         }
 
         @keyframes slideDown {
@@ -635,7 +608,6 @@ const Navbar = () => {
           color: #374151;
           font-weight: 500;
           transition: color 0.2s;
-          font-size: 1rem;
         }
 
         .mobile-nav-link:hover {
@@ -759,23 +731,6 @@ const Navbar = () => {
           }
           .nav-link {
             font-size: 0.85rem;
-          }
-        }
-
-        /* Ensure the hamburger is visible on very small screens */
-        @media (max-width: 480px) {
-          .nav-icons {
-            gap: 0.5rem;
-          }
-          .mobile-menu-btn {
-            padding: 0.25rem;
-          }
-          .brand-name {
-            font-size: 1.2rem;
-          }
-          .logo-icon {
-            width: 32px;
-            height: 32px;
           }
         }
       `}</style>
