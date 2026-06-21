@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../../services/api';
 import VerifiedBadge from '../../components/common/VerifiedBadge';
+import { getImageUrl } from '../../utils/imageUtils';
 
 const PublicProfilePage = () => {
   const { userId } = useParams();
@@ -36,7 +37,7 @@ const PublicProfilePage = () => {
       <div className="profile-header">
         <div className="profile-avatar">
           {user.profilePicture ? (
-            <img src={`http://localhost:5000${user.profilePicture}`} alt={user.name} />
+            <img src={getImageUrl(user.profilePicture)} alt={user.name} />
           ) : (
             <span>{user.name.charAt(0)}</span>
           )}
@@ -62,7 +63,7 @@ const PublicProfilePage = () => {
               <Link to={`/product/${product.id}`} key={product.id} className="product-card">
                 <div className="product-image">
                   {product.media && product.media[0] ? (
-                    <img src={`http://localhost:5000${product.media[0].media_url}`} alt={product.title} />
+                    <img src={getImageUrl(product.media[0].media_url)} alt={product.title} />
                   ) : (
                     <div className="image-placeholder">📦</div>
                   )}
