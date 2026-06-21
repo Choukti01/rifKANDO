@@ -7,6 +7,7 @@ import {
   ChatBubbleLeftRightIcon, ShieldCheckIcon, Bars3Icon, XMarkIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../../../contexts/AuthContext';
+import { getImageUrl } from '../../../utils/imageUtils';
 
 const DashboardLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -89,7 +90,7 @@ const DashboardLayout = () => {
           <div className="sidebar-avatar">
             {user?.profilePicture ? (
               <img 
-                src={`http://localhost:5000${user.profilePicture}`} 
+                src={getImageUrl(user.profilePicture)}
                 alt={user?.name}
                 className="sidebar-avatar-img"
               />
