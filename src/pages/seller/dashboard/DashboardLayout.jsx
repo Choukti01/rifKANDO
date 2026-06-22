@@ -21,7 +21,7 @@ const DashboardLayout = () => {
     setIsMobileMenuOpen(false);
   }, [location.pathname]);
 
-  // Auto-close mobile menu when resizing to desktop
+  // Auto‑close mobile menu when resizing to desktop
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth >= 768) {
@@ -56,7 +56,6 @@ const DashboardLayout = () => {
 
   return (
     <div className="dashboard-container">
-
       {/* Mobile header with hamburger */}
       <div className="mobile-dashboard-header">
         <button className="mobile-menu-btn" onClick={toggleMobileMenu}>
@@ -71,23 +70,11 @@ const DashboardLayout = () => {
 
       {/* Sidebar */}
       <div className={`dashboard-sidebar ${isSidebarOpen ? 'open' : 'closed'} ${isMobileMenuOpen ? 'mobile-open' : ''}`}>
-        
         <div className="sidebar-header">
-          <div className="sidebar-logo">
-            <div className="sidebar-logo-icon">
-              <img src="/logo.png" alt="rifKANDO" className="sidebar-logo-img" />
-            </div>
-            {isSidebarOpen && (
-              <span className="sidebar-logo-text">
-                rif<span className="text-primary">KANDO</span>
-              </span>
-            )}
-          </div>
-
           <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="sidebar-toggle">
             {isSidebarOpen ? '←' : '→'}
           </button>
-
+          {/* Close button for mobile */}
           <button className="mobile-close-btn" onClick={closeMobileMenu}>
             <XMarkIcon className="icon" />
           </button>
@@ -105,18 +92,14 @@ const DashboardLayout = () => {
               <span>{user?.name?.charAt(0) || 'S'}</span>
             )}
           </div>
-
           {isSidebarOpen && (
             <div className="sidebar-user-info">
               <h4>{user?.name || 'Seller'}</h4>
-              <p>
-                {user?.sellerType === 'product' ? 'Product Seller' :
-                 user?.sellerType === 'course' ? 'Course Instructor' :
-                 user?.sellerType === 'service' ? 'Service Provider' :
-                 user?.sellerType === 'digital' ? 'Digital Creator' :
-                 user?.sellerType === 'booking' ? 'Booking Professional' :
-                 'Seller'}
-              </p>
+              <p>{user?.sellerType === 'product' ? 'Product Seller' : 
+                     user?.sellerType === 'course' ? 'Course Instructor' :
+                     user?.sellerType === 'service' ? 'Service Provider' : 
+                     user?.sellerType === 'digital' ? 'Digital Creator' :
+                     user?.sellerType === 'booking' ? 'Booking Professional' : 'Seller'}</p>
             </div>
           )}
         </div>
@@ -128,9 +111,7 @@ const DashboardLayout = () => {
               <NavLink
                 key={item.name}
                 to={item.path}
-                className={({ isActive }) =>
-                  `sidebar-nav-link ${isActive ? 'active' : ''}`
-                }
+                className={({ isActive }) => `sidebar-nav-link ${isActive ? 'active' : ''}`}
                 onClick={closeMobileMenu}
               >
                 <Icon className="sidebar-nav-icon" />
@@ -146,7 +127,6 @@ const DashboardLayout = () => {
             {isSidebarOpen && <span>Exit Dashboard</span>}
           </button>
         </div>
-
       </div>
 
       {/* Main Content */}
@@ -154,7 +134,6 @@ const DashboardLayout = () => {
         <div className="dashboard-header desktop-only">
           <h1>Dashboard</h1>
         </div>
-
         <div className="dashboard-content">
           <Outlet />
         </div>
@@ -168,6 +147,7 @@ const DashboardLayout = () => {
           position: relative;
         }
 
+        /* Mobile header (visible only on small screens) */
         .mobile-dashboard-header {
           display: none;
           position: fixed;
@@ -181,12 +161,10 @@ const DashboardLayout = () => {
           justify-content: space-between;
           z-index: 45;
         }
-
         .mobile-dashboard-header h1 {
           font-size: 1.25rem;
           margin: 0;
         }
-
         .mobile-menu-btn {
           background: none;
           border: none;
@@ -197,38 +175,33 @@ const DashboardLayout = () => {
           justify-content: center;
           color: #4b5563;
         }
-
         .mobile-menu-btn .icon {
           width: 1.5rem;
           height: 1.5rem;
         }
-
         .placeholder {
           width: 2.5rem;
         }
 
+        /* Overlay for mobile */
         .mobile-overlay {
           position: fixed;
           top: 0;
           left: 0;
           width: 100%;
           height: 100%;
-          background: rgba(0,0,0,0.5);
+          background: rgba(0, 0, 0, 0.5);
           z-index: 39;
           opacity: 0;
           visibility: hidden;
-          transition: opacity 0.3s ease;
+          transition: opacity 0.3s ease, visibility 0.3s ease;
         }
-
         .mobile-overlay.open {
           opacity: 1;
           visibility: visible;
         }
 
-        /* =========================
-           SIDEBAR (ONLY FIX ADDED)
-        ========================== */
-
+        /* Sidebar modifications */
         .dashboard-sidebar {
           position: fixed;
           top: 80px;
@@ -240,68 +213,71 @@ const DashboardLayout = () => {
           z-index: 40;
           display: flex;
           flex-direction: column;
-
-          /* ✅ added */
           overflow: hidden;
         }
-
         .dashboard-sidebar.open {
           width: 280px;
         }
-
         .dashboard-sidebar.closed {
           width: 80px;
         }
 
-        /* NAV SCROLL ENABLED */
-        .sidebar-nav {
-          flex: 1;
-          padding: 1rem;
-          display: flex;
-          flex-direction: column;
-          gap: 0.25rem;
+        /* Mobile sidebar behaviour */
+        @media (max-width: 768px) {
+          .dashboard-sidebar {
+            top: 128px; /* below mobile header */
+            transform: translateX(-100%);
+            width: 280px !important;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            height: calc(100vh - 128px);
+          }
+          .dashboard-sidebar.mobile-open {
+            transform: translateX(0);
+          }
+          .dashboard-sidebar.closed {
+            width: 280px !important;
+          }
+          .mobile-dashboard-header {
+            display: flex;
+          }
+          .dashboard-header.desktop-only {
+            display: none;
+          }
+          .dashboard-main {
+            margin-left: 0 !important;
+            padding-top: 60px; /* space for mobile header */
+          }
+          .sidebar-toggle {
+            display: none;
+          }
+          .mobile-close-btn {
+            display: block;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0.5rem;
+            color: #6b7280;
+          }
+          .mobile-close-btn .icon {
+            width: 1.25rem;
+            height: 1.25rem;
+          }
+        }
 
-          /* ✅ added */
-          overflow-y: auto;
+        @media (min-width: 769px) {
+          .mobile-close-btn {
+            display: none;
+          }
         }
 
         .sidebar-header {
           padding: 1.25rem;
           border-bottom: 1px solid #e5e7eb;
           display: flex;
-          justify-content: space-between;
+          justify-content: flex-end;
           align-items: center;
+          flex-shrink: 0;
         }
-
-        .sidebar-logo {
-          display: flex;
-          align-items: center;
-          gap: 0.75rem;
-        }
-
-        .sidebar-logo-icon {
-          width: 32px;
-          height: 32px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-
-        .sidebar-logo-img {
-          width: 100%;
-          height: 100%;
-          object-fit: contain;
-        }
-
-        .sidebar-logo-text {
-          font-weight: bold;
-          font-size: 1.1rem;
-        }
-
-        .text-primary {
-          color: #87CEEB;
-        }
-
         .sidebar-toggle {
           background: none;
           border: none;
@@ -309,15 +285,14 @@ const DashboardLayout = () => {
           font-size: 1rem;
           color: #6b7280;
         }
-
         .sidebar-user {
           padding: 1.25rem;
           border-bottom: 1px solid #e5e7eb;
           display: flex;
           align-items: center;
           gap: 0.75rem;
+          flex-shrink: 0;
         }
-
         .sidebar-avatar {
           width: 40px;
           height: 40px;
@@ -329,24 +304,45 @@ const DashboardLayout = () => {
           font-weight: bold;
           font-size: 1rem;
           overflow: hidden;
+          flex-shrink: 0;
         }
-
         .sidebar-avatar-img {
           width: 100%;
           height: 100%;
           object-fit: cover;
         }
-
         .sidebar-user-info h4 {
           font-size: 0.875rem;
           margin-bottom: 0.25rem;
         }
-
         .sidebar-user-info p {
           font-size: 0.75rem;
           color: #6b7280;
         }
-
+        .sidebar-nav {
+          flex: 1;
+          padding: 1rem;
+          display: flex;
+          flex-direction: column;
+          gap: 0.25rem;
+          overflow-y: auto;
+          overflow-x: hidden;
+          scrollbar-width: thin;
+          scrollbar-color: #e5e7eb transparent;
+        }
+        .sidebar-nav::-webkit-scrollbar {
+          width: 4px;
+        }
+        .sidebar-nav::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .sidebar-nav::-webkit-scrollbar-thumb {
+          background: #e5e7eb;
+          border-radius: 4px;
+        }
+        .sidebar-nav:hover::-webkit-scrollbar-thumb {
+          background: #d1d5db;
+        }
         .sidebar-nav-link {
           display: flex;
           align-items: center;
@@ -356,27 +352,25 @@ const DashboardLayout = () => {
           color: #4b5563;
           text-decoration: none;
           transition: all 0.2s;
+          white-space: nowrap;
         }
-
         .sidebar-nav-link:hover {
           background: #f3f4f6;
         }
-
         .sidebar-nav-link.active {
           background: #87CEEB;
           color: #1a1a1a;
         }
-
         .sidebar-nav-icon {
           width: 1.25rem;
           height: 1.25rem;
+          flex-shrink: 0;
         }
-
         .sidebar-footer {
           padding: 1rem;
           border-top: 1px solid #e5e7eb;
+          flex-shrink: 0;
         }
-
         .sidebar-logout {
           display: flex;
           align-items: center;
@@ -388,38 +382,33 @@ const DashboardLayout = () => {
           border-radius: 0.5rem;
           cursor: pointer;
           color: #ef4444;
+          white-space: nowrap;
         }
-
         .sidebar-logout:hover {
           background: #fee2e2;
         }
-
         .dashboard-main {
           flex: 1;
           transition: margin-left 0.3s ease;
           padding: 1.5rem;
+          min-width: 0;
         }
-
         .dashboard-main.with-sidebar {
           margin-left: 280px;
         }
-
         .dashboard-main.without-sidebar {
           margin-left: 80px;
         }
-
         .dashboard-header {
           display: flex;
           justify-content: space-between;
           align-items: center;
           margin-bottom: 1.5rem;
         }
-
         .dashboard-header h1 {
           font-size: 1.5rem;
           margin-bottom: 0;
         }
-
         @media (max-width: 768px) {
           .dashboard-main.with-sidebar,
           .dashboard-main.without-sidebar {
