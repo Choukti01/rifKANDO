@@ -6,6 +6,7 @@ import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import MediaGallery from '../../components/MediaGallery';
+import { getImageUrl } from '../../utils/imageUtils';
 
 const DigitalDetailsPage = () => {
   const { id } = useParams();
@@ -123,10 +124,8 @@ const DigitalDetailsPage = () => {
               <div className="product-image-large" onClick={() => product.media?.length && setShowGallery(true)}>
                 {primaryMedia ? (
                   primaryMedia.media_type === 'video' ? (
-                    <video src={`http://localhost:5000${primaryMedia.media_url}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  ) : (
-                    <img src={`http://localhost:5000${primaryMedia.media_url}`} alt={product.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  )
+                   <video src={getImageUrl(primaryMedia.media_url)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />                  ) : (
+                    <img src={getImageUrl(primaryMedia.media_url)} alt={product.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />                  )
                 ) : (
                   <span style={{ fontSize: '3rem' }}>{product.image || '💻'}</span>
                 )}
@@ -200,8 +199,7 @@ const DigitalDetailsPage = () => {
       </div>
       {showGallery && (
         <MediaGallery
-          media={product.media.map(m => ({ url: `http://localhost:5000${m.media_url}`, type: m.media_type }))}
-          onClose={() => setShowGallery(false)}
+           media={product.media.map(m => ({ url: getImageUrl(m.media_url), type: m.media_type }))}          onClose={() => setShowGallery(false)}
         />
       )}
       <style>{`

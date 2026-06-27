@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { getDigitalProducts } from '../../services/api';
 import toast from 'react-hot-toast';
 import MediaGallery from '../../components/MediaGallery';
+import { getImageUrl } from '../../utils/imageUtils';
 
 const DigitalPage = () => {
   const [products, setProducts] = useState([]);
@@ -62,9 +63,9 @@ const DigitalPage = () => {
                       <>
                         {primaryMedia.media_type === 'video' && <div className="video-badge">🎬 Video</div>}
                         <img 
-                          src={`http://localhost:5000${primaryMedia.media_url}`} 
+                          src={getImageUrl(primaryMedia.media_url)} 
                           alt={product.title}
-                        />
+                            />
                         {product.media.length > 1 && (
                           <div className="media-count">{product.media.length} items</div>
                         )}
@@ -98,8 +99,8 @@ const DigitalPage = () => {
 
       {galleryProduct && (
         <MediaGallery
-          media={galleryProduct.media.map(m => ({ url: `http://localhost:5000${m.media_url}`, type: m.media_type }))}
-          onClose={() => setGalleryProduct(null)}
+            media={galleryProduct.media.map(m => ({ url: getImageUrl(m.media_url), type: m.media_type }))}     
+                 onClose={() => setGalleryProduct(null)}
         />
       )}
 

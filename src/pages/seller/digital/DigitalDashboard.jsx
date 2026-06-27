@@ -6,6 +6,7 @@ import api from '../../../services/api';
 import { useAuth } from '../../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import DigitalRequests from './DigitalRequests';
+import { getImageUrl } from '../../../utils/imageUtils';
 
 const DigitalDashboard = () => {
   const [products, setProducts] = useState([]);
@@ -126,8 +127,7 @@ const DigitalDashboard = () => {
                       <div className="product-info">
                         <div className="product-image-placeholder">
                           {primaryImage ? (
-                            <img src={`http://localhost:5000${primaryImage.media_url}`} alt={product.title} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '0.5rem' }} />
-                          ) : (
+                            <img src={getImageUrl(primaryImage.media_url)} alt={product.title} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '0.5rem' }} />                          ) : (
                             product.image || '💻'
                           )}
                         </div>
