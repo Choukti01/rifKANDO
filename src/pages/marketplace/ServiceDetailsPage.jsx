@@ -5,6 +5,7 @@ import { getService, orderService } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import MediaGallery from '../../components/MediaGallery';
+import { getImageUrl } from '../../utils/imageUtils';
 
 const ServiceDetailsPage = () => {
   const { id } = useParams();
@@ -151,9 +152,9 @@ const ServiceDetailsPage = () => {
               <div className="service-image-large" onClick={() => service.media?.length && setShowGallery(true)}>
                 {primaryMedia ? (
                   primaryMedia.media_type === 'video' ? (
-                    <video src={`http://localhost:5000${primaryMedia.media_url}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <video src={getImageUrl(primaryMedia.media_url)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   ) : (
-                    <img src={`http://localhost:5000${primaryMedia.media_url}`} alt={service.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <img src={getImageUrl(primaryMedia.media_url)} alt={service.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   )
                 ) : (
                   <span style={{ fontSize: '3rem' }}>🛠️</span>
@@ -177,7 +178,7 @@ const ServiceDetailsPage = () => {
       </div>
       {showGallery && (
         <MediaGallery
-          media={service.media.map(m => ({ url: `http://localhost:5000${m.media_url}`, type: m.media_type }))}
+          media={service.media.map(m => ({ url: getImageUrl(m.media_url), type: m.media_type }))}
           onClose={() => setShowGallery(false)}
         />
       )}

@@ -4,6 +4,7 @@ import api from '../../../services/api';
 import { useAuth } from '../../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import MediaUploader from '../../../components/MediaUploader';
+import { getImageUrl } from '../../../utils/imageUtils';
 
 const EditService = () => {
   const { id } = useParams();
@@ -43,7 +44,10 @@ const EditService = () => {
         image: service.image || '🛠️'
       });
       if (service.media && service.media.length) {
-        setMedia(service.media.map(m => ({ url: m.media_url, type: m.media_type })));
+        setMedia(service.media.map(m => ({ 
+  url: getImageUrl(m.media_url), 
+  type: m.media_type 
+})));
       }
     } catch (error) {
       console.error('Error fetching service:', error);
@@ -67,7 +71,12 @@ const EditService = () => {
         price: parseFloat(formData.price),
         old_price: formData.old_price ? parseFloat(formData.old_price) : null,
         revisions: parseInt(formData.revisions) || 0,
-        media: media.map((m, idx) => ({ ...m, order: idx, isPrimary: idx === 0 }))
+        media: media.map((m, idx) => ({ 
+  ...m, 
+  url: getImageUrl(m.url),
+  order: idx, 
+  isPrimary: idx === 0 
+}))
       };
       
       await api.put(`/services/${id}`, serviceData, {

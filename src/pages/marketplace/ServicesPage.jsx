@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { getServices } from '../../services/api';
 import toast from 'react-hot-toast';
 import MediaGallery from '../../components/MediaGallery';
+import { getImageUrl } from '../../utils/imageUtils';
 
 const ServicesPage = () => {
   const [services, setServices] = useState([]);
@@ -62,7 +63,7 @@ const ServicesPage = () => {
                       <>
                         {primaryMedia.media_type === 'video' && <div className="video-badge">🎬 Video</div>}
                         <img 
-                          src={`http://localhost:5000${primaryMedia.media_url}`} 
+                          src={getImageUrl(primaryMedia.media_url)} 
                           alt={service.title}
                         />
                         {service.media.length > 1 && (
@@ -98,7 +99,7 @@ const ServicesPage = () => {
 
       {galleryService && (
         <MediaGallery
-          media={galleryService.media.map(m => ({ url: `http://localhost:5000${m.media_url}`, type: m.media_type }))}
+          media={galleryService.media.map(m => ({ url: getImageUrl(m.media_url), type: m.media_type }))}
           onClose={() => setGalleryService(null)}
         />
       )}
