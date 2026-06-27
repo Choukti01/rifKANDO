@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { getCourses } from '../../services/api';
 import toast from 'react-hot-toast';
 import MediaGallery from '../../components/MediaGallery';
+import { getImageUrl } from '../../utils/imageUtils';
 
 const CoursesPage = () => {
   const [courses, setCourses] = useState([]);
@@ -71,8 +72,7 @@ const CoursesPage = () => {
                       <>
                         {primaryMedia.media_type === 'video' && <div className="video-badge">🎬 Video</div>}
                         <img 
-                          src={`http://localhost:5000${primaryMedia.media_url}`} 
-                          alt={course.title}
+                           src={getImageUrl(primaryMedia.media_url)}                          alt={course.title}
                         />
                         {course.media.length > 1 && (
                           <div className="media-count">{course.media.length} items</div>
@@ -114,7 +114,7 @@ const CoursesPage = () => {
       {/* Gallery Modal */}
       {galleryCourse && (
         <MediaGallery
-          media={galleryCourse.media.map(m => ({ url: `http://localhost:5000${m.media_url}`, type: m.media_type }))}
+          media={galleryCourse.media.map(m => ({ url: getImageUrl(m.media_url), type: m.media_type }))}
           onClose={() => setGalleryCourse(null)}
         />
       )}
