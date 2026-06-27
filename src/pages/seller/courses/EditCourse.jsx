@@ -4,6 +4,7 @@ import api from '../../../services/api';
 import { useAuth } from '../../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import MediaUploader from '../../../components/MediaUploader';
+import { getImageUrl } from '../../../utils/imageUtils';
 
 const EditCourse = () => {
   const { id } = useParams();
@@ -43,8 +44,10 @@ const EditCourse = () => {
         what_you_learn: course.what_you_learn ? JSON.parse(course.what_you_learn).join('\n') : ''
       });
       if (course.media && course.media.length) {
-        setMedia(course.media.map(m => ({ url: m.media_url, type: m.media_type })));
-      }
+          setMedia(course.media.map(m => ({ 
+          url: getImageUrl(m.media_url), 
+          type: m.media_type 
+          })));    }
     } catch (error) {
       console.error('Error fetching course:', error);
       toast.error('Failed to load course data');
@@ -73,8 +76,13 @@ const EditCourse = () => {
         old_price: formData.old_price ? parseFloat(formData.old_price) : null,
         duration: parseInt(formData.duration) || 0,
         what_you_learn: JSON.stringify(whatYouLearnArray),
-        media: media.map((m, idx) => ({ ...m, order: idx, isPrimary: idx === 0 }))
-      };
+        
+         media: media.map((m, idx) => ({ 
+                    ...m, 
+                   url: getImageUrl(m.url),
+                   order: idx, 
+                   isPrimary: idx === 0 
+                                         }))      };
       
       await api.put(`/courses/${id}`, courseData, {
         headers: { Authorization: `Bearer ${token}` }

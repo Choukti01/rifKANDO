@@ -46,6 +46,7 @@ const Offers = () => {
     }
   };
 
+
   // Load chat messages for an offer
   const loadChat = async (offer) => {
     const offerId = offer.id;

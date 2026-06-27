@@ -5,6 +5,7 @@ import { getCourse, enrollCourse } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import MediaGallery from '../../components/MediaGallery';
+import { getImageUrl } from '../../utils/imageUtils';
 
 const CourseDetailsPage = () => {
   const { id } = useParams();
@@ -112,7 +113,7 @@ const CourseDetailsPage = () => {
                         {lesson.video_url && (
                           <div className="lesson-video">
                             <video 
-                              src={`http://localhost:5000${lesson.video_url}`} 
+                              src={getImageUrl(lesson.video_url)}
                               controls 
                               className="lesson-video-player"
                             />
@@ -136,14 +137,21 @@ const CourseDetailsPage = () => {
               {/* Course Media Gallery */}
               <div className="course-image-large" onClick={() => course.media?.length && setShowGallery(true)}>
                 {primaryMedia ? (
-                  primaryMedia.media_type === 'video' ? (
-                    <video src={`http://localhost:5000${primaryMedia.media_url}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  ) : (
-                    <img src={`http://localhost:5000${primaryMedia.media_url}`} alt={course.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  )
-                ) : (
-                  <span style={{ fontSize: '3rem' }}></span>
-                )}
+  primaryMedia.media_type === 'video' ? (
+    <video
+      src={getImageUrl(primaryMedia.media_url)}
+      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+    />
+  ) : (
+    <img 
+      src={getImageUrl(primaryMedia.media_url)} 
+      alt={course.title} 
+      style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+    />
+  )
+) : (
+  <span style={{ fontSize: '3rem' }}></span>
+)}
                 {course.media?.length > 1 && <div className="gallery-badge">{course.media.length} items</div>}
               </div>
               <div className="course-price-section">
@@ -169,10 +177,14 @@ const CourseDetailsPage = () => {
       </div>
       {showGallery && (
         <MediaGallery
-          media={course.media.map(m => ({ url: `http://localhost:5000${m.media_url}`, type: m.media_type }))}
+          media={course.media.map(m => ({ 
+            url: getImageUrl(m.media_url), 
+            type: m.media_type 
+          }))}
           onClose={() => setShowGallery(false)}
         />
       )}
+
       <style>{`
         .course-details { padding: 2rem 0; min-height: calc(100vh - 80px); }
         .course-grid { display: grid; grid-template-columns: 1fr 350px; gap: 2rem; }
