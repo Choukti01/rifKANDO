@@ -5,6 +5,7 @@ import { getMyServices, deleteService } from '../../../services/api';
 import api from '../../../services/api';
 import { useAuth } from '../../../contexts/AuthContext';
 import toast from 'react-hot-toast';
+import { getImageUrl } from '../../../utils/imageUtils';
 
 const ServicesDashboard = () => {
   const [services, setServices] = useState([]);
@@ -113,8 +114,7 @@ const ServicesDashboard = () => {
                   <div className="service-info">
                     <div className="service-image-placeholder">
                       {primaryImage ? (
-                        <img src={`http://localhost:5000${primaryImage.media_url}`} alt={service.title} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '0.5rem' }} />
-                      ) : (
+                       <img src={getImageUrl(primaryImage.media_url)} alt={service.title} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '0.5rem' }} />                      ) : (
                         service.image || '🛠️'
                       )}
                     </div>
