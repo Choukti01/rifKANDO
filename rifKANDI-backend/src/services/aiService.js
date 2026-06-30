@@ -27,7 +27,7 @@ class AIService {
   static async generateDescription(title, category, keywords) {
     // Smart fallback without AI
     if (!this.getModel()) {
-      return `✨ ${title} - High quality product from rifKANDI marketplace. Perfect for your needs in Morocco. Competitive price, excellent quality. Shop with confidence! Fast delivery across Morocco.`;
+      return `✨ ${title} - High quality product from rifKANDO marketplace. Perfect for your needs in Morocco. Competitive price, excellent quality. Shop with confidence! Fast delivery across Morocco.`;
     }
 
     const prompt = `Write a professional, persuasive product description for rifKANDO marketplace (Moroccan audience).
