@@ -8,99 +8,201 @@ const multer = require('multer');
 const sharp = require('sharp');
 // const EmailService = require('./services/emailService');
 
+
+
 const app = express();
 
 // Ensure uploads directory exists
 const uploadDir = path.join(__dirname, 'uploads/profile-pictures');
+
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
 
+// ==================== CORS ====================
+
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'https://www.rifkando.com',
+  origin: [
+    "http://localhost:5173",
+    "https://rifkando.com",
+    "https://www.rifkando.com"
+  ],
   credentials: true
 }));
+
 
 // Configure multer for memory storage
 const storage = multer.memoryStorage();
+
 const fileFilter = (req, file, cb) => {
+
   const allowedTypes = /jpeg|jpg|png|gif|webp/;
-  const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-  const mimetype = allowedTypes.test(file.mimetype);
+
+  const extname = allowedTypes.test(
+    path.extname(file.originalname).toLowerCase()
+  );
+
+  const mimetype = allowedTypes.test(
+    file.mimetype
+  );
   
   if (mimetype && extname) {
+
     cb(null, true);
+
   } else {
-    cb(new Error('Only image files are allowed (jpeg, jpg, png, gif, webp)'));
+
+    cb(new Error(
+      'Only image files are allowed (jpeg, jpg, png, gif, webp)'
+    ));
+
   }
 };
 
+
 const upload = multer({
+
   storage: storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+
+  limits: { 
+    fileSize: 5 * 1024 * 1024 
+  },
+
   fileFilter: fileFilter
+
 });
 
+
 // Middleware to process and save image
+
 const processAndSaveImage = async (req, res, next) => {
+
   if (!req.file) {
+
     return next();
+
   }
   
   try {
+
     const timestamp = Date.now();
-    const filename = `user-${req.user.id}-${timestamp}.jpeg`;
-    const filepath = path.join(uploadDir, filename);
+
+    const filename = 
+      `user-${req.user.id}-${timestamp}.jpeg`;
+
+    const filepath = 
+      path.join(uploadDir, filename);
     
+
     await sharp(req.file.buffer)
+
       .resize(400, 400, {
+
         fit: 'cover',
+
         position: 'center'
+
       })
+
       .jpeg({ quality: 85 })
+
       .toFile(filepath);
     
-    req.processedImageUrl = `/uploads/profile-pictures/${filename}`;
+
+    req.processedImageUrl = 
+      `/uploads/profile-pictures/${filename}`;
+
     next();
+
+
   } catch (error) {
-    console.error('Image processing error:', error);
-    return res.status(500).json({ error: 'Failed to process image' });
+
+
+    console.error(
+      'Image processing error:',
+      error
+    );
+
+
+    return res.status(500).json({
+
+      error: 'Failed to process image'
+
+    });
+
+
   }
+
 };
 
-// CORS
-app.use(cors({
-  origin: process.env.CLIENT_URL || 'https://www.rifkando.com',
-  credentials: true
-}));
 
 // Body parser
+
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+
+app.use(express.urlencoded({ 
+  extended: true 
+}));
+
 
 // Serve static files for uploads
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+app.use(
+  '/uploads',
+  express.static(
+    path.join(__dirname, 'uploads')
+  )
+);
+
 
 // ==================== TEST ROUTES ====================
 
 app.get('/test-db', (req, res) => {
-  db.get('SELECT datetime("now") as now', (err, row) => {
+
+  db.get(
+    'SELECT datetime("now") as now',
+    (err, row) => {
+
     if (err) {
-      res.status(500).json({ error: err.message });
+
+      res.status(500).json({ 
+        error: err.message 
+      });
+
     } else {
-      res.json({ success: true, time: row.now });
+
+      res.json({ 
+        success: true, 
+        time: row.now 
+      });
+
     }
+
   });
+
 });
+
 
 app.get('/test', (req, res) => {
-  res.json({ message: 'API is working!' });
+
+  res.json({ 
+    message: 'API is working!' 
+  });
+
 });
 
+
 app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'OK', message: 'Server is running' });
+
+  res.status(200).json({ 
+    status: 'OK', 
+    message: 'Server is running' 
+  });
+
 });
+
+
 
 // ==================== ORDER STATUS UPDATE (MOVED HERE TO TAKE PRIORITY) ====================
 // Update order status (seller) - SIMPLIFIED WORKING VERSION

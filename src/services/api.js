@@ -122,11 +122,12 @@ export const updatePassword = (passwordData) => api.patch('/users/update-passwor
 
 
 // ==================== ADVANCED AUTH APIs ====================
-export const sendVerification = (email, name) => api.post('/auth/send-verification', { email, name });
-export const resendVerification = (email, name) => api.post('/auth/resend-verification', { email, name });
-export const forgotPassword = (email) => api.post('/auth/forgot-password', { email });
-export const resetPassword = (email, code, newPassword) => api.post('/auth/reset-password', { email, code, newPassword });
-export const googleLogin = (token) => api.post('/auth/google', { token });
+
+export const verifyEmail = (email, code) =>
+  api.post('/auth/verify-email', {
+    email,
+    code
+  });
 
 
 

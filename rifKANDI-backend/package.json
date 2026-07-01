@@ -27,6 +27,7 @@
     "nodemailer": "^8.0.5",
     "pdfkit": "^0.18.0",
     "pg": "^8.20.0",
+    "resend": "^6.16.0",
     "serverless-http": "^4.0.0",
     "sharp": "^0.34.5",
     "sqlite3": "^6.0.1",
