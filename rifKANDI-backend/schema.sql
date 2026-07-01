@@ -1,4 +1,5 @@
 -- Users table
+-- Users table
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
@@ -12,6 +13,7 @@ CREATE TABLE IF NOT EXISTS users (
   country TEXT DEFAULT 'Morocco',
   profilePicture TEXT DEFAULT '',
   is_verified BOOLEAN DEFAULT 0,
+  verification_token TEXT,
   is_verified_seller BOOLEAN DEFAULT 0,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
