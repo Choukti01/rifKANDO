@@ -132,7 +132,7 @@ const Footer = () => {
 
       <style>{`
         .footer {
-          background: rgba(8, 8, 12, 0.92);
+          background: rgba(129, 129, 132, 0.92);
           backdrop-filter: blur(12px);
           -webkit-backdrop-filter: blur(12px);
           color: var(--color-gray-400);
@@ -197,8 +197,8 @@ const Footer = () => {
         }
 
         .footer-logo-img {
-          width: 100%;
-          height: 100%;
+          width: 250%;
+          height: 250%;
           object-fit: contain;
         }
 

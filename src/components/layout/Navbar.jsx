@@ -316,9 +316,14 @@ const Navbar = () => {
           justify-content: center;
         }
 
+
+
+
+
+
         .logo-img {
-          width: 100%;
-          height: 100%;
+          width: 250%;
+          height: 250%;
           object-fit: contain;
         }
 
