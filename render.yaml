@@ -1,0 +1,39 @@
+services:
+  - type: web
+    name: rifkando-backend
+    runtime: node
+    rootDir: rifKANDI-backend
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    disk:
+      name: rifkando-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_PATH
+        value: /var/data/rifkandi.db
+      - key: CLIENT_URL
+        value: https://rifkando.com
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRE
+        value: 7d
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: BREVO_API_KEY
+        sync: false
+      - key: BREVO_FROM_EMAIL
+        sync: false
+      - key: BREVO_FROM_NAME
+        value: rifKANDO
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: CMI_STORE_KEY
+        sync: false
+      - key: CMI_CLIENT_ID
+        sync: false
+      - key: BACKEND_URL
+        sync: false

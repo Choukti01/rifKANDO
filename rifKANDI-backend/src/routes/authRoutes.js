@@ -1,33 +1,40 @@
 const express = require('express');
 
-const { 
+const {
   register,
   verifyEmail,
   login,
+  googleAuth,
   getMe,
   updateSellerType
 } = require('../controllers/authController');
 
 const { protect } = require('../middleware/auth');
 
-
 const router = express.Router();
 
 
+// ====================================
+// PUBLIC ROUTES
+// ====================================
 
-// Register
+// Register with email
 router.post('/register', register);
-
 
 // Verify email code
 router.post('/verify-email', verifyEmail);
 
-
-// Login
+// Login with email/password
 router.post('/login', login);
 
+// Login/Register with Google
+router.post('/google', googleAuth);
 
-// Protected routes
+
+// ====================================
+// PROTECTED ROUTES
+// ====================================
+
 router.get('/me', protect, getMe);
 
 router.patch(
@@ -35,7 +42,5 @@ router.patch(
   protect,
   updateSellerType
 );
-
-
 
 module.exports = router;

@@ -4,6 +4,9 @@ import { EnvelopeIcon, LockClosedIcon, EyeIcon, EyeSlashIcon, ArrowPathIcon } fr
 import { useAuth } from '../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 
+import { GoogleLogin } from "@react-oauth/google";
+
+
 const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -16,14 +19,27 @@ const LoginPage = () => {
   const [formData, setFormData] = useState({ email: '', password: '', rememberMe: false });
   const [errors, setErrors] = useState({});
 
-  const { login } = useAuth();
+  const {
+  login,
+  googleLogin
+} = useAuth();
   const navigate = useNavigate();
 
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
-    if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
-  };
+const handleChange = (e) => {
+  const { name, value, type, checked } = e.target;
+
+  setFormData((prev) => ({
+    ...prev,
+    [name]: type === "checkbox" ? checked : value,
+  }));
+
+  if (errors[name]) {
+    setErrors((prev) => ({
+      ...prev,
+      [name]: "",
+    }));
+  }
+};
 
   const validateForm = () => {
     const newErrors = {};
@@ -116,27 +132,22 @@ const LoginPage = () => {
   };
 
   // Google Login
-  const handleGoogleLogin = () => {
-    // Initialize Google Sign-In
-    window.google?.accounts.id.initialize({
-      client_id: process.env.REACT_APP_GOOGLE_CLIENT_ID,
-      callback: async (response) => {
-        try {
-          const res = await api.post('/auth/google', {
-            token: response.credential
-          });
-          if (res.data.success) {
-            localStorage.setItem('token', res.data.token);
-            localStorage.setItem('user', JSON.stringify(res.data.user));
-            toast.success('Login successful!');
-            navigate('/');
-          }
-        } catch (error) {
-          toast.error('Google login failed');
-        }
+  const handleGoogleSuccess = async (credentialResponse) => {
+    try {
+      const result = await googleLogin(credentialResponse.credential);
+
+      if (result.success) {
+        navigate("/");
+      } else {
+        toast.error(result.error || "Google Login failed");
       }
-    });
-    window.google?.accounts.id.prompt();
+    } catch (error) {
+      console.error(error);
+      toast.error(
+        error.response?.data?.message ||
+        "Google Login failed"
+      );
+    }
   };
 
   return (
@@ -220,6 +231,36 @@ const LoginPage = () => {
             >
               {isLoading ? 'Signing in...' : 'Sign In'}
             </button>
+
+
+<div
+  style={{
+    marginTop: "20px",
+    textAlign: "center"
+  }}
+>
+
+  <p
+    style={{
+      marginBottom: "15px",
+      color: "#777"
+    }}
+  >
+    Or continue with
+  </p>
+
+  <GoogleLogin
+    onSuccess={handleGoogleSuccess}
+    onError={() => toast.error("Google Login Failed")}
+    theme="outline"
+    size="large"
+    width="100%"
+  />
+
+</div>
+
+
+
           </form>
 
           <div className="text-center mt-6">
