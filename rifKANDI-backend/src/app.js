@@ -6,11 +6,22 @@ const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
 const sharp = require('sharp');
+const { securityHeaders, createRateLimiter } = require('./middleware/security');
 // const EmailService = require('./services/emailService');
 
 
 
 const app = express();
+
+app.set('trust proxy', 1);
+app.disable('x-powered-by');
+app.use(securityHeaders);
+
+const authRateLimit = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: 'Too many authentication attempts. Please try again later.'
+});
 
 // Ensure uploads directory exists
 const uploadDir = path.join(__dirname, 'uploads/profile-pictures');
@@ -251,7 +262,7 @@ app.patch('/api/orders/:id/status', protect, async (req, res) => {
 // ==================== AUTH ENDPOINTS ====================
 
 // Register user
-app.post('/api/auth/register', async (req, res) => {
+app.post('/api/auth/register', authRateLimit, async (req, res) => {
   const { name, email, password, phone } = req.body;
   
   const bcrypt = require('bcryptjs');
@@ -289,7 +300,7 @@ app.post('/api/auth/register', async (req, res) => {
 });
 
 // Login user
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/login', authRateLimit, (req, res) => {
   const { email, password } = req.body;
   const bcrypt = require('bcryptjs');
   const jwt = require('jsonwebtoken');
@@ -558,7 +569,7 @@ const generateCode = () => {
 };
 
 // Send verification email
-app.post('/api/auth/send-verification', async (req, res) => {
+app.post('/api/auth/send-verification', authRateLimit, async (req, res) => {
   const { email, name } = req.body;
   
   if (!email || !name) {
@@ -604,7 +615,7 @@ app.post('/api/auth/send-verification', async (req, res) => {
 });
 
 // Verify and register
-app.post('/api/auth/verify-and-register', async (req, res) => {
+app.post('/api/auth/verify-and-register', authRateLimit, async (req, res) => {
   const { name, email, password, phone, code } = req.body;
   
   try {
@@ -659,7 +670,7 @@ app.post('/api/auth/verify-and-register', async (req, res) => {
 });
 
 // Resend verification
-app.post('/api/auth/resend-verification', async (req, res) => {
+app.post('/api/auth/resend-verification', authRateLimit, async (req, res) => {
   const { email, name } = req.body;
   
   try {
@@ -689,7 +700,7 @@ app.post('/api/auth/resend-verification', async (req, res) => {
 });
 
 // Forgot password
-app.post('/api/auth/forgot-password', async (req, res) => {
+app.post('/api/auth/forgot-password', authRateLimit, async (req, res) => {
   const { email } = req.body;
   
   try {
@@ -726,7 +737,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
 });
 
 // Reset password
-app.post('/api/auth/reset-password', async (req, res) => {
+app.post('/api/auth/reset-password', authRateLimit, async (req, res) => {
   const { email, code, newPassword } = req.body;
   
   try {
@@ -755,19 +766,32 @@ app.post('/api/auth/reset-password', async (req, res) => {
 });
 
 // Google OAuth
-app.post('/api/auth/google', async (req, res) => {
-  const { token, email, name, picture } = req.body;
+app.post('/api/auth/google', authRateLimit, async (req, res) => {
+  const { credential } = req.body;
   const { OAuth2Client } = require('google-auth-library');
   const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+  if (!credential) {
+    return res.status(400).json({ error: 'Google credential is required' });
+  }
   
   try {
     const ticket = await client.verifyIdToken({
-      idToken: token,
+      idToken: credential,
       audience: process.env.GOOGLE_CLIENT_ID,
     });
     const payload = ticket.getPayload();
+    const { email, name, picture, email_verified: emailVerified } = payload;
+
+    if (!email || !emailVerified) {
+      return res.status(401).json({ error: 'Google account email is not verified' });
+    }
     
     db.get('SELECT * FROM users WHERE email = ?', [email], async (err, user) => {
+      if (err) {
+        return res.status(500).json({ error: 'Could not find the Google user' });
+      }
+
       if (user) {
         const jwt = require('jsonwebtoken');
         const authToken = jwt.sign(
@@ -776,11 +800,8 @@ app.post('/api/auth/google', async (req, res) => {
           { expiresIn: process.env.JWT_EXPIRE }
         );
         
-        return res.json({
-          success: true,
-          token: authToken,
-          user: { id: user.id, name: user.name, email: user.email, role: user.role, profilePicture: user.profilePicture, is_verified_seller: user.is_verified_seller || 0 }
-        });
+        const authenticatedUser = { id: user.id, name: user.name, email: user.email, role: user.role, profilePicture: user.profilePicture, is_verified_seller: user.is_verified_seller || 0 };
+        return res.json({ success: true, token: authToken, user: authenticatedUser, data: { user: authenticatedUser } });
       }
       
       const randomPassword = Math.random().toString(36).slice(-8);
@@ -802,11 +823,8 @@ app.post('/api/auth/google', async (req, res) => {
           { expiresIn: process.env.JWT_EXPIRE }
         );
         
-        res.json({
-          success: true,
-          token: authToken,
-          user: { id: this.lastID, name, email, role: 'buyer', profilePicture: picture || '', is_verified_seller: 0 }
-        });
+        const authenticatedUser = { id: this.lastID, name, email, role: 'buyer', profilePicture: picture || '', is_verified_seller: 0 };
+        res.json({ success: true, token: authToken, user: authenticatedUser, data: { user: authenticatedUser } });
       });
     });
   } catch (error) {
@@ -3889,4 +3907,4 @@ app.use((req, res) => {
   res.status(404).json({ message: 'Route not found' });
 });
 
-module.exports = app;             
+module.exports = app;

@@ -219,6 +219,73 @@ export const AuthProvider = ({ children }) => {
 
 
 
+  // ===============================
+// GOOGLE LOGIN
+// ===============================
+
+const googleLogin = async (credential) => {
+
+  try {
+
+    const response = await api.post(
+      "/auth/google",
+      {
+        credential
+      }
+    );
+
+    const token = response.data.token;
+
+    const user =
+      response.data.data?.user ||
+      response.data.user;
+
+    if (!token || !user) {
+      throw new Error("Invalid Google authentication response");
+    }
+
+    localStorage.setItem(
+      "token",
+      token
+    );
+
+    localStorage.setItem(
+      "user",
+      JSON.stringify(user)
+    );
+
+    setToken(token);
+
+    setUser(user);
+
+    toast.success(
+      "Welcome to rifKANDO!"
+    );
+
+    return {
+      success: true,
+      user
+    };
+
+  } catch (error) {
+
+    toast.error(
+      error.response?.data?.message ||
+      error.response?.data?.error ||
+      "Google login failed"
+    );
+
+    return {
+      success: false
+    };
+
+  }
+
+};
+
+
+
+
 
 
   // ===============================
@@ -535,35 +602,26 @@ export const AuthProvider = ({ children }) => {
 
 
 
-  const value = {
+ const value = {
 
+  user,
+  loading,
+  token,
 
-    user,
+  isAuthenticated: !!user,
 
-    loading,
+  login,
+  googleLogin,
 
-    token,
+  register,
 
+  logout,
 
-    isAuthenticated:!!user,
+  updateUser,
 
+  updateSellerType
 
-    login,
-
-
-    register,
-
-
-    logout,
-
-
-    updateUser,
-
-
-    updateSellerType
-
-
-  };
+};
 
 
 

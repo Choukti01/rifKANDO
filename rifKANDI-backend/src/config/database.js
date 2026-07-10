@@ -2,8 +2,13 @@ const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
 const isProduction = process.env.NODE_ENV === 'production';
-// Use /tmp/rifkandi.db on Render (writable), otherwise local path
-const dbPath = isProduction ? '/tmp/rifkandi.db' : path.join(__dirname, '../../rifkandi.db');
+// A Render /tmp database is erased whenever the service restarts. Production
+// must therefore explicitly use the mounted persistent disk.
+const dbPath = process.env.DATABASE_PATH || (
+  isProduction
+    ? '/var/data/rifkandi.db'
+    : path.join(__dirname, '../../rifkandi.db')
+);
 
 const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {

@@ -4,6 +4,8 @@ import { EnvelopeIcon, LockClosedIcon, UserIcon, PhoneIcon, EyeIcon, EyeSlashIco
 import api from '../../services/api';
 import VerificationModal from '../../components/auth/VerificationModal';
 import toast from 'react-hot-toast';
+import { GoogleLogin } from "@react-oauth/google";
+import { useAuth } from '../../contexts/AuthContext';
 
 const RegisterPage = () => {
 
@@ -27,6 +29,7 @@ const RegisterPage = () => {
   const [errors, setErrors] = useState({});
 
   const navigate = useNavigate();
+  const { googleLogin } = useAuth();
 
 
 
@@ -278,6 +281,46 @@ const RegisterPage = () => {
 
 
 
+
+
+
+
+
+
+
+
+
+
+  const handleGoogleSuccess = async (credentialResponse) => {
+
+  try {
+
+    const result = await googleLogin(credentialResponse.credential);
+
+    if (result.success) {
+      navigate("/");
+    }
+
+  } catch (error) {
+
+    console.error(error);
+
+    toast.error(
+      error.response?.data?.message ||
+      error.response?.data?.error ||
+      "Google Sign In failed"
+    );
+
+  }
+
+};
+
+
+
+
+
+
+
   const handleSubmit = async(e)=>{
 
     e.preventDefault();
@@ -318,6 +361,12 @@ Join rifKANDO today
 
 
 </div>
+
+
+
+
+
+
 
 
 
@@ -620,6 +669,44 @@ isLoading
 
 
 </button>
+
+
+
+
+
+
+
+
+<div
+  style={{
+    marginTop: "20px",
+    textAlign: "center"
+  }}
+>
+
+  <p
+    style={{
+      color: "#777",
+      marginBottom: "15px"
+    }}
+  >
+    Or continue with
+  </p>
+
+  <GoogleLogin
+    onSuccess={handleGoogleSuccess}
+    onError={() => toast.error("Google Login Failed")}
+    theme="outline"
+    size="large"
+    width="100%"
+  />
+
+</div>
+
+
+
+
+
 
 
 

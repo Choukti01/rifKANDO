@@ -143,7 +143,7 @@ const Footer = () => {
         }
 
         .footer.footer-visible {
-          background: rgba(8, 8, 12, 0.92);
+          background: rgba(66, 66, 67, 0.92);
           backdrop-filter: blur(16px);
           -webkit-backdrop-filter: blur(16px);
           border-top-color: rgba(255, 255, 255, 0.1);
