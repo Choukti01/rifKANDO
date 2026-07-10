@@ -828,7 +828,14 @@ app.post('/api/auth/google', authRateLimit, async (req, res) => {
       });
     });
   } catch (error) {
-    res.status(401).json({ error: 'Invalid Google token' });
+    const audienceMismatch = /audience|recipient|client.?id/i.test(error.message || '');
+    console.error('Google token verification failed:', error.message);
+    res.status(401).json({
+      error: audienceMismatch
+        ? 'Google OAuth client ID does not match the client that issued this credential'
+        : 'Google credential is invalid or has expired',
+      code: audienceMismatch ? 'GOOGLE_CLIENT_ID_MISMATCH' : 'GOOGLE_CREDENTIAL_INVALID'
+    });
   }
 });
 
