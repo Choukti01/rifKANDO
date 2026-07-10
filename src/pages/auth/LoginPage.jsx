@@ -254,7 +254,7 @@ const handleChange = (e) => {
     onError={() => toast.error("Google Login Failed")}
     theme="outline"
     size="large"
-    width="100%"
+    width={320}
   />
 
 </div>
