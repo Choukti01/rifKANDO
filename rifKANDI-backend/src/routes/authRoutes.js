@@ -1,9 +1,6 @@
 const express = require('express');
 
 const {
-  register,
-  verifyEmail,
-  login,
   googleAuth,
   getMe,
   updateSellerType
@@ -13,19 +10,18 @@ const { protect } = require('../middleware/auth');
 
 const router = express.Router();
 
+const legacyAuthenticationDisabled = (req, res) => res.status(410).json({
+  success: false,
+  error: 'Email and password authentication has been disabled. Sign in with Google instead.'
+});
 
 // ====================================
 // PUBLIC ROUTES
 // ====================================
 
-// Register with email
-router.post('/register', register);
-
-// Verify email code
-router.post('/verify-email', verifyEmail);
-
-// Login with email/password
-router.post('/login', login);
+router.post('/register', legacyAuthenticationDisabled);
+router.post('/verify-email', legacyAuthenticationDisabled);
+router.post('/login', legacyAuthenticationDisabled);
 
 // Login/Register with Google
 router.post('/google', googleAuth);

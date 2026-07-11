@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { UserIcon, EnvelopeIcon, PhoneIcon, MapPinIcon, KeyIcon, BellIcon, PencilIcon } from '@heroicons/react/24/outline';
+import { UserIcon, EnvelopeIcon, PhoneIcon, MapPinIcon, BellIcon, PencilIcon } from '@heroicons/react/24/outline';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 import ProfilePictureUpload from '../../components/ProfilePictureUpload';
@@ -108,7 +108,6 @@ const ProfilePage = () => {
 
   const tabs = [
     { id: 'profile', name: 'Profile Information', icon: UserIcon },
-    { id: 'security', name: 'Security', icon: KeyIcon },
     { id: 'notifications', name: 'Notifications', icon: BellIcon },
   ];
 
@@ -263,48 +262,6 @@ const ProfilePage = () => {
                     </div>
                   </div>
                 )}
-              </div>
-            )}
-
-            {activeTab === 'security' && (
-              <div className="profile-card">
-                <h2>Security Settings</h2>
-                <form className="profile-form" onSubmit={async (e) => {
-                  e.preventDefault();
-                  const form = e.target;
-                  const currentPassword = form.currentPassword.value;
-                  const newPassword = form.newPassword.value;
-                  const confirmPassword = form.confirmPassword.value;
-                  if (newPassword !== confirmPassword) {
-                    toast.error('New passwords do not match');
-                    return;
-                  }
-                  if (newPassword.length < 6) {
-                    toast.error('Password must be at least 6 characters');
-                    return;
-                  }
-                  try {
-                    await api.patch('/users/update-password', { currentPassword, newPassword });
-                    toast.success('Password updated successfully!');
-                    form.reset();
-                  } catch (error) {
-                    toast.error(error.response?.data?.error || 'Failed to update password');
-                  }
-                }}>
-                  <div className="form-group">
-                    <label>Current Password</label>
-                    <input type="password" name="currentPassword" className="form-input" required />
-                  </div>
-                  <div className="form-group">
-                    <label>New Password</label>
-                    <input type="password" name="newPassword" className="form-input" required />
-                  </div>
-                  <div className="form-group">
-                    <label>Confirm New Password</label>
-                    <input type="password" name="confirmPassword" className="form-input" required />
-                  </div>
-                  <button type="submit" className="btn btn-primary">Update Password</button>
-                </form>
               </div>
             )}
 
