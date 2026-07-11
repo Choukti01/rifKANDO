@@ -111,25 +111,11 @@ router.patch('/update-me', protect, async (req, res) => {
   }
 });
 
-// Update password
-router.patch('/update-password', protect, async (req, res) => {
-  try {
-    const { currentPassword, newPassword } = req.body;
-    
-    const user = await User.findById(req.user.id).select('+password');
-    
-    const isMatch = await user.comparePassword(currentPassword);
-    if (!isMatch) {
-      return res.status(401).json({ error: 'Current password is incorrect' });
-    }
-    
-    user.password = newPassword;
-    await user.save();
-    
-    res.json({ success: true, message: 'Password updated' });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to update password' });
-  }
+router.patch('/update-password', (req, res) => {
+  res.status(410).json({
+    success: false,
+    error: 'Password authentication has been disabled. Manage your credentials through Google.'
+  });
 });
 
 module.exports = router;

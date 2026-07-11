@@ -26,6 +26,24 @@ exports.sendVerificationEmail = async (email, code) => {
 
 };
 
+exports.sendWelcomeEmail = async (email, name) => {
+  await resend.emails.send({
+    from: process.env.EMAIL_FROM,
+    to: email,
+    subject: 'Welcome to RifKANDO',
+    html: `<h2>Welcome, ${name}!</h2><p>Your RifKANDO account is verified and ready to use.</p>`
+  });
+};
+
+exports.sendLoginNotificationEmail = async (email, name) => {
+  await resend.emails.send({
+    from: process.env.EMAIL_FROM,
+    to: email,
+    subject: 'New sign-in to your RifKANDO account',
+    html: `<p>Hello ${name},</p><p>We noticed a successful sign-in to your RifKANDO account.</p><p>If this was not you, contact support immediately.</p>`
+  });
+};
+
 
 
 

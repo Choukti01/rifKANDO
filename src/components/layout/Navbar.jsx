@@ -155,8 +155,7 @@ const Navbar = () => {
                       </>
                     ) : (
                       <>
-                        <Link to="/login" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>Login</Link>
-                        <Link to="/register" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>Register</Link>
+                        <Link to="/login" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>Continue with Google</Link>
                       </>
                     )}
                   </div>
@@ -203,8 +202,7 @@ const Navbar = () => {
               </>
             ) : (
               <>
-                <Link to="/login" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>Login</Link>
-                <Link to="/register" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>Register</Link>
+                <Link to="/login" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>Continue with Google</Link>
               </>
             )}
           </div>

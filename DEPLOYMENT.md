@@ -21,6 +21,13 @@ Set these build-time values in the frontend host:
 The frontend environment file is intentionally not committed. Do not put
 backend secrets in a `VITE_` variable; Vite exposes those values to browsers.
 
+## Google registration verification
+
+New Google sign-ups are activated only after the user enters a six-digit code
+sent to the verified Google email address. Configure `RESEND_API_KEY` and an
+`EMAIL_FROM` address from a domain verified in Resend. Google OAuth verifies
+the Google identity but does not send application email codes itself.
+
 ## Google OAuth
 
 Use the same Google web client ID for `VITE_GOOGLE_CLIENT_ID` and the backend

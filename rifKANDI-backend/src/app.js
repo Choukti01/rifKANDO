@@ -6,7 +6,9 @@ const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
 const sharp = require('sharp');
+const crypto = require('crypto');
 const { securityHeaders, createRateLimiter } = require('./middleware/security');
+const { sendVerificationEmail, sendWelcomeEmail, sendLoginNotificationEmail } = require('./utils/sendEmail');
 // const EmailService = require('./services/emailService');
 
 
@@ -22,6 +24,63 @@ const authRateLimit = createRateLimiter({
   max: 20,
   message: 'Too many authentication attempts. Please try again later.'
 });
+
+const googleVerificationExpiryMs = 10 * 60 * 1000;
+const googleVerificationMaxAttempts = 5;
+
+const hashGoogleVerificationCode = (code) => crypto
+  .createHmac('sha256', process.env.JWT_SECRET)
+  .update(code)
+  .digest('hex');
+
+const generateGoogleVerificationCode = () => crypto.randomInt(100000, 1000000).toString();
+
+const verifyGoogleCredential = async (credential) => {
+  if (!credential) {
+    const error = new Error('Google credential is required');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const { OAuth2Client } = require('google-auth-library');
+  const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+  const ticket = await client.verifyIdToken({
+    idToken: credential,
+    audience: process.env.GOOGLE_CLIENT_ID
+  });
+  const payload = ticket.getPayload();
+
+  if (!payload.email || !payload.email_verified) {
+    const error = new Error('Google account email is not verified');
+    error.statusCode = 401;
+    throw error;
+  }
+
+  return payload;
+};
+
+const sendGoogleVerificationCode = async ({ email, googleSub }) => {
+  const code = generateGoogleVerificationCode();
+  const expiresAt = new Date(Date.now() + googleVerificationExpiryMs).toISOString();
+
+  await new Promise((resolve, reject) => {
+    db.run(`
+      INSERT INTO google_verifications (email, google_sub, code_hash, expires_at, attempts)
+      VALUES (?, ?, ?, ?, 0)
+      ON CONFLICT(email) DO UPDATE SET
+        google_sub = excluded.google_sub,
+        code_hash = excluded.code_hash,
+        expires_at = excluded.expires_at,
+        attempts = 0,
+        created_at = CURRENT_TIMESTAMP
+    `, [email, googleSub, hashGoogleVerificationCode(code), expiresAt], (error) => {
+      if (error) reject(error);
+      else resolve();
+    });
+  });
+
+  await sendVerificationEmail(email, code);
+};
 
 // Ensure uploads directory exists
 const uploadDir = path.join(__dirname, 'uploads/profile-pictures');
@@ -260,6 +319,134 @@ app.patch('/api/orders/:id/status', protect, async (req, res) => {
 });
 
 // ==================== AUTH ENDPOINTS ====================
+
+// Legacy verification and password-reset routes remain disabled so the secure
+// registration and login handlers below are the only active local auth flow.
+const disabledPasswordAuthPaths = new Set([
+  '/send-verification',
+  '/verify-and-register',
+  '/resend-verification',
+  '/forgot-password',
+  '/reset-password'
+]);
+
+app.use('/api/auth', (req, res, next) => {
+  if (disabledPasswordAuthPaths.has(req.path)) {
+    return res.status(410).json({
+      error: 'This legacy authentication endpoint is no longer available.'
+    });
+  }
+  next();
+});
+
+app.patch('/api/users/update-password', (req, res) => {
+  res.status(410).json({
+    error: 'Password authentication is not available. Manage your credentials through Google.'
+  });
+});
+
+const registrationExpiryMs = 10 * 60 * 1000;
+const registrationMaxAttempts = 5;
+
+const hashRegistrationCode = (code) => crypto
+  .createHmac('sha256', process.env.JWT_SECRET)
+  .update(code)
+  .digest('hex');
+
+const createAuthenticatedResponse = (user) => {
+  const jwt = require('jsonwebtoken');
+  return {
+    success: true,
+    token: jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRE }),
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      role: user.role,
+      sellerType: user.seller_type,
+      bio: user.bio,
+      city: user.city,
+      country: user.country,
+      profilePicture: user.profilePicture,
+      is_verified_seller: user.is_verified_seller || 0
+    }
+  };
+};
+
+app.post('/api/auth/register', authRateLimit, async (req, res) => {
+  const name = req.body.name?.trim();
+  const email = req.body.email?.trim().toLowerCase();
+  const { password, phone = '' } = req.body;
+  if (!name || !/^\S+@\S+\.\S+$/.test(email || '') || typeof password !== 'string' || password.length < 8) {
+    return res.status(400).json({ error: 'Provide a name, valid email, and password of at least 8 characters.' });
+  }
+
+  db.get('SELECT id FROM users WHERE email = ?', [email], async (lookupError, user) => {
+    if (lookupError) return res.status(500).json({ error: 'Could not create the account.' });
+    if (user) return res.status(409).json({ error: 'An account already exists for this email.' });
+    try {
+      const bcrypt = require('bcryptjs');
+      const passwordHash = await bcrypt.hash(password, 12);
+      const code = crypto.randomInt(100000, 1000000).toString();
+      const expiresAt = new Date(Date.now() + registrationExpiryMs).toISOString();
+      db.run(`
+        INSERT INTO pending_registrations (email, name, phone, password_hash, code_hash, expires_at, attempts)
+        VALUES (?, ?, ?, ?, ?, ?, 0)
+        ON CONFLICT(email) DO UPDATE SET
+          name = excluded.name, phone = excluded.phone, password_hash = excluded.password_hash,
+          code_hash = excluded.code_hash, expires_at = excluded.expires_at, attempts = 0, created_at = CURRENT_TIMESTAMP
+      `, [email, name, phone, passwordHash, hashRegistrationCode(code), expiresAt], async (saveError) => {
+        if (saveError) return res.status(500).json({ error: 'Could not start email verification.' });
+        try {
+          await sendVerificationEmail(email, code);
+          res.status(202).json({ success: true, verificationRequired: true, message: 'Verification code sent.' });
+        } catch (emailError) {
+          console.error('Registration verification email failed:', emailError.message);
+          res.status(503).json({ error: 'Unable to send the verification email. Please try again later.' });
+        }
+      });
+    } catch (error) {
+      res.status(500).json({ error: 'Could not create the account.' });
+    }
+  });
+});
+
+app.post('/api/auth/verify-email', authRateLimit, (req, res) => {
+  const email = req.body.email?.trim().toLowerCase();
+  const { code } = req.body;
+  if (!/^\d{6}$/.test(code || '') || !email) return res.status(400).json({ error: 'Enter a valid email and six-digit code.' });
+
+  db.get('SELECT * FROM pending_registrations WHERE email = ?', [email], (lookupError, registration) => {
+    if (lookupError) return res.status(500).json({ error: 'Could not verify the account.' });
+    if (!registration || new Date(registration.expires_at) <= new Date()) return res.status(400).json({ error: 'Verification code is invalid or expired.' });
+    if (registration.attempts >= registrationMaxAttempts) return res.status(429).json({ error: 'Too many incorrect codes. Register again to request a new code.' });
+
+    if (!crypto.timingSafeEqual(Buffer.from(registration.code_hash, 'hex'), Buffer.from(hashRegistrationCode(code), 'hex'))) {
+      db.run('UPDATE pending_registrations SET attempts = attempts + 1 WHERE email = ?', [email]);
+      return res.status(400).json({ error: 'Verification code is invalid or expired.' });
+    }
+
+    db.run('INSERT INTO users (name, email, password, phone, is_verified) VALUES (?, ?, ?, ?, 1)', [registration.name, email, registration.password_hash, registration.phone], function (createError) {
+      if (createError) return res.status(409).json({ error: 'An account already exists for this email.' });
+      const user = { id: this.lastID, name: registration.name, email, phone: registration.phone, role: 'buyer', seller_type: null, bio: '', city: '', country: 'Morocco', profilePicture: '', is_verified_seller: 0 };
+      db.run('DELETE FROM pending_registrations WHERE email = ?', [email]);
+      res.json(createAuthenticatedResponse(user));
+      sendWelcomeEmail(email, registration.name).catch((emailError) => console.error('Welcome email failed:', emailError.message));
+    });
+  });
+});
+
+app.post('/api/auth/login', authRateLimit, (req, res) => {
+  const email = req.body.email?.trim().toLowerCase();
+  const { password } = req.body;
+  const bcrypt = require('bcryptjs');
+  db.get('SELECT * FROM users WHERE email = ?', [email], async (error, user) => {
+    if (error || !user || !(await bcrypt.compare(password || '', user.password))) return res.status(401).json({ error: 'Invalid credentials' });
+    res.json(createAuthenticatedResponse(user));
+    sendLoginNotificationEmail(user.email, user.name).catch((emailError) => console.error('Login notification email failed:', emailError.message));
+  });
+});
 
 // Register user
 app.post('/api/auth/register', authRateLimit, async (req, res) => {
@@ -767,32 +954,16 @@ app.post('/api/auth/reset-password', authRateLimit, async (req, res) => {
 
 // Google OAuth
 app.post('/api/auth/google', authRateLimit, async (req, res) => {
-  const { credential } = req.body;
-  const { OAuth2Client } = require('google-auth-library');
-  const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-
-  if (!credential) {
-    return res.status(400).json({ error: 'Google credential is required' });
-  }
-  
   try {
-    const ticket = await client.verifyIdToken({
-      idToken: credential,
-      audience: process.env.GOOGLE_CLIENT_ID,
-    });
-    const payload = ticket.getPayload();
-    const { email, name, picture, email_verified: emailVerified } = payload;
-
-    if (!email || !emailVerified) {
-      return res.status(401).json({ error: 'Google account email is not verified' });
-    }
+    const payload = await verifyGoogleCredential(req.body.credential);
+    const { sub, email, name, picture } = payload;
     
     db.get('SELECT * FROM users WHERE email = ?', [email], async (err, user) => {
       if (err) {
         return res.status(500).json({ error: 'Could not find the Google user' });
       }
 
-      if (user) {
+      if (user?.is_verified) {
         const jwt = require('jsonwebtoken');
         const authToken = jwt.sign(
           { id: user.id, email: user.email },
@@ -803,28 +974,37 @@ app.post('/api/auth/google', authRateLimit, async (req, res) => {
         const authenticatedUser = { id: user.id, name: user.name, email: user.email, role: user.role, profilePicture: user.profilePicture, is_verified_seller: user.is_verified_seller || 0 };
         return res.json({ success: true, token: authToken, user: authenticatedUser, data: { user: authenticatedUser } });
       }
-      
-      const randomPassword = Math.random().toString(36).slice(-8);
+
+      const sendCode = async () => {
+        try {
+          await sendGoogleVerificationCode({ email, googleSub: sub });
+          res.status(202).json({
+            success: true,
+            verificationRequired: true,
+            message: 'A verification code was sent to your Google email address.'
+          });
+        } catch (error) {
+          console.error('Google verification email failed:', error.message);
+          res.status(503).json({ error: 'Unable to send the verification email. Please try again later.' });
+        }
+      };
+
+      if (user) {
+        return sendCode();
+      }
+
       const bcrypt = require('bcryptjs');
-      const hashedPassword = await bcrypt.hash(randomPassword, 10);
-      
+      const randomPassword = crypto.randomBytes(32).toString('base64url');
+      const hashedPassword = await bcrypt.hash(randomPassword, 12);
+
       db.run(`
         INSERT INTO users (name, email, password, is_verified, profilePicture)
-        VALUES (?, ?, ?, 1, ?)
-      `, [name, email, hashedPassword, picture || ''], function(err) {
-        if (err) {
-          return res.status(400).json({ error: err.message });
+        VALUES (?, ?, ?, 0, ?)
+      `, [name || email, email, hashedPassword, picture || ''], (insertError) => {
+        if (insertError) {
+          return res.status(400).json({ error: insertError.message });
         }
-        
-        const jwt = require('jsonwebtoken');
-        const authToken = jwt.sign(
-          { id: this.lastID, email: email },
-          process.env.JWT_SECRET,
-          { expiresIn: process.env.JWT_EXPIRE }
-        );
-        
-        const authenticatedUser = { id: this.lastID, name, email, role: 'buyer', profilePicture: picture || '', is_verified_seller: 0 };
-        res.json({ success: true, token: authToken, user: authenticatedUser, data: { user: authenticatedUser } });
+        sendCode();
       });
     });
   } catch (error) {
@@ -836,6 +1016,68 @@ app.post('/api/auth/google', authRateLimit, async (req, res) => {
         : 'Google credential is invalid or has expired',
       code: audienceMismatch ? 'GOOGLE_CLIENT_ID_MISMATCH' : 'GOOGLE_CREDENTIAL_INVALID'
     });
+  }
+});
+
+app.post('/api/auth/google/verify', authRateLimit, async (req, res) => {
+  const { code } = req.body;
+
+  if (!/^\d{6}$/.test(code || '')) {
+    return res.status(400).json({ error: 'Enter the six-digit verification code.' });
+  }
+
+  try {
+    const { sub, email } = await verifyGoogleCredential(req.body.credential);
+    db.get('SELECT * FROM google_verifications WHERE email = ?', [email], (error, verification) => {
+      if (error) return res.status(500).json({ error: 'Could not verify the registration code.' });
+      if (!verification || verification.google_sub !== sub || new Date(verification.expires_at) <= new Date()) {
+        return res.status(400).json({ error: 'Verification code is invalid or expired.' });
+      }
+      if (verification.attempts >= googleVerificationMaxAttempts) {
+        return res.status(429).json({ error: 'Too many incorrect codes. Request a new code.' });
+      }
+
+      const expectedHash = Buffer.from(verification.code_hash, 'hex');
+      const providedHash = Buffer.from(hashGoogleVerificationCode(code), 'hex');
+      if (!crypto.timingSafeEqual(expectedHash, providedHash)) {
+        db.run('UPDATE google_verifications SET attempts = attempts + 1 WHERE email = ?', [email]);
+        return res.status(400).json({ error: 'Verification code is invalid or expired.' });
+      }
+
+      db.run('UPDATE users SET is_verified = 1 WHERE email = ?', [email], (updateError) => {
+        if (updateError) return res.status(500).json({ error: 'Could not activate the account.' });
+        db.get('SELECT * FROM users WHERE email = ?', [email], (userError, user) => {
+          if (userError || !user) return res.status(500).json({ error: 'Could not load the account.' });
+          db.run('DELETE FROM google_verifications WHERE email = ?', [email]);
+          const jwt = require('jsonwebtoken');
+          const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRE });
+          const authenticatedUser = { id: user.id, name: user.name, email: user.email, role: user.role, profilePicture: user.profilePicture, is_verified_seller: user.is_verified_seller || 0 };
+          res.json({ success: true, token, user: authenticatedUser, data: { user: authenticatedUser } });
+        });
+      });
+    });
+  } catch (error) {
+    console.error('Google registration verification failed:', error.message);
+    res.status(error.statusCode || 401).json({ error: error.message || 'Google credential is invalid or has expired.' });
+  }
+});
+
+app.post('/api/auth/google/resend-verification', authRateLimit, async (req, res) => {
+  try {
+    const { sub, email } = await verifyGoogleCredential(req.body.credential);
+    db.get('SELECT id, is_verified FROM users WHERE email = ?', [email], async (error, user) => {
+      if (error) return res.status(500).json({ error: 'Could not find the Google user.' });
+      if (!user || user.is_verified) return res.status(400).json({ error: 'No pending Google registration was found.' });
+      try {
+        await sendGoogleVerificationCode({ email, googleSub: sub });
+        res.json({ success: true, message: 'A new verification code was sent.' });
+      } catch (sendError) {
+        console.error('Google verification resend failed:', sendError.message);
+        res.status(503).json({ error: 'Unable to send the verification email. Please try again later.' });
+      }
+    });
+  } catch (error) {
+    res.status(error.statusCode || 401).json({ error: error.message || 'Google credential is invalid or has expired.' });
   }
 });
 

@@ -37,8 +37,7 @@ api.interceptors.response.use(
 );
 
 // ==================== AUTH APIs ====================
-export const register = (userData) => api.post('/auth/register', userData);
-export const login = (credentials) => api.post('/auth/login', credentials);
+// Authentication requests are managed by AuthContext.
 export const getMe = () => api.get('/auth/me');
 
 // ==================== PRODUCT APIs ====================
@@ -116,19 +115,5 @@ export const checkFavorite = (itemId, itemType) => api.get(`/favorites/check/${i
 
 // ==================== USER PROFILE APIs ====================
 export const updateProfile = (userData) => api.patch('/users/update-me', userData);
-export const updatePassword = (passwordData) => api.patch('/users/update-password', passwordData);
-
-
-
-
-// ==================== ADVANCED AUTH APIs ====================
-
-export const verifyEmail = (email, code) =>
-  api.post('/auth/verify-email', {
-    email,
-    code
-  });
-
-
 
 export default api;
