@@ -72,13 +72,17 @@ const Footer = () => {
                     className="footer-logo-img"
                   />
                 </div>
-                <span className="footer-logo-name">
+                <span className="footer-logo-name" aria-label="rifKANDO">
                   rif<span className="footer-logo-accent">KANDO</span>
                 </span>
               </div>
+              <p className="footer-kicker">ONE PLACE. MANY POSSIBILITIES.</p>
               <p className="footer-description">
                 Morocco's first multi-service platform. Buy products, take courses, hire professionals, all in one place.
               </p>
+              <div className="footer-promise" aria-label="What you can do on rifKANDO">
+                <span>Shop</span><span>Learn</span><span>Hire</span><span>Book</span>
+              </div>
               {/* Social Icons - Added for mobile */}
               <div className="footer-social">
                 <a href="#" target="_blank" rel="noopener noreferrer" className="social-icon" aria-label="WhatsApp">
@@ -118,7 +122,8 @@ const Footer = () => {
 
           {/* Bottom */}
           <div className="footer-bottom">
-            <p>&copy; {currentYear} rifKANDO. All rights reserved.</p>
+            <p>&copy; {currentYear} <span className="footer-bottom-brand">rif<span>KANDO</span></span>. All rights reserved.</p>
+            <button type="button" className="footer-top-link" onClick={scrollToTop}>Back to top ↑</button>
           </div>
         </div>
       </footer>
@@ -132,29 +137,42 @@ const Footer = () => {
 
       <style>{`
         .footer {
-          background: rgba(129, 129, 132, 0.92);
-          backdrop-filter: blur(12px);
-          -webkit-backdrop-filter: blur(12px);
+          position: relative;
+          overflow: hidden;
+          isolation: isolate;
+          background: #090d16;
           color: var(--color-gray-400);
-          padding: 2rem 0 1rem;
+          padding: 4.5rem 0 1.25rem;
           margin-top: auto;
-          border-top: 1px solid rgba(255, 255, 255, 0.06);
+          border-top: 1px solid rgba(135, 206, 235, 0.28);
           transition: all 0.3s ease;
         }
 
+        .footer::before {
+          content: '';
+          position: absolute;
+          z-index: -1;
+          inset: 0;
+          background:
+            radial-gradient(circle at 9% 9%, rgba(135, 206, 235, 0.22), transparent 25rem),
+            radial-gradient(circle at 92% 78%, rgba(59, 130, 246, 0.18), transparent 25rem),
+            linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px),
+            linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px);
+          background-size: auto, auto, 34px 34px, 34px 34px;
+          pointer-events: none;
+        }
+
         .footer.footer-visible {
-          background: rgba(66, 66, 67, 0.92);
-          backdrop-filter: blur(16px);
-          -webkit-backdrop-filter: blur(16px);
-          border-top-color: rgba(255, 255, 255, 0.1);
+          background: #070a11;
+          border-top-color: rgba(135, 206, 235, 0.45);
         }
 
         @media (prefers-color-scheme: light) {
           .footer {
-            background: rgba(20, 20, 25, 0.88);
+          background: #090d16;
           }
           .footer.footer-visible {
-            background: rgba(15, 15, 20, 0.94);
+          background: #070a11;
           }
         }
 
@@ -182,10 +200,42 @@ const Footer = () => {
         }
 
         .footer-logo {
+          position: relative;
+          overflow: hidden;
           display: flex;
           align-items: center;
           gap: 0.75rem;
-          margin-bottom: 1rem;
+          width: fit-content;
+          padding: 0.6rem 1rem 0.6rem 0.6rem;
+          margin-bottom: 1.1rem;
+          border: 1px solid rgba(255, 255, 255, 0.64);
+          border-radius: 18px;
+          background: linear-gradient(135deg, rgba(255,255,255,0.98), rgba(225,246,255,0.92));
+          box-shadow: 0 14px 32px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255,255,255,0.92);
+          transition: transform 180ms ease, box-shadow 180ms ease;
+        }
+
+        .footer-logo::before {
+          content: '';
+          position: absolute;
+          top: -90%;
+          right: -16%;
+          width: 78%;
+          height: 220%;
+          border-radius: 50%;
+          background: rgba(255,255,255,0.46);
+          transform: rotate(24deg);
+          pointer-events: none;
+        }
+
+        .footer-logo:hover {
+          transform: translateY(-3px) rotate(-1deg);
+          box-shadow: 0 20px 42px rgba(0, 0, 0, 0.32), inset 0 1px 0 rgba(255,255,255,0.95);
+        }
+
+        .footer-logo > * {
+          position: relative;
+          z-index: 1;
         }
 
         .footer-logo-icon {
@@ -204,13 +254,19 @@ const Footer = () => {
 
         .footer-logo-name {
           font-size: 1.5rem;
-          font-weight: 700;
-          color: white;
-          letter-spacing: -0.5px;
+          font-weight: 800;
+          color: #111827;
+          letter-spacing: -0.055em;
         }
 
-        .footer-logo-accent {
+        .footer-logo-accent { color: var(--color-primary); }
+
+        .footer-kicker {
+          margin: 0 0 0.65rem;
           color: var(--color-primary);
+          font-size: 0.66rem;
+          font-weight: 800;
+          letter-spacing: 0.14em;
         }
 
         .footer-description {
@@ -219,6 +275,23 @@ const Footer = () => {
           max-width: 250px;
           color: rgba(255, 255, 255, 0.6);
           margin-bottom: 1rem;
+        }
+
+        .footer-promise {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.45rem;
+          margin: 1.1rem 0 1.25rem;
+        }
+
+        .footer-promise span {
+          padding: 0.38rem 0.65rem;
+          border: 1px solid rgba(135, 206, 235, 0.28);
+          border-radius: 999px;
+          background: rgba(135, 206, 235, 0.08);
+          color: rgba(255, 255, 255, 0.84);
+          font-size: 0.72rem;
+          font-weight: 600;
         }
 
         .footer-social {
@@ -253,10 +326,10 @@ const Footer = () => {
 
         .footer-section-title {
           color: white;
-          font-weight: 600;
+          font-weight: 700;
           margin-bottom: 1rem;
           font-size: 1rem;
-          letter-spacing: -0.3px;
+          letter-spacing: -0.02em;
         }
 
         .footer-links {
@@ -293,21 +366,38 @@ const Footer = () => {
           }
           .footer-bottom {
             font-size: 0.7rem;
+            align-items: flex-start;
+            grid-template-columns: 1fr;
+            justify-items: center;
+          }
+          .footer-bottom p,
+          .footer-top-link {
+            grid-column: 1;
+            justify-self: center;
           }
         }
 
         .footer-link:hover {
-          color: var(--color-primary);
+          color: #ffffff;
           transform: translateX(4px);
         }
 
         .footer-bottom {
           border-top: 1px solid rgba(255, 255, 255, 0.06);
           padding-top: 1.5rem;
-          text-align: center;
+          display: grid;
+          grid-template-columns: 1fr auto 1fr;
+          align-items: center;
+          gap: 1rem;
           font-size: 0.8rem;
           color: rgba(255, 255, 255, 0.4);
         }
+
+        .footer-bottom p { grid-column: 2; margin: 0; text-align: center; }
+        .footer-bottom-brand { color: rgba(255,255,255,0.86); font-weight: 700; }
+        .footer-bottom-brand span { color: var(--color-primary); }
+        .footer-top-link { grid-column: 3; justify-self: end; border: 0; padding: 0; background: transparent; color: var(--color-primary); font: inherit; cursor: pointer; }
+        .footer-top-link:hover { color: #ffffff; }
 
         .footer-visible .footer-bottom {
           border-top-color: rgba(255, 255, 255, 0.1);

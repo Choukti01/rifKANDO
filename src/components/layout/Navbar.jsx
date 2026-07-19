@@ -1,15 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { MagnifyingGlassIcon, ShoppingBagIcon, HeartIcon, UserIcon, Bars3Icon, XMarkIcon, ChevronDownIcon, ChatBubbleLeftIcon } from '@heroicons/react/24/outline';
+import { MagnifyingGlassIcon, ShoppingBagIcon, HeartIcon, UserIcon, Bars3Icon, XMarkIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../../contexts/AuthContext';
-import api from '../../services/api';
 import LanguageSwitcher from '../LanguageSwitcher';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [unreadCount, setUnreadCount] = useState(0);
   const [scrolled, setScrolled] = useState(false);
   const navigate = useNavigate();
   const { user, logout, isAuthenticated } = useAuth();
@@ -50,23 +48,6 @@ const Navbar = () => {
       navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
       setSearchQuery('');
       setIsMenuOpen(false);
-    }
-  };
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      fetchUnreadCount();
-      const interval = setInterval(fetchUnreadCount, 30000);
-      return () => clearInterval(interval);
-    }
-  }, [isAuthenticated]);
-
-  const fetchUnreadCount = async () => {
-    try {
-      const response = await api.get('/messages/unread-count');
-      setUnreadCount(response.data.count);
-    } catch (error) {
-      console.error('Error fetching unread count:', error);
     }
   };
 
@@ -124,11 +105,6 @@ const Navbar = () => {
             <div className="nav-icons">
               <Link to="/favorites" className="nav-icon"><HeartIcon className="icon" /></Link>
               <Link to="/cart" className="nav-icon"><ShoppingBagIcon className="icon" /></Link>
-              <Link to="/messages" className="nav-icon">
-                <ChatBubbleLeftIcon className="icon" />
-                {unreadCount > 0 && <span className="unread-badge-nav">{unreadCount}</span>}
-              </Link>
-
               {/* Language Switcher (now only EN/AR) */}
               <LanguageSwitcher />
 
@@ -453,20 +429,6 @@ const Navbar = () => {
         .icon {
           width: 1.25rem;
           height: 1.25rem;
-        }
-
-        .unread-badge-nav {
-          position: absolute;
-          top: -8px;
-          right: -8px;
-          background: #ef4444;
-          color: white;
-          font-size: 0.6rem;
-          font-weight: bold;
-          padding: 0.125rem 0.375rem;
-          border-radius: 1rem;
-          min-width: 16px;
-          text-align: center;
         }
 
         .user-name {

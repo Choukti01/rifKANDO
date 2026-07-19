@@ -8,10 +8,12 @@ import {
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../../../contexts/AuthContext';
 import { getImageUrl } from '../../../utils/imageUtils';
+import api from '../../../services/api';
 
 const DashboardLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
@@ -20,6 +22,16 @@ const DashboardLayout = () => {
   useEffect(() => {
     setIsMobileMenuOpen(false);
   }, [location.pathname]);
+
+  useEffect(() => {
+    if (!isMobileMenuOpen) return undefined;
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isMobileMenuOpen]);
 
   // Auto‑close mobile menu when resizing to desktop
   useEffect(() => {
@@ -33,6 +45,21 @@ const DashboardLayout = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  useEffect(() => {
+    const fetchUnreadCount = async () => {
+      try {
+        const response = await api.get('/messages/unread-count');
+        setUnreadCount(response.data.count || 0);
+      } catch (error) {
+        console.error('Error fetching unread messages:', error);
+      }
+    };
+
+    fetchUnreadCount();
+    const interval = setInterval(fetchUnreadCount, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
   const navItems = [
     { name: 'Overview', icon: HomeIcon, path: 'overview' },
     { name: 'Products', icon: ShoppingBagIcon, path: 'products' },
@@ -41,17 +68,24 @@ const DashboardLayout = () => {
     { name: 'Digital', icon: ComputerDesktopIcon, path: 'digital' },
     { name: 'Bookings', icon: CalendarIcon, path: 'bookings' },
     { name: 'Offers', icon: ChatBubbleLeftRightIcon, path: 'offers' },
+    { name: 'Messages', icon: ChatBubbleLeftRightIcon, path: 'messages', unreadCount },
     { name: 'Wallet', icon: CurrencyDollarIcon, path: 'wallet' },
     { name: 'Verification', icon: ShieldCheckIcon, path: 'verification' },
     { name: 'Settings', icon: Cog6ToothIcon, path: 'settings' },
   ];
+  const activeSection = navItems.find(({ path }) =>
+    location.pathname.startsWith(`/seller/dashboard/${path}`)
+  )?.name || 'Seller workspace';
 
   const handleLogout = () => {
     logout();
     navigate('/');
   };
 
-  const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
+  const toggleMobileMenu = () => {
+    setIsSidebarOpen(true);
+    setIsMobileMenuOpen((isOpen) => !isOpen);
+  };
   const closeMobileMenu = () => setIsMobileMenuOpen(false);
 
   return (
@@ -61,7 +95,10 @@ const DashboardLayout = () => {
         <button className="mobile-menu-btn" onClick={toggleMobileMenu}>
           <Bars3Icon className="icon" />
         </button>
-        <h1>Dashboard</h1>
+        <div className="mobile-dashboard-title">
+          <span>Seller dashboard</span>
+          <h1>{activeSection}</h1>
+        </div>
         <div className="placeholder" />
       </div>
 
@@ -116,6 +153,7 @@ const DashboardLayout = () => {
               >
                 <Icon className="sidebar-nav-icon" />
                 {isSidebarOpen && <span>{item.name}</span>}
+                {item.unreadCount > 0 && <span className="sidebar-unread-badge">{item.unreadCount}</span>}
               </NavLink>
             );
           })}
@@ -131,9 +169,6 @@ const DashboardLayout = () => {
 
       {/* Main Content */}
       <main className={`dashboard-main ${isSidebarOpen ? 'with-sidebar' : 'without-sidebar'}`}>
-        <div className="dashboard-header desktop-only">
-          <h1>Dashboard</h1>
-        </div>
         <div className="dashboard-content">
           <Outlet />
         </div>
@@ -141,10 +176,11 @@ const DashboardLayout = () => {
 
       <style>{`
         .dashboard-container {
-          min-height: calc(100vh - 80px);
-          background: #f9fafb;
-          display: flex;
+          min-height: calc(100dvh - 80px);
+          background: #f6f8fb;
+          display: block;
           position: relative;
+          isolation: isolate;
         }
 
         /* Mobile header (visible only on small screens) */
@@ -154,20 +190,37 @@ const DashboardLayout = () => {
           top: 80px;
           left: 0;
           right: 0;
-          background: white;
-          padding: 0.75rem 1rem;
-          border-bottom: 1px solid #e5e7eb;
+          min-height: 64px;
+          background: rgba(255, 255, 255, 0.94);
+          backdrop-filter: blur(14px);
+          -webkit-backdrop-filter: blur(14px);
+          padding: 0.6rem 1rem;
+          border-bottom: 1px solid rgba(17, 24, 39, 0.08);
           align-items: center;
           justify-content: space-between;
           z-index: 45;
         }
         .mobile-dashboard-header h1 {
-          font-size: 1.25rem;
+          font-size: 1rem;
+          font-weight: 800;
+          letter-spacing: -0.02em;
           margin: 0;
         }
+        .mobile-dashboard-title span {
+          display: block;
+          margin-bottom: 0.1rem;
+          color: #6b7280;
+          font-size: 0.65rem;
+          font-weight: 700;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+        }
         .mobile-menu-btn {
-          background: none;
-          border: none;
+          width: 40px;
+          height: 40px;
+          background: #ffffff;
+          border: 1px solid #e5e7eb;
+          border-radius: 12px;
           cursor: pointer;
           padding: 0.5rem;
           display: flex;
@@ -186,12 +239,12 @@ const DashboardLayout = () => {
         /* Overlay for mobile */
         .mobile-overlay {
           position: fixed;
-          top: 0;
+          top: 80px;
           left: 0;
           width: 100%;
-          height: 100%;
+          height: calc(100dvh - 80px);
           background: rgba(0, 0, 0, 0.5);
-          z-index: 39;
+          z-index: 50;
           opacity: 0;
           visibility: hidden;
           transition: opacity 0.3s ease, visibility 0.3s ease;
@@ -205,10 +258,11 @@ const DashboardLayout = () => {
         .dashboard-sidebar {
           position: fixed;
           top: 80px;
-          left: 0;
-          height: calc(100vh - 80px);
+          bottom: 0;
+          height: auto;
           background: white;
-          box-shadow: 1px 0 3px rgba(0,0,0,0.05);
+          border-right: 1px solid #e5e7eb;
+          box-shadow: 10px 0 28px rgba(15, 23, 42, 0.035);
           transition: width 0.3s ease, transform 0.3s ease;
           z-index: 40;
           display: flex;
@@ -225,11 +279,16 @@ const DashboardLayout = () => {
         /* Mobile sidebar behaviour */
         @media (max-width: 768px) {
           .dashboard-sidebar {
-            top: 128px; /* below mobile header */
+            top: 80px;
+            bottom: 0;
+            position: fixed;
             transform: translateX(-100%);
             width: 280px !important;
-            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
-            height: calc(100vh - 128px);
+            border-radius: 0 18px 18px 0;
+            border-right: 0;
+            box-shadow: 14px 0 38px rgba(15, 23, 42, 0.22);
+            height: auto;
+            z-index: 60;
           }
           .dashboard-sidebar.mobile-open {
             transform: translateX(0);
@@ -243,9 +302,14 @@ const DashboardLayout = () => {
           .dashboard-header.desktop-only {
             display: none;
           }
+          .dashboard-container {
+            display: block;
+            min-height: calc(100dvh - 80px);
+            padding-top: 64px;
+          }
           .dashboard-main {
             margin-left: 0 !important;
-            padding-top: 60px; /* space for mobile header */
+            padding: 1rem;
           }
           .sidebar-toggle {
             display: none;
@@ -271,7 +335,8 @@ const DashboardLayout = () => {
         }
 
         .sidebar-header {
-          padding: 1.25rem;
+          min-height: 68px;
+          padding: 0.9rem 1rem;
           border-bottom: 1px solid #e5e7eb;
           display: flex;
           justify-content: flex-end;
@@ -279,14 +344,17 @@ const DashboardLayout = () => {
           flex-shrink: 0;
         }
         .sidebar-toggle {
-          background: none;
-          border: none;
+          width: 36px;
+          height: 36px;
+          border: 1px solid #e5e7eb;
+          border-radius: 10px;
+          background: #ffffff;
           cursor: pointer;
           font-size: 1rem;
           color: #6b7280;
         }
         .sidebar-user {
-          padding: 1.25rem;
+          padding: 1rem;
           border-bottom: 1px solid #e5e7eb;
           display: flex;
           align-items: center;
@@ -321,7 +389,7 @@ const DashboardLayout = () => {
         }
         .sidebar-nav {
           flex: 1;
-          padding: 1rem;
+          padding: 0.85rem;
           display: flex;
           flex-direction: column;
           gap: 0.25rem;
@@ -348,7 +416,7 @@ const DashboardLayout = () => {
           align-items: center;
           gap: 0.75rem;
           padding: 0.75rem;
-          border-radius: 0.5rem;
+          border-radius: 0.75rem;
           color: #4b5563;
           text-decoration: none;
           transition: all 0.2s;
@@ -360,6 +428,17 @@ const DashboardLayout = () => {
         .sidebar-nav-link.active {
           background: #87CEEB;
           color: #1a1a1a;
+        }
+        .sidebar-unread-badge {
+          margin-left: auto;
+          min-width: 1.25rem;
+          padding: 0.1rem 0.35rem;
+          border-radius: 999px;
+          background: #ef4444;
+          color: white;
+          font-size: 0.65rem;
+          font-weight: 700;
+          text-align: center;
         }
         .sidebar-nav-icon {
           width: 1.25rem;
@@ -387,11 +466,19 @@ const DashboardLayout = () => {
         .sidebar-logout:hover {
           background: #fee2e2;
         }
+        .dashboard-sidebar.closed .sidebar-user,
+        .dashboard-sidebar.closed .sidebar-nav-link,
+        .dashboard-sidebar.closed .sidebar-logout {
+          justify-content: center;
+        }
+        .dashboard-sidebar.closed .sidebar-unread-badge {
+          display: none;
+        }
         .dashboard-main {
-          flex: 1;
-          transition: margin-left 0.3s ease;
-          padding: 1.5rem;
+          min-height: calc(100dvh - 80px);
           min-width: 0;
+          padding: 1.5rem clamp(1rem, 2.5vw, 2rem) 2.5rem;
+          transition: margin-left 0.3s ease;
         }
         .dashboard-main.with-sidebar {
           margin-left: 280px;
@@ -399,20 +486,14 @@ const DashboardLayout = () => {
         .dashboard-main.without-sidebar {
           margin-left: 80px;
         }
-        .dashboard-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 1.5rem;
-        }
-        .dashboard-header h1 {
-          font-size: 1.5rem;
-          margin-bottom: 0;
-        }
         @media (max-width: 768px) {
           .dashboard-main.with-sidebar,
           .dashboard-main.without-sidebar {
             margin-left: 0;
+          }
+          .dashboard-main {
+            min-height: calc(100dvh - 144px);
+            padding: 1rem;
           }
         }
       `}</style>
