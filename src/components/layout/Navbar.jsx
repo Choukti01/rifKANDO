@@ -702,14 +702,18 @@ const Navbar = () => {
         /* Keep the compact navigation as the same light glass surface as desktop. */
         @media (max-width: 767px) {
           .navbar {
-            --glass-bg: rgba(255, 255, 255, 0.74);
-            --glass-bg-scrolled: rgba(255, 255, 255, 0.88);
-            --glass-border: rgba(255, 255, 255, 0.62);
+            --glass-bg: rgba(255, 255, 255, 0.32);
+            --glass-bg-scrolled: rgba(255, 255, 255, 0.48);
+            --glass-border: rgba(255, 255, 255, 0.52);
             padding: 0.6rem 0;
-            box-shadow: 0 6px 24px rgba(15, 23, 42, 0.06);
+            backdrop-filter: blur(18px) saturate(160%);
+            -webkit-backdrop-filter: blur(18px) saturate(160%);
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.045);
           }
           .navbar.navbar-scrolled {
-            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.1);
+            backdrop-filter: blur(22px) saturate(165%);
+            -webkit-backdrop-filter: blur(22px) saturate(165%);
+            box-shadow: 0 10px 28px rgba(15, 23, 42, 0.07);
           }
           .navbar .brand-name {
             color: #111827;
@@ -725,15 +729,15 @@ const Navbar = () => {
           }
           .mobile-menu {
             top: 60px;
-            background: rgba(255, 255, 255, 0.78);
-            backdrop-filter: blur(24px) saturate(150%);
-            -webkit-backdrop-filter: blur(24px) saturate(150%);
-            border-top: 1px solid rgba(255, 255, 255, 0.72);
-            border-bottom: 1px solid rgba(17, 24, 39, 0.08);
-            box-shadow: 0 18px 38px rgba(15, 23, 42, 0.12);
+            background: rgba(255, 255, 255, 0.46);
+            backdrop-filter: blur(22px) saturate(155%);
+            -webkit-backdrop-filter: blur(22px) saturate(155%);
+            border-top: 1px solid rgba(255, 255, 255, 0.58);
+            border-bottom: 1px solid rgba(17, 24, 39, 0.07);
+            box-shadow: 0 18px 38px rgba(15, 23, 42, 0.08);
           }
           .mobile-search-input {
-            background: rgba(255, 255, 255, 0.62);
+            background: rgba(255, 255, 255, 0.42);
             border-color: rgba(17, 24, 39, 0.1);
           }
         }
