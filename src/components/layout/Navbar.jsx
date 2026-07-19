@@ -698,6 +698,45 @@ const Navbar = () => {
             font-size: 0.85rem;
           }
         }
+
+        /* Keep the compact navigation as the same light glass surface as desktop. */
+        @media (max-width: 767px) {
+          .navbar {
+            --glass-bg: rgba(255, 255, 255, 0.74);
+            --glass-bg-scrolled: rgba(255, 255, 255, 0.88);
+            --glass-border: rgba(255, 255, 255, 0.62);
+            padding: 0.6rem 0;
+            box-shadow: 0 6px 24px rgba(15, 23, 42, 0.06);
+          }
+          .navbar.navbar-scrolled {
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.1);
+          }
+          .navbar .brand-name {
+            color: #111827;
+            font-weight: 800;
+            letter-spacing: -0.055em;
+          }
+          .navbar .brand-accent {
+            color: var(--color-primary);
+          }
+          .navbar .nav-icon,
+          .navbar .mobile-menu-btn {
+            color: #374151;
+          }
+          .mobile-menu {
+            top: 60px;
+            background: rgba(255, 255, 255, 0.78);
+            backdrop-filter: blur(24px) saturate(150%);
+            -webkit-backdrop-filter: blur(24px) saturate(150%);
+            border-top: 1px solid rgba(255, 255, 255, 0.72);
+            border-bottom: 1px solid rgba(17, 24, 39, 0.08);
+            box-shadow: 0 18px 38px rgba(15, 23, 42, 0.12);
+          }
+          .mobile-search-input {
+            background: rgba(255, 255, 255, 0.62);
+            border-color: rgba(17, 24, 39, 0.1);
+          }
+        }
       `}</style>
     </>
   );
