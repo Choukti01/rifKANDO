@@ -208,10 +208,12 @@ const Footer = () => {
           width: fit-content;
           padding: 0.6rem 1rem 0.6rem 0.6rem;
           margin-bottom: 1.1rem;
-          border: 1px solid rgba(255, 255, 255, 0.64);
+          border: 1px solid rgba(255, 255, 255, 0.62);
           border-radius: 18px;
-          background: linear-gradient(135deg, rgba(255,255,255,0.98), rgba(225,246,255,0.92));
-          box-shadow: 0 14px 32px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255,255,255,0.92);
+          background: linear-gradient(135deg, rgba(255,255,255,0.72), rgba(220,243,255,0.45));
+          backdrop-filter: blur(20px) saturate(160%);
+          -webkit-backdrop-filter: blur(20px) saturate(160%);
+          box-shadow: 0 14px 32px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255,255,255,0.72);
           transition: transform 180ms ease, box-shadow 180ms ease;
         }
 
@@ -223,14 +225,14 @@ const Footer = () => {
           width: 78%;
           height: 220%;
           border-radius: 50%;
-          background: rgba(255,255,255,0.46);
+          background: rgba(255,255,255,0.28);
           transform: rotate(24deg);
           pointer-events: none;
         }
 
         .footer-logo:hover {
           transform: translateY(-3px) rotate(-1deg);
-          box-shadow: 0 20px 42px rgba(0, 0, 0, 0.32), inset 0 1px 0 rgba(255,255,255,0.95);
+          box-shadow: 0 20px 42px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255,255,255,0.84);
         }
 
         .footer-logo > * {
