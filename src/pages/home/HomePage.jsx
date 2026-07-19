@@ -147,7 +147,7 @@ const HomePage = () => {
         <div className="container">
           <div className="hero-content">
             <h1 className="hero-title">
-              Welcome to <span className="text-primary">rifKANDO</span>
+              Welcome to <span className="brand-wordmark brand-wordmark--hero">rif<span>KANDO</span></span>
             </h1>
             <p className="hero-description">
               Morocco's first multi-service platform. Shop products, take courses, hire professionals, all in one place.
@@ -301,6 +301,9 @@ const HomePage = () => {
         .hero-section { background: linear-gradient(135deg, rgba(135,206,235,0.08) 0%, #ffffff 100%); padding: 5rem 0; }
         .hero-content { text-align: center; max-width: 800px; margin: 0 auto; }
         .hero-title { font-size: 3rem; font-weight: 800; margin-bottom: 1rem; }
+        .brand-wordmark { color: #111827; letter-spacing: -0.055em; white-space: nowrap; }
+        .brand-wordmark span { color: var(--color-primary); }
+        .brand-wordmark--hero { display: inline-block; }
         @media (min-width: 768px) { .hero-title { font-size: 3.5rem; } }
         .hero-description { font-size: 1.125rem; color: #4b5563; margin-bottom: 2rem; }
         .hero-buttons { display: flex; gap: 1rem; justify-content: center; }

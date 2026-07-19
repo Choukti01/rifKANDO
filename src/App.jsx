@@ -110,17 +110,6 @@ function App() {
                   <Route path="/booking/:id" element={<BookingDetailsPage />} />
                   <Route path="/search" element={<SearchPage />} />
 
-                  <Route path="/messages/:userId" element={
-                    <ProtectedRoute>
-                      <ChatPage />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/messages" element={
-                    <ProtectedRoute>
-                      <MessagesInbox />
-                    </ProtectedRoute>
-                  } />
-
                   <Route path="/admin" element={
                     <ProtectedRoute requiredRole="admin">
                       <AdminDashboard />
@@ -224,6 +213,8 @@ function App() {
                     <Route path="wallet" element={<Wallet />} />
                     <Route path="orders" element={<SellerOrders />} />
                     <Route path="offers" element={<SellerOffers />} />
+                    <Route path="messages" element={<MessagesInbox />} />
+                    <Route path="messages/:userId" element={<ChatPage />} />
                     <Route path="verification" element={<VerificationUpload />} />
                   </Route>
                 </Routes>

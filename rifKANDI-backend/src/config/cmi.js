@@ -12,6 +12,10 @@ module.exports = {
   failUrl: `${process.env.BACKEND_URL}/api/payment/fail`,
   callbackURL: `${process.env.BACKEND_URL}/api/payment/callback`,
   
+
+
+
+
   // Test mode (set to false for production)
   testMode: process.env.NODE_ENV !== 'production',
   

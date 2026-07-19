@@ -54,14 +54,14 @@ const MessagesInbox = () => {
         <div className="empty-state">
           <div className="empty-icon">💬</div>
           <p>No messages yet</p>
-          <small>When you chat with sellers, conversations will appear here</small>
+          <small>Customer conversations will appear here</small>
         </div>
       ) : (
         <div className="conversations-list">
           {conversations.map(conv => (
             <Link
               key={conv.other_user_id}
-              to={`/messages/${conv.other_user_id}`}
+              to={`${conv.other_user_id}`}
               state={{ product_id: conv.product_id }}
               className="conversation-item"
             >
