@@ -11,6 +11,16 @@ html {
   scroll-behavior: smooth;
 }
 
+html[dir='rtl'] body {
+  direction: rtl;
+}
+
+html[dir='rtl'] input,
+html[dir='rtl'] textarea,
+html[dir='rtl'] select {
+  text-align: right;
+}
+
 body {
   font-family: var(--font-family);
   font-size: var(--font-base);
