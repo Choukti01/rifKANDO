@@ -5,8 +5,10 @@ import { getProducts, getCourses, getServices, getDigitalProducts, getBookings }
 import toast from 'react-hot-toast';
 import MediaGallery from '../../components/MediaGallery';
 import { getImageUrl } from '../../utils/imageUtils';
+import { useTranslation } from 'react-i18next';
 
 const HomePage = () => {
+  const { t } = useTranslation();
   const [featuredItems, setFeaturedItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [galleryItem, setGalleryItem] = useState(null);
@@ -92,11 +94,11 @@ const HomePage = () => {
   };
 
   const categories = [
-    { name: 'Products', icon: ShoppingBagIcon, path: '/products', color: '#3B82F6', count: stats.productsCount },
-    { name: 'Courses', icon: AcademicCapIcon, path: '/courses', color: '#10B981', count: stats.coursesCount },
-    { name: 'Services', icon: WrenchScrewdriverIcon, path: '/services', color: '#8B5CF6', count: stats.servicesCount },
-    { name: 'Digital', icon: ComputerDesktopIcon, path: '/digital', color: '#F59E0B', count: stats.digitalCount },
-    { name: 'Bookings', icon: CalendarIcon, path: '/bookings', color: '#EF4444', count: stats.bookingsCount },
+    { name: t('nav.products'), icon: ShoppingBagIcon, path: '/products', color: '#3B82F6', count: stats.productsCount },
+    { name: t('nav.courses'), icon: AcademicCapIcon, path: '/courses', color: '#10B981', count: stats.coursesCount },
+    { name: t('nav.services'), icon: WrenchScrewdriverIcon, path: '/services', color: '#8B5CF6', count: stats.servicesCount },
+    { name: t('nav.digital'), icon: ComputerDesktopIcon, path: '/digital', color: '#F59E0B', count: stats.digitalCount },
+    { name: t('nav.bookings'), icon: CalendarIcon, path: '/bookings', color: '#EF4444', count: stats.bookingsCount },
   ];
 
   const getItemUrl = (item) => {
@@ -147,17 +149,17 @@ const HomePage = () => {
         <div className="container">
           <div className="hero-content">
             <h1 className="hero-title">
-              Welcome to <span className="brand-wordmark brand-wordmark--hero">rif<span>KANDO</span></span>
+              {t('home.welcome')} <span className="brand-wordmark brand-wordmark--hero">rif<span>KANDO</span></span>
             </h1>
             <p className="hero-description">
-              Morocco's first multi-service platform. Shop products, take courses, hire professionals, all in one place.
+              {t('home.description')}
             </p>
             <div className="hero-buttons">
               <Link to="/products">
-                <button className="btn btn-primary btn-large">Start Shopping</button>
+                <button className="btn btn-primary btn-large">{t('home.startShopping')}</button>
               </Link>
               <Link to="/choose-seller-type">
-                <button className="btn btn-outline btn-large">Become a Seller</button>
+                <button className="btn btn-outline btn-large">{t('home.becomeSeller')}</button>
               </Link>
             </div>
           </div>
@@ -168,7 +170,7 @@ const HomePage = () => {
       <section className="section">
         <div className="container">
           <h2 className="section-title">
-            Explore <span>Categories</span>
+            {t('home.explore')} <span>{t('home.categories')}</span>
           </h2>
           <div className="categories-grid">
             {categories.map((cat) => {
@@ -191,9 +193,9 @@ const HomePage = () => {
       <section className="section bg-gray-50">
         <div className="container">
           <div className="featured-header">
-            <h2 className="featured-title">Featured Items</h2>
+            <h2 className="featured-title">{t('home.featured')}</h2>
             <Link to="/products" className="view-all-link">
-              View All <ArrowRightIcon className="view-all-icon" />
+              {t('home.viewAll')} <ArrowRightIcon className="view-all-icon" />
             </Link>
           </div>
           <div className="featured-grid">
@@ -276,10 +278,10 @@ const HomePage = () => {
       {/* CTA Section */}
       <section className="cta-section">
         <div className="container text-center">
-          <h2 className="cta-title">Ready to start selling?</h2>
-          <p className="cta-description">Join thousands of sellers on rifKANDO</p>
+          <h2 className="cta-title">{t('home.ready')}</h2>
+          <p className="cta-description">{t('home.join')}</p>
           <Link to="/choose-seller-type">
-            <button className="cta-button">Become a Seller</button>
+            <button className="cta-button">{t('home.becomeSeller')}</button>
           </Link>
         </div>
       </section>

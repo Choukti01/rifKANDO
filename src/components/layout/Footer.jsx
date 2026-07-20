@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 
 const Footer = () => {
   const currentYear = new Date().getFullYear()
+  const { t } = useTranslation()
   const [scrolled, setScrolled] = useState(false)
   const [showBackToTop, setShowBackToTop] = useState(false)
 
@@ -29,30 +31,30 @@ const Footer = () => {
 
   const sections = [
     {
-      title: 'Marketplace',
+      title: t('footer.marketplace'),
       links: [
-        { name: 'Products', path: '/products' },
-        { name: 'Courses', path: '/courses' },
-        { name: 'Services', path: '/services' },
-        { name: 'Digital', path: '/digital' },
-        { name: 'Bookings', path: '/bookings' },
+        { name: t('nav.products'), path: '/products' },
+        { name: t('nav.courses'), path: '/courses' },
+        { name: t('nav.services'), path: '/services' },
+        { name: t('nav.digital'), path: '/digital' },
+        { name: t('nav.bookings'), path: '/bookings' },
       ]
     },
     {
-      title: 'For Sellers',
+      title: t('footer.sellers'),
       links: [
-        { name: 'Start Selling', path: '/choose-seller-type' },
-        { name: 'Seller Guidelines', path: '/seller-guidelines' },
-        { name: 'Pricing', path: '/pricing' },
+        { name: t('footer.startSelling'), path: '/choose-seller-type' },
+        { name: t('footer.sellerGuidelines'), path: '/seller-guidelines' },
+        { name: t('footer.pricing'), path: '/pricing' },
       ]
     },
     {
-      title: 'Support',
+      title: t('footer.support'),
       links: [
-        { name: 'Help Center', path: '/help' },
-        { name: 'Contact Us', path: '/contact' },
-        { name: 'Terms of Service', path: '/terms' },
-        { name: 'Privacy Policy', path: '/privacy' },
+        { name: t('footer.helpCenter'), path: '/help' },
+        { name: t('footer.contactUs'), path: '/contact' },
+        { name: t('footer.terms'), path: '/terms' },
+        { name: t('footer.privacy'), path: '/privacy' },
       ]
     }
   ]
@@ -76,12 +78,12 @@ const Footer = () => {
                   rif<span className="footer-logo-accent">KANDO</span>
                 </span>
               </div>
-              <p className="footer-kicker">ONE PLACE. MANY POSSIBILITIES.</p>
+              <p className="footer-kicker">{t('footer.kicker')}</p>
               <p className="footer-description">
-                Morocco's first multi-service platform. Buy products, take courses, hire professionals, all in one place.
+                {t('footer.description')}
               </p>
               <div className="footer-promise" aria-label="What you can do on rifKANDO">
-                <span>Shop</span><span>Learn</span><span>Hire</span><span>Book</span>
+                <span>{t('footer.shop')}</span><span>{t('footer.learn')}</span><span>{t('footer.hire')}</span><span>{t('footer.book')}</span>
               </div>
               {/* Social Icons - Added for mobile */}
               <div className="footer-social">
@@ -122,8 +124,8 @@ const Footer = () => {
 
           {/* Bottom */}
           <div className="footer-bottom">
-            <p>&copy; {currentYear} <span className="footer-bottom-brand">rif<span>KANDO</span></span>. All rights reserved.</p>
-            <button type="button" className="footer-top-link" onClick={scrollToTop}>Back to top ↑</button>
+            <p>&copy; {currentYear} <span className="footer-bottom-brand">rif<span>KANDO</span></span>. {t('common.allRightsReserved')}</p>
+            <button type="button" className="footer-top-link" onClick={scrollToTop}>{t('common.backToTop')}</button>
           </div>
         </div>
       </footer>
