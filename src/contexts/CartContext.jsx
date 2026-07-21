@@ -95,7 +95,7 @@ export const CartProvider = ({ children }) => {
         type,
         addedAt: new Date().toISOString()
       });
-      toast.success(`${item.title} added to cart`);
+      toast.success(`${item.title} is in your cart`);
     }
     
     setCart(newCart);

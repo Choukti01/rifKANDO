@@ -177,6 +177,9 @@ const CartPage = () => {
             grid-column: span 2;
             justify-content: space-between;
           }
+          .cart-summary { position: static; }
+          .cart-item-quantity button { width: 36px; height: 36px; }
+          .cart-item-remove { min-height: 44px; padding: 0 .5rem; }
         }
         .cart-item-image {
           width: 60px;

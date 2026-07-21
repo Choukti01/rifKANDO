@@ -7,6 +7,8 @@ import MediaGallery from '../../components/MediaGallery';
 import api from '../../services/api';
 import VerifiedBadge from '../../components/common/VerifiedBadge';
 import { getImageUrl } from '../../utils/imageUtils';
+import EmptyState from '../../components/common/EmptyState';
+import LoadingSkeleton from '../../components/common/LoadingSkeleton';
 
 const ProductsPage = () => {
   const [products, setProducts] = useState([]);
@@ -81,7 +83,7 @@ const ProductsPage = () => {
     joutiya: 'Joutiya (Haggle)'
   };
 
-  if (loading) return <div className="container text-center py-16"><div className="spinner"></div><p>Loading products...</p></div>;
+  if (loading) return <div className="container py-16"><LoadingSkeleton label="Loading products" /></div>;
 
   return (
     <div className="products-page">
@@ -128,7 +130,13 @@ const ProductsPage = () => {
 
         <div className="products-grid">
           {products.length === 0 ? (
-            <p className="text-center col-span-full">No products found</p>
+            <div className="col-span-full">
+              <EmptyState
+                title="No products found"
+                description="Try a different search or clear a filter to see more listings."
+                action={<button type="button" className="btn btn-outline" onClick={() => { setSearchInput(''); setSearchTerm(''); setSelectedCategory(''); setMinPrice(''); setMaxPrice(''); setVerifiedOnly(false); setCurrentPage(1); }}>Clear filters</button>}
+              />
+            </div>
           ) : (
             products.map(product => (
               <div key={product.id} className="product-card">
