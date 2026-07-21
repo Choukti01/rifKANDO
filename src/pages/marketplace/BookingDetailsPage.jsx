@@ -6,7 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import MediaGallery from '../../components/MediaGallery';
 
-const BookingDetailsPage = () => {
+const BookingDetailsPage = () => {5
   const { id } = useParams();
   const navigate = useNavigate();
   const [booking, setBooking] = useState(null);

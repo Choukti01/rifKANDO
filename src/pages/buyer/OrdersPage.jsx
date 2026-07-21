@@ -13,6 +13,8 @@ import {
   WalletIcon,
   CubeIcon 
 } from '@heroicons/react/24/outline'
+import EmptyState from '../../components/common/EmptyState'
+import LoadingSkeleton from '../../components/common/LoadingSkeleton'
 
 const OrdersPage = () => {
   const [orders, setOrders] = useState([])
@@ -91,20 +93,21 @@ const OrdersPage = () => {
 
   if (loading) {
     return (
-      <div className="container" style={{ padding: '3rem 0', textAlign: 'center' }}>
-        <div style={{ width: '40px', height: '40px', border: '3px solid #e5e7eb', borderTopColor: '#87CEEB', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto' }}></div>
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <div className="container" style={{ padding: '3rem 0' }}>
+        <LoadingSkeleton variant="list" count={4} label="Loading orders" />
       </div>
     )
   }
 
   if (orders.length === 0) {
     return (
-      <div className="container text-center py-16">
-        <div className="text-6xl mb-4">📦</div>
-        <h2 className="text-2xl font-bold mb-2">No orders yet</h2>
-        <p className="text-gray-500 mb-6">Your order history will appear here</p>
-        <Link to="/products" className="btn btn-primary">Start Shopping</Link>
+      <div className="container py-16">
+        <EmptyState
+          icon={<CubeIcon style={{ width: '1.5rem' }} />}
+          title="No orders yet"
+          description="When you place an order, its status and invoice will appear here."
+          action={<Link to="/products" className="btn btn-primary">Start shopping</Link>}
+        />
       </div>
     )
   }

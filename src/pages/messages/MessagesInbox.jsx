@@ -4,6 +4,8 @@ import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import VerifiedBadge from '../../components/common/VerifiedBadge';
+import EmptyState from '../../components/common/EmptyState';
+import LoadingSkeleton from '../../components/common/LoadingSkeleton';
 
 const MessagesInbox = () => {
   const [conversations, setConversations] = useState([]);
@@ -44,18 +46,17 @@ const MessagesInbox = () => {
   };
 
   if (loading) {
-    return <div className="text-center py-16"><div className="spinner"></div><p>Loading messages...</p></div>;
+    return <div className="py-16"><LoadingSkeleton variant="list" count={4} label="Loading messages" /></div>;
   }
 
   return (
     <div className="messages-inbox">
       <h2>Messages</h2>
       {conversations.length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-icon">💬</div>
-          <p>No messages yet</p>
-          <small>Customer conversations will appear here</small>
-        </div>
+        <EmptyState
+          title="No messages yet"
+          description="Customer conversations will appear here when someone gets in touch."
+        />
       ) : (
         <div className="conversations-list">
           {conversations.map(conv => (
@@ -103,8 +104,6 @@ const MessagesInbox = () => {
         .conversation-meta { text-align: right; }
         .conversation-time { font-size: 0.7rem; color: #9ca3af; margin-bottom: 0.25rem; }
         .unread-badge { background: #ef4444; color: white; border-radius: 9999px; padding: 0.25rem 0.5rem; font-size: 0.7rem; font-weight: bold; }
-        .empty-state { text-align: center; padding: 3rem; color: #6b7280; }
-        .empty-icon { font-size: 4rem; margin-bottom: 1rem; }
       `}</style>
     </div>
   );

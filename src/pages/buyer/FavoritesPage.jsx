@@ -4,6 +4,9 @@ import { TrashIcon, ShoppingBagIcon, StarIcon } from '@heroicons/react/24/outlin
 import { useFavorites } from '../../contexts/FavoritesContext';
 import { useCart } from '../../contexts/CartContext';
 import { useAuth } from '../../contexts/AuthContext';
+import toast from 'react-hot-toast';
+import EmptyState from '../../components/common/EmptyState';
+import LoadingSkeleton from '../../components/common/LoadingSkeleton';
 
 const FavoritesPage = () => {
   const { favorites, removeFromFavorites, loading, isEmpty } = useFavorites();
@@ -37,49 +40,19 @@ const FavoritesPage = () => {
 
   if (loading) {
     return (
-      <div className="container text-center py-16">
-        <div className="spinner"></div>
-        <p>Loading favorites...</p>
-      </div>
+      <div className="container py-16"><LoadingSkeleton label="Loading favorites" /></div>
     );
   }
 
   if (isEmpty) {
     return (
-      <div className="empty-favorites">
-        <div className="empty-icon"></div>
-        <h2>No favorites yet</h2>
-        <p>Start adding items to your favorites</p>
-        <Link to="/products" className="btn-primary">Explore Products</Link>
-        <style>{`
-          .empty-favorites {
-            text-align: center;
-            padding: 4rem 2rem;
-            min-height: calc(100vh - 80px);
-          }
-          .empty-icon {
-            font-size: 4rem;
-            margin-bottom: 1rem;
-          }
-          .empty-favorites h2 {
-            font-size: 1.5rem;
-            margin-bottom: 0.5rem;
-          }
-          .empty-favorites p {
-            color: #6b7280;
-            margin-bottom: 2rem;
-          }
-          .btn-primary {
-            background: #1a1a1a;
-            color: white;
-            padding: 0.75rem 1.5rem;
-            border: none;
-            border-radius: 2rem;
-            cursor: pointer;
-            text-decoration: none;
-            display: inline-block;
-          }
-        `}</style>
+      <div className="container py-16">
+        <EmptyState
+          icon={<span>♡</span>}
+          title="No favorites yet"
+          description="Save products you love and they’ll be ready for you here."
+          action={<Link to="/products" className="btn btn-primary">Explore products</Link>}
+        />
       </div>
     );
   }

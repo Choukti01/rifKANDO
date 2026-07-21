@@ -442,6 +442,14 @@ const SearchPage = () => {
         .suggestion-tags span:hover {
           background: #e5e7eb;
         }
+        @media (max-width: 640px) {
+          .search-page { padding: 1rem 0; }
+          .search-header, .filters-panel { margin-bottom: 1rem; }
+          .filters-panel { padding: 1rem; border-radius: .75rem; }
+          .filters-grid { grid-template-columns: 1fr; }
+          .results-grid { grid-template-columns: 1fr; gap: 1rem; }
+          .result-card:hover { transform: translateY(-1px); }
+        }
       `}</style>
     </div>
   );

@@ -111,6 +111,12 @@ const VerificationUpload = () => {
         .form-input { width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 0.5rem; }
         .btn-primary { background: #1a1a1a; color: white; padding: 0.5rem 1rem; border: none; border-radius: 0.5rem; cursor: pointer; }
         .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+        @media (max-width: 640px) {
+          .verification-upload { padding: 1.25rem; border-radius: .75rem; }
+          .verification-upload h2 { font-size: 1.35rem; }
+          .form-input { min-height: 44px; font-size: 16px; }
+          .upload-form .btn-primary { width: 100%; min-height: 44px; }
+        }
       `}</style>
     </div>
   );

@@ -70,7 +70,7 @@ const Footer = () => {
                 <div className="footer-logo-icon">
                   <img 
                     src="/logo.png" 
-                    alt="rifKANDI" 
+                    alt="rifKANDO" 
                     className="footer-logo-img"
                   />
                 </div>
@@ -202,22 +202,22 @@ const Footer = () => {
         }
 
         .footer-logo {
-          position: relative;
-          overflow: hidden;
-          display: flex;
-          align-items: center;
-          gap: 0.75rem;
-          width: fit-content;
-          padding: 0.6rem 1rem 0.6rem 0.6rem;
-          margin-bottom: 1.1rem;
-          border: 1px solid rgba(255, 255, 255, 0.62);
-          border-radius: 18px;
-          background: linear-gradient(135deg, rgba(255,255,255,0.72), rgba(220,243,255,0.45));
-          backdrop-filter: blur(20px) saturate(160%);
-          -webkit-backdrop-filter: blur(20px) saturate(160%);
-          box-shadow: 0 14px 32px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255,255,255,0.72);
-          transition: transform 180ms ease, box-shadow 180ms ease;
-        }
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: fit-content;
+  padding: 0.7rem 1.15rem 0.7rem 0.7rem;
+  margin-bottom: 1.1rem;
+  border: 1px solid rgba(255, 255, 255, 0.62);
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(255,255,255,0.72), rgba(220,243,255,0.45));
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255,255,255,0.72);
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
 
         .footer-logo::before {
           content: '';
@@ -242,19 +242,20 @@ const Footer = () => {
           z-index: 1;
         }
 
-        .footer-logo-icon {
-          width: 38px;
-          height: 38px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
+       .footer-logo-icon {
+    width: 72px;
+    height: 72px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
 
-        .footer-logo-img {
-          width: 250%;
-          height: 250%;
-          object-fit: contain;
-        }
+       .footer-logo-img {
+    width: 118%;
+    height: 118%;
+    object-fit: contain;
+}
 
         .footer-logo-name {
           font-size: 1.5rem;

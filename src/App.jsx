@@ -1,6 +1,7 @@
 import React from 'react'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
+import { AnimatePresence } from 'framer-motion'
 
 import ChatPage from './pages/messages/ChatPage';
 import MessagesInbox from './pages/messages/MessagesInbox';
@@ -85,17 +86,29 @@ import { FavoritesProvider } from './contexts/FavoritesContext'
 
 // Protected Route Component
 import ProtectedRoute from './components/common/ProtectedRoute'
+import PageTransition from './components/common/PageTransition'
 
 function App() {
   return (
     <BrowserRouter>
+      <AppContent />
+    </BrowserRouter>
+  )
+}
+
+function AppContent() {
+  const location = useLocation()
+
+  return (
       <AuthProvider>
         <CartProvider>
           <FavoritesProvider>
             <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
               <Navbar />
               <main style={{ flexGrow: 1, paddingTop: '80px' }}>
-                <Routes>
+                <AnimatePresence mode="wait" initial={false}>
+                  <PageTransition key={location.pathname}>
+                    <Routes location={location}>
                   {/* Public Routes */}
                   <Route path="/" element={<HomePage />} />
                   <Route path="/products" element={<ProductsPage />} />
@@ -217,7 +230,9 @@ function App() {
                     <Route path="messages/:userId" element={<ChatPage />} />
                     <Route path="verification" element={<VerificationUpload />} />
                   </Route>
-                </Routes>
+                    </Routes>
+                  </PageTransition>
+                </AnimatePresence>
               </main>
               <Footer />
             </div>
@@ -234,7 +249,6 @@ function App() {
           </FavoritesProvider>
         </CartProvider>
       </AuthProvider>
-    </BrowserRouter>
   )
 }
 

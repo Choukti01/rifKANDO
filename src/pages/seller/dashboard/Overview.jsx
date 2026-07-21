@@ -4,6 +4,8 @@ import { ShoppingBagIcon, CurrencyDollarIcon, EyeIcon, ChartBarIcon, AcademicCap
 import { getMyProducts, getMyCourses, getMyServices, getMyDigitalProducts, getMyBookings, getOrders } from '../../../services/api';
 import { useAuth } from '../../../contexts/AuthContext';
 import toast from 'react-hot-toast';
+import EmptyState from '../../../components/common/EmptyState';
+import LoadingSkeleton from '../../../components/common/LoadingSkeleton';
 
 const Overview = () => {
   const { user } = useAuth();
@@ -91,12 +93,7 @@ const Overview = () => {
   };
 
   if (loading) {
-    return (
-      <div className="text-center py-16">
-        <div className="spinner"></div>
-        <p>Loading dashboard...</p>
-      </div>
-    );
+    return <LoadingSkeleton variant="list" count={4} label="Loading seller dashboard" />;
   }
 
   // Determine which seller type stats to show
@@ -127,14 +124,46 @@ const Overview = () => {
     { label: 'Total Views', value: stats.totalViews.toLocaleString(), change: '+23%', icon: EyeIcon, color: '#8b5cf6' },
     { label: 'Conversion Rate', value: stats.totalOrders > 0 ? `${((stats.totalOrders / (stats.totalViews || 1)) * 100).toFixed(1)}%` : '0%', change: '+2%', icon: ChartBarIcon, color: '#f59e0b' },
   ];
+  const totalListings = stats.totalProducts + stats.totalCourses + stats.totalServices + stats.totalDigital + stats.totalBookings;
+  const firstListingPaths = {
+    course: '/seller/dashboard/courses/add',
+    service: '/seller/dashboard/services/add',
+    digital: '/seller/dashboard/digital/add',
+    booking: '/seller/dashboard/bookings/add'
+  };
+  const firstListingPath = firstListingPaths[sellerType] || '/seller/dashboard/products/add';
+  const checklist = [
+    { label: 'Complete your profile', done: Boolean(user?.name && user?.phone && user?.city), to: '/seller/dashboard/settings' },
+    { label: 'Verify your seller account', done: user?.is_verified_seller === 1, to: '/seller/dashboard/verification' },
+    { label: 'Publish your first listing', done: totalListings > 0, to: firstListingPath },
+    { label: 'Set up payout details', done: false, to: '/seller/dashboard/wallet' }
+  ];
+  const completedSteps = checklist.filter((step) => step.done).length;
 
   return (
     <div>
       {/* Welcome Section */}
       <div className="welcome-section">
         <h2>Welcome back, {user?.name?.split(' ')[0] || 'Seller'}!</h2>
-        <p>Here's what's happening with your store today.</p>
+        <p>{totalListings ? "Here's what's happening with your store today." : 'Almost there — your shop is ready for its first listing.'}</p>
       </div>
+
+      {completedSteps < checklist.length && (
+        <section className="seller-checklist" aria-labelledby="seller-checklist-title">
+          <div>
+            <p className="seller-checklist-eyebrow">Getting started · {completedSteps}/{checklist.length}</p>
+            <h3 id="seller-checklist-title">Set up your shop</h3>
+            <p>Finish these essentials to build trust and start selling.</p>
+          </div>
+          <div className="seller-checklist-steps">
+            {checklist.map((step) => (
+              <Link to={step.to} key={step.label} className={`seller-checklist-step ${step.done ? 'is-complete' : ''}`}>
+                <span aria-hidden="true">{step.done ? '✓' : '○'}</span>{step.label}
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Main Stats by Seller Type */}
       {mainStats.length > 0 && (
@@ -182,9 +211,7 @@ const Overview = () => {
           <Link to="/seller/dashboard/orders" className="view-all">View All</Link>
         </div>
         {recentOrders.length === 0 ? (
-          <div className="empty-orders">
-            <p>No orders yet</p>
-          </div>
+          <EmptyState title="No orders yet" description="Your first sale will appear here once a customer checks out." />
         ) : (
           <div className="orders-table">
             <table>
@@ -228,12 +255,31 @@ const Overview = () => {
         .welcome-section p {
           color: #6b7280;
         }
+        .seller-checklist {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) minmax(320px, 1.2fr);
+          gap: 1.5rem;
+          margin-bottom: 2rem;
+          padding: 1.5rem;
+          border: 1px solid #e5e7eb;
+          border-radius: 1rem;
+          background: linear-gradient(135deg, #ffffff, #f0f9ff);
+        }
+        .seller-checklist-eyebrow { margin-bottom: .25rem; color: #0369a1; font-size: .75rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+        .seller-checklist h3 { margin-bottom: .5rem; font-size: 1.125rem; }
+        .seller-checklist p:last-child { margin-bottom: 0; }
+        .seller-checklist-steps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; align-content: center; }
+        .seller-checklist-step { display: flex; gap: .5rem; align-items: center; padding: .75rem; border: 1px solid #e5e7eb; border-radius: .75rem; background: #fff; color: #374151; font-size: .875rem; transition: transform 150ms ease, border-color 150ms ease; }
+        .seller-checklist-step:hover { transform: translateY(-1px); border-color: #87CEEB; }
+        .seller-checklist-step span { color: #6b7280; font-weight: 700; }
+        .seller-checklist-step.is-complete span { color: #059669; }
         .stats-grid {
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
           gap: 1.5rem;
           margin-bottom: 2rem;
         }
+        @media (max-width: 768px) { .seller-checklist { grid-template-columns: 1fr; } .seller-checklist-steps { grid-template-columns: 1fr; } }
         .stat-card {
           background: white;
           border-radius: 1rem;

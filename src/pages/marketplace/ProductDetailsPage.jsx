@@ -479,7 +479,7 @@ const ProductDetailsPage = () => {
         /* (keep all existing styles unchanged) */
         .product-details { padding: 2rem 0; min-height: calc(100vh - 80px); }
         .product-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; margin-bottom: 3rem; }
-        @media (max-width: 768px) { .product-grid { grid-template-columns: 1fr; } }
+        @media (max-width: 768px) { .product-grid { grid-template-columns: 1fr; gap: 1.5rem; } }
         .main-image { background: #f3f4f6; border-radius: 1rem; height: 400px; display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden; }
         .main-image img, .main-image video { width: 100%; height: 100%; object-fit: cover; }
         .image-placeholder { font-size: 8rem; }
@@ -571,6 +571,22 @@ const ProductDetailsPage = () => {
         .ai-question-input { width: 100%; padding: 0.75rem; border: 1px solid #e5e7eb; border-radius: 0.75rem; font-size: 0.875rem; resize: none; margin-bottom: 0.5rem; }
         .ai-send-btn { width: 100%; padding: 0.5rem; background: #1a1a1a; color: white; border: none; border-radius: 2rem; cursor: pointer; font-weight: 500; }
         .ai-send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        @media (max-width: 640px) {
+          .product-details { padding: 1rem 0; }
+          .main-image { height: min(78vw, 320px); border-radius: 0.75rem; }
+          .thumbnail-strip { flex-wrap: nowrap; overflow-x: auto; padding-bottom: .25rem; }
+          .thumbnail { flex: 0 0 64px; width: 64px; height: 64px; }
+          .product-info h1 { font-size: 1.5rem; }
+          .product-actions { flex-wrap: wrap; gap: .75rem; }
+          .add-to-cart-btn, .make-offer-btn { flex: 1 1 calc(50% - .375rem); min-height: 44px; }
+          .favorite-btn, .ai-chat-btn { min-width: 44px; min-height: 44px; }
+          .tabs-header { flex-wrap: nowrap; overflow-x: auto; }
+          .tab-btn { flex: 0 0 auto; padding: .875rem 1rem; }
+          .tabs-content { padding: 1rem; }
+          .spec-item { flex-direction: column; gap: .25rem; }
+          .spec-label { width: auto; }
+          .offer-container, .ai-chat-container { width: calc(100% - 2rem); max-height: calc(100dvh - 2rem); }
+        }
       `}</style>
     </div>
   );

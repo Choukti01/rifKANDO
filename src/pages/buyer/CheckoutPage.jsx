@@ -88,7 +88,7 @@ const CheckoutPage = () => {
         const response = await api.post('/orders', orderData)
         
         if (response.data.success) {
-          toast.success('Order placed successfully!')
+          toast.success('Order placed — thank you for shopping with rifKANDO!')
           clearCart()
           navigate('/orders')
         }
@@ -339,6 +339,15 @@ const CheckoutPage = () => {
           .checkout-grid {
             grid-template-columns: 1fr;
           }
+          .order-summary { position: static; }
+        }
+        @media (max-width: 640px) {
+          .checkout-page { padding: 1rem 0; }
+          .checkout-form, .order-summary { padding: 1.25rem; border-radius: 0.75rem; }
+          .form-row { grid-template-columns: 1fr; }
+          .form-field input, .form-field textarea { min-height: 44px; font-size: 16px; }
+          .form-buttons { flex-direction: column-reverse; }
+          .next-btn, .back-btn, .place-order-btn { width: 100%; min-height: 44px; }
         }
         .checkout-form {
           background: white;

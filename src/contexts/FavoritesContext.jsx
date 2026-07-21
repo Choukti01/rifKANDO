@@ -48,7 +48,7 @@ export const FavoritesProvider = ({ children }) => {
     try {
       await addToFavorites(item.id, type);
       await loadFavorites();
-      toast.success(`${item.title} added to favorites`);
+      toast.success(`${item.title} saved to favorites`);
       return true;
     } catch (error) {
       if (error.response?.data?.error === 'Item already in favorites') {

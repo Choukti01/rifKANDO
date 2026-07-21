@@ -6,6 +6,8 @@ import api from '../../../services/api';
 import { useAuth } from '../../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import { getImageUrl } from '../../../utils/imageUtils';
+import EmptyState from '../../../components/common/EmptyState';
+import LoadingSkeleton from '../../../components/common/LoadingSkeleton';
 
 const ProductsDashboard = () => {
   const [products, setProducts] = useState([]);
@@ -84,12 +86,7 @@ const ProductsDashboard = () => {
   };
 
   if (loading) {
-    return (
-      <div className="text-center py-16">
-        <div className="spinner"></div>
-        <p>Loading products...</p>
-      </div>
-    );
+    return <LoadingSkeleton variant="list" count={4} label="Loading your products" />;
   }
 
   return (
@@ -128,13 +125,11 @@ const ProductsDashboard = () => {
         </div>
 
         {products.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-icon">📦</div>
-            <p>No products yet</p>
-            <button onClick={handleAddNew} className="btn btn-primary">
-              Add Your First Product
-            </button>
-          </div>
+          <EmptyState
+            title="Your shop is ready for its first listing"
+            description="Add a product with clear photos and details to start reaching customers."
+            action={<button onClick={handleAddNew} className="btn btn-primary">Add your first product</button>}
+          />
         ) : (
           <div className="products-table">
             <table>
@@ -257,14 +252,6 @@ const ProductsDashboard = () => {
           font-size: 1rem;
           font-weight: 600;
           margin: 0;
-        }
-        .empty-state {
-          text-align: center;
-          padding: 3rem;
-        }
-        .empty-icon {
-          font-size: 4rem;
-          margin-bottom: 1rem;
         }
         .products-table {
           overflow-x: auto;
