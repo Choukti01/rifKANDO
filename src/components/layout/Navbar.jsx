@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { MagnifyingGlassIcon, ShoppingBagIcon, HeartIcon, UserIcon, Bars3Icon, XMarkIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../../contexts/AuthContext';
 import LanguageSwitcher from '../LanguageSwitcher';
+import { useTranslation } from 'react-i18next';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -11,6 +12,7 @@ const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);
   const navigate = useNavigate();
   const { user, logout, isAuthenticated } = useAuth();
+  const { t } = useTranslation();
 
   const dropdownRef = useRef(null);
 
@@ -58,11 +60,11 @@ const Navbar = () => {
   };
 
   const navLinks = [
-    { name: 'Products', path: '/products' },
-    { name: 'Courses', path: '/courses' },
-    { name: 'Services', path: '/services' },
-    { name: 'Digital', path: '/digital' },
-    { name: 'Bookings', path: '/bookings' },
+    { name: t('nav.products'), path: '/products' },
+    { name: t('nav.courses'), path: '/courses' },
+    { name: t('nav.services'), path: '/services' },
+    { name: t('nav.digital'), path: '/digital' },
+    { name: t('nav.bookings'), path: '/bookings' },
   ];
 
   return (
@@ -93,7 +95,7 @@ const Navbar = () => {
                 <MagnifyingGlassIcon className="search-icon" />
                 <input
                   type="text"
-                  placeholder="Search products, courses, services..."
+                  placeholder={t('common.search')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="search-input"
@@ -123,15 +125,15 @@ const Navbar = () => {
                           <p className="dropdown-name">{user?.name}</p>
                           <p className="dropdown-email">{user?.email}</p>
                         </div>
-                        <Link to="/seller/dashboard" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>My Profile</Link>
+                        <Link to="/seller/dashboard" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>{t('common.profile')}</Link>
                         <Link to="/orders" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>My Orders</Link>
-                        <Link to="/favorites" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>Favorites</Link>
+                        <Link to="/favorites" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>{t('nav.favorites')}</Link>
                         <Link to="/choose-seller-type" className="dropdown-item seller-link" onClick={() => setIsProfileOpen(false)}>Become a Seller</Link>
-                        <button onClick={handleLogout} className="dropdown-item logout-btn">Logout</button>
+                        <button onClick={handleLogout} className="dropdown-item logout-btn">{t('common.logout')}</button>
                       </>
                     ) : (
                       <>
-                        <Link to="/login" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>Continue with Google</Link>
+                        <Link to="/login" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>{t('common.login')}</Link>
                       </>
                     )}
                   </div>
@@ -153,7 +155,7 @@ const Navbar = () => {
             <form onSubmit={handleSearch} className="mobile-search">
               <input
                 type="text"
-                placeholder="Search..."
+                placeholder={t('common.search')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="mobile-search-input"
@@ -171,14 +173,14 @@ const Navbar = () => {
             </div>
             {isAuthenticated ? (
               <>
-                <Link to="/profile" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>My Profile</Link>
+                <Link to="/profile" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>{t('common.profile')}</Link>
                 <Link to="/orders" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>My Orders</Link>
-                <Link to="/favorites" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>Favorites</Link>
-                <button onClick={handleLogout} className="mobile-nav-link logout-mobile">Logout</button>
+                <Link to="/favorites" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>{t('nav.favorites')}</Link>
+                <button onClick={handleLogout} className="mobile-nav-link logout-mobile">{t('common.logout')}</button>
               </>
             ) : (
               <>
-                <Link to="/login" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>Continue with Google</Link>
+                <Link to="/login" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>{t('common.login')}</Link>
               </>
             )}
           </div>
