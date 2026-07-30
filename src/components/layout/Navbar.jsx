@@ -285,8 +285,8 @@ const Navbar = () => {
         }
 
         .logo-icon {
-          width: 38px;
-          height: 38px;
+          width: 42px;
+          height: 42px;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -298,8 +298,9 @@ const Navbar = () => {
 
 
         .logo-img {
-          width: 250%;
-          height: 250%;
+          width: 240%;
+          max-width: none;
+          height: 240%;
           object-fit: contain;
         }
 
