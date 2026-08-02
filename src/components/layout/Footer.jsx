@@ -138,10 +138,12 @@ const Footer = () => {
           overflow: hidden;
           margin-top: auto;
           padding: clamp(3.5rem, 7vw, 5.5rem) 0 1.25rem;
-          color: rgba(235, 245, 250, 0.68);
-          background: rgba(7, 12, 19, 0.94);
-          border-top: 1px solid rgba(176, 224, 230, 0.22);
-          box-shadow: 0 -18px 50px rgba(3, 8, 15, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.035);
+          color: rgba(26, 26, 26, 0.78);
+          background:
+            linear-gradient(135deg, rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0.32)),
+            linear-gradient(120deg, var(--color-primary), var(--color-primary-light));
+          border-top: 1px solid rgba(95, 158, 160, 0.48);
+          box-shadow: 0 -18px 50px rgba(95, 158, 160, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.58);
           backdrop-filter: blur(20px) saturate(145%);
           -webkit-backdrop-filter: blur(20px) saturate(145%);
           transition: background 240ms ease, border-color 240ms ease;
@@ -158,9 +160,9 @@ const Footer = () => {
         .footer::before {
           inset: 0;
           background:
-            radial-gradient(circle at 6% 5%, rgba(135, 206, 235, 0.17), transparent 24rem),
-            radial-gradient(circle at 94% 78%, rgba(49, 115, 169, 0.2), transparent 26rem),
-            linear-gradient(135deg, rgba(255, 255, 255, 0.025), transparent 36%);
+            radial-gradient(circle at 6% 5%, rgba(255, 255, 255, 0.78), transparent 24rem),
+            radial-gradient(circle at 94% 78%, rgba(95, 158, 160, 0.24), transparent 26rem),
+            linear-gradient(135deg, rgba(255, 255, 255, 0.38), transparent 36%);
         }
 
         .footer::after {
@@ -168,12 +170,14 @@ const Footer = () => {
           right: 0;
           left: 0;
           height: 1px;
-          background: linear-gradient(90deg, transparent, rgba(176, 224, 230, 0.5), transparent);
+          background: linear-gradient(90deg, transparent, rgba(26, 26, 26, 0.26), transparent);
         }
 
         .footer.footer-visible {
-          background: rgba(4, 9, 15, 0.97);
-          border-top-color: rgba(176, 224, 230, 0.34);
+          background:
+            linear-gradient(135deg, rgba(255, 255, 255, 0.84), rgba(255, 255, 255, 0.4)),
+            linear-gradient(120deg, var(--color-primary), var(--color-primary-light));
+          border-top-color: rgba(95, 158, 160, 0.62);
         }
 
         .footer-grid {
@@ -224,7 +228,7 @@ const Footer = () => {
 
         .footer-kicker {
           margin: 0 0 0.7rem;
-          color: var(--color-primary-light);
+          color: rgba(26, 26, 26, 0.76);
           font-size: 0.68rem;
           font-weight: 800;
           letter-spacing: 0.14em;
@@ -233,7 +237,7 @@ const Footer = () => {
 
         .footer-description {
           margin: 0;
-          color: rgba(235, 245, 250, 0.65);
+          color: rgba(26, 26, 26, 0.74);
           font-size: 0.9rem;
           line-height: 1.7;
         }
@@ -247,9 +251,9 @@ const Footer = () => {
 
         .footer-promise span {
           padding: 0.38rem 0.65rem;
-          color: rgba(240, 249, 255, 0.88);
-          background: rgba(135, 206, 235, 0.09);
-          border: 1px solid rgba(176, 224, 230, 0.2);
+          color: rgba(26, 26, 26, 0.8);
+          background: rgba(255, 255, 255, 0.52);
+          border: 1px solid rgba(95, 158, 160, 0.32);
           border-radius: var(--radius-full);
           box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
           font-size: 0.72rem;
@@ -267,11 +271,11 @@ const Footer = () => {
           justify-content: center;
           width: 2.5rem;
           height: 2.5rem;
-          color: rgba(240, 249, 255, 0.78);
-          background: rgba(255, 255, 255, 0.055);
-          border: 1px solid rgba(255, 255, 255, 0.11);
+          color: rgba(26, 26, 26, 0.8);
+          background: rgba(255, 255, 255, 0.52);
+          border: 1px solid rgba(95, 158, 160, 0.32);
           border-radius: 0.75rem;
-          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.56);
           transition: transform 180ms ease, color 180ms ease, background 180ms ease, border-color 180ms ease;
         }
 
@@ -281,9 +285,9 @@ const Footer = () => {
         }
 
         .footer-social-link:hover {
-          color: #06111a;
-          background: var(--color-primary);
-          border-color: var(--color-primary);
+          color: var(--color-black);
+          background: var(--color-white);
+          border-color: rgba(95, 158, 160, 0.54);
           transform: translateY(-3px);
         }
 
@@ -296,7 +300,7 @@ const Footer = () => {
           align-items: center;
           gap: 0.55rem;
           margin: 0 0 1rem;
-          color: #f8fbfd;
+          color: var(--color-black);
           font-size: 0.95rem;
           font-weight: 700;
           letter-spacing: -0.015em;
@@ -324,7 +328,7 @@ const Footer = () => {
           display: inline-block;
           width: fit-content;
           padding: 0.3rem 0;
-          color: rgba(235, 245, 250, 0.62);
+          color: rgba(26, 26, 26, 0.72);
           font-size: 0.875rem;
           line-height: 1.55;
           text-decoration: none;
@@ -344,7 +348,7 @@ const Footer = () => {
         }
 
         .footer-link:hover {
-          color: #ffffff;
+          color: var(--color-black);
         }
 
         .footer-link:hover::after {
@@ -357,8 +361,8 @@ const Footer = () => {
           justify-content: space-between;
           gap: 1rem;
           padding-top: 1.35rem;
-          border-top: 1px solid rgba(255, 255, 255, 0.09);
-          color: rgba(235, 245, 250, 0.48);
+          border-top: 1px solid rgba(26, 26, 26, 0.16);
+          color: rgba(26, 26, 26, 0.64);
           font-size: 0.78rem;
         }
 
@@ -372,7 +376,7 @@ const Footer = () => {
           align-items: center;
           gap: 0.35rem;
           padding: 0.3rem 0;
-          color: var(--color-primary-light);
+          color: var(--color-black);
           background: transparent;
           border: 0;
           cursor: pointer;
@@ -387,7 +391,7 @@ const Footer = () => {
         }
 
         .footer-top-link:hover {
-          color: #ffffff;
+          color: var(--color-black);
           transform: translateY(-2px);
         }
 
