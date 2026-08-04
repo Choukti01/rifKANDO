@@ -18,14 +18,9 @@ const MediaUploader = ({ onMediaUploaded, existingMedia = [], maxFiles = 10 }) =
 
     setUploading(true);
     for (const file of files) {
-      const isVideo = file.type.startsWith('video/');
       const isImage = file.type.startsWith('image/');
-      if (!isVideo && !isImage) {
-        toast.error(`${file.name} is not an image or video`);
-        continue;
-      }
-      if (isVideo && file.size > 100 * 1024 * 1024) {
-        toast.error(`${file.name} exceeds 100MB`);
+      if (!isImage) {
+        toast.error(`${file.name} is not a supported image`);
         continue;
       }
       if (isImage && file.size > 10 * 1024 * 1024) {
@@ -79,11 +74,11 @@ const MediaUploader = ({ onMediaUploaded, existingMedia = [], maxFiles = 10 }) =
         {mediaList.length < maxFiles && (
           <div className="upload-area" onClick={() => fileInputRef.current?.click()}>
             {uploading ? <div className="spinner"></div> : <ArrowUpTrayIcon className="upload-icon" />}
-            <p>{uploading ? 'Uploading...' : 'Upload Image/Video'}</p>
+            <p>{uploading ? 'Uploading...' : 'Upload Image'}</p>
           </div>
         )}
       </div>
-      <input ref={fileInputRef} type="file" accept="image/*,video/*" multiple onChange={handleFileSelect} style={{ display: 'none' }} />
+      <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple onChange={handleFileSelect} style={{ display: 'none' }} />
       <style>{`
         .media-uploader { width: 100%; }
         .media-grid { display: flex; flex-wrap: wrap; gap: 1rem; }

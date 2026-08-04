@@ -2,4 +2,9 @@ node_modules/
 .env
 package-lock.json
 rifkandi.db
-.DS_Store" > .gitignore
+uploads/
+src/uploads/
+*.db
+*.sqlite
+*.sqlite3
+.DS_Store

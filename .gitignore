@@ -11,6 +11,13 @@ node_modules
 .env
 .env.*
 !.env.example
+*.sqlite
+*.sqlite3
+*.db
+rifKANDI-backend/src/uploads/
+rifKANDI-backend/uploads/
+!rifKANDI-backend/src/uploads/.gitkeep
+!rifKANDI-backend/uploads/.gitkeep
 dist
 dist-ssr
 *.local

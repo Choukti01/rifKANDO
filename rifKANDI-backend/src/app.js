@@ -218,12 +218,19 @@ app.use(express.urlencoded({
 
 // Serve static files for uploads
 
-app.use(
-  '/uploads',
-  express.static(
-    path.join(__dirname, 'uploads')
-  )
-);
+const publicUploadOptions = {
+  fallthrough: false,
+  setHeaders: (res) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Content-Security-Policy', 'sandbox');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+  }
+};
+
+// Only marketplace media and profile images are public. Identity documents and
+// invoices are delivered through authenticated routes.
+app.use('/uploads/profile-pictures', express.static(path.join(__dirname, 'uploads/profile-pictures'), publicUploadOptions));
+app.use('/uploads/media', express.static(path.join(__dirname, 'uploads/media'), publicUploadOptions));
 
 
 // ==================== TEST ROUTES ====================
@@ -275,8 +282,43 @@ app.get('/health', (req, res) => {
 
 
 // ==================== ORDER STATUS UPDATE (MOVED HERE TO TAKE PRIORITY) ====================
+const requireOrderStatusAccess = (req, res, next) => {
+  const transitions = {
+    pending: ['processing', 'cancelled'],
+    processing: ['shipped', 'cancelled'],
+    shipped: ['delivered', 'cancelled'],
+    delivered: [],
+    cancelled: []
+  };
+  const requestedStatus = req.body?.status;
+  if (!Object.values(transitions).flat().includes(requestedStatus)) {
+    return res.status(400).json({ error: 'Invalid order status.' });
+  }
+
+  db.get('SELECT id, status FROM orders WHERE id = ?', [req.params.id], (orderError, order) => {
+    if (orderError || !order) return res.status(404).json({ error: 'Order not found.' });
+    if (!transitions[order.status]?.includes(requestedStatus)) {
+      return res.status(409).json({ error: 'This order status transition is not allowed.' });
+    }
+    if (req.user.role === 'admin') return next();
+    if (req.user.role !== 'seller') {
+      return res.status(403).json({ error: 'Only sellers or administrators can update orders.' });
+    }
+    db.get(
+      `SELECT 1 FROM order_items oi JOIN products p ON p.id = oi.product_id
+       WHERE oi.order_id = ? AND p.seller_id = ? LIMIT 1`,
+      [order.id, req.user.id],
+      (accessError, sellerItem) => {
+        if (accessError) return res.status(500).json({ error: 'Unable to verify order access.' });
+        if (!sellerItem) return res.status(403).json({ error: 'You are not a seller for this order.' });
+        return next();
+      }
+    );
+  });
+};
+
 // Update order status (seller) - SIMPLIFIED WORKING VERSION
-app.patch('/api/orders/:id/status', protect, async (req, res) => {
+app.patch('/api/orders/:id/status', protect, requireOrderStatusAccess, async (req, res) => {
   const { status } = req.body;
   const validStatuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
   
@@ -700,54 +742,54 @@ app.delete('/api/users/profile-picture', protect, async (req, res) => {
 
 // ==================== MEDIA UPLOAD FOR PRODUCTS ====================
 
+const allowedPublicMediaTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf']);
 const mediaUpload = multer({
-  storage: multer.diskStorage({
-    destination: function (req, file, cb) {
-      const uploadDir = path.join(__dirname, 'uploads/media');
-      if (!fs.existsSync(uploadDir)) {
-        fs.mkdirSync(uploadDir, { recursive: true });
-      }
-      cb(null, uploadDir);
-    },
-    filename: function (req, file, cb) {
-      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-      const ext = path.extname(file.originalname);
-      cb(null, `media-${uniqueSuffix}${ext}`);
-    }
-  }),
-  limits: { fileSize: 200 * 1024 * 1024 }, // 200MB
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024, files: 1, fields: 10, fieldSize: 64 * 1024 },
   fileFilter: (req, file, cb) => {
-    const allowedTypes = /jpeg|jpg|png|gif|webp|mp4|mov|avi|mkv|pdf|zip|rar|epub|mobi|mp3|wav|txt|doc|docx|xls|xlsx/;
-    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = allowedTypes.test(file.mimetype);
-    if (mimetype && extname) {
-      cb(null, true);
-    } else {
-      cb(new Error('File type not allowed. Please upload images, videos, PDFs, ZIPs, EPUBs, or audio files.'));
-    }
+    if (allowedPublicMediaTypes.has(file.mimetype)) return cb(null, true);
+    return cb(new Error('Only JPEG, PNG, WebP, GIF, and PDF uploads are currently allowed.'));
   }
 });
 
+const persistPublicMedia = async (req, res, next) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded.' });
+  try {
+    let extension;
+    let mediaType;
+    if (req.file.mimetype === 'application/pdf') {
+      if (req.file.buffer.subarray(0, 5).toString('ascii') !== '%PDF-') {
+        throw new Error('The uploaded file is not a valid PDF.');
+      }
+      extension = 'pdf';
+      mediaType = 'document';
+    } else {
+      const metadata = await sharp(req.file.buffer, { failOn: 'error' }).metadata();
+      const formats = { jpeg: 'jpg', png: 'png', webp: 'webp', gif: 'gif' };
+      extension = formats[metadata.format];
+      if (!extension) throw new Error('The uploaded file is not a supported image.');
+      mediaType = 'image';
+    }
+    const directory = path.join(__dirname, 'uploads', 'media');
+    await fs.promises.mkdir(directory, { recursive: true });
+    const filename = `media-${crypto.randomUUID()}.${extension}`;
+    await fs.promises.writeFile(path.join(directory, filename), req.file.buffer, { mode: 0o640 });
+    req.publicMedia = { url: `/uploads/media/${filename}`, type: mediaType };
+    return next();
+  } catch (error) {
+    return res.status(400).json({ error: error.message || 'Invalid upload.' });
+  }
+};
+
 // ==================== MEDIA UPLOAD ROUTE ====================
-app.post('/api/upload-media', protect, (req, res) => {
+app.post('/api/upload-media', protect, (req, res, next) => {
   mediaUpload.single('media')(req, res, (err) => {
     if (err) {
-      console.error('Multer error:', err);
-      return res.status(400).json({ error: err.message });
+      return res.status(400).json({ error: err.message || 'Invalid upload.' });
     }
-    try {
-      if (!req.file) {
-        return res.status(400).json({ error: 'No file uploaded' });
-      }
-      const mediaUrl = `/uploads/media/${req.file.filename}`;
-      const mediaType = req.file.mimetype.startsWith('video/') ? 'video' : 'image';
-      res.json({ success: true, url: mediaUrl, type: mediaType });
-    } catch (error) {
-      console.error('Upload processing error:', error);
-      res.status(500).json({ error: error.message });
-    }
+    return next();
   });
-});
+}, persistPublicMedia, (req, res) => res.json({ success: true, ...req.publicMedia }));
 
 // ==================== ADVANCED AUTH ENDPOINTS ====================
 
@@ -3854,7 +3896,7 @@ app.post('/api/payment/cmi/initiate', protect, async (req, res) => {
         WHERE oi.order_id = ?
       `, [orderId], async (err, items) => {
         try {
-          const { htmlForm, oid } = CmiPaymentService.initiatePayment(order, user, items);
+          const { htmlForm, oid } = await CmiPaymentService.initiatePayment(order, user);
           res.json({
             success: true,
             htmlForm: htmlForm,
@@ -3875,42 +3917,54 @@ app.get('/api/payment/success', async (req, res) => {
   
   console.log('CMI Success Callback:', { oid, result, AuthCode, Response });
   
-  if (result === 'success' || ProcReturnCode === '00') {
-    const verification = CmiPaymentService.verifyPayment(req.query);
-    
-    if (verification) {
+  if ((result === 'success' || ProcReturnCode === '00') && CmiPaymentService.verifyPayment(req.query)) {
+    try {
       await CmiPaymentService.processSuccessPayment(oid, req.query);
       return res.redirect(`${process.env.CLIENT_URL}/payment/success?order_id=${oid}`);
+    } catch (error) {
+      console.error('CMI success callback was rejected:', error.message);
     }
   }
-  
-  await CmiPaymentService.processFailedPayment(oid, req.query);
-  res.redirect(`${process.env.CLIENT_URL}/payment/failed?order_id=${oid}`);
+
+  // A browser redirect is never sufficient evidence of failure or success.
+  // The server-to-server callback is the only route allowed to mutate payment state.
+  return res.redirect(`${process.env.CLIENT_URL}/payment/failed`);
 });
 
 app.get('/api/payment/fail', async (req, res) => {
   const { oid, ErrMsg } = req.query;
   console.log('CMI Fail Callback:', { oid, ErrMsg });
   
-  if (oid) {
-    await CmiPaymentService.processFailedPayment(oid, req.query);
+  if (oid && CmiPaymentService.verifyPayment(req.query)) {
+    try {
+      await CmiPaymentService.processFailedPayment(oid, req.query);
+    } catch (error) {
+      console.error('CMI failure callback was rejected:', error.message);
+    }
   }
   
   res.redirect(`${process.env.CLIENT_URL}/payment/failed`);
 });
 
 app.post('/api/payment/callback', async (req, res) => {
-  const params = req.body;
-  console.log('CMI Callback received:', params);
-  
+  const params = req.body || {};
+
   const { oid, result, ProcReturnCode } = params;
-  
-  if (result === 'success' || ProcReturnCode === '00') {
-    await CmiPaymentService.processSuccessPayment(oid, params);
-    res.send('OK');
-  } else {
+  if (!CmiPaymentService.verifyPayment(params)) {
+    console.warn('Rejected CMI callback with an invalid signature.');
+    return res.status(400).send('INVALID');
+  }
+
+  try {
+    if (result === 'success' || ProcReturnCode === '00') {
+      await CmiPaymentService.processSuccessPayment(oid, params);
+      return res.send('OK');
+    }
     await CmiPaymentService.processFailedPayment(oid, params);
-    res.send('FAIL');
+    return res.send('FAIL');
+  } catch (error) {
+    console.error('CMI callback processing failed:', error.message);
+    return res.status(500).send('ERROR');
   }
 });
 
@@ -4047,15 +4101,36 @@ const documentUpload = multer({
   }
 });
 
-app.post('/api/seller/upload-verification', protect, documentUpload.single('document'), (req, res) => {
+const validateVerificationDocument = async (req, res, next) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded.' });
+  if (!['national_id', 'passport'].includes(req.body.document_type)) {
+    fs.unlink(req.file.path, () => {});
+    return res.status(400).json({ error: 'document_type must be national_id or passport.' });
+  }
+
+  try {
+    if (req.file.mimetype === 'application/pdf') {
+      const handle = await fs.promises.open(req.file.path, 'r');
+      const buffer = Buffer.alloc(5);
+      await handle.read(buffer, 0, 5, 0);
+      await handle.close();
+      if (buffer.toString('ascii') !== '%PDF-') throw new Error('Invalid PDF document.');
+    } else {
+      const metadata = await sharp(req.file.path, { failOn: 'error' }).metadata();
+      if (!['jpeg', 'png', 'webp', 'gif'].includes(metadata.format)) throw new Error('Invalid image document.');
+    }
+    return next();
+  } catch (error) {
+    fs.unlink(req.file.path, () => {});
+    return res.status(400).json({ error: 'Verification document content is invalid.' });
+  }
+};
+
+app.post('/api/seller/upload-verification', protect, documentUpload.single('document'), validateVerificationDocument, (req, res) => {
   if (req.user.role !== 'seller') return res.status(403).json({ error: 'Only sellers can upload verification documents' });
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
   const documentUrl = `/uploads/verification/${req.file.filename}`;
-  const { document_type } = req.body; // 'national_id' or 'passport'
-  if (!document_type || !['national_id', 'passport'].includes(document_type)) {
-    fs.unlinkSync(req.file.path);
-    return res.status(400).json({ error: 'document_type must be national_id or passport' });
-  }
+  const { document_type } = req.body;
   
   db.run(
     `INSERT INTO verification_documents (user_id, document_url, document_type, status)
@@ -4084,7 +4159,7 @@ app.post('/api/seller/upload-verification', protect, documentUpload.single('docu
 
 app.get('/api/seller/verification-status', protect, (req, res) => {
   if (req.user.role !== 'seller') return res.status(403).json({ error: 'Only sellers' });
-  db.get('SELECT status, document_url, document_type, created_at, updated_at FROM verification_documents WHERE user_id = ?', [req.user.id], (err, doc) => {
+  db.get('SELECT status, document_type, created_at, updated_at FROM verification_documents WHERE user_id = ?', [req.user.id], (err, doc) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json({ success: true, verification: doc || null });
   });
@@ -4097,7 +4172,8 @@ app.get('/api/seller/verification-status', protect, (req, res) => {
 app.get('/api/admin/pending-verifications', protect, (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
   db.all(`
-    SELECT v.*, u.name as user_name, u.email as user_email, u.seller_type
+    SELECT v.id, v.user_id, v.document_type, v.status, v.created_at, v.updated_at,
+           u.name as user_name, u.email as user_email, u.seller_type
     FROM verification_documents v
     JOIN users u ON v.user_id = u.id
     WHERE v.status = 'pending'
@@ -4105,6 +4181,28 @@ app.get('/api/admin/pending-verifications', protect, (req, res) => {
   `, (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json({ success: true, verifications: rows });
+  });
+});
+
+app.get('/api/admin/verification-documents/:docId/file', protect, (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+
+  db.get('SELECT document_url, document_type FROM verification_documents WHERE id = ?', [req.params.docId], (error, document) => {
+    if (error) return res.status(500).json({ error: 'Unable to retrieve the verification document.' });
+    if (!document?.document_url) return res.status(404).json({ error: 'Verification document not found.' });
+
+    const filename = path.basename(document.document_url);
+    const verificationDir = path.join(__dirname, 'uploads', 'verification');
+    const documentPath = path.join(verificationDir, filename);
+    if (!documentPath.startsWith(verificationDir + path.sep) || !fs.existsSync(documentPath)) {
+      return res.status(404).json({ error: 'Verification document not found.' });
+    }
+
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Content-Security-Policy', 'sandbox');
+    res.setHeader('Content-Disposition', 'attachment');
+    return res.sendFile(documentPath);
   });
 });
 
