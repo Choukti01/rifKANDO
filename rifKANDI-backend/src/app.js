@@ -8,6 +8,8 @@ const multer = require('multer');
 const sharp = require('sharp');
 const crypto = require('crypto');
 const { securityHeaders, createRateLimiter } = require('./middleware/security');
+const errorHandler = require('./middleware/errorHandler');
+const { getAllowedOrigins } = require('./config/validateEnv');
 const { sendVerificationEmail, sendWelcomeEmail, sendLoginNotificationEmail } = require('./utils/sendEmail');
 // const EmailService = require('./services/emailService');
 
@@ -17,9 +19,15 @@ const app = express();
 
 const requireSeller = authorize('seller');
 const requireAdmin = authorize('admin');
+const allowedOrigins = new Set(getAllowedOrigins());
 
 app.set('trust proxy', 1);
 app.disable('x-powered-by');
+app.use((req, res, next) => {
+  req.requestId = crypto.randomUUID();
+  res.setHeader('X-Request-ID', req.requestId);
+  next();
+});
 app.use(securityHeaders);
 
 const authRateLimit = createRateLimiter({
@@ -96,12 +104,18 @@ if (!fs.existsSync(uploadDir)) {
 // ==================== CORS ====================
 
 app.use(cors({
-  origin: [
-    "http://localhost:5173",
-    "https://rifkando.com",
-    "https://www.rifkando.com"
-  ],
-  credentials: true
+  origin(origin, callback) {
+    // Server-to-server callbacks and health checks have no browser Origin.
+    if (!origin || allowedOrigins.has(origin)) return callback(null, true);
+    const error = new Error('Origin is not allowed by CORS policy.');
+    error.statusCode = 403;
+    error.isOperational = true;
+    return callback(error);
+  },
+  credentials: true,
+  methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Authorization', 'Content-Type', 'Idempotency-Key', 'X-Request-ID'],
+  maxAge: 86400
 }));
 
 
@@ -212,10 +226,11 @@ const processAndSaveImage = async (req, res, next) => {
 
 // Body parser
 
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
 
 app.use(express.urlencoded({ 
-  extended: true 
+  extended: true,
+  limit: '50kb'
 }));
 
 
@@ -273,13 +288,40 @@ app.get('/test', (req, res) => {
 });
 
 
-app.get('/health', (req, res) => {
-
-  res.status(200).json({ 
-    status: 'OK', 
-    message: 'Server is running' 
+const checkDatabaseHealth = () => new Promise((resolve, reject) => {
+  db.get('SELECT 1 AS ready', (error) => {
+    if (error) reject(error);
+    else resolve();
   });
+});
 
+app.get('/health', async (req, res) => {
+  try {
+    await db.ready;
+    await checkDatabaseHealth();
+    return res.status(200).json({
+      status: 'ok',
+      service: 'rifkando-api',
+      timestamp: new Date().toISOString(),
+      requestId: req.requestId,
+    });
+  } catch (error) {
+    return res.status(503).json({
+      status: 'unavailable',
+      service: 'rifkando-api',
+      requestId: req.requestId,
+    });
+  }
+});
+
+app.get('/ready', async (req, res) => {
+  try {
+    await db.ready;
+    await checkDatabaseHealth();
+    return res.status(200).json({ status: 'ready', requestId: req.requestId });
+  } catch (error) {
+    return res.status(503).json({ status: 'not_ready', requestId: req.requestId });
+  }
 });
 
 
@@ -4481,7 +4523,9 @@ app.patch('/api/admin/verify-document/:docId', protect, requireAdmin, (req, res)
 
 // ==================== 404 HANDLER ====================
 app.use((req, res) => {
-  res.status(404).json({ message: 'Route not found' });
+  res.status(404).json({ error: 'Route not found', requestId: req.requestId });
 });
+
+app.use(errorHandler);
 
 module.exports = app;

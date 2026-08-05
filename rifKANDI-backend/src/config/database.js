@@ -10,8 +10,16 @@ const dbPath = process.env.DATABASE_PATH || (
     : path.join(__dirname, '../../rifkandi.db')
 );
 
+let resolveDatabaseReady;
+let rejectDatabaseReady;
+const databaseReady = new Promise((resolve, reject) => {
+  resolveDatabaseReady = resolve;
+  rejectDatabaseReady = reject;
+});
+
 const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
+    rejectDatabaseReady(err);
     console.error('❌ Database error:', err.message);
   } else {
     console.log('✅ SQLite Database connected!');
@@ -19,8 +27,15 @@ const db = new sqlite3.Database(dbPath, (err) => {
   }
 });
 
+// SQLite disables foreign keys by default. WAL and a busy timeout make this
+// single-node database safer under concurrent web requests.
+db.configure('busyTimeout', 5000);
+
 // Create tables
 db.serialize(() => {
+  db.run('PRAGMA foreign_keys = ON');
+  db.run('PRAGMA journal_mode = WAL');
+  db.run('PRAGMA synchronous = NORMAL');
   // Users table (with is_verified_seller column included directly)
   db.run(`
     CREATE TABLE IF NOT EXISTS users (
@@ -827,6 +842,18 @@ db.serialize(() => {
   });
 
   console.log('✅ All tables created/verified');
+  db.get('SELECT 1 AS ready', (error) => {
+    if (error) {
+      console.error('Database initialization failed:', error.message);
+      rejectDatabaseReady(error);
+      return;
+    }
+    console.log('Database schema is ready');
+    resolveDatabaseReady();
+  });
 });
+
+db.ready = databaseReady;
+db.path = dbPath;
 
 module.exports = db;
