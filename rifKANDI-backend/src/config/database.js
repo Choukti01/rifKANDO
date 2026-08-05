@@ -713,6 +713,98 @@ db.serialize(() => {
     )
   `, (err) => { if (err) console.error('Error creating payment_transactions:', err); else console.log('✅ payment_transactions table ready'); });
 
+  // ==================== FINANCIAL INTEGRITY TABLES ====================
+  // The legacy wallet_transactions table remains for UI compatibility. New
+  // movements are also recorded here with immutable, idempotent ledger keys.
+  db.run(`
+    CREATE TABLE IF NOT EXISTS wallet_ledger_entries (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      idempotency_key TEXT NOT NULL UNIQUE,
+      user_id INTEGER NOT NULL,
+      account TEXT NOT NULL CHECK (account IN ('available_balance', 'escrow_balance', 'pending_withdrawal')),
+      amount REAL NOT NULL,
+      balance_before REAL NOT NULL,
+      balance_after REAL NOT NULL,
+      entry_type TEXT NOT NULL,
+      reference_type TEXT,
+      reference_id INTEGER,
+      description TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    )
+  `, (err) => { if (err) console.error('Error creating wallet_ledger_entries:', err); else console.log('✅ wallet ledger table ready'); });
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS financial_operations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      operation_key TEXT NOT NULL UNIQUE,
+      operation_type TEXT NOT NULL,
+      reference_type TEXT,
+      reference_id INTEGER,
+      metadata TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `, (err) => { if (err) console.error('Error creating financial_operations:', err); else console.log('✅ financial operations table ready'); });
+
+  // A checkout retry must return the first created order rather than reserve
+  // stock or charge a wallet a second time.
+  db.run(`
+    CREATE TABLE IF NOT EXISTS checkout_requests (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      idempotency_key TEXT NOT NULL,
+      order_id INTEGER NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(user_id, idempotency_key),
+      FOREIGN KEY (user_id) REFERENCES users(id),
+      FOREIGN KEY (order_id) REFERENCES orders(id)
+    )
+  `, (err) => { if (err) console.error('Error creating checkout_requests:', err); else console.log('✅ checkout idempotency table ready'); });
+
+  // CMI refunds are confirmed manually using the gateway's payout reference;
+  // this prevents an application action from claiming a card refund happened.
+  db.run(`
+    CREATE TABLE IF NOT EXISTS refund_requests (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      order_id INTEGER NOT NULL UNIQUE,
+      requested_by INTEGER NOT NULL,
+      amount REAL NOT NULL,
+      payment_method TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      reason TEXT,
+      provider_reference TEXT,
+      processed_by INTEGER,
+      processed_at DATETIME,
+      notes TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (order_id) REFERENCES orders(id),
+      FOREIGN KEY (requested_by) REFERENCES users(id),
+      FOREIGN KEY (processed_by) REFERENCES users(id)
+    )
+  `, (err) => { if (err) console.error('Error creating refund_requests:', err); else console.log('✅ refund requests table ready'); });
+
+  db.run('ALTER TABLE withdrawal_requests ADD COLUMN request_key TEXT', (err) => {
+    if (err && !err.message.includes('duplicate column name')) console.error('Error adding withdrawal request key:', err.message);
+  });
+  db.run('ALTER TABLE withdrawal_requests ADD COLUMN provider_reference TEXT', (err) => {
+    if (err && !err.message.includes('duplicate column name')) console.error('Error adding withdrawal provider reference:', err.message);
+  });
+  db.run('ALTER TABLE orders ADD COLUMN payment_details TEXT', (err) => {
+    if (err && !err.message.includes('duplicate column name')) console.error('Error adding order payment details:', err.message);
+  });
+  db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_withdrawal_requests_request_key ON withdrawal_requests(request_key)', (err) => {
+    if (err) console.error('Error creating withdrawal request key index:', err.message);
+  });
+  db.run('CREATE INDEX IF NOT EXISTS idx_wallet_ledger_user_created ON wallet_ledger_entries(user_id, created_at DESC)', (err) => {
+    if (err) console.error('Error creating wallet ledger index:', err.message);
+  });
+  db.run('CREATE INDEX IF NOT EXISTS idx_payment_transactions_order_status ON payment_transactions(order_id, status)', (err) => {
+    if (err) console.error('Error creating payment transaction index:', err.message);
+  });
+  db.run('CREATE INDEX IF NOT EXISTS idx_escrow_order_status ON escrow_transactions(order_id, status)', (err) => {
+    if (err) console.error('Error creating escrow index:', err.message);
+  });
+
   // ========== NEW: Product Offers table (for Joutiya items) ==========
   db.run(`
     CREATE TABLE IF NOT EXISTS product_offers (

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import api from '../../../services/api';
 import toast from 'react-hot-toast';
 
@@ -8,6 +8,7 @@ const Wallet = () => {
   const [loading, setLoading] = useState(true);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState('');
+  const withdrawalRequestIdRef = useRef(null);
   const [bankDetails, setBankDetails] = useState({ bank: '', account_name: '', account_number: '', rib: '' });
 
   useEffect(() => {
@@ -40,12 +41,17 @@ const Wallet = () => {
     }
 
     try {
+      if (!withdrawalRequestIdRef.current) {
+        withdrawalRequestIdRef.current = globalThis.crypto?.randomUUID?.()
+          || `withdraw-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      }
       await api.post('/wallet/withdraw', {
         amount: parseFloat(withdrawAmount),
         method: 'bank_transfer',
         bankDetails
-      });
+      }, { headers: { 'Idempotency-Key': withdrawalRequestIdRef.current } });
       toast.success('Withdrawal request submitted');
+      withdrawalRequestIdRef.current = null;
       setShowWithdrawModal(false);
       setWithdrawAmount('');
       fetchWalletData();

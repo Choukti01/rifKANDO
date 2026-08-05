@@ -334,6 +334,21 @@ app.patch('/api/orders/:id/status', protect, requireOrderStatusAccess, async (re
     return res.status(400).json({ error: `Invalid status: ${status}. Allowed: ${validStatuses.join(', ')}` });
   }
 
+  if (status === 'delivered') {
+    try {
+      const result = await WalletService.releaseOrderEscrowsAfterDelivery(req.params.id, req.user.id);
+      return res.json({
+        success: true,
+        alreadyProcessed: result.alreadyProcessed,
+        message: result.alreadyProcessed
+          ? 'Order was already delivered'
+          : `Order delivered; ${result.releasedEscrows} escrow release(s) processed`,
+      });
+    } catch (error) {
+      return res.status(409).json({ error: error.message });
+    }
+  }
+
   // Check if order exists
   db.get('SELECT * FROM orders WHERE id = ?', [req.params.id], (err, order) => {
     if (err || !order) {
@@ -342,6 +357,11 @@ app.patch('/api/orders/:id/status', protect, requireOrderStatusAccess, async (re
     }
 
     const oldStatus = order.status;
+    if (status === 'cancelled' && order.payment_status === 'paid') {
+      return res.status(409).json({
+        error: 'A paid order cannot be cancelled through status updates. Use the refund workflow.'
+      });
+    }
     console.log(`📦 Updating order ${req.params.id} from ${oldStatus} to ${status}`);
 
     db.run('UPDATE orders SET status = ? WHERE id = ?', [status, req.params.id], function(err) {
@@ -2623,10 +2643,52 @@ const generateOrderNumber = () => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
-  const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+  const random = crypto.randomUUID().replace(/-/g, '').slice(0, 10).toUpperCase();
   return `RIF-${year}${month}${day}-${random}`;
 };
 
+app.post('/api/orders', protect, async (req, res) => {
+  const { shippingAddress, paymentMethod, notes, items, total } = req.body || {};
+  const idempotencyKey = req.get('Idempotency-Key');
+  if (!idempotencyKey) {
+    return res.status(400).json({ error: 'Idempotency-Key header is required to place an order.' });
+  }
+
+  try {
+    const result = await WalletService.createMarketplaceOrder({
+      buyerId: req.user.id,
+      orderNumber: generateOrderNumber(),
+      paymentMethod,
+      shippingAddress,
+      notes,
+      items,
+      expectedTotal: total,
+      idempotencyKey,
+    });
+    const order = result.order;
+    return res.status(result.alreadyCreated ? 200 : 201).json({
+      success: true,
+      alreadyCreated: result.alreadyCreated,
+      order: {
+        id: order.id,
+        orderNumber: order.order_number,
+        total: Number(order.total),
+        status: order.status,
+        paymentMethod: order.payment_method,
+        paymentStatus: order.payment_status,
+      },
+    });
+  } catch (error) {
+    console.error('Secure checkout failed:', error.message);
+    return res.status(400).json({ error: error.message });
+  }
+});
+
+/* Legacy checkout implementation retained only for migration reference.
+ * It trusted client totals and made non-atomic financial updates, so it is
+ * deliberately disabled in favour of the transaction-backed route below.
+ */
+/*
 app.post('/api/orders', protect, async (req, res) => {
   const { shippingAddress, paymentMethod, notes, items, total } = req.body;
   const orderNumber = generateOrderNumber();
@@ -2790,6 +2852,7 @@ app.post('/api/orders', protect, async (req, res) => {
     });
   });
 });
+*/
 
 // ==================== FAVORITES ENDPOINTS ====================
 app.get('/api/favorites', protect, (req, res) => {
@@ -3496,14 +3559,23 @@ app.get('/api/wallet/transactions', protect, async (req, res) => {
 
 app.post('/api/wallet/withdraw', protect, async (req, res) => {
   const { amount, method, bankDetails } = req.body;
+  const requestKey = req.get('Idempotency-Key');
   
   if (!amount || amount < 100) {
     return res.status(400).json({ error: 'Minimum withdrawal amount is 100 MAD' });
   }
+  if (!requestKey) {
+    return res.status(400).json({ error: 'Idempotency-Key header is required for withdrawals.' });
+  }
   
   try {
-    const result = await WalletService.requestWithdrawal(req.user.id, amount, method, bankDetails);
-    res.json({ success: true, message: 'Withdrawal request submitted', requestId: result.requestId });
+    const result = await WalletService.requestWithdrawal(req.user.id, amount, method, bankDetails, requestKey);
+    res.status(result.alreadyProcessed ? 200 : 201).json({
+      success: true,
+      alreadyProcessed: result.alreadyProcessed,
+      message: 'Withdrawal request submitted',
+      requestId: result.requestId,
+    });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
@@ -3526,6 +3598,8 @@ app.get('/api/admin/withdrawals', protect, requireAdmin, async (req, res) => {
   });
 });
 
+/* Legacy withdrawal processing was not atomic and did not require a payout reference. */
+/*
 app.patch('/api/admin/withdrawals/:id/process', protect, requireAdmin, async (req, res) => {
   if (req.user.role !== 'admin') {
     return res.status(403).json({ error: 'Admin only' });
@@ -3572,11 +3646,35 @@ app.patch('/api/admin/withdrawals/:id/process', protect, requireAdmin, async (re
     }
   });
 });
+*/
+
+app.patch('/api/admin/withdrawals/:id/process', protect, requireAdmin, async (req, res) => {
+  const { action, notes, providerReference } = req.body || {};
+  try {
+    const result = await WalletService.processWithdrawal({
+      withdrawalId: req.params.id,
+      action,
+      adminId: req.user.id,
+      notes,
+      providerReference,
+    });
+    return res.json({
+      success: true,
+      alreadyProcessed: result.alreadyProcessed,
+      status: result.status,
+      message: result.alreadyProcessed ? 'Withdrawal was already processed' : `Withdrawal ${result.status}`,
+    });
+  } catch (error) {
+    return res.status(400).json({ error: error.message });
+  }
+});
 
 const EmailService = require('./services/emailService');
 const InvoiceService = require('./services/invoiceService');
 
 // ==================== BUYER ORDER CANCELLATION ====================
+/* Legacy cancellation could credit a wallet twice under concurrent requests. */
+/*
 app.post('/api/orders/:id/cancel', protect, async (req, res) => {
   const orderId = req.params.id;
   const userId = req.user.id;
@@ -3623,6 +3721,131 @@ app.post('/api/orders/:id/cancel', protect, async (req, res) => {
       res.json({ success: true, message: 'Order cancelled successfully' });
     });
   });
+});
+*/
+
+app.post('/api/orders/:id/cancel', protect, async (req, res) => {
+  try {
+    await WalletService.cancelUnpaidOrder(req.params.id, req.user.id);
+    return res.json({ success: true, message: 'Order cancelled successfully' });
+  } catch (error) {
+    return res.status(400).json({ error: error.message });
+  }
+});
+
+app.post('/api/orders/:id/refund-request', protect, async (req, res) => {
+  try {
+    const result = await WalletService.requestRefund({
+      orderId: req.params.id,
+      requesterId: req.user.id,
+      reason: req.body?.reason,
+    });
+    return res.status(result.alreadyProcessed ? 200 : 201).json({ success: true, ...result });
+  } catch (error) {
+    return res.status(400).json({ error: error.message });
+  }
+});
+
+app.get('/api/admin/refunds', protect, requireAdmin, async (req, res) => {
+  try {
+    const refunds = await WalletService.all(`
+      SELECT r.*, o.order_number, u.name AS requester_name, u.email AS requester_email
+      FROM refund_requests r
+      JOIN orders o ON o.id = r.order_id
+      JOIN users u ON u.id = r.requested_by
+      ORDER BY CASE r.status WHEN 'pending' THEN 0 ELSE 1 END, r.created_at ASC
+    `);
+    return res.json({ success: true, refunds });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+app.patch('/api/admin/refunds/:id/complete', protect, requireAdmin, async (req, res) => {
+  try {
+    const result = await WalletService.completeRefund({
+      refundId: req.params.id,
+      adminId: req.user.id,
+      providerReference: req.body?.providerReference,
+      notes: req.body?.notes,
+    });
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    return res.status(400).json({ error: error.message });
+  }
+});
+
+app.get('/api/admin/finance/reconciliation', protect, requireAdmin, async (req, res) => {
+  try {
+    const [negativeWallets, withdrawalMismatches, cmiTransactionMismatches,
+      paidOrdersWithoutGatewayRecord, paidOrdersWithoutEscrow, releasedEscrowMismatches] = await Promise.all([
+      WalletService.all(`
+        SELECT user_id, available_balance, escrow_balance, pending_withdrawal
+        FROM wallets
+        WHERE available_balance < 0 OR escrow_balance < 0 OR pending_withdrawal < 0
+      `),
+      WalletService.all(`
+        SELECT w.user_id, w.pending_withdrawal,
+               ROUND(COALESCE(SUM(r.amount), 0), 2) AS expected_pending_withdrawal
+        FROM wallets w
+        LEFT JOIN withdrawal_requests r ON r.user_id = w.user_id AND r.status = 'pending'
+        GROUP BY w.user_id
+        HAVING ABS(ROUND(w.pending_withdrawal - COALESCE(SUM(r.amount), 0), 2)) >= 0.01
+      `),
+      WalletService.all(`
+        SELECT pt.id, pt.order_id, pt.cmi_oid, pt.status AS transaction_status, o.payment_status
+        FROM payment_transactions pt
+        JOIN orders o ON o.id = pt.order_id
+        WHERE (pt.status = 'completed' AND o.payment_status NOT IN ('paid', 'refunded'))
+           OR (pt.status = 'refunded' AND o.payment_status != 'refunded')
+      `),
+      WalletService.all(`
+        SELECT o.id, o.order_number, o.total, o.payment_status
+        FROM orders o
+        WHERE o.payment_method = 'cmi' AND o.payment_status = 'paid'
+          AND NOT EXISTS (
+            SELECT 1 FROM payment_transactions pt
+            WHERE pt.order_id = o.id AND pt.status IN ('completed', 'refunded')
+          )
+      `),
+      WalletService.all(`
+        SELECT o.id, o.order_number, o.payment_method, o.total
+        FROM orders o
+        WHERE o.payment_method IN ('cmi', 'wallet') AND o.payment_status = 'paid'
+          AND NOT EXISTS (SELECT 1 FROM escrow_transactions e WHERE e.order_id = o.id)
+      `),
+      WalletService.all(`
+        SELECT e.id, e.order_id, e.seller_id, e.seller_amount
+        FROM escrow_transactions e
+        WHERE e.status = 'released'
+          AND NOT EXISTS (
+            SELECT 1 FROM payment_splits ps
+            WHERE ps.order_id = e.order_id AND ps.party_type = 'seller'
+              AND ps.party_id = e.seller_id AND ps.status = 'completed'
+          )
+      `),
+    ]);
+
+    const issueCount = negativeWallets.length + withdrawalMismatches.length
+      + cmiTransactionMismatches.length + paidOrdersWithoutGatewayRecord.length
+      + paidOrdersWithoutEscrow.length + releasedEscrowMismatches.length;
+    return res.json({
+      success: true,
+      generatedAt: new Date().toISOString(),
+      issueCount,
+      checks: {
+        negativeWallets,
+        withdrawalMismatches,
+        cmiTransactionMismatches,
+        paidOrdersWithoutGatewayRecord,
+        paidOrdersWithoutEscrow,
+        releasedEscrowMismatches,
+      },
+      note: 'CMI settlement must also be compared with the merchant portal or an imported gateway statement; no gateway credentials are used by this read-only report.',
+    });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
 });
 
 app.get('/api/orders/:id/history', protect, (req, res) => {
@@ -3822,6 +4045,8 @@ app.get('/api/admin/cod-orders', protect, requireAdmin, (req, res) => {
   });
 });
 
+/* Legacy COD settlement could credit sellers more than once under concurrent requests. */
+/*
 app.post('/api/admin/cod-orders/:id/confirm', protect, requireAdmin, async (req, res) => {
   if (req.user.role !== 'admin') {
     return res.status(403).json({ error: 'Admin only' });
@@ -3887,6 +4112,20 @@ app.post('/api/admin/cod-orders/:id/confirm', protect, requireAdmin, async (req,
     });
   });
 });
+*/
+
+app.post('/api/admin/cod-orders/:id/confirm', protect, requireAdmin, async (req, res) => {
+  try {
+    const result = await WalletService.settleCodOrder(req.params.id, req.user.id);
+    return res.json({
+      success: true,
+      alreadyProcessed: result.alreadyProcessed,
+      message: result.alreadyProcessed ? 'COD order was already settled' : 'Cash collected and seller credited',
+    });
+  } catch (error) {
+    return res.status(400).json({ error: error.message });
+  }
+});
 
 // ==================== CMI PAYMENT ENDPOINTS ====================
 const CmiPaymentService = require('./services/cmiPaymentService');
@@ -3928,36 +4167,14 @@ app.post('/api/payment/cmi/initiate', protect, async (req, res) => {
 });
 
 app.get('/api/payment/success', async (req, res) => {
-  const { oid, result, md, amount, storekey, AuthCode, Response, ProcReturnCode, ErrMsg } = req.query;
-  
-  console.log('CMI Success Callback:', { oid, result, AuthCode, Response });
-  
-  if ((result === 'success' || ProcReturnCode === '00') && CmiPaymentService.verifyPayment(req.query)) {
-    try {
-      await CmiPaymentService.processSuccessPayment(oid, req.query);
-      return res.redirect(`${process.env.CLIENT_URL}/payment/success?order_id=${oid}`);
-    } catch (error) {
-      console.error('CMI success callback was rejected:', error.message);
-    }
-  }
-
-  // A browser redirect is never sufficient evidence of failure or success.
-  // The server-to-server callback is the only route allowed to mutate payment state.
-  return res.redirect(`${process.env.CLIENT_URL}/payment/failed`);
+  const { oid } = req.query;
+  // A customer browser return can be forged or abandoned. It may display a
+  // status page, but only the signed server-to-server callback changes money.
+  return res.redirect(`${process.env.CLIENT_URL}/payment/success?order_id=${encodeURIComponent(oid || '')}`);
 });
 
 app.get('/api/payment/fail', async (req, res) => {
-  const { oid, ErrMsg } = req.query;
-  console.log('CMI Fail Callback:', { oid, ErrMsg });
-  
-  if (oid && CmiPaymentService.verifyPayment(req.query)) {
-    try {
-      await CmiPaymentService.processFailedPayment(oid, req.query);
-    } catch (error) {
-      console.error('CMI failure callback was rejected:', error.message);
-    }
-  }
-  
+  // Like the success URL, this browser destination must never alter payment state.
   res.redirect(`${process.env.CLIENT_URL}/payment/failed`);
 });
 

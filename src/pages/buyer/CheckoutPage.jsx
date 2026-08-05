@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ShieldCheckIcon, TruckIcon, CreditCardIcon } from '@heroicons/react/24/outline'
 import { useCart } from '../../contexts/CartContext'
@@ -12,6 +12,7 @@ const CheckoutPage = () => {
   const { cart, getCartTotal, clearCart } = useCart()
   const { user } = useAuth()
   const [loading, setLoading] = useState(false)
+  const checkoutRequestIdRef = useRef(null)
   const [step, setStep] = useState(1)
   const [paymentMethod, setPaymentMethod] = useState('cash')
   const [formData, setFormData] = useState({
@@ -41,6 +42,13 @@ const CheckoutPage = () => {
     setLoading(true)
     
     try {
+      if (!checkoutRequestIdRef.current) {
+        checkoutRequestIdRef.current = globalThis.crypto?.randomUUID?.()
+          || `checkout-${Date.now()}-${Math.random().toString(36).slice(2)}`
+      }
+      const requestConfig = {
+        headers: { 'Idempotency-Key': checkoutRequestIdRef.current }
+      }
       const orderData = {
         shippingAddress: {
           fullName: formData.fullName,
@@ -64,7 +72,7 @@ const CheckoutPage = () => {
 
       if (paymentMethod === 'cmi') {
         // Create order first
-        const orderResponse = await api.post('/orders', orderData)
+        const orderResponse = await api.post('/orders', orderData, requestConfig)
         
         if (orderResponse.data.success) {
           const order = orderResponse.data.order
@@ -85,7 +93,7 @@ const CheckoutPage = () => {
         }
       } else {
         // Cash on Delivery flow
-        const response = await api.post('/orders', orderData)
+        const response = await api.post('/orders', orderData, requestConfig)
         
         if (response.data.success) {
           toast.success('Order placed — thank you for shopping with rifKANDO!')
