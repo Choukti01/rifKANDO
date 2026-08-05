@@ -13,7 +13,7 @@ const protect = async (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
     
     db.get('SELECT * FROM users WHERE id = ?', [decoded.id], (err, user) => {
       if (err || !user) {
@@ -27,4 +27,16 @@ const protect = async (req, res, next) => {
   }
 };
 
-module.exports = { protect };
+const authorize = (...roles) => (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'You are not logged in' });
+  }
+
+  if (!roles.includes(req.user.role)) {
+    return res.status(403).json({ error: 'You are not authorized to perform this action' });
+  }
+
+  return next();
+};
+
+module.exports = { protect, authorize };

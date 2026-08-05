@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const db = require('./config/database');
-const { protect } = require('./middleware/auth');
+const { protect, authorize } = require('./middleware/auth');
 const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
@@ -14,6 +14,9 @@ const { sendVerificationEmail, sendWelcomeEmail, sendLoginNotificationEmail } = 
 
 
 const app = express();
+
+const requireSeller = authorize('seller');
+const requireAdmin = authorize('admin');
 
 app.set('trust proxy', 1);
 app.disable('x-powered-by');
@@ -490,6 +493,9 @@ app.post('/api/auth/login', authRateLimit, (req, res) => {
   });
 });
 
+/* Legacy duplicate authentication handlers. The verified handlers above are
+ * authoritative; this implementation is intentionally disabled. */
+/*
 // Register user
 app.post('/api/auth/register', authRateLimit, async (req, res) => {
   const { name, email, password, phone } = req.body;
@@ -570,6 +576,7 @@ app.post('/api/auth/login', authRateLimit, (req, res) => {
   });
 });
 
+*/
 // Get current user
 app.get('/api/auth/me', protect, (req, res) => {
   res.json({
@@ -782,7 +789,7 @@ const persistPublicMedia = async (req, res, next) => {
 };
 
 // ==================== MEDIA UPLOAD ROUTE ====================
-app.post('/api/upload-media', protect, (req, res, next) => {
+app.post('/api/upload-media', protect, requireSeller, (req, res, next) => {
   mediaUpload.single('media')(req, res, (err) => {
     if (err) {
       return res.status(400).json({ error: err.message || 'Invalid upload.' });
@@ -1253,7 +1260,7 @@ app.get('/api/products/:id', (req, res) => {
 });
 
 // Add product (seller only, with media) – includes condition
-app.post('/api/products', protect, (req, res) => {
+app.post('/api/products', protect, requireSeller, (req, res) => {
   const { title, description, price, old_price, category, stock, media, condition } = req.body;
   
   db.run(
@@ -1288,14 +1295,14 @@ app.post('/api/products', protect, (req, res) => {
 });
 
 // Update product (with media) – includes condition
-app.put('/api/products/:id', protect, (req, res) => {
+app.put('/api/products/:id', protect, requireSeller, (req, res) => {
   const { title, description, price, old_price, category, stock, media, condition } = req.body;
   
   db.get('SELECT seller_id FROM products WHERE id = ?', [req.params.id], (err, product) => {
     if (err || !product) {
       return res.status(404).json({ error: 'Product not found' });
     }
-    if (product.seller_id !== req.user.id && !req.user.roles?.includes('admin')) {
+    if (product.seller_id !== req.user.id && req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Not authorized' });
     }
     
@@ -1330,12 +1337,12 @@ app.put('/api/products/:id', protect, (req, res) => {
 });
 
 // Delete product
-app.delete('/api/products/:id', protect, (req, res) => {
+app.delete('/api/products/:id', protect, requireSeller, (req, res) => {
   db.get('SELECT seller_id FROM products WHERE id = ?', [req.params.id], (err, product) => {
     if (err || !product) {
       return res.status(404).json({ error: 'Product not found' });
     }
-    if (product.seller_id !== req.user.id && !req.user.roles?.includes('admin')) {
+    if (product.seller_id !== req.user.id && req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Not authorized' });
     }
     
@@ -1350,7 +1357,7 @@ app.delete('/api/products/:id', protect, (req, res) => {
 });
 
 // Get seller's products (with media and seller verification)
-app.get('/api/my-products', protect, (req, res) => {
+app.get('/api/my-products', protect, requireSeller, (req, res) => {
   db.all(`
     SELECT p.*, u.name as seller_name, u.is_verified_seller as seller_verified
     FROM products p
@@ -1431,7 +1438,7 @@ app.post('/api/products/:id/reviews', protect, (req, res) => {
 
 // ==================== COURSE ENDPOINTS ====================
 // (unchanged – kept exactly as in original)
-app.post('/api/courses', protect, (req, res) => {
+app.post('/api/courses', protect, requireSeller, (req, res) => {
   const { title, description, price, old_price, category, level, duration, what_you_learn, media } = req.body;
 
   db.run(`
@@ -1556,7 +1563,7 @@ app.get('/api/courses/:id', (req, res) => {
   });
 });
 
-app.get('/api/my-courses', protect, (req, res) => {
+app.get('/api/my-courses', protect, requireSeller, (req, res) => {
   db.all(`
     SELECT c.*,
       (SELECT COUNT(*) FROM enrollments WHERE course_id = c.id) as students_count
@@ -1582,7 +1589,7 @@ app.get('/api/my-courses', protect, (req, res) => {
   });
 });
 
-app.put('/api/courses/:id', protect, (req, res) => {
+app.put('/api/courses/:id', protect, requireSeller, (req, res) => {
   const { title, description, price, old_price, category, level, duration, what_you_learn, media } = req.body;
   const courseId = req.params.id;
 
@@ -1683,7 +1690,7 @@ app.put('/api/courses/:courseId/lessons/:lessonId/progress', protect, (req, res)
   });
 });
 
-app.post('/api/courses/:courseId/lessons', protect, (req, res) => {
+app.post('/api/courses/:courseId/lessons', protect, requireSeller, (req, res) => {
   const { courseId } = req.params;
   const { title, description, duration, order, is_preview } = req.body;
   
@@ -1711,7 +1718,7 @@ app.post('/api/courses/:courseId/lessons', protect, (req, res) => {
   });
 });
 
-app.put('/api/courses/:courseId/lessons/:lessonId', protect, (req, res) => {
+app.put('/api/courses/:courseId/lessons/:lessonId', protect, requireSeller, (req, res) => {
   const { courseId, lessonId } = req.params;
   const { title, description, duration, order, is_preview } = req.body;
   
@@ -1738,7 +1745,7 @@ app.put('/api/courses/:courseId/lessons/:lessonId', protect, (req, res) => {
   });
 });
 
-app.delete('/api/courses/:id', protect, (req, res) => {
+app.delete('/api/courses/:id', protect, requireSeller, (req, res) => {
   db.get('SELECT instructor_id FROM courses WHERE id = ?', [req.params.id], (err, course) => {
     if (err) {
       return res.status(500).json({ error: err.message });
@@ -1762,7 +1769,7 @@ app.delete('/api/courses/:id', protect, (req, res) => {
   });
 });
 
-app.delete('/api/courses/:courseId/lessons/:lessonId', protect, (req, res) => {
+app.delete('/api/courses/:courseId/lessons/:lessonId', protect, requireSeller, (req, res) => {
   const { courseId, lessonId } = req.params;
   
   db.get('SELECT instructor_id FROM courses WHERE id = ?', [courseId], (err, course) => {
@@ -1785,7 +1792,7 @@ app.delete('/api/courses/:courseId/lessons/:lessonId', protect, (req, res) => {
 
 // ==================== SERVICE ENDPOINTS ====================
 // (unchanged – kept exactly as in original)
-app.post('/api/services', protect, (req, res) => {
+app.post('/api/services', protect, requireSeller, (req, res) => {
   const { title, description, price, old_price, category, delivery_time, revisions, image, media } = req.body;
 
   db.run(`
@@ -1876,7 +1883,7 @@ app.get('/api/services/:id', (req, res) => {
   });
 });
 
-app.get('/api/my-services', protect, (req, res) => {
+app.get('/api/my-services', protect, requireSeller, (req, res) => {
   db.all(`
     SELECT s.*,
       (SELECT COUNT(*) FROM service_orders WHERE service_id = s.id) as orders_count
@@ -1902,7 +1909,7 @@ app.get('/api/my-services', protect, (req, res) => {
   });
 });
 
-app.put('/api/services/:id', protect, (req, res) => {
+app.put('/api/services/:id', protect, requireSeller, (req, res) => {
   const { title, description, price, old_price, category, delivery_time, revisions, image, media } = req.body;
   const serviceId = req.params.id;
 
@@ -1940,7 +1947,7 @@ app.put('/api/services/:id', protect, (req, res) => {
   });
 });
 
-app.delete('/api/services/:id', protect, (req, res) => {
+app.delete('/api/services/:id', protect, requireSeller, (req, res) => {
   db.get('SELECT provider_id FROM services WHERE id = ?', [req.params.id], (err, service) => {
     if (err) {
       return res.status(500).json({ error: err.message });
@@ -1999,7 +2006,7 @@ app.post('/api/services/:id/order', protect, (req, res) => {
 
 // ==================== DIGITAL PRODUCT ENDPOINTS ====================
 // (unchanged – kept exactly as in original)
-app.post('/api/digital', protect, (req, res) => {
+app.post('/api/digital', protect, requireSeller, (req, res) => {
   const { title, description, price, old_price, category, file_type, file_url, file_size, download_limit, image, media } = req.body;
 
   db.run(`
@@ -2083,7 +2090,7 @@ app.get('/api/digital/:id', (req, res) => {
   });
 });
 
-app.get('/api/my-digital', protect, (req, res) => {
+app.get('/api/my-digital', protect, requireSeller, (req, res) => {
   db.all(`
     SELECT d.*, 
       (SELECT COUNT(*) FROM digital_purchases WHERE product_id = d.id) as sales_count
@@ -2109,7 +2116,7 @@ app.get('/api/my-digital', protect, (req, res) => {
   });
 });
 
-app.delete('/api/digital/:id', protect, (req, res) => {
+app.delete('/api/digital/:id', protect, requireSeller, (req, res) => {
   db.get('SELECT seller_id FROM digital_products WHERE id = ?', [req.params.id], (err, product) => {
     if (err) {
       return res.status(500).json({ error: err.message });
@@ -2213,7 +2220,7 @@ app.get('/api/digital/:id/download', protect, (req, res) => {
 
 // ==================== BOOKING ENDPOINTS ====================
 // (unchanged – kept exactly as in original)
-app.post('/api/bookings', protect, (req, res) => {
+app.post('/api/bookings', protect, requireSeller, (req, res) => {
   const { title, description, price, old_price, category, duration, location_type, location, max_participants, available_days, image, media } = req.body;
 
   db.run(`
@@ -2299,7 +2306,7 @@ app.get('/api/bookings/:id', (req, res) => {
   });
 });
 
-app.get('/api/my-bookings', protect, (req, res) => {
+app.get('/api/my-bookings', protect, requireSeller, (req, res) => {
   db.all(`
     SELECT b.*,
       (SELECT COUNT(*) FROM appointments WHERE booking_id = b.id) as appointments_count
@@ -2325,7 +2332,7 @@ app.get('/api/my-bookings', protect, (req, res) => {
   });
 });
 
-app.put('/api/bookings/:id', protect, (req, res) => {
+app.put('/api/bookings/:id', protect, requireSeller, (req, res) => {
   const { title, description, price, old_price, category, duration, location_type, location, max_participants, available_days, image, media } = req.body;
   const bookingId = req.params.id;
 
@@ -2366,7 +2373,7 @@ app.put('/api/bookings/:id', protect, (req, res) => {
   });
 });
 
-app.delete('/api/bookings/:id', protect, (req, res) => {
+app.delete('/api/bookings/:id', protect, requireSeller, (req, res) => {
   db.get('SELECT provider_id FROM bookings WHERE id = ?', [req.params.id], (err, booking) => {
     if (err) {
       return res.status(500).json({ error: err.message });
@@ -2440,7 +2447,7 @@ app.get('/api/my-appointments', protect, (req, res) => {
   });
 });
 
-app.get('/api/provider-appointments', protect, (req, res) => {
+app.get('/api/provider-appointments', protect, requireSeller, (req, res) => {
   db.all(`
     SELECT a.*, b.title, u.name as client_name, u.email as client_email, u.phone as client_phone
     FROM appointments a
@@ -2938,7 +2945,7 @@ app.patch('/api/users/update-password', protect, async (req, res) => {
   });
 });
 
-app.get('/api/my-products-stats', protect, (req, res) => {
+app.get('/api/my-products-stats', protect, requireSeller, (req, res) => {
   db.all('SELECT * FROM products WHERE seller_id = ?', [req.user.id], (err, rows) => {
     if (err) {
       res.status(500).json({ error: err.message });
@@ -2948,7 +2955,7 @@ app.get('/api/my-products-stats', protect, (req, res) => {
   });
 });
 
-app.get('/api/my-courses-stats', protect, (req, res) => {
+app.get('/api/my-courses-stats', protect, requireSeller, (req, res) => {
   db.all('SELECT * FROM courses WHERE instructor_id = ?', [req.user.id], (err, rows) => {
     if (err) {
       res.status(500).json({ error: err.message });
@@ -3032,7 +3039,7 @@ app.post('/api/digital/:id/request', protect, (req, res) => {
   );
 });
 
-app.get('/api/seller/digital-requests', protect, (req, res) => {
+app.get('/api/seller/digital-requests', protect, requireSeller, (req, res) => {
   db.all(`
     SELECT dr.*, d.title as product_title, u.name as buyer_name, u.email as buyer_email
     FROM digital_requests dr
@@ -3046,10 +3053,18 @@ app.get('/api/seller/digital-requests', protect, (req, res) => {
   });
 });
 
-app.patch('/api/seller/digital-requests/:id/complete', protect, (req, res) => {
+app.patch('/api/seller/digital-requests/:id/complete', protect, requireSeller, (req, res) => {
   const requestId = req.params.id;
-  db.run('UPDATE digital_requests SET status = "completed" WHERE id = ?', [requestId], function(err) {
+  db.run(`
+    UPDATE digital_requests
+    SET status = 'completed'
+    WHERE id = ? AND EXISTS (
+      SELECT 1 FROM digital_products d
+      WHERE d.id = digital_requests.digital_id AND d.seller_id = ?
+    )
+  `, [requestId, req.user.id], function(err) {
     if (err) return res.status(500).json({ error: err.message });
+    if (this.changes !== 1) return res.status(404).json({ error: 'Digital request not found.' });
     res.json({ success: true, message: 'Request completed. Buyer can now download.' });
   });
 });
@@ -3063,7 +3078,7 @@ app.get('/api/digital/:id/can-download', protect, (req, res) => {
   });
 });
 
-app.patch('/api/:type/:id/status', protect, (req, res) => {
+app.patch('/api/:type/:id/status', protect, requireSeller, (req, res) => {
   const { type, id } = req.params;
   const { status } = req.body;
   const validTypes = ['products', 'courses', 'services', 'digital', 'bookings'];
@@ -3088,7 +3103,7 @@ app.patch('/api/:type/:id/status', protect, (req, res) => {
 });
 
 // ==================== COURSE LESSONS ENDPOINTS ====================
-app.post('/api/courses/:courseId/lessons', protect, (req, res) => {
+app.post('/api/courses/:courseId/lessons', protect, requireSeller, (req, res) => {
   const { courseId } = req.params;
   const { title, description, duration, video_url, is_preview, order } = req.body;
   
@@ -3108,7 +3123,7 @@ app.post('/api/courses/:courseId/lessons', protect, (req, res) => {
   });
 });
 
-app.put('/api/courses/:courseId/lessons/:lessonId', protect, (req, res) => {
+app.put('/api/courses/:courseId/lessons/:lessonId', protect, requireSeller, (req, res) => {
   const { courseId, lessonId } = req.params;
   const { title, description, duration, video_url, is_preview, order } = req.body;
   
@@ -3134,7 +3149,7 @@ app.put('/api/courses/:courseId/lessons/:lessonId', protect, (req, res) => {
   });
 });
 
-app.delete('/api/courses/:courseId/lessons/:lessonId', protect, (req, res) => {
+app.delete('/api/courses/:courseId/lessons/:lessonId', protect, requireSeller, (req, res) => {
   const { courseId, lessonId } = req.params;
   
   db.get('SELECT instructor_id FROM courses WHERE id = ?', [courseId], (err, course) => {
@@ -3148,7 +3163,7 @@ app.delete('/api/courses/:courseId/lessons/:lessonId', protect, (req, res) => {
   });
 });
 
-app.patch('/api/courses/:courseId/lessons/reorder', protect, (req, res) => {
+app.patch('/api/courses/:courseId/lessons/reorder', protect, requireSeller, (req, res) => {
   const { courseId } = req.params;
   const { lessons } = req.body;
   
@@ -3174,7 +3189,7 @@ app.patch('/api/courses/:courseId/lessons/reorder', protect, (req, res) => {
 });
 
 // ==================== SERVICE PACKAGES ENDPOINTS ====================
-app.post('/api/services/:serviceId/packages', protect, (req, res) => {
+app.post('/api/services/:serviceId/packages', protect, requireSeller, (req, res) => {
   const { serviceId } = req.params;
   const { name, price, delivery_time, revisions, features } = req.body;
   
@@ -3201,7 +3216,7 @@ app.post('/api/services/:serviceId/packages', protect, (req, res) => {
   });
 });
 
-app.put('/api/services/:serviceId/packages/:packageId', protect, (req, res) => {
+app.put('/api/services/:serviceId/packages/:packageId', protect, requireSeller, (req, res) => {
   const { serviceId, packageId } = req.params;
   const { name, price, delivery_time, revisions, features } = req.body;
   
@@ -3233,7 +3248,7 @@ app.put('/api/services/:serviceId/packages/:packageId', protect, (req, res) => {
   });
 });
 
-app.delete('/api/services/:serviceId/packages/:packageId', protect, (req, res) => {
+app.delete('/api/services/:serviceId/packages/:packageId', protect, requireSeller, (req, res) => {
   const { serviceId, packageId } = req.params;
   
   db.get('SELECT provider_id FROM services WHERE id = ?', [serviceId], (err, service) => {
@@ -3427,7 +3442,7 @@ app.post('/api/ai/ask', async (req, res) => {
   }
 });
 
-app.get('/api/ai/admin-report', protect, async (req, res) => {
+app.get('/api/ai/admin-report', protect, requireAdmin, async (req, res) => {
   if (req.user.role !== 'admin') {
     return res.status(403).json({ error: 'Admin only' });
   }
@@ -3494,7 +3509,7 @@ app.post('/api/wallet/withdraw', protect, async (req, res) => {
   }
 });
 
-app.get('/api/admin/withdrawals', protect, async (req, res) => {
+app.get('/api/admin/withdrawals', protect, requireAdmin, async (req, res) => {
   if (req.user.role !== 'admin') {
     return res.status(403).json({ error: 'Admin only' });
   }
@@ -3511,7 +3526,7 @@ app.get('/api/admin/withdrawals', protect, async (req, res) => {
   });
 });
 
-app.patch('/api/admin/withdrawals/:id/process', protect, async (req, res) => {
+app.patch('/api/admin/withdrawals/:id/process', protect, requireAdmin, async (req, res) => {
   if (req.user.role !== 'admin') {
     return res.status(403).json({ error: 'Admin only' });
   }
@@ -3623,7 +3638,7 @@ app.get('/api/orders/:id/history', protect, (req, res) => {
   });
 });
 
-app.get('/api/seller/orders', protect, (req, res) => {
+app.get('/api/seller/orders', protect, requireSeller, (req, res) => {
   db.all(`
     SELECT DISTINCT o.*, u.name as buyer_name
     FROM orders o
@@ -3709,7 +3724,7 @@ app.get('/api/products/:id/reviews', (req, res) => {
 });
 
 // ==================== ADMIN DASHBOARD (UPDATED WITH SELLER VERIFICATION) ====================
-app.get('/api/admin/stats', protect, (req, res) => {
+app.get('/api/admin/stats', protect, requireAdmin, (req, res) => {
   if (req.user.role !== 'admin') {
     return res.status(403).json({ error: 'Admin only' });
   }
@@ -3731,7 +3746,7 @@ app.get('/api/admin/stats', protect, (req, res) => {
   }
 });
 
-app.get('/api/admin/recent-orders', protect, (req, res) => {
+app.get('/api/admin/recent-orders', protect, requireAdmin, (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
   
   db.all(`
@@ -3747,7 +3762,7 @@ app.get('/api/admin/recent-orders', protect, (req, res) => {
 });
 
 // ==================== SELLER VERIFICATION ADMIN ENDPOINTS ====================
-app.get('/api/admin/unverified-sellers', protect, (req, res) => {
+app.get('/api/admin/unverified-sellers', protect, requireAdmin, (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
   
   db.all(`
@@ -3761,7 +3776,7 @@ app.get('/api/admin/unverified-sellers', protect, (req, res) => {
   });
 });
 
-app.put('/api/admin/verify-seller/:userId', protect, (req, res) => {
+app.put('/api/admin/verify-seller/:userId', protect, requireAdmin, (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
   
   const { userId } = req.params;
@@ -3777,7 +3792,7 @@ app.put('/api/admin/verify-seller/:userId', protect, (req, res) => {
 });
 
 // ==================== COD ADMIN PANEL ====================
-app.get('/api/admin/cod-orders', protect, (req, res) => {
+app.get('/api/admin/cod-orders', protect, requireAdmin, (req, res) => {
   if (req.user.role !== 'admin') {
     return res.status(403).json({ error: 'Admin only' });
   }
@@ -3807,7 +3822,7 @@ app.get('/api/admin/cod-orders', protect, (req, res) => {
   });
 });
 
-app.post('/api/admin/cod-orders/:id/confirm', protect, async (req, res) => {
+app.post('/api/admin/cod-orders/:id/confirm', protect, requireAdmin, async (req, res) => {
   if (req.user.role !== 'admin') {
     return res.status(403).json({ error: 'Admin only' });
   }
@@ -4027,7 +4042,7 @@ app.post('/api/products/:id/offers', protect, (req, res) => {
   });
 });
 
-app.get('/api/seller/offers', protect, (req, res) => {
+app.get('/api/seller/offers', protect, requireSeller, (req, res) => {
   db.all(`
     SELECT 
       o.*,
@@ -4046,7 +4061,7 @@ app.get('/api/seller/offers', protect, (req, res) => {
   });
 });
 
-app.patch('/api/seller/offers/:offerId/respond', protect, (req, res) => {
+app.patch('/api/seller/offers/:offerId/respond', protect, requireSeller, (req, res) => {
   const { offerId } = req.params;
   const { action } = req.body;
   const sellerId = req.user.id;
@@ -4126,8 +4141,7 @@ const validateVerificationDocument = async (req, res, next) => {
   }
 };
 
-app.post('/api/seller/upload-verification', protect, documentUpload.single('document'), validateVerificationDocument, (req, res) => {
-  if (req.user.role !== 'seller') return res.status(403).json({ error: 'Only sellers can upload verification documents' });
+app.post('/api/seller/upload-verification', protect, requireSeller, documentUpload.single('document'), validateVerificationDocument, (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
   const documentUrl = `/uploads/verification/${req.file.filename}`;
   const { document_type } = req.body;
@@ -4157,8 +4171,7 @@ app.post('/api/seller/upload-verification', protect, documentUpload.single('docu
 
 
 
-app.get('/api/seller/verification-status', protect, (req, res) => {
-  if (req.user.role !== 'seller') return res.status(403).json({ error: 'Only sellers' });
+app.get('/api/seller/verification-status', protect, requireSeller, (req, res) => {
   db.get('SELECT status, document_type, created_at, updated_at FROM verification_documents WHERE user_id = ?', [req.user.id], (err, doc) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json({ success: true, verification: doc || null });
@@ -4169,7 +4182,7 @@ app.get('/api/seller/verification-status', protect, (req, res) => {
 
 
 
-app.get('/api/admin/pending-verifications', protect, (req, res) => {
+app.get('/api/admin/pending-verifications', protect, requireAdmin, (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
   db.all(`
     SELECT v.id, v.user_id, v.document_type, v.status, v.created_at, v.updated_at,
@@ -4184,7 +4197,7 @@ app.get('/api/admin/pending-verifications', protect, (req, res) => {
   });
 });
 
-app.get('/api/admin/verification-documents/:docId/file', protect, (req, res) => {
+app.get('/api/admin/verification-documents/:docId/file', protect, requireAdmin, (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
 
   db.get('SELECT document_url, document_type FROM verification_documents WHERE id = ?', [req.params.docId], (error, document) => {
@@ -4212,7 +4225,7 @@ app.get('/api/admin/verification-documents/:docId/file', protect, (req, res) => 
 
 
 
-app.patch('/api/admin/verify-document/:docId', protect, (req, res) => {
+app.patch('/api/admin/verify-document/:docId', protect, requireAdmin, (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
   const { docId } = req.params;
   const { action, admin_notes } = req.body; // action: 'approve' or 'reject'
