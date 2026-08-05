@@ -3,9 +3,9 @@ services:
     name: rifkando-backend
     runtime: node
     rootDir: rifKANDI-backend
-    buildCommand: npm install
+    buildCommand: npm ci
     startCommand: npm start
-    healthCheckPath: /health
+    healthCheckPath: /ready
     disk:
       name: rifkando-data
       mountPath: /var/data
@@ -16,7 +16,11 @@ services:
       - key: DATABASE_PATH
         value: /var/data/rifkandi.db
       - key: CLIENT_URL
-        value: https://rifkando.com
+        value: https://www.rifkando.com
+      - key: ALLOWED_ORIGINS
+        value: https://www.rifkando.com,https://rifkando.com
+      - key: DB_BACKUP_DIR
+        value: /var/data/backups
       - key: JWT_SECRET
         generateValue: true
       - key: JWT_EXPIRE

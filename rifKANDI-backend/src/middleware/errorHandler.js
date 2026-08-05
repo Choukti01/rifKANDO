@@ -1,65 +1,44 @@
 const AppError = require('../utils/AppError');
 
-const handleCastErrorDB = (err) => {
-  const message = `Invalid ${err.path}: ${err.value}`;
-  return new AppError(message, 400);
-};
-
-const handleDuplicateFieldsDB = (err) => {
-  const value = err.errmsg.match(/(["'])(\\?.)*?\1/)[0];
-  const message = `Duplicate field value: ${value}. Please use another value.`;
-  return new AppError(message, 400);
-};
-
-const handleValidationErrorDB = (err) => {
-  const errors = Object.values(err.errors).map(el => el.message);
-  const message = `Invalid input data. ${errors.join('. ')}`;
-  return new AppError(message, 400);
-};
-
-const handleJWTError = () => new AppError('Invalid token. Please log in again.', 401);
-const handleJWTExpiredError = () => new AppError('Your token has expired. Please log in again.', 401);
-
-const sendErrorDev = (err, res) => {
-  res.status(err.statusCode).json({
-    status: err.status,
-    error: err,
-    message: err.message,
-    stack: err.stack
-  });
-};
-
-const sendErrorProd = (err, res) => {
-  if (err.isOperational) {
-    res.status(err.statusCode).json({
-      status: err.status,
-      message: err.message
-    });
-  } else {
-    console.error('ERROR 💥', err);
-    res.status(500).json({
-      status: 'error',
-      message: 'Something went wrong'
-    });
-  }
+const toOperationalError = (err) => {
+  if (err.name === 'JsonWebTokenError') return new AppError('Invalid token. Please log in again.', 401);
+  if (err.name === 'TokenExpiredError') return new AppError('Your token has expired. Please log in again.', 401);
+  if (err.type === 'entity.too.large') return new AppError('Request body is too large.', 413);
+  if (err.type === 'entity.parse.failed') return new AppError('Request body contains invalid JSON.', 400);
+  return err;
 };
 
 module.exports = (err, req, res, next) => {
-  err.statusCode = err.statusCode || 500;
-  err.status = err.status || 'error';
+  const error = toOperationalError(err);
+  const statusCode = error.statusCode || 500;
+  const isOperational = Boolean(error.isOperational);
+  const log = {
+    level: statusCode >= 500 ? 'error' : 'warn',
+    event: 'request_failed',
+    requestId: req.requestId,
+    method: req.method,
+    path: req.path,
+    statusCode,
+    errorName: error.name,
+    errorCode: error.code,
+    message: error.message,
+  };
+  if (!isOperational) log.stack = error.stack;
+  console.error(JSON.stringify(log));
 
+  if (res.headersSent) return next(error);
   if (process.env.NODE_ENV === 'development') {
-    sendErrorDev(err, res);
-  } else {
-    let error = { ...err };
-    error.message = err.message;
-
-    if (error.name === 'CastError') error = handleCastErrorDB(error);
-    if (error.code === 11000) error = handleDuplicateFieldsDB(error);
-    if (error.name === 'ValidationError') error = handleValidationErrorDB(error);
-    if (error.name === 'JsonWebTokenError') error = handleJWTError();
-    if (error.name === 'TokenExpiredError') error = handleJWTExpiredError();
-
-    sendErrorProd(error, res);
+    return res.status(statusCode).json({
+      status: 'error',
+      message: error.message,
+      requestId: req.requestId,
+      stack: error.stack,
+    });
   }
+
+  return res.status(isOperational ? statusCode : 500).json({
+    status: 'error',
+    message: isOperational ? error.message : 'Something went wrong.',
+    requestId: req.requestId,
+  });
 };
