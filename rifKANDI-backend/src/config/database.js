@@ -191,6 +191,20 @@ db.serialize(() => {
     )
   `);
 
+  // Invoices are immutable snapshots. The object reference is private and is
+  // only streamed after the buyer/admin authorization check in app.js.
+  db.run(`
+    CREATE TABLE IF NOT EXISTS order_invoices (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      order_id INTEGER NOT NULL UNIQUE,
+      storage_reference TEXT NOT NULL,
+      filename TEXT NOT NULL,
+      sha256 TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
+    )
+  `, (err) => { if (err) console.error('Error creating order_invoices:', err); });
+
   db.run(`
     CREATE TABLE IF NOT EXISTS pending_registrations (
       email TEXT PRIMARY KEY,
@@ -394,6 +408,8 @@ db.serialize(() => {
       category TEXT,
       file_type TEXT DEFAULT 'url',
       file_url TEXT,
+      file_name TEXT,
+      file_content_type TEXT,
       file_size TEXT,
       download_limit INTEGER DEFAULT 0,
       downloads INTEGER DEFAULT 0,
@@ -404,6 +420,12 @@ db.serialize(() => {
       FOREIGN KEY (seller_id) REFERENCES users(id)
     )
   `);
+  db.run('ALTER TABLE digital_products ADD COLUMN file_name TEXT', (err) => {
+    if (err && !err.message.includes('duplicate column name')) console.error('Error adding digital file name:', err.message);
+  });
+  db.run('ALTER TABLE digital_products ADD COLUMN file_content_type TEXT', (err) => {
+    if (err && !err.message.includes('duplicate column name')) console.error('Error adding digital file content type:', err.message);
+  });
 
   // Digital Media table
   db.run(`
@@ -431,6 +453,8 @@ db.serialize(() => {
       download_url TEXT,
       file_type TEXT,
       download_limit INTEGER DEFAULT 0,
+      download_count INTEGER NOT NULL DEFAULT 0,
+      last_downloaded_at DATETIME,
       status TEXT DEFAULT 'completed',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (product_id) REFERENCES digital_products(id),
@@ -438,6 +462,12 @@ db.serialize(() => {
       FOREIGN KEY (seller_id) REFERENCES users(id)
     )
   `);
+  db.run('ALTER TABLE digital_purchases ADD COLUMN download_count INTEGER NOT NULL DEFAULT 0', (err) => {
+    if (err && !err.message.includes('duplicate column name')) console.error('Error adding digital download count:', err.message);
+  });
+  db.run('ALTER TABLE digital_purchases ADD COLUMN last_downloaded_at DATETIME', (err) => {
+    if (err && !err.message.includes('duplicate column name')) console.error('Error adding digital download timestamp:', err.message);
+  });
 
   // Digital Files table
   db.run(`
@@ -801,6 +831,25 @@ db.serialize(() => {
   db.run('ALTER TABLE withdrawal_requests ADD COLUMN request_key TEXT', (err) => {
     if (err && !err.message.includes('duplicate column name')) console.error('Error adding withdrawal request key:', err.message);
   });
+
+  // The current verification record is private and may only be downloaded by
+  // an administrator through the authenticated document endpoint.
+  db.run(`
+    CREATE TABLE IF NOT EXISTS verification_documents (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL UNIQUE,
+      document_url TEXT NOT NULL,
+      document_type TEXT NOT NULL CHECK (document_type IN ('national_id', 'passport')),
+      status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+      admin_notes TEXT,
+      reviewed_by INTEGER,
+      reviewed_at DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (reviewed_by) REFERENCES users(id) ON DELETE SET NULL
+    )
+  `, (err) => { if (err) console.error('Error creating verification_documents:', err); });
   db.run('ALTER TABLE withdrawal_requests ADD COLUMN provider_reference TEXT', (err) => {
     if (err && !err.message.includes('duplicate column name')) console.error('Error adding withdrawal provider reference:', err.message);
   });

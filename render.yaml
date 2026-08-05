@@ -13,6 +13,8 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: NODE_VERSION
+        value: 22.22.3
       - key: DATABASE_PATH
         value: /var/data/rifkandi.db
       - key: CLIENT_URL
@@ -21,6 +23,30 @@ services:
         value: https://www.rifkando.com,https://rifkando.com
       - key: DB_BACKUP_DIR
         value: /var/data/backups
+      - key: DB_BACKUP_RETENTION_DAYS
+        value: 14
+      # Local storage is durable on this one Render instance. Before adding a
+      # replica, switch to the configured two-bucket S3-compatible mode.
+      - key: OBJECT_STORAGE_DRIVER
+        value: local
+      - key: UPLOADS_DIR
+        value: /var/data/uploads
+      - key: OBJECT_STORAGE_ENDPOINT
+        sync: false
+      - key: OBJECT_STORAGE_REGION
+        sync: false
+      - key: OBJECT_STORAGE_PUBLIC_BUCKET
+        sync: false
+      - key: OBJECT_STORAGE_PRIVATE_BUCKET
+        sync: false
+      - key: OBJECT_STORAGE_ACCESS_KEY_ID
+        sync: false
+      - key: OBJECT_STORAGE_SECRET_ACCESS_KEY
+        sync: false
+      - key: OBJECT_STORAGE_PUBLIC_BASE_URL
+        sync: false
+      - key: OBJECT_STORAGE_FORCE_PATH_STYLE
+        sync: false
       - key: JWT_SECRET
         generateValue: true
       - key: JWT_EXPIRE

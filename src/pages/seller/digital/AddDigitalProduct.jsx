@@ -32,18 +32,19 @@ const AddDigitalProduct = () => {
     if (!file) return;
 
     const formDataFile = new FormData();
-    formDataFile.append('media', file);
+    formDataFile.append('file', file);
 
     setUploadingFile(true);
     try {
-      const response = await api.post('/upload-media', formDataFile, {
+      const response = await api.post('/upload-digital-file', formDataFile, {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
       });
       if (response.data.success) {
         setUploadedFile({
-          url: response.data.url,
-          name: file.name,
-          size: file.size
+          storageReference: response.data.storageReference,
+          name: response.data.fileName,
+          size: response.data.fileSize,
+          contentType: response.data.contentType
         });
         toast.success('File uploaded successfully');
       }
@@ -67,7 +68,9 @@ const AddDigitalProduct = () => {
         price: parseFloat(formData.price),
         old_price: formData.old_price ? parseFloat(formData.old_price) : null,
         download_limit: parseInt(formData.download_limit) || 0,
-        file_url: uploadedFile.url,
+        file_url: uploadedFile.storageReference,
+        file_name: uploadedFile.name,
+        file_content_type: uploadedFile.contentType,
         file_type: 'file',
         media: media.map((m, idx) => ({ ...m, order: idx, isPrimary: idx === 0 }))
       };

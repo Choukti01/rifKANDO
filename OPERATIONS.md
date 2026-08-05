@@ -7,6 +7,9 @@ Render must use the mounted disk and these canonical frontend settings:
 ```text
 DATABASE_PATH=/var/data/rifkandi.db
 DB_BACKUP_DIR=/var/data/backups
+DB_BACKUP_RETENTION_DAYS=14
+OBJECT_STORAGE_DRIVER=local
+UPLOADS_DIR=/var/data/uploads
 CLIENT_URL=https://www.rifkando.com
 ALLOWED_ORIGINS=https://www.rifkando.com,https://rifkando.com
 ```
@@ -15,6 +18,40 @@ ALLOWED_ORIGINS=https://www.rifkando.com,https://rifkando.com
 `CMI_CLIENT_ID`, and `BACKEND_URL` together, never independently. The server
 will refuse a production startup with a missing persistent database path,
 invalid origin, weak JWT secret, or partial CMI configuration.
+
+## Files and object storage
+
+The current Render blueprint uses `OBJECT_STORAGE_DRIVER=local` with
+`UPLOADS_DIR=/var/data/uploads`. New profile pictures, marketplace images,
+KYC documents, invoices, and digital files therefore survive a deploy for this
+one persistent-disk web instance. Only the `public/` namespace is served at
+`/uploads/*`. KYC documents, invoices, and paid digital files are stored as
+opaque `storage://private/...` references and are streamed only through their
+authenticated API routes.
+
+Before adding a replica, worker, or a second service, set
+`OBJECT_STORAGE_DRIVER=s3` and configure two different S3-compatible buckets:
+
+```text
+OBJECT_STORAGE_ENDPOINT=https://your-account.s3-provider.example
+OBJECT_STORAGE_REGION=auto
+OBJECT_STORAGE_PUBLIC_BUCKET=rifkando-public
+OBJECT_STORAGE_PRIVATE_BUCKET=rifkando-private
+OBJECT_STORAGE_ACCESS_KEY_ID=...
+OBJECT_STORAGE_SECRET_ACCESS_KEY=...
+OBJECT_STORAGE_PUBLIC_BASE_URL=https://cdn.your-domain.example
+OBJECT_STORAGE_FORCE_PATH_STYLE=false
+```
+
+The public bucket/CDN may expose only `public/*`. The private bucket must not
+have public access or a public CDN origin. Enable provider-side encryption,
+versioning, lifecycle rules, and access logs. Use separate least-privilege
+credentials for the two buckets.
+
+Files uploaded before this change lived on Render's ephemeral filesystem. Take
+an inventory and migrate any still-available legacy media before deploying;
+legacy paid digital files are intentionally blocked until re-uploaded to
+private storage, rather than risking a public or path-traversal download.
 
 ## Deployment verification
 
@@ -40,8 +77,12 @@ npm run backup:db
 
 The backup is written to `/var/data/backups` in production. Schedule this
 command at least daily and copy the generated snapshots to encrypted storage
-outside Render with retention enabled. A backup on the same disk is useful for
-application recovery but is not a disaster-recovery copy.
+outside Render with retention enabled. The command verifies SQLite integrity,
+logs a SHA-256 checksum, and removes only matching backups older than
+`DB_BACKUP_RETENTION_DAYS`. A backup on the same disk is useful for application
+recovery but is not a disaster-recovery copy. A Render Cron Job cannot back up
+this web service's persistent disk, so run the schedule from the service host
+or use an external backup process with access to the mounted data.
 
 Before restoring any snapshot, create a separate test environment, open the
 backup there, and verify orders, wallet ledger, and payment reconciliation.
@@ -54,6 +95,8 @@ SQLite is safe for this single-instance Render service after WAL and a busy
 timeout are enabled. It is not appropriate for horizontal API scaling or
 multiple writers across instances. Before adding replicas, workers, or a second
 web service, migrate to managed Postgres and rehearse the cutover and rollback.
+Node is pinned to `22.22.3` in the repository, CI, and Render blueprint; use
+that version locally before installing the native SQLite dependency.
 
 ## Financial monitoring
 

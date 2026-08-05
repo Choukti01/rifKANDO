@@ -12,6 +12,9 @@ const EditDigitalProduct = () => {
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
   const [media, setMedia] = useState([]);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [uploadedFile, setUploadedFile] = useState(null);
+  const [hasExistingFile, setHasExistingFile] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -40,12 +43,13 @@ const EditDigitalProduct = () => {
         price: product.price || '',
         old_price: product.old_price || '',
         category: product.category || 'ebooks',
-        file_type: product.file_type || 'url',
-        file_url: product.file_url || '',
+        file_type: 'file',
+        file_url: '',
         file_size: product.file_size || '',
         download_limit: product.download_limit || '',
         image: product.image || '💻'
       });
+      setHasExistingFile(product.file_type === 'file');
       if (product.media && product.media.length) {
         setMedia(product.media.map(m => ({ url: m.media_url, type: m.media_type })));
       }
@@ -62,6 +66,30 @@ const EditDigitalProduct = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const formDataFile = new FormData();
+    formDataFile.append('file', file);
+    setUploadingFile(true);
+    try {
+      const response = await api.post('/upload-digital-file', formDataFile, {
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
+      });
+      setUploadedFile({
+        storageReference: response.data.storageReference,
+        name: response.data.fileName,
+        size: response.data.fileSize,
+        contentType: response.data.contentType
+      });
+      toast.success('Private digital file uploaded successfully');
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'Failed to upload the digital file');
+    } finally {
+      setUploadingFile(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -71,6 +99,9 @@ const EditDigitalProduct = () => {
         price: parseFloat(formData.price),
         old_price: formData.old_price ? parseFloat(formData.old_price) : null,
         download_limit: parseInt(formData.download_limit) || 0,
+        file_url: uploadedFile?.storageReference || undefined,
+        file_name: uploadedFile?.name || undefined,
+        file_content_type: uploadedFile?.contentType || undefined,
         media: media.map((m, idx) => ({ ...m, order: idx, isPrimary: idx === 0 }))
       };
       
@@ -134,19 +165,15 @@ const EditDigitalProduct = () => {
             </select>
           </div>
           <div className="form-group">
-            <label>File Type *</label>
-            <select name="file_type" value={formData.file_type} onChange={handleChange} className="form-input" required>
-              <option value="url">Download URL</option>
-              <option value="file">Upload File</option>
-            </select>
+            <label>Private digital file</label>
+            <input type="file" onChange={handleFileUpload} className="form-input" accept=".pdf,.zip,.epub,.mobi,.mp3,.mp4,.jpg,.jpeg,.png,.webp" />
+            {uploadingFile && <p>Uploading and validating file…</p>}
+            {!uploadingFile && uploadedFile && <p>New file ready: {uploadedFile.name}</p>}
+            {!uploadingFile && !uploadedFile && hasExistingFile && <p>Your existing private file will remain unchanged.</p>}
           </div>
         </div>
 
         <div className="form-row">
-          <div className="form-group">
-            <label>File URL *</label>
-            <input type="url" name="file_url" value={formData.file_url} onChange={handleChange} className="form-input" placeholder="https://..." />
-          </div>
           <div className="form-group">
             <label>File Size (e.g., "5 MB")</label>
             <input type="text" name="file_size" value={formData.file_size} onChange={handleChange} className="form-input" />
