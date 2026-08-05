@@ -1,34 +1,16 @@
 const crypto = require('crypto');
 const cmi = require('cmi-payment-nodejs');
 const config = require('../config/cmi');
-const db = require('../config/database');
+const WalletService = require('./walletService');
 
 const PAYMENT_FIELDS_TO_STORE = [
   'oid', 'clientid', 'amount', 'currency', 'ProcReturnCode', 'Response',
-  'AuthCode', 'TransId', 'HostRefNum', 'mdStatus'
+  'AuthCode', 'TransId', 'HostRefNum', 'mdStatus',
 ];
 
 class CmiPaymentService {
   static generateOrderId(orderNumber) {
     return `RIF-${orderNumber}-${crypto.randomUUID()}`;
-  }
-
-  static run(sql, parameters = []) {
-    return new Promise((resolve, reject) => {
-      db.run(sql, parameters, function onRun(error) {
-        if (error) reject(error);
-        else resolve({ changes: this.changes, lastID: this.lastID });
-      });
-    });
-  }
-
-  static get(sql, parameters = []) {
-    return new Promise((resolve, reject) => {
-      db.get(sql, parameters, (error, row) => {
-        if (error) reject(error);
-        else resolve(row);
-      });
-    });
   }
 
   static sanitizePaymentData(params = {}) {
@@ -53,16 +35,14 @@ class CmiPaymentService {
   }
 
   /**
-   * Validate the CMI 3-D Secure return hash. CMI sends HASHPARAMS,
-   * HASHPARAMSVAL and HASH; each listed field is concatenated in order and
-   * signed with the store key. Never accept a payment without all three.
+   * CMI returns HASHPARAMS, HASHPARAMSVAL and HASH. The returned value list and
+   * store-key hash must both match. No browser return is trusted as payment proof.
    */
   static verifyPayment(params = {}) {
     try {
       const hashParams = params.HASHPARAMS;
       const hashParamsValue = params.HASHPARAMSVAL;
       const returnedHash = params.HASH;
-
       if (
         typeof hashParams !== 'string' ||
         typeof hashParamsValue !== 'string' ||
@@ -74,7 +54,6 @@ class CmiPaymentService {
 
       const fields = hashParams.split(':').filter(Boolean);
       if (fields.length === 0) return false;
-
       const concatenatedValues = fields.map((field) => String(params[field] ?? '')).join('');
       const calculatedHash = crypto
         .createHash('sha512')
@@ -85,7 +64,6 @@ class CmiPaymentService {
       const calculatedValue = Buffer.from(concatenatedValues, 'utf8');
       const receivedHash = Buffer.from(returnedHash, 'utf8');
       const calculatedHashBuffer = Buffer.from(calculatedHash, 'utf8');
-
       return (
         receivedValue.length === calculatedValue.length &&
         receivedHash.length === calculatedHashBuffer.length &&
@@ -99,16 +77,32 @@ class CmiPaymentService {
   }
 
   static async initiatePayment(order, user) {
-    if (order.payment_status === 'paid') {
-      throw new Error('This order has already been paid.');
+    if (!config.storekey || !config.clientid || !process.env.BACKEND_URL || !process.env.CLIENT_URL) {
+      throw new Error('CMI payment is not configured.');
     }
 
     const oid = this.generateOrderId(order.order_number || order.id);
-    await this.run(
-      `INSERT INTO payment_transactions (order_id, cmi_oid, amount, status)
-       VALUES (?, ?, ?, 'pending')`,
-      [order.id, oid, order.total]
-    );
+    await WalletService.withFinancialTransaction(async (tx) => {
+      const currentOrder = await tx.get('SELECT * FROM orders WHERE id = ?', [order.id]);
+      if (!currentOrder) throw new Error('Order not found.');
+      if (currentOrder.payment_status === 'paid') throw new Error('This order has already been paid.');
+      if (currentOrder.payment_status !== 'pending' || currentOrder.payment_method !== 'cmi') {
+        throw new Error('Order is not eligible for CMI payment.');
+      }
+      const pendingTransaction = await tx.get(
+        `SELECT id FROM payment_transactions
+         WHERE order_id = ? AND status = 'pending'`,
+        [currentOrder.id]
+      );
+      if (pendingTransaction) {
+        throw new Error('A CMI payment attempt is already pending for this order.');
+      }
+      await tx.run(
+        `INSERT INTO payment_transactions (order_id, cmi_oid, amount, status)
+         VALUES (?, ?, ?, 'pending')`,
+        [currentOrder.id, oid, currentOrder.total]
+      );
+    });
 
     try {
       const CmiClient = new cmi.default({
@@ -126,13 +120,14 @@ class CmiPaymentService {
         currency: config.currency,
         lang: config.lang,
       });
-
       return { htmlForm: CmiClient.redirect_post(), oid };
     } catch (error) {
-      await this.run(
-        `UPDATE payment_transactions SET status = 'failed', error_message = ? WHERE cmi_oid = ? AND status = 'pending'`,
+      await WalletService.withFinancialTransaction((tx) => tx.run(
+        `UPDATE payment_transactions
+         SET status = 'failed', error_message = ?
+         WHERE cmi_oid = ? AND status = 'pending'`,
         ['Unable to initialize payment.', oid]
-      );
+      ));
       throw error;
     }
   }
@@ -141,14 +136,18 @@ class CmiPaymentService {
     if (!oid || !this.verifyPayment(paymentData)) {
       throw new Error('Invalid CMI payment callback.');
     }
+    if (String(paymentData.ProcReturnCode) !== '00') {
+      throw new Error('CMI callback does not confirm an approved payment.');
+    }
+    if (paymentData.currency !== undefined && String(paymentData.currency) !== String(config.currency)) {
+      throw new Error('CMI callback currency does not match.');
+    }
 
-    await this.run('BEGIN IMMEDIATE TRANSACTION');
-    try {
-      const transaction = await this.get(
+    return WalletService.withFinancialTransaction(async (tx) => {
+      const transaction = await tx.get(
         'SELECT * FROM payment_transactions WHERE cmi_oid = ?',
         [oid]
       );
-
       if (!transaction) throw new Error('Payment transaction not found.');
       if (!this.amountsMatch(transaction.amount, paymentData.amount)) {
         throw new Error('CMI callback amount does not match the order.');
@@ -156,17 +155,19 @@ class CmiPaymentService {
       if (String(paymentData.clientid) !== String(config.clientid)) {
         throw new Error('CMI callback client identifier does not match.');
       }
-
       if (transaction.status === 'completed') {
-        await this.run('COMMIT');
         return { success: true, alreadyProcessed: true, orderId: transaction.order_id };
       }
       if (transaction.status !== 'pending') {
         throw new Error('Payment transaction is not pending.');
       }
 
+      const order = await tx.get('SELECT * FROM orders WHERE id = ?', [transaction.order_id]);
+      if (!order || order.payment_status !== 'pending') {
+        throw new Error('Order payment state is not pending.');
+      }
       const paymentDataJson = JSON.stringify(this.sanitizePaymentData(paymentData));
-      const transactionUpdate = await this.run(
+      const transactionUpdate = await tx.run(
         `UPDATE payment_transactions
          SET status = 'completed', payment_data = ?, completed_at = CURRENT_TIMESTAMP
          WHERE id = ? AND status = 'pending'`,
@@ -174,30 +175,19 @@ class CmiPaymentService {
       );
       if (transactionUpdate.changes !== 1) throw new Error('Payment transaction was already processed.');
 
-      const orderUpdate = await this.run(
+      const orderUpdate = await tx.run(
         `UPDATE orders
          SET payment_status = 'paid', status = CASE WHEN status = 'pending' THEN 'processing' ELSE status END,
              payment_method = 'cmi', payment_details = ?
-         WHERE id = ? AND payment_status != 'paid'`,
+         WHERE id = ? AND payment_status = 'pending'`,
         [paymentDataJson, transaction.order_id]
       );
       if (orderUpdate.changes !== 1) throw new Error('Order payment state could not be updated.');
 
-      const order = await this.get('SELECT user_id FROM orders WHERE id = ?', [transaction.order_id]);
-      if (!order) throw new Error('Order not found.');
-      await this.run('DELETE FROM cart WHERE user_id = ?', [order.user_id]);
-      await this.run('COMMIT');
-
-      console.log(`CMI payment completed for order ${transaction.order_id}`);
+      await WalletService.fundOrderEscrowsTx(tx, transaction.order_id);
+      await tx.run('DELETE FROM cart WHERE user_id = ?', [order.user_id]);
       return { success: true, alreadyProcessed: false, orderId: transaction.order_id };
-    } catch (error) {
-      try {
-        await this.run('ROLLBACK');
-      } catch (rollbackError) {
-        console.error('CMI payment rollback failed:', rollbackError.message);
-      }
-      throw error;
-    }
+    });
   }
 
   static async processFailedPayment(oid, paymentData) {
@@ -205,24 +195,43 @@ class CmiPaymentService {
       throw new Error('Invalid CMI payment callback.');
     }
 
-    const transaction = await this.get('SELECT * FROM payment_transactions WHERE cmi_oid = ?', [oid]);
-    if (!transaction || transaction.status !== 'pending') return false;
+    return WalletService.withFinancialTransaction(async (tx) => {
+      const transaction = await tx.get('SELECT * FROM payment_transactions WHERE cmi_oid = ?', [oid]);
+      if (!transaction || transaction.status !== 'pending') return false;
 
-    const safePaymentData = JSON.stringify(this.sanitizePaymentData(paymentData));
-    await this.run(
-      `UPDATE payment_transactions
-       SET status = 'failed', payment_data = ?, error_message = ?
-       WHERE id = ? AND status = 'pending'`,
-      [safePaymentData, 'Payment was declined by CMI.', transaction.id]
-    );
-    await this.run(
-      `UPDATE orders SET payment_status = 'failed', payment_method = 'cmi'
-       WHERE id = ? AND payment_status != 'paid'`,
-      [transaction.order_id]
-    );
+      const safePaymentData = JSON.stringify(this.sanitizePaymentData(paymentData));
+      const transactionUpdate = await tx.run(
+        `UPDATE payment_transactions
+         SET status = 'failed', payment_data = ?, error_message = ?
+         WHERE id = ? AND status = 'pending'`,
+        [safePaymentData, 'Payment was declined by CMI.', transaction.id]
+      );
+      if (transactionUpdate.changes !== 1) return false;
 
-    console.log(`CMI payment failed for order ${transaction.order_id}`);
-    return true;
+      const order = await tx.get('SELECT * FROM orders WHERE id = ?', [transaction.order_id]);
+      const orderUpdate = await tx.run(
+        `UPDATE orders SET payment_status = 'failed', status = 'cancelled', payment_method = 'cmi'
+         WHERE id = ? AND payment_status = 'pending'`,
+        [transaction.order_id]
+      );
+      if (orderUpdate.changes === 1) {
+        const items = await tx.all('SELECT product_id, quantity FROM order_items WHERE order_id = ?', [transaction.order_id]);
+        for (const item of items) {
+          await tx.run(
+            `UPDATE products
+             SET stock = stock + ?, sold = MAX(COALESCE(sold, 0) - ?, 0)
+             WHERE id = ?`,
+            [item.quantity, item.quantity, item.product_id]
+          );
+        }
+        await tx.run(
+          `INSERT INTO order_status_history (order_id, status, note, created_by)
+           VALUES (?, 'cancelled', 'CMI payment was declined', NULL)`,
+          [transaction.order_id]
+        );
+      }
+      return Boolean(order);
+    });
   }
 }
 
