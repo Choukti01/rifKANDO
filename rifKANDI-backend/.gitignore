@@ -1,6 +1,5 @@
 node_modules/
 .env
-package-lock.json
 rifkandi.db
 uploads/
 src/uploads/

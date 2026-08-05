@@ -1,20 +1,13 @@
 const PDFDocument = require('pdfkit');
-const fs = require('fs');
-const path = require('path');
 
 class InvoiceService {
-  static async generateInvoice(order, user, items) {
+  static async generateInvoiceBuffer(order, user, items) {
     return new Promise((resolve, reject) => {
       const doc = new PDFDocument({ margin: 50 });
-      const filename = `invoice-${order.order_number}.pdf`;
-      const filepath = path.join(__dirname, '../uploads/invoices', filename);
-      
-      // Ensure directory exists
-      const dir = path.join(__dirname, '../uploads/invoices');
-      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-      
-      const stream = fs.createWriteStream(filepath);
-      doc.pipe(stream);
+      const chunks = [];
+      doc.on('data', (chunk) => chunks.push(chunk));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', reject);
       
       // Header
       doc.fontSize(20).text('rifKANDO', { align: 'center' });
@@ -74,9 +67,6 @@ class InvoiceService {
       doc.fontSize(8).text('Thank you for shopping with rifKANDO!', { align: 'center' });
       
       doc.end();
-      
-      stream.on('finish', () => resolve(filepath));
-      stream.on('error', reject);
     });
   }
 }

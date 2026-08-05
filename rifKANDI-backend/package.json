@@ -2,6 +2,9 @@
   "type": "commonjs",
   "name": "rifkandi-backend",
   "version": "1.0.0",
+  "engines": {
+    "node": "22.22.3"
+  },
   "description": "rifKANDI - Multi-Service Platform Backend API",
   "main": "server.js",
   "scripts": {
@@ -10,6 +13,7 @@
     "start": "node server.js",
     "check": "node --check server.js && node --check src/app.js && node --check src/config/database.js && node --check src/services/walletService.js && node --check src/services/cmiPaymentService.js",
     "test:financial": "node scripts/financialSmokeTest.js",
+    "test:storage": "node scripts/storageSmokeTest.js",
     "backup:db": "node scripts/backupDatabase.js"
   },
   "dependencies": {

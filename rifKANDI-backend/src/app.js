@@ -7,10 +7,12 @@ const fs = require('fs');
 const multer = require('multer');
 const sharp = require('sharp');
 const crypto = require('crypto');
+const { pipeline } = require('node:stream/promises');
 const { securityHeaders, createRateLimiter } = require('./middleware/security');
 const errorHandler = require('./middleware/errorHandler');
 const { getAllowedOrigins } = require('./config/validateEnv');
 const { sendVerificationEmail, sendWelcomeEmail, sendLoginNotificationEmail } = require('./utils/sendEmail');
+const storageService = require('./services/storageService');
 // const EmailService = require('./services/emailService');
 
 
@@ -93,14 +95,6 @@ const sendGoogleVerificationCode = async ({ email, googleSub }) => {
   await sendVerificationEmail(email, code);
 };
 
-// Ensure uploads directory exists
-const uploadDir = path.join(__dirname, 'uploads/profile-pictures');
-
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-
 // ==================== CORS ====================
 
 app.use(cors({
@@ -117,111 +111,6 @@ app.use(cors({
   allowedHeaders: ['Authorization', 'Content-Type', 'Idempotency-Key', 'X-Request-ID'],
   maxAge: 86400
 }));
-
-
-// Configure multer for memory storage
-const storage = multer.memoryStorage();
-
-const fileFilter = (req, file, cb) => {
-
-  const allowedTypes = /jpeg|jpg|png|gif|webp/;
-
-  const extname = allowedTypes.test(
-    path.extname(file.originalname).toLowerCase()
-  );
-
-  const mimetype = allowedTypes.test(
-    file.mimetype
-  );
-  
-  if (mimetype && extname) {
-
-    cb(null, true);
-
-  } else {
-
-    cb(new Error(
-      'Only image files are allowed (jpeg, jpg, png, gif, webp)'
-    ));
-
-  }
-};
-
-
-const upload = multer({
-
-  storage: storage,
-
-  limits: { 
-    fileSize: 5 * 1024 * 1024 
-  },
-
-  fileFilter: fileFilter
-
-});
-
-
-// Middleware to process and save image
-
-const processAndSaveImage = async (req, res, next) => {
-
-  if (!req.file) {
-
-    return next();
-
-  }
-  
-  try {
-
-    const timestamp = Date.now();
-
-    const filename = 
-      `user-${req.user.id}-${timestamp}.jpeg`;
-
-    const filepath = 
-      path.join(uploadDir, filename);
-    
-
-    await sharp(req.file.buffer)
-
-      .resize(400, 400, {
-
-        fit: 'cover',
-
-        position: 'center'
-
-      })
-
-      .jpeg({ quality: 85 })
-
-      .toFile(filepath);
-    
-
-    req.processedImageUrl = 
-      `/uploads/profile-pictures/${filename}`;
-
-    next();
-
-
-  } catch (error) {
-
-
-    console.error(
-      'Image processing error:',
-      error
-    );
-
-
-    return res.status(500).json({
-
-      error: 'Failed to process image'
-
-    });
-
-
-  }
-
-};
 
 
 // Body parser
@@ -247,6 +136,12 @@ const publicUploadOptions = {
 
 // Only marketplace media and profile images are public. Identity documents and
 // invoices are delivered through authenticated routes.
+if (storageService.isLocal()) {
+  app.use('/uploads/profile-pictures', express.static(storageService.localPath('public/profile-pictures'), publicUploadOptions));
+  app.use('/uploads/media', express.static(storageService.localPath('public/media'), publicUploadOptions));
+}
+// Legacy local files remain readable during the storage migration. New uploads
+// are stored below UPLOADS_DIR/public or in object storage.
 app.use('/uploads/profile-pictures', express.static(path.join(__dirname, 'uploads/profile-pictures'), publicUploadOptions));
 app.use('/uploads/media', express.static(path.join(__dirname, 'uploads/media'), publicUploadOptions));
 
@@ -665,21 +560,8 @@ app.get('/api/auth/me', protect, (req, res) => {
 
 // Configure multer for profile pictures
 const profileUpload = multer({
-  storage: multer.diskStorage({
-    destination: function (req, file, cb) {
-      const uploadDir = path.join(__dirname, 'uploads/profile-pictures');
-      // Create directory if it doesn't exist
-      if (!fs.existsSync(uploadDir)) {
-        fs.mkdirSync(uploadDir, { recursive: true });
-      }
-      cb(null, uploadDir);
-    },
-    filename: function (req, file, cb) {
-      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-      cb(null, `user-${req.user.id}-${uniqueSuffix}.jpg`);
-    }
-  }),
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024, files: 1, fields: 10, fieldSize: 64 * 1024 },
   fileFilter: (req, file, cb) => {
     const allowedTypes = /jpeg|jpg|png|gif|webp/;
     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
@@ -698,64 +580,55 @@ app.post('/api/users/upload-profile-picture',
   protect, 
   profileUpload.single('profilePicture'),
   async (req, res) => {
+    let uploadedKey;
     try {
-      console.log('Upload endpoint reached');
-      console.log('File:', req.file);
-      console.log('User ID:', req.user?.id);
-      
       if (!req.file) {
         return res.status(400).json({ error: 'No image file provided' });
       }
-      
-      // Get the old profile picture to delete it later
+
       const oldProfilePicture = req.user.profilePicture;
-      
-      // Create the URL path for the new image
-      const imageUrl = `/uploads/profile-pictures/${req.file.filename}`;
-      
-      // Update user in database
-      db.run(
+      uploadedKey = storageService.createKey('public', 'profile-pictures', 'jpg');
+      const image = await sharp(req.file.buffer, { failOn: 'error' })
+        .rotate()
+        .resize(400, 400, { fit: 'cover', position: 'center', withoutEnlargement: true })
+        .jpeg({ quality: 85, mozjpeg: true })
+        .toBuffer();
+      await storageService.put(uploadedKey, image, {
+        contentType: 'image/jpeg',
+        cacheControl: 'public, max-age=31536000, immutable',
+      });
+      const imageUrl = storageService.publicUrl(uploadedKey);
+
+      await new Promise((resolve, reject) => db.run(
         'UPDATE users SET profilePicture = ? WHERE id = ?',
         [imageUrl, req.user.id],
-        function(err) {
-          if (err) {
-            console.error('Database update error:', err);
-            // Delete the uploaded file if database update fails
-            fs.unlinkSync(req.file.path);
-            return res.status(500).json({ error: 'Failed to update profile picture in database' });
-          }
-          
-          // Delete old profile picture if it exists and is not default
-          if (oldProfilePicture && oldProfilePicture !== '/uploads/profile-pictures/default-avatar.png') {
-            const oldFilePath = path.join(__dirname, oldProfilePicture);
-            if (fs.existsSync(oldFilePath)) {
-              try {
-                fs.unlinkSync(oldFilePath);
-              } catch(e) {
-                console.log('Could not delete old file:', e);
-              }
-            }
-          }
-          
-          // Get updated user
-          db.get('SELECT id, name, email, phone, bio, city, country, role, seller_type, profilePicture, is_verified_seller, created_at FROM users WHERE id = ?', 
-            [req.user.id], 
-            (err, user) => {
-              if (err) {
-                return res.status(500).json({ error: err.message });
-              }
-              res.json({
-                success: true,
-                profilePicture: imageUrl,
-                user: user
-              });
-            }
-          );
+        (error) => (error ? reject(error) : resolve())
+      ));
+
+      const oldKey = storageService.publicKeyFromUrl(oldProfilePicture);
+      if (oldKey) {
+        storageService.delete(oldKey).catch((error) => {
+          console.error(JSON.stringify({ level: 'warn', event: 'profile_picture_cleanup_failed', error: error.message }));
+        }
+        );
+      }
+
+      db.get('SELECT id, name, email, phone, bio, city, country, role, seller_type, profilePicture, is_verified_seller, created_at FROM users WHERE id = ?',
+        [req.user.id],
+        (error, user) => {
+          if (error) return res.status(500).json({ error: 'Failed to load the updated profile.' });
+          return res.json({ success: true, profilePicture: imageUrl, user });
         }
       );
     } catch (error) {
-      console.error('Upload error:', error);
-      res.status(500).json({ error: error.message });
+      if (uploadedKey) {
+        storageService.delete(uploadedKey).catch(() => {});
+      }
+      if (error.message?.includes('Input buffer')) {
+        return res.status(400).json({ error: 'The uploaded image is invalid.' });
+      }
+      console.error(JSON.stringify({ level: 'error', event: 'profile_picture_upload_failed', error: error.message }));
+      return res.status(500).json({ error: 'Failed to upload profile picture.' });
     }
   }
 );
@@ -774,16 +647,11 @@ app.delete('/api/users/profile-picture', protect, async (req, res) => {
           return res.status(500).json({ error: err.message });
         }
         
-        // Delete old profile picture file
-        if (oldProfilePicture && oldProfilePicture !== '/uploads/profile-pictures/default-avatar.png') {
-          const oldFilePath = path.join(__dirname, oldProfilePicture);
-          if (fs.existsSync(oldFilePath)) {
-            try {
-              fs.unlinkSync(oldFilePath);
-            } catch(e) {
-              console.log('Could not delete old file:', e);
-            }
-          }
+        const oldKey = storageService.publicKeyFromUrl(oldProfilePicture);
+        if (oldKey) {
+          storageService.delete(oldKey).catch((error) => {
+            console.error(JSON.stringify({ level: 'warn', event: 'profile_picture_cleanup_failed', error: error.message }));
+          });
         }
         
         // Get updated user
@@ -811,39 +679,34 @@ app.delete('/api/users/profile-picture', protect, async (req, res) => {
 
 // ==================== MEDIA UPLOAD FOR PRODUCTS ====================
 
-const allowedPublicMediaTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf']);
+const allowedPublicMediaTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
 const mediaUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024, files: 1, fields: 10, fieldSize: 64 * 1024 },
   fileFilter: (req, file, cb) => {
     if (allowedPublicMediaTypes.has(file.mimetype)) return cb(null, true);
-    return cb(new Error('Only JPEG, PNG, WebP, GIF, and PDF uploads are currently allowed.'));
+    return cb(new Error('Only JPEG, PNG, WebP, and GIF images are allowed.'));
   }
 });
 
 const persistPublicMedia = async (req, res, next) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded.' });
   try {
-    let extension;
-    let mediaType;
-    if (req.file.mimetype === 'application/pdf') {
-      if (req.file.buffer.subarray(0, 5).toString('ascii') !== '%PDF-') {
-        throw new Error('The uploaded file is not a valid PDF.');
-      }
-      extension = 'pdf';
-      mediaType = 'document';
-    } else {
-      const metadata = await sharp(req.file.buffer, { failOn: 'error' }).metadata();
-      const formats = { jpeg: 'jpg', png: 'png', webp: 'webp', gif: 'gif' };
-      extension = formats[metadata.format];
-      if (!extension) throw new Error('The uploaded file is not a supported image.');
-      mediaType = 'image';
-    }
-    const directory = path.join(__dirname, 'uploads', 'media');
-    await fs.promises.mkdir(directory, { recursive: true });
-    const filename = `media-${crypto.randomUUID()}.${extension}`;
-    await fs.promises.writeFile(path.join(directory, filename), req.file.buffer, { mode: 0o640 });
-    req.publicMedia = { url: `/uploads/media/${filename}`, type: mediaType };
+    const metadata = await sharp(req.file.buffer, { failOn: 'error' }).metadata();
+    const formats = {
+      jpeg: { extension: 'jpg', contentType: 'image/jpeg' },
+      png: { extension: 'png', contentType: 'image/png' },
+      webp: { extension: 'webp', contentType: 'image/webp' },
+      gif: { extension: 'gif', contentType: 'image/gif' },
+    };
+    const format = formats[metadata.format];
+    if (!format) throw new Error('The uploaded file is not a supported image.');
+    const key = storageService.createKey('public', 'media', format.extension);
+    await storageService.put(key, req.file.buffer, {
+      contentType: format.contentType,
+      cacheControl: 'public, max-age=31536000, immutable',
+    });
+    req.publicMedia = { url: storageService.publicUrl(key), type: 'image' };
     return next();
   } catch (error) {
     return res.status(400).json({ error: error.message || 'Invalid upload.' });
@@ -859,6 +722,68 @@ app.post('/api/upload-media', protect, requireSeller, (req, res, next) => {
     return next();
   });
 }, persistPublicMedia, (req, res) => res.json({ success: true, ...req.publicMedia }));
+
+const privateDigitalUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 25 * 1024 * 1024, files: 1, fields: 10, fieldSize: 64 * 1024 },
+});
+
+const inspectPrivateDigitalFile = async (file) => {
+  const imageFormats = {
+    jpeg: { extension: 'jpg', contentType: 'image/jpeg' },
+    png: { extension: 'png', contentType: 'image/png' },
+    webp: { extension: 'webp', contentType: 'image/webp' },
+  };
+  if (file.mimetype.startsWith('image/')) {
+    const metadata = await sharp(file.buffer, { failOn: 'error' }).metadata();
+    if (!imageFormats[metadata.format]) throw new Error('Unsupported image file.');
+    return imageFormats[metadata.format];
+  }
+  if (file.mimetype === 'application/pdf' && file.buffer.subarray(0, 5).toString('ascii') === '%PDF-') {
+    return { extension: 'pdf', contentType: 'application/pdf' };
+  }
+  const zipMagic = file.buffer.subarray(0, 4).toString('ascii');
+  if (['application/zip', 'application/x-zip-compressed', 'application/epub+zip'].includes(file.mimetype) && ['PK\u0003\u0004', 'PK\u0005\u0006'].includes(zipMagic)) {
+    return { extension: file.mimetype === 'application/epub+zip' ? 'epub' : 'zip', contentType: file.mimetype === 'application/epub+zip' ? 'application/epub+zip' : 'application/zip' };
+  }
+  if (file.mimetype === 'audio/mpeg' && (file.buffer.subarray(0, 3).toString('ascii') === 'ID3' || (file.buffer[0] === 0xff && (file.buffer[1] & 0xe0) === 0xe0))) {
+    return { extension: 'mp3', contentType: 'audio/mpeg' };
+  }
+  if (file.mimetype === 'video/mp4' && file.buffer.subarray(4, 8).toString('ascii') === 'ftyp') {
+    return { extension: 'mp4', contentType: 'video/mp4' };
+  }
+  if (file.mimetype === 'application/x-mobipocket-ebook' && file.buffer.subarray(60, 68).toString('ascii') === 'BOOKMOBI') {
+    return { extension: 'mobi', contentType: 'application/x-mobipocket-ebook' };
+  }
+  throw new Error('Unsupported or invalid digital file.');
+};
+
+app.post('/api/upload-digital-file', protect, requireSeller, (req, res, next) => {
+  privateDigitalUpload.single('file')(req, res, (error) => {
+    if (error) return res.status(400).json({ error: error.message || 'Invalid digital file.' });
+    return next();
+  });
+}, async (req, res) => {
+  let key;
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No digital file uploaded.' });
+    const file = await inspectPrivateDigitalFile(req.file);
+    key = storageService.createKey('private', `digital-files-user-${req.user.id}`, file.extension);
+    await storageService.put(key, req.file.buffer, { contentType: file.contentType, cacheControl: 'private, no-store' });
+    return res.status(201).json({
+      success: true,
+      storageReference: storageService.reference(key),
+      fileName: path.basename(req.file.originalname).replace(/[^a-zA-Z0-9._-]/g, '_') || `download.${file.extension}`,
+      fileSize: req.file.size,
+      contentType: file.contentType,
+    });
+  } catch (error) {
+    if (key) storageService.delete(key).catch(() => {});
+    const status = error.message?.includes('Unsupported') || error.message?.includes('invalid') ? 400 : 500;
+    console.error(JSON.stringify({ level: 'error', event: 'digital_file_upload_failed', error: error.message }));
+    return res.status(status).json({ error: status === 400 ? error.message : 'Failed to store the digital file.' });
+  }
+});
 
 // ==================== ADVANCED AUTH ENDPOINTS ====================
 
@@ -2068,15 +1993,40 @@ app.post('/api/services/:id/order', protect, (req, res) => {
 
 // ==================== DIGITAL PRODUCT ENDPOINTS ====================
 // (unchanged – kept exactly as in original)
+const privateDigitalKeyForSeller = (storageReference, sellerId) => {
+  try {
+    const key = storageService.keyFromReference(storageReference, 'private');
+    const ownerPrefix = sellerId === undefined
+      ? 'private/digital-files-user-'
+      : `private/digital-files-user-${sellerId}/`;
+    return key?.startsWith(ownerPrefix) ? key : null;
+  } catch (_) {
+    return null;
+  }
+};
+
+const removePrivateDigitalFields = (product) => {
+  if (!product) return product;
+  delete product.file_url;
+  delete product.file_name;
+  delete product.file_content_type;
+  return product;
+};
+
 app.post('/api/digital', protect, requireSeller, (req, res) => {
-  const { title, description, price, old_price, category, file_type, file_url, file_size, download_limit, image, media } = req.body;
+  const { title, description, price, old_price, category, file_url, file_name, file_content_type, file_size, download_limit, image, media } = req.body;
+  const fileKey = privateDigitalKeyForSeller(file_url, req.user.id);
+  if (!fileKey) return res.status(400).json({ error: 'Upload a private digital file before publishing this product.' });
+  if (media && (!Array.isArray(media) || !media.every((item) => item?.type === 'image' && storageService.publicKeyFromUrl(item.url)))) {
+    return res.status(400).json({ error: 'Digital product media must use uploaded public images.' });
+  }
 
   db.run(`
     INSERT INTO digital_products (
-      title, description, price, old_price, category, file_type, file_url, file_size, download_limit, image, seller_id, status
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'published')
+      title, description, price, old_price, category, file_type, file_url, file_name, file_content_type, file_size, download_limit, image, seller_id, status
+    ) VALUES (?, ?, ?, ?, ?, 'file', ?, ?, ?, ?, ?, ?, ?, 'published')
   `, [
-    title, description, price, old_price || null, category, file_type || 'url', file_url || '', file_size || '', download_limit || 0, image || '💻', req.user.id
+    title, description, price, old_price || null, category, file_url, file_name || path.basename(fileKey), file_content_type || 'application/octet-stream', file_size || '', download_limit || 0, image || '💻', req.user.id
   ], function(err) {
     if (err) {
       console.error('Digital product creation error:', err);
@@ -2124,7 +2074,7 @@ app.get('/api/digital', (req, res) => {
           if (!err) product.media = media || [];
           completed++;
           if (completed === rows.length) {
-            res.json({ success: true, products: rows });
+            res.json({ success: true, products: rows.map(removePrivateDigitalFields) });
           }
         });
       });
@@ -2146,7 +2096,7 @@ app.get('/api/digital/:id', (req, res) => {
     } else {
       db.all(`SELECT * FROM digital_media WHERE digital_id = ? ORDER BY display_order, id`, [product.id], (err, media) => {
         if (!err) product.media = media || [];
-        res.json({ success: true, product });
+        res.json({ success: true, product: removePrivateDigitalFields(product) });
       });
     }
   });
@@ -2178,6 +2128,48 @@ app.get('/api/my-digital', protect, requireSeller, (req, res) => {
   });
 });
 
+app.put('/api/digital/:id', protect, requireSeller, async (req, res) => {
+  try {
+    const existing = await getDatabaseRow('SELECT * FROM digital_products WHERE id = ? AND seller_id = ?', [req.params.id, req.user.id]);
+    if (!existing) return res.status(404).json({ error: 'Digital product not found.' });
+
+    const { title, description, price, old_price, category, file_url, file_name, file_content_type, file_size, download_limit, image, media } = req.body;
+    const fileKey = privateDigitalKeyForSeller(file_url || existing.file_url, req.user.id);
+    if (!fileKey) return res.status(400).json({ error: 'Upload a private digital file before updating this product.' });
+    if (media && (!Array.isArray(media) || !media.every((item) => item?.type === 'image' && storageService.publicKeyFromUrl(item.url)))) {
+      return res.status(400).json({ error: 'Digital product media must use uploaded public images.' });
+    }
+
+    await runDatabaseStatement(`
+      UPDATE digital_products SET
+        title = ?, description = ?, price = ?, old_price = ?, category = ?, file_type = 'file',
+        file_url = ?, file_name = ?, file_content_type = ?, file_size = ?, download_limit = ?, image = ?
+      WHERE id = ?
+    `, [
+      title, description, price, old_price || null, category,
+      file_url || existing.file_url,
+      file_name || existing.file_name || path.basename(fileKey),
+      file_content_type || existing.file_content_type || 'application/octet-stream',
+      file_size || existing.file_size || '', download_limit || 0, image || existing.image,
+      existing.id,
+    ]);
+
+    if (media) {
+      await runDatabaseStatement('DELETE FROM digital_media WHERE digital_id = ?', [existing.id]);
+      for (const [index, item] of media.entries()) {
+        await runDatabaseStatement(
+          'INSERT INTO digital_media (digital_id, media_type, media_url, display_order, is_primary) VALUES (?, ?, ?, ?, ?)',
+          [existing.id, item.type, item.url, index, index === 0 ? 1 : 0]
+        );
+      }
+    }
+    return res.json({ success: true, message: 'Digital product updated.' });
+  } catch (error) {
+    console.error(JSON.stringify({ level: 'error', event: 'digital_product_update_failed', error: error.message }));
+    return res.status(500).json({ error: 'Unable to update the digital product.' });
+  }
+});
+
 app.delete('/api/digital/:id', protect, requireSeller, (req, res) => {
   db.get('SELECT seller_id FROM digital_products WHERE id = ?', [req.params.id], (err, product) => {
     if (err) {
@@ -2202,48 +2194,18 @@ app.delete('/api/digital/:id', protect, requireSeller, (req, res) => {
 });
 
 app.post('/api/digital/:id/purchase', protect, (req, res) => {
-  const productId = req.params.id;
-  const orderNumber = 'DIG-' + Date.now();
-
-  db.get('SELECT * FROM digital_products WHERE id = ?', [productId], (err, product) => {
-    if (err) {
-      return res.status(500).json({ error: err.message });
-    }
-    if (!product) {
-      return res.status(404).json({ error: 'Product not found' });
-    }
-
-    db.run(`
-      INSERT INTO digital_purchases (order_number, product_id, buyer_id, seller_id, price, download_url, file_type, download_limit)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `, [orderNumber, productId, req.user.id, product.seller_id, product.price, product.file_url, product.file_type, product.download_limit], function(err) {
-      if (err) {
-        res.status(400).json({ error: err.message });
-      } else {
-        db.run('UPDATE digital_products SET downloads = downloads + 1 WHERE id = ?', [productId]);
-        res.json({ 
-          success: true, 
-          purchase: { 
-            id: this.lastID, 
-            orderNumber,
-            download_url: product.file_url,
-            file_type: product.file_type,
-            download_limit: product.download_limit
-          } 
-        });
-      }
-    });
-  });
+  return res.status(410).json({ error: 'This legacy purchase endpoint is disabled. Request access and wait for the seller to approve it.' });
 });
 
 app.get('/api/my-purchases', protect, (req, res) => {
   db.all(`
     SELECT 
-      p.*, 
+      p.id, p.order_number, p.product_id, p.seller_id, p.price, p.file_type,
+      p.download_limit, p.download_count, p.last_downloaded_at, p.status, p.created_at,
       d.title, 
       d.image, 
-      d.file_url, 
       d.file_type, 
+      d.file_name,
       d.download_limit,
       d.file_size,
       d.seller_id
@@ -2260,25 +2222,39 @@ app.get('/api/my-purchases', protect, (req, res) => {
   });
 });
 
-app.get('/api/digital/:id/download', protect, (req, res) => {
-  const productId = req.params.id;
-  db.get('SELECT * FROM digital_purchases WHERE product_id = ? AND buyer_id = ?', [productId, req.user.id], (err, purchase) => {
-    if (err || !purchase) {
-      return res.status(403).json({ error: 'You have not purchased this product' });
+const downloadDigitalProduct = async (req, res) => {
+  try {
+    const purchase = await getDatabaseRow(`
+      SELECT dp.id, dp.download_limit, dp.download_count, d.file_url, d.file_name, d.file_content_type
+      FROM digital_purchases dp
+      JOIN digital_products d ON d.id = dp.product_id
+      WHERE dp.product_id = ? AND dp.buyer_id = ?
+      ORDER BY dp.id DESC
+      LIMIT 1
+    `, [req.params.id, req.user.id]);
+    if (!purchase) return res.status(403).json({ error: 'You do not have download access to this product.' });
+    if (purchase.download_limit > 0 && purchase.download_count >= purchase.download_limit) {
+      return res.status(403).json({ error: 'Your download limit has been reached.' });
     }
-    db.get('SELECT file_url FROM digital_products WHERE id = ?', [productId], (err, product) => {
-      if (err || !product || !product.file_url) {
-        return res.status(404).json({ error: 'File not found' });
-      }
-      const filePath = path.join(__dirname, product.file_url);
-      if (fs.existsSync(filePath)) {
-        res.download(filePath);
-      } else {
-        res.status(404).json({ error: 'File not found' });
-      }
-    });
-  });
-});
+    const key = privateDigitalKeyForSeller(purchase.file_url, undefined);
+    if (!key) {
+      return res.status(410).json({ error: 'This digital file must be migrated to private storage before it can be downloaded.' });
+    }
+    const reserved = await runDatabaseStatement(
+      `UPDATE digital_purchases
+       SET download_count = download_count + 1, last_downloaded_at = CURRENT_TIMESTAMP
+       WHERE id = ? AND (download_limit = 0 OR download_count < download_limit)`,
+      [purchase.id]
+    );
+    if (reserved.changes !== 1) return res.status(403).json({ error: 'Your download limit has been reached.' });
+    await streamPrivateAttachment(res, key, purchase.file_name || `digital-${req.params.id}`, purchase.file_content_type || 'application/octet-stream');
+  } catch (error) {
+    console.error(JSON.stringify({ level: 'error', event: 'digital_download_failed', error: error.message }));
+    if (!res.headersSent) return res.status(500).json({ error: 'Unable to prepare this download.' });
+  }
+};
+
+app.get('/api/digital/:id/download', protect, downloadDigitalProduct);
 
 // ==================== BOOKING ENDPOINTS ====================
 // (unchanged – kept exactly as in original)
@@ -3109,26 +3085,6 @@ app.get('/api/users/:id/products', (req, res) => {
   });
 });
 
-app.get('/api/digital/:id/download', protect, (req, res) => {
-  const productId = req.params.id;
-  db.get('SELECT * FROM digital_purchases WHERE product_id = ? AND buyer_id = ?', [productId, req.user.id], (err, purchase) => {
-    if (err || !purchase) {
-      return res.status(403).json({ error: 'You have not purchased this product' });
-    }
-    db.get('SELECT file_url FROM digital_products WHERE id = ?', [productId], (err, product) => {
-      if (err || !product || !product.file_url) {
-        return res.status(404).json({ error: 'File not found' });
-      }
-      const filePath = path.join(__dirname, product.file_url);
-      if (fs.existsSync(filePath)) {
-        res.download(filePath);
-      } else {
-        res.status(404).json({ error: 'File not found' });
-      }
-    });
-  });
-});
-
 // ==================== DIGITAL REQUESTS (Buyer Contact Seller) ====================
 app.post('/api/digital/:id/request', protect, (req, res) => {
   const { phone, email } = req.body;
@@ -3158,26 +3114,51 @@ app.get('/api/seller/digital-requests', protect, requireSeller, (req, res) => {
   });
 });
 
-app.patch('/api/seller/digital-requests/:id/complete', protect, requireSeller, (req, res) => {
-  const requestId = req.params.id;
-  db.run(`
-    UPDATE digital_requests
-    SET status = 'completed'
-    WHERE id = ? AND EXISTS (
-      SELECT 1 FROM digital_products d
-      WHERE d.id = digital_requests.digital_id AND d.seller_id = ?
-    )
-  `, [requestId, req.user.id], function(err) {
-    if (err) return res.status(500).json({ error: err.message });
-    if (this.changes !== 1) return res.status(404).json({ error: 'Digital request not found.' });
-    res.json({ success: true, message: 'Request completed. Buyer can now download.' });
-  });
+app.patch('/api/seller/digital-requests/:id/complete', protect, requireSeller, async (req, res) => {
+  try {
+    const request = await getDatabaseRow(`
+      SELECT dr.id, dr.digital_id, dr.buyer_id, d.seller_id, d.price, d.file_url, d.file_type, d.download_limit
+      FROM digital_requests dr
+      JOIN digital_products d ON d.id = dr.digital_id
+      WHERE dr.id = ? AND d.seller_id = ?
+    `, [req.params.id, req.user.id]);
+    if (!request) return res.status(404).json({ error: 'Digital request not found.' });
+    if (!privateDigitalKeyForSeller(request.file_url, request.seller_id)) {
+      return res.status(409).json({ error: 'The product file must be migrated to private storage before access can be granted.' });
+    }
+
+    await runDatabaseStatement('UPDATE digital_requests SET status = ? WHERE id = ?', ['completed', request.id]);
+    const existingPurchase = await getDatabaseRow(
+      'SELECT id FROM digital_purchases WHERE product_id = ? AND buyer_id = ? ORDER BY id DESC LIMIT 1',
+      [request.digital_id, request.buyer_id]
+    );
+    if (!existingPurchase) {
+      await runDatabaseStatement(`
+        INSERT INTO digital_purchases (order_number, product_id, buyer_id, seller_id, price, download_url, file_type, download_limit)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `, [
+        `DIG-${Date.now()}-${request.id}`,
+        request.digital_id,
+        request.buyer_id,
+        request.seller_id,
+        request.price,
+        request.file_url,
+        request.file_type,
+        request.download_limit,
+      ]);
+      await runDatabaseStatement('UPDATE digital_products SET downloads = downloads + 1 WHERE id = ?', [request.digital_id]);
+    }
+    return res.json({ success: true, message: 'Access granted. The buyer can now download the private file.' });
+  } catch (error) {
+    console.error(JSON.stringify({ level: 'error', event: 'digital_access_grant_failed', error: error.message }));
+    return res.status(500).json({ error: 'Unable to grant download access.' });
+  }
 });
 
 app.get('/api/digital/:id/can-download', protect, (req, res) => {
   const digitalId = req.params.id;
   const buyerId = req.user.id;
-  db.get('SELECT * FROM digital_requests WHERE digital_id = ? AND buyer_id = ? AND status = "completed"', [digitalId, buyerId], (err, row) => {
+  db.get('SELECT id FROM digital_purchases WHERE product_id = ? AND buyer_id = ? ORDER BY id DESC LIMIT 1', [digitalId, buyerId], (err, row) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json({ success: true, canDownload: !!row });
   });
@@ -3918,22 +3899,83 @@ app.get('/api/seller/orders', protect, requireSeller, (req, res) => {
   });
 });
 
-app.get('/api/orders/:id/invoice', protect, async (req, res) => {
-  db.get('SELECT * FROM orders WHERE id = ?', [req.params.id], async (err, order) => {
-    if (err || !order) return res.status(404).json({ error: 'Order not found' });
-    
-    db.get('SELECT * FROM users WHERE id = ?', [order.user_id], async (err, user) => {
-      db.all(`
-        SELECT oi.*, p.title
-        FROM order_items oi
-        JOIN products p ON oi.product_id = p.id
-        WHERE oi.order_id = ?
-      `, [order.id], async (err, items) => {
-        const filepath = await InvoiceService.generateInvoice(order, user, items);
-        res.download(filepath, `invoice-${order.order_number}.pdf`);
-      });
-    });
+const getDatabaseRow = (query, values) => new Promise((resolve, reject) => {
+  db.get(query, values, (error, row) => (error ? reject(error) : resolve(row)));
+});
+
+const getDatabaseRows = (query, values) => new Promise((resolve, reject) => {
+  db.all(query, values, (error, rows) => (error ? reject(error) : resolve(rows)));
+});
+
+const runDatabaseStatement = (query, values) => new Promise((resolve, reject) => {
+  db.run(query, values, function callback(error) {
+    if (error) return reject(error);
+    return resolve({ lastID: this.lastID, changes: this.changes });
   });
+});
+
+const streamPrivateAttachment = async (res, key, filename, contentType) => {
+  res.setHeader('Cache-Control', 'private, no-store');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Content-Security-Policy', 'sandbox');
+  res.setHeader('Content-Type', contentType);
+  res.setHeader('Content-Disposition', `attachment; filename="${filename.replace(/[^a-zA-Z0-9._-]/g, '_')}"`);
+  await pipeline(await storageService.getPrivateStream(key), res);
+};
+
+app.get('/api/orders/:id/invoice', protect, async (req, res) => {
+  try {
+    const order = await getDatabaseRow('SELECT * FROM orders WHERE id = ?', [req.params.id]);
+    if (!order) return res.status(404).json({ error: 'Order not found.' });
+    if (req.user.role !== 'admin' && order.user_id !== req.user.id) {
+      return res.status(403).json({ error: 'You are not allowed to access this invoice.' });
+    }
+
+    let invoice = await getDatabaseRow('SELECT storage_reference, filename FROM order_invoices WHERE order_id = ?', [order.id]);
+    let storageKey = invoice && storageService.keyFromReference(invoice.storage_reference, 'private');
+
+    if (!storageKey) {
+      const [user, items] = await Promise.all([
+        getDatabaseRow('SELECT * FROM users WHERE id = ?', [order.user_id]),
+        getDatabaseRows(`
+          SELECT oi.*, COALESCE(NULLIF(oi.product_title, ''), p.title) AS title
+          FROM order_items oi
+          LEFT JOIN products p ON oi.product_id = p.id
+          WHERE oi.order_id = ?
+        `, [order.id]),
+      ]);
+      if (!user) return res.status(404).json({ error: 'Invoice customer record not found.' });
+
+      const filename = `invoice-${order.order_number}.pdf`;
+      const contents = await InvoiceService.generateInvoiceBuffer(order, user, items);
+      const newKey = storageService.createKey('private', 'invoices', 'pdf');
+      const storageReference = storageService.reference(newKey);
+      await storageService.put(newKey, contents, { contentType: 'application/pdf', cacheControl: 'private, no-store' });
+      try {
+        const created = await runDatabaseStatement(
+          'INSERT OR IGNORE INTO order_invoices (order_id, storage_reference, filename, sha256) VALUES (?, ?, ?, ?)',
+          [order.id, storageReference, filename, crypto.createHash('sha256').update(contents).digest('hex')]
+        );
+        if (created.changes === 1) {
+          invoice = { storage_reference: storageReference, filename };
+          storageKey = newKey;
+        } else {
+          await storageService.delete(newKey);
+          invoice = await getDatabaseRow('SELECT storage_reference, filename FROM order_invoices WHERE order_id = ?', [order.id]);
+          storageKey = invoice && storageService.keyFromReference(invoice.storage_reference, 'private');
+        }
+      } catch (error) {
+        await storageService.delete(newKey).catch(() => {});
+        throw error;
+      }
+    }
+
+    if (!storageKey || !invoice?.filename) return res.status(404).json({ error: 'Invoice file not found.' });
+    await streamPrivateAttachment(res, storageKey, invoice.filename, 'application/pdf');
+  } catch (error) {
+    console.error(JSON.stringify({ level: 'error', event: 'invoice_download_failed', error: error.message }));
+    if (!res.headersSent) return res.status(500).json({ error: 'Unable to prepare the invoice.' });
+  }
 });
 
 // ==================== RATINGS & REVIEWS ====================
@@ -4353,19 +4395,8 @@ app.patch('/api/seller/offers/:offerId/respond', protect, requireSeller, (req, r
 
 // Configure multer for document uploads (accept images and PDFs)
 const documentUpload = multer({
-  storage: multer.diskStorage({
-    destination: function (req, file, cb) {
-      const uploadDir = path.join(__dirname, 'uploads/verification');
-      if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-      cb(null, uploadDir);
-    },
-    filename: function (req, file, cb) {
-      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-      const ext = path.extname(file.originalname);
-      cb(null, `verification-${req.user.id}-${uniqueSuffix}${ext}`);
-    }
-  }),
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024, files: 1, fields: 10, fieldSize: 64 * 1024 },
   fileFilter: (req, file, cb) => {
     const allowedTypes = /jpeg|jpg|png|gif|webp|pdf/;
     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
@@ -4378,50 +4409,57 @@ const documentUpload = multer({
 const validateVerificationDocument = async (req, res, next) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded.' });
   if (!['national_id', 'passport'].includes(req.body.document_type)) {
-    fs.unlink(req.file.path, () => {});
     return res.status(400).json({ error: 'document_type must be national_id or passport.' });
   }
 
   try {
     if (req.file.mimetype === 'application/pdf') {
-      const handle = await fs.promises.open(req.file.path, 'r');
-      const buffer = Buffer.alloc(5);
-      await handle.read(buffer, 0, 5, 0);
-      await handle.close();
-      if (buffer.toString('ascii') !== '%PDF-') throw new Error('Invalid PDF document.');
+      if (req.file.buffer.subarray(0, 5).toString('ascii') !== '%PDF-') throw new Error('Invalid PDF document.');
+      req.verificationDocument = { extension: 'pdf', contentType: 'application/pdf' };
     } else {
-      const metadata = await sharp(req.file.path, { failOn: 'error' }).metadata();
+      const metadata = await sharp(req.file.buffer, { failOn: 'error' }).metadata();
       if (!['jpeg', 'png', 'webp', 'gif'].includes(metadata.format)) throw new Error('Invalid image document.');
+      const imageTypes = {
+        jpeg: { extension: 'jpg', contentType: 'image/jpeg' },
+        png: { extension: 'png', contentType: 'image/png' },
+        webp: { extension: 'webp', contentType: 'image/webp' },
+        gif: { extension: 'gif', contentType: 'image/gif' },
+      };
+      req.verificationDocument = imageTypes[metadata.format];
     }
     return next();
   } catch (error) {
-    fs.unlink(req.file.path, () => {});
     return res.status(400).json({ error: 'Verification document content is invalid.' });
   }
 };
 
-app.post('/api/seller/upload-verification', protect, requireSeller, documentUpload.single('document'), validateVerificationDocument, (req, res) => {
+app.post('/api/seller/upload-verification', protect, requireSeller, documentUpload.single('document'), validateVerificationDocument, async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-  const documentUrl = `/uploads/verification/${req.file.filename}`;
-  const { document_type } = req.body;
-  
-  db.run(
-    `INSERT INTO verification_documents (user_id, document_url, document_type, status)
-     VALUES (?, ?, ?, 'pending')
-     ON CONFLICT(user_id) DO UPDATE SET
-       document_url = excluded.document_url,
-       document_type = excluded.document_type,
-       status = 'pending',
-       updated_at = CURRENT_TIMESTAMP`,
-    [req.user.id, documentUrl, document_type],
-    function(err) {
-      if (err) {
-        fs.unlinkSync(req.file.path);
-        return res.status(500).json({ error: err.message });
-      }
-      res.json({ success: true, message: 'Verification document uploaded. Awaiting admin review.' });
-    }
-  );
+  let key;
+  try {
+    key = storageService.createKey('private', 'verification', req.verificationDocument.extension);
+    await storageService.put(key, req.file.buffer, {
+      contentType: req.verificationDocument.contentType,
+      cacheControl: 'private, no-store',
+    });
+    const documentUrl = storageService.reference(key);
+    await new Promise((resolve, reject) => db.run(
+      `INSERT INTO verification_documents (user_id, document_url, document_type, status)
+       VALUES (?, ?, ?, 'pending')
+       ON CONFLICT(user_id) DO UPDATE SET
+         document_url = excluded.document_url,
+         document_type = excluded.document_type,
+         status = 'pending',
+         updated_at = CURRENT_TIMESTAMP`,
+      [req.user.id, documentUrl, req.body.document_type],
+      (error) => (error ? reject(error) : resolve())
+    ));
+    return res.json({ success: true, message: 'Verification document uploaded. Awaiting admin review.' });
+  } catch (error) {
+    if (key) storageService.delete(key).catch(() => {});
+    console.error(JSON.stringify({ level: 'error', event: 'verification_document_upload_failed', error: error.message }));
+    return res.status(500).json({ error: 'Failed to store verification document.' });
+  }
 });
 
 
@@ -4459,9 +4497,32 @@ app.get('/api/admin/pending-verifications', protect, requireAdmin, (req, res) =>
 app.get('/api/admin/verification-documents/:docId/file', protect, requireAdmin, (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
 
-  db.get('SELECT document_url, document_type FROM verification_documents WHERE id = ?', [req.params.docId], (error, document) => {
+  db.get('SELECT document_url, document_type FROM verification_documents WHERE id = ?', [req.params.docId], async (error, document) => {
     if (error) return res.status(500).json({ error: 'Unable to retrieve the verification document.' });
     if (!document?.document_url) return res.status(404).json({ error: 'Verification document not found.' });
+
+    let documentKey;
+    try {
+      documentKey = storageService.keyFromReference(document.document_url, 'private');
+    } catch (_) {
+      return res.status(404).json({ error: 'Verification document not found.' });
+    }
+    if (documentKey) {
+      try {
+        const extension = path.extname(documentKey).toLowerCase();
+        const contentTypes = { '.pdf': 'application/pdf', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp', '.gif': 'image/gif' };
+        res.setHeader('Cache-Control', 'private, no-store');
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        res.setHeader('Content-Security-Policy', 'sandbox');
+        res.setHeader('Content-Type', contentTypes[extension] || 'application/octet-stream');
+        res.setHeader('Content-Disposition', `attachment; filename="verification-${req.params.docId}${extension}"`);
+        await pipeline(await storageService.getPrivateStream(documentKey), res);
+      } catch (streamError) {
+        console.error(JSON.stringify({ level: 'error', event: 'verification_document_download_failed', error: streamError.message }));
+        if (!res.headersSent) return res.status(404).json({ error: 'Verification document not found.' });
+      }
+      return;
+    }
 
     const filename = path.basename(document.document_url);
     const verificationDir = path.join(__dirname, 'uploads', 'verification');
