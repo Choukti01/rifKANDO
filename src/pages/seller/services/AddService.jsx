@@ -1,14 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../../services/api';
-import { useAuth } from '../../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import MediaUploader from '../../../components/MediaUploader';
 
 
 const AddService = () => {
   const navigate = useNavigate();
-  const { token } = useAuth();
   const [loading, setLoading] = useState(false);
   const [media, setMedia] = useState([]);
   const [formData, setFormData] = useState({
@@ -39,9 +37,7 @@ const AddService = () => {
         media: media.map((m, idx) => ({ ...m, order: idx, isPrimary: idx === 0 }))
       };
       
-      await api.post('/services', serviceData, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await api.post('/services', serviceData);
       
       toast.success('Service created successfully!');
       navigate('/seller/dashboard/services');

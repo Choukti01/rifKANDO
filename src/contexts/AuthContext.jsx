@@ -1,6 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { getMe } from '../services/api';
-import api from '../services/api';
+import api, { clearCsrfToken, getMe, setCsrfToken } from '../services/api';
 import toast from 'react-hot-toast';
 
 const AuthContext = createContext();
@@ -13,50 +12,54 @@ export const useAuth = () => {
 
 const normalizeUser = (user) => ({
   ...user,
-  sellerType: user.sellerType || user.seller_type || null
+  sellerType: user.sellerType || user.seller_type || null,
 });
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [token, setToken] = useState(() => localStorage.getItem('token'));
+
+  const clearSessionState = useCallback(() => {
+    clearCsrfToken();
+    setUser(null);
+  }, []);
 
   const fetchUser = useCallback(async () => {
     try {
       const response = await getMe();
       const userData = response.data.data?.user || response.data.user;
-      const normalizedUser = normalizeUser(userData);
-      setUser(normalizedUser);
-      localStorage.setItem('user', JSON.stringify(normalizedUser));
-    } catch (error) {
-      console.error('Failed to fetch user:', error);
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      setToken(null);
+      if (!userData || !response.data.csrfToken) throw new Error('Invalid session response');
+      setCsrfToken(response.data.csrfToken);
+      setUser(normalizeUser(userData));
+      return true;
+    } catch (_) {
+      clearSessionState();
+      return false;
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [clearSessionState]);
 
   useEffect(() => {
-    if (token) {
-      api.defaults.headers.common.Authorization = `Bearer ${token}`;
-      fetchUser();
-    } else {
-      delete api.defaults.headers.common.Authorization;
+    // Invalidate credentials from the legacy localStorage implementation.
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    fetchUser();
+
+    const handleSessionExpiry = () => {
+      clearSessionState();
       setLoading(false);
-    }
-  }, [token, fetchUser]);
+    };
+    window.addEventListener('rifkando:session-expired', handleSessionExpiry);
+    return () => window.removeEventListener('rifkando:session-expired', handleSessionExpiry);
+  }, [clearSessionState, fetchUser]);
 
   const completeAuthentication = useCallback((response, successMessage) => {
     const authenticatedUser = response.data.data?.user || response.data.user;
-    const authenticatedToken = response.data.token;
-    if (!authenticatedToken || !authenticatedUser) throw new Error('Invalid authentication response');
+    if (!authenticatedUser || !response.data.csrfToken) throw new Error('Invalid authentication response');
 
+    setCsrfToken(response.data.csrfToken);
     const normalizedUser = normalizeUser(authenticatedUser);
-    localStorage.setItem('token', authenticatedToken);
-    localStorage.setItem('user', JSON.stringify(normalizedUser));
-    setToken(authenticatedToken);
     setUser(normalizedUser);
     toast.success(successMessage);
     return { success: true, user: normalizedUser };
@@ -95,48 +98,23 @@ export const AuthProvider = ({ children }) => {
   const googleLogin = useCallback(async (credential) => {
     try {
       const response = await api.post('/auth/google', { credential });
-      if (response.data.verificationRequired) {
-        return { success: false, verificationRequired: true };
-      }
-      const authenticatedUser = response.data.data?.user || response.data.user;
-      const authenticatedToken = response.data.token;
-
-      if (!authenticatedToken || !authenticatedUser) {
-        throw new Error('Invalid Google authentication response');
-      }
-
-      const normalizedUser = normalizeUser(authenticatedUser);
-      localStorage.setItem('token', authenticatedToken);
-      localStorage.setItem('user', JSON.stringify(normalizedUser));
-      setToken(authenticatedToken);
-      setUser(normalizedUser);
-      toast.success('Welcome to rifKANDO!');
-      return { success: true, user: normalizedUser };
+      if (response.data.verificationRequired) return { success: false, verificationRequired: true };
+      return completeAuthentication(response, 'Welcome to rifKANDO!');
     } catch (error) {
       toast.error(error.response?.data?.error || 'Google sign-in failed');
       return { success: false };
     }
-  }, []);
+  }, [completeAuthentication]);
 
   const verifyGoogleRegistration = useCallback(async (credential, code) => {
     try {
       const response = await api.post('/auth/google/verify', { credential, code });
-      const authenticatedUser = response.data.data?.user || response.data.user;
-      const authenticatedToken = response.data.token;
-      if (!authenticatedToken || !authenticatedUser) throw new Error('Invalid verification response');
-
-      const normalizedUser = normalizeUser(authenticatedUser);
-      localStorage.setItem('token', authenticatedToken);
-      localStorage.setItem('user', JSON.stringify(normalizedUser));
-      setToken(authenticatedToken);
-      setUser(normalizedUser);
-      toast.success('Your account has been verified. Welcome to rifKANDO!');
-      return { success: true };
+      return completeAuthentication(response, 'Your account has been verified. Welcome to rifKANDO!');
     } catch (error) {
       toast.error(error.response?.data?.error || 'Verification failed');
       return { success: false };
     }
-  }, []);
+  }, [completeAuthentication]);
 
   const resendGoogleVerification = useCallback(async (credential) => {
     try {
@@ -149,18 +127,31 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  const logout = useCallback(() => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    setToken(null);
-    setUser(null);
-    toast.success('Logged out successfully');
-  }, []);
+  const logout = useCallback(async () => {
+    try {
+      await api.post('/auth/logout');
+    } catch (_) {
+      // The local state must be cleared even when an access cookie has expired.
+    } finally {
+      clearSessionState();
+      toast.success('Logged out successfully');
+    }
+  }, [clearSessionState]);
+
+  const logoutAllDevices = useCallback(async () => {
+    try {
+      await api.post('/auth/logout-all');
+      clearSessionState();
+      toast.success('Logged out from all devices');
+      return { success: true };
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'Could not end all sessions');
+      return { success: false };
+    }
+  }, [clearSessionState]);
 
   const updateUser = useCallback((updatedUser) => {
-    const normalizedUser = normalizeUser(updatedUser);
-    setUser(normalizedUser);
-    localStorage.setItem('user', JSON.stringify(normalizedUser));
+    setUser(normalizeUser(updatedUser));
   }, []);
 
   const updateSellerType = useCallback(async (sellerType) => {
@@ -168,10 +159,8 @@ export const AuthProvider = ({ children }) => {
       const response = await api.patch('/users/update-seller-type', { sellerType });
       const updatedUser = response.data.data?.user;
       if (!response.data.success || !updatedUser) throw new Error('Update failed');
-
       const normalizedUser = normalizeUser({ ...updatedUser, sellerType });
       setUser(normalizedUser);
-      localStorage.setItem('user', JSON.stringify(normalizedUser));
       toast.success(`You are now a ${sellerType} seller!`);
       return { success: true, user: normalizedUser };
     } catch (error) {
@@ -183,7 +172,6 @@ export const AuthProvider = ({ children }) => {
   const value = useMemo(() => ({
     user,
     loading,
-    token,
     isAuthenticated: Boolean(user),
     login,
     register,
@@ -192,9 +180,10 @@ export const AuthProvider = ({ children }) => {
     verifyGoogleRegistration,
     resendGoogleVerification,
     logout,
+    logoutAllDevices,
     updateUser,
-    updateSellerType
-  }), [user, loading, token, login, register, verifyEmail, googleLogin, verifyGoogleRegistration, resendGoogleVerification, logout, updateUser, updateSellerType]);
+    updateSellerType,
+  }), [user, loading, login, register, verifyEmail, googleLogin, verifyGoogleRegistration, resendGoogleVerification, logout, logoutAllDevices, updateUser, updateSellerType]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

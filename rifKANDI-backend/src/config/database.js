@@ -191,6 +191,29 @@ db.serialize(() => {
     )
   `);
 
+  // Server-side browser sessions. Refresh and CSRF values are hashed so a
+  // database disclosure cannot be used to impersonate an active browser.
+  db.run(`
+    CREATE TABLE IF NOT EXISTS auth_sessions (
+      id TEXT PRIMARY KEY,
+      user_id INTEGER NOT NULL,
+      refresh_token_hash TEXT NOT NULL UNIQUE,
+      csrf_token_hash TEXT NOT NULL,
+      expires_at DATETIME NOT NULL,
+      revoked_at DATETIME,
+      revocation_reason TEXT,
+      replaced_by TEXT,
+      user_agent_hash TEXT,
+      ip_hash TEXT,
+      last_used_at DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `, (err) => { if (err) console.error('Error creating auth_sessions:', err.message); });
+  db.run('CREATE INDEX IF NOT EXISTS idx_auth_sessions_user_active ON auth_sessions(user_id, revoked_at, expires_at)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_auth_sessions_expiry ON auth_sessions(expires_at)');
+  db.run("DELETE FROM auth_sessions WHERE expires_at < datetime('now', '-7 days')");
+
   // Invoices are immutable snapshots. The object reference is private and is
   // only streamed after the buyer/admin authorization check in app.js.
   db.run(`
@@ -869,6 +892,101 @@ db.serialize(() => {
     if (err) console.error('Error creating escrow index:', err.message);
   });
 
+  // Security and financial audit entries are append-only. Each entry is also
+  // chained by an HMAC in AuditService, so a missing or altered row is
+  // detectable during an integrity check.
+  db.run(`
+    CREATE TABLE IF NOT EXISTS audit_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      occurred_at TEXT NOT NULL,
+      actor_user_id INTEGER,
+      actor_role TEXT,
+      action TEXT NOT NULL,
+      resource_type TEXT NOT NULL,
+      resource_id TEXT,
+      outcome TEXT NOT NULL,
+      request_id TEXT,
+      ip_address TEXT,
+      user_agent_hash TEXT,
+      metadata TEXT NOT NULL DEFAULT '{}',
+      previous_hash TEXT,
+      entry_hash TEXT NOT NULL UNIQUE
+    )
+  `, (err) => { if (err) console.error('Error creating audit_logs:', err.message); });
+  db.run('CREATE INDEX IF NOT EXISTS idx_audit_logs_actor_occurred ON audit_logs(actor_user_id, occurred_at DESC)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_audit_logs_resource_occurred ON audit_logs(resource_type, resource_id, occurred_at DESC)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_audit_logs_action_occurred ON audit_logs(action, occurred_at DESC)');
+  db.run(`
+    CREATE TRIGGER IF NOT EXISTS prevent_audit_log_updates
+    BEFORE UPDATE ON audit_logs
+    BEGIN
+      SELECT RAISE(ABORT, 'audit logs are immutable');
+    END
+  `);
+  db.run(`
+    CREATE TRIGGER IF NOT EXISTS prevent_audit_log_deletes
+    BEFORE DELETE ON audit_logs
+    BEGIN
+      SELECT RAISE(ABORT, 'audit logs are immutable');
+    END
+  `);
+
+  // Monetary values are stored as integer centimes (minor MAD units). The
+  // decimal columns remain only as a short-term API/display compatibility
+  // mirror while application calculations use the *_minor columns below.
+  const minorColumns = [
+    ['products', 'price_minor', 'price'],
+    ['products', 'old_price_minor', 'old_price'],
+    ['orders', 'total_minor', 'total'],
+    ['order_items', 'price_minor', 'price'],
+    ['courses', 'price_minor', 'price'],
+    ['courses', 'old_price_minor', 'old_price'],
+    ['services', 'price_minor', 'price'],
+    ['services', 'old_price_minor', 'old_price'],
+    ['service_packages', 'price_minor', 'price'],
+    ['service_orders', 'price_minor', 'price'],
+    ['digital_products', 'price_minor', 'price'],
+    ['digital_products', 'old_price_minor', 'old_price'],
+    ['digital_purchases', 'price_minor', 'price'],
+    ['bookings', 'price_minor', 'price'],
+    ['bookings', 'old_price_minor', 'old_price'],
+    ['wallets', 'available_balance_minor', 'available_balance'],
+    ['wallets', 'escrow_balance_minor', 'escrow_balance'],
+    ['wallets', 'pending_withdrawal_minor', 'pending_withdrawal'],
+    ['wallets', 'total_earned_minor', 'total_earned'],
+    ['escrow_transactions', 'amount_minor', 'amount'],
+    ['escrow_transactions', 'commission_minor', 'commission'],
+    ['escrow_transactions', 'seller_amount_minor', 'seller_amount'],
+    ['withdrawal_requests', 'amount_minor', 'amount'],
+    ['wallet_transactions', 'amount_minor', 'amount'],
+    ['wallet_transactions', 'balance_before_minor', 'balance_before'],
+    ['wallet_transactions', 'balance_after_minor', 'balance_after'],
+    ['payment_splits', 'amount_minor', 'amount'],
+    ['payment_transactions', 'amount_minor', 'amount'],
+    ['wallet_ledger_entries', 'amount_minor', 'amount'],
+    ['wallet_ledger_entries', 'balance_before_minor', 'balance_before'],
+    ['wallet_ledger_entries', 'balance_after_minor', 'balance_after'],
+    ['refund_requests', 'amount_minor', 'amount'],
+  ];
+  for (const [table, minorColumn, decimalColumn] of minorColumns) {
+    db.run(`ALTER TABLE ${table} ADD COLUMN ${minorColumn} INTEGER`, (err) => {
+      if (err && !err.message.includes('duplicate column name')) {
+        console.error(`Error adding ${minorColumn} to ${table}:`, err.message);
+      }
+    });
+    db.run(
+      `UPDATE ${table}
+       SET ${minorColumn} = CAST(ROUND(${decimalColumn} * 100) AS INTEGER)
+       WHERE ${minorColumn} IS NULL AND ${decimalColumn} IS NOT NULL`,
+      (err) => {
+        if (err) console.error(`Error backfilling ${minorColumn} on ${table}:`, err.message);
+      }
+    );
+  }
+  db.run('CREATE INDEX IF NOT EXISTS idx_products_price_minor ON products(price_minor)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_orders_total_minor ON orders(total_minor)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_payment_transactions_amount_minor ON payment_transactions(amount_minor)');
+
   // ========== NEW: Product Offers table (for Joutiya items) ==========
   db.run(`
     CREATE TABLE IF NOT EXISTS product_offers (
@@ -889,6 +1007,14 @@ db.serialize(() => {
     if (err) console.error('Error creating product_offers:', err);
     else console.log('✅ product_offers table ready');
   });
+
+  db.run('ALTER TABLE product_offers ADD COLUMN amount_minor INTEGER', (err) => {
+    if (err && !err.message.includes('duplicate column name')) console.error('Error adding amount_minor to product_offers:', err.message);
+  });
+  db.run(
+    'UPDATE product_offers SET amount_minor = CAST(ROUND(amount * 100) AS INTEGER) WHERE amount_minor IS NULL AND amount IS NOT NULL',
+    (err) => { if (err) console.error('Error backfilling amount_minor on product_offers:', err.message); }
+  );
 
   console.log('✅ All tables created/verified');
   db.get('SELECT 1 AS ready', (error) => {

@@ -1,15 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../../services/api';
-import { useAuth } from '../../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import MediaUploader from '../../../components/MediaUploader';
 
 const AddProduct = () => {
   const navigate = useNavigate();
-  const { token } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [generatingDesc, setGeneratingDesc] = useState(false);
   const [media, setMedia] = useState([]);
   const [formData, setFormData] = useState({
     title: '',
@@ -25,30 +22,6 @@ const AddProduct = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const generateDescription = async () => {
-    if (!formData.title) {
-      toast.error('Please enter a title first');
-      return;
-    }
-    setGeneratingDesc(true);
-    try {
-      const response = await api.post('/ai/generate-description', {
-        title: formData.title,
-        category: formData.category,
-        keywords: formData.title
-      });
-      if (response.data.success) {
-        setFormData(prev => ({ ...prev, description: response.data.description }));
-        toast.success('✨ AI description generated!');
-      }
-    } catch (error) {
-      console.error('AI generation error:', error);
-      toast.error('Failed to generate description');
-    } finally {
-      setGeneratingDesc(false);
-    }
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -61,9 +34,7 @@ const AddProduct = () => {
         condition: formData.condition,
         media: media.map((m, idx) => ({ ...m, order: idx, isPrimary: idx === 0 }))
       };
-      const response = await api.post('/products', productData, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await api.post('/products', productData);
       if (response.data.success) {
         toast.success('Product created successfully!');
         navigate('/seller/dashboard/products');
@@ -93,17 +64,7 @@ const AddProduct = () => {
         </div>
 
         <div className="form-group">
-          <div className="description-header">
-            <label>Description *</label>
-            <button
-              type="button"
-              onClick={generateDescription}
-              disabled={generatingDesc}
-              className="ai-btn"
-            >
-              ✨ {generatingDesc ? 'Generating...' : 'Generate with AI'}
-            </button>
-          </div>
+          <label>Description *</label>
           <textarea
             name="description"
             value={formData.description}
@@ -243,30 +204,6 @@ const AddProduct = () => {
           border: 1px solid #e5e7eb;
           border-radius: 0.5rem;
           font-size: 0.875rem;
-        }
-        .description-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 0.5rem;
-        }
-        .ai-btn {
-          background: linear-gradient(135deg, #87CEEB, #5F9EA0);
-          color: #1a1a1a;
-          border: none;
-          padding: 0.25rem 0.75rem;
-          border-radius: 2rem;
-          font-size: 0.75rem;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-        .ai-btn:hover {
-          transform: translateY(-1px);
-          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .ai-btn:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
         }
         .form-hint {
           display: block;

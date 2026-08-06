@@ -1,15 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../../../services/api';
-import { useAuth } from '../../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import MediaUploader from '../../../components/MediaUploader';
-import { getImageUrl } from '../../../utils/imageUtils';
 
 const EditService = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { token } = useAuth();
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
   const [media, setMedia] = useState([]);
@@ -45,7 +42,7 @@ const EditService = () => {
       });
       if (service.media && service.media.length) {
         setMedia(service.media.map(m => ({ 
-  url: getImageUrl(m.media_url), 
+  url: m.media_url,
   type: m.media_type 
 })));
       }
@@ -73,15 +70,13 @@ const EditService = () => {
         revisions: parseInt(formData.revisions) || 0,
         media: media.map((m, idx) => ({ 
   ...m, 
-  url: getImageUrl(m.url),
+  url: m.url,
   order: idx, 
   isPrimary: idx === 0 
 }))
       };
       
-      await api.put(`/services/${id}`, serviceData, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await api.put(`/services/${id}`, serviceData);
       
       toast.success('Service updated successfully!');
       navigate('/seller/dashboard/services');

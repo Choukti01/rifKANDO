@@ -1,30 +1,54 @@
-const jwt = require('jsonwebtoken');
-const db = require('../config/database');
+const sessionService = require('../services/sessionService');
+
+const unsafeMethods = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+
+const ROLES = Object.freeze({
+  BUYER: 'buyer',
+  SELLER: 'seller',
+  SUPPORT: 'support',
+  FINANCE: 'finance',
+  VERIFICATION_REVIEWER: 'verification_reviewer',
+  ADMIN: 'admin',
+  SUPER_ADMIN: 'super_admin',
+});
+
+const ADMIN_ROLES = Object.freeze([ROLES.ADMIN, ROLES.SUPER_ADMIN]);
+const FINANCE_ROLES = Object.freeze([ROLES.FINANCE, ...ADMIN_ROLES]);
+const VERIFICATION_REVIEWER_ROLES = Object.freeze([ROLES.VERIFICATION_REVIEWER, ...ADMIN_ROLES]);
+
+const hasAnyRole = (user, roles) => Boolean(user && roles.includes(user.role));
+const isAdmin = (user) => hasAnyRole(user, ADMIN_ROLES);
 
 const protect = async (req, res, next) => {
-  let token;
+  try {
+    const cookies = sessionService.readCookies(req);
+    const authenticated = await sessionService.authenticateAccessCookie(cookies[sessionService.ACCESS_COOKIE]);
+    if (!authenticated) return res.status(401).json({ error: 'You are not logged in' });
 
-  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-    token = req.headers.authorization.split(' ')[1];
-  }
+    if (unsafeMethods.has(req.method) && !sessionService.hasValidCsrfToken(authenticated.session, req.get('X-CSRF-Token'))) {
+      return res.status(403).json({ error: 'A valid CSRF token is required.' });
+    }
 
-  if (!token) {
+    req.user = authenticated.user;
+    req.authSession = authenticated.session;
+    return next();
+  } catch (_) {
     return res.status(401).json({ error: 'You are not logged in' });
   }
+};
 
+const optionalProtect = async (req, res, next) => {
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
-    
-    db.get('SELECT * FROM users WHERE id = ?', [decoded.id], (err, user) => {
-      if (err || !user) {
-        return res.status(401).json({ error: 'User not found' });
-      }
-      req.user = user;
-      next();
-    });
-  } catch (err) {
-    return res.status(401).json({ error: 'Invalid token' });
+    const cookies = sessionService.readCookies(req);
+    const authenticated = await sessionService.authenticateAccessCookie(cookies[sessionService.ACCESS_COOKIE]);
+    if (authenticated) {
+      req.user = authenticated.user;
+      req.authSession = authenticated.session;
+    }
+  } catch (_) {
+    // Public endpoints remain public when a stale cookie is present.
   }
+  return next();
 };
 
 const authorize = (...roles) => (req, res, next) => {
@@ -32,11 +56,21 @@ const authorize = (...roles) => (req, res, next) => {
     return res.status(401).json({ error: 'You are not logged in' });
   }
 
-  if (!roles.includes(req.user.role)) {
+  if (!hasAnyRole(req.user, roles)) {
     return res.status(403).json({ error: 'You are not authorized to perform this action' });
   }
 
   return next();
 };
 
-module.exports = { protect, authorize };
+module.exports = {
+  protect,
+  optionalProtect,
+  authorize,
+  hasAnyRole,
+  isAdmin,
+  ROLES,
+  ADMIN_ROLES,
+  FINANCE_ROLES,
+  VERIFICATION_REVIEWER_ROLES,
+};

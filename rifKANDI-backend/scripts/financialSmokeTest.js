@@ -17,6 +17,7 @@ fsSync.mkdirSync(testDirectory, { recursive: true });
 const db = require('../src/config/database');
 const WalletService = require('../src/services/walletService');
 const CmiPaymentService = require('../src/services/cmiPaymentService');
+const Money = require('../src/services/moneyService');
 
 const closeDatabase = () => new Promise((resolve, reject) => {
   db.close((error) => (error ? reject(error) : resolve()));
@@ -95,7 +96,9 @@ const run = async () => {
   const buyerWallet = await WalletService.getWallet(walletFlow.buyerId);
   const sellerWallet = await WalletService.getWallet(walletFlow.sellerId);
   assert.equal(buyerWallet.available_balance, 750);
+  assert.equal(buyerWallet.available_balance_minor, 75000);
   assert.equal(sellerWallet.available_balance, 80);
+  assert.equal(sellerWallet.available_balance_minor, 8000);
   assert.equal(sellerWallet.escrow_balance, 0);
   assert.equal(sellerWallet.pending_withdrawal, 0);
 
@@ -111,8 +114,8 @@ const run = async () => {
   });
   const oid = 'CMI-TEST-ORDER-1001';
   await WalletService.withFinancialTransaction((tx) => tx.run(
-    "INSERT INTO payment_transactions (order_id, cmi_oid, amount, status) VALUES (?, ?, ?, 'pending')",
-    [cmiOrder.order.id, oid, 250]
+    "INSERT INTO payment_transactions (order_id, cmi_oid, amount, amount_minor, status) VALUES (?, ?, ?, ?, 'pending')",
+    [cmiOrder.order.id, oid, 250, 25000]
   ));
   const callback = {
     oid,
@@ -137,6 +140,20 @@ const run = async () => {
   assert.equal(persistedCmiOrder.payment_status, 'paid');
   assert.equal(persistedCmiOrder.status, 'processing');
   assert.equal(cmiSellerWallet.escrow_balance, 180);
+  assert.equal(cmiSellerWallet.escrow_balance_minor, 18000);
+
+  const monetaryRows = await WalletService.all(`
+    SELECT total_minor FROM orders
+    UNION ALL SELECT price_minor FROM order_items
+    UNION ALL SELECT amount_minor FROM payment_transactions
+    UNION ALL SELECT amount_minor FROM payment_splits
+    UNION ALL SELECT amount_minor FROM wallet_ledger_entries
+  `);
+  assert.equal(monetaryRows.every((row) => Number.isSafeInteger(row[Object.keys(row)[0]])), true, 'financial records must persist integer minor units');
+  assert.equal(Money.toMinor('0.30'), 30);
+  assert.equal(Money.toMinor(0.1 + 0.2), 30, 'browser floating-point artifacts are normalized at the boundary');
+  assert.equal(Money.formatMinor(12345), '123.45');
+  assert.throws(() => Money.toMinor('0.301'), /two decimal places/);
 
   console.log('Financial smoke test passed.');
 };

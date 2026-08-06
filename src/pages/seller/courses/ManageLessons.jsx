@@ -2,13 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { PlusIcon, TrashIcon, PencilIcon } from '@heroicons/react/24/outline';
 import api from '../../../services/api';
-import { useAuth } from '../../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 
 const ManageLessons = () => {
   const { courseId } = useParams();
   const navigate = useNavigate();
-  const { token } = useAuth();
   const [course, setCourse] = useState(null);
   const [lessons, setLessons] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -42,9 +40,7 @@ const ManageLessons = () => {
   const handleAddLesson = async (e) => {
     e.preventDefault();
     try {
-      await api.post(`/courses/${courseId}/lessons`, formData, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await api.post(`/courses/${courseId}/lessons`, formData);
       toast.success('Lesson added successfully');
       setShowForm(false);
       setFormData({ title: '', description: '', duration: '', order: '', is_preview: false });
@@ -57,9 +53,7 @@ const ManageLessons = () => {
   const handleDeleteLesson = async (lessonId) => {
     if (window.confirm('Delete this lesson?')) {
       try {
-        await api.delete(`/courses/${courseId}/lessons/${lessonId}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        await api.delete(`/courses/${courseId}/lessons/${lessonId}`);
         toast.success('Lesson deleted');
         fetchCourseAndLessons();
       } catch (error) {

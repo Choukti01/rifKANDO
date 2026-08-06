@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { PlusIcon, EyeIcon, PencilIcon, TrashIcon, XMarkIcon, ShoppingBagIcon, ChartBarIcon } from '@heroicons/react/24/outline';
 import { getMyServices, deleteService } from '../../../services/api';
 import api from '../../../services/api';
-import { useAuth } from '../../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import { getImageUrl } from '../../../utils/imageUtils';
 
@@ -11,7 +10,6 @@ const ServicesDashboard = () => {
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
-  const { token } = useAuth();
 
   const [stats, setStats] = useState({
     totalServices: 0,

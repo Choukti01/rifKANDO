@@ -49,8 +49,14 @@ services:
         sync: false
       - key: JWT_SECRET
         generateValue: true
-      - key: JWT_EXPIRE
-        value: 7d
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: AUDIT_LOG_SECRET
+        generateValue: true
+      - key: ACCESS_TOKEN_TTL_SECONDS
+        value: 900
+      - key: REFRESH_TOKEN_TTL_DAYS
+        value: 30
       - key: GOOGLE_CLIENT_ID
         sync: false
       - key: RESEND_API_KEY
@@ -63,8 +69,6 @@ services:
         sync: false
       - key: BREVO_FROM_NAME
         value: rifKANDO
-      - key: GEMINI_API_KEY
-        sync: false
       - key: CMI_STORE_KEY
         sync: false
       - key: CMI_CLIENT_ID

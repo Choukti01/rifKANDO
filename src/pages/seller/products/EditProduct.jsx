@@ -1,14 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../../../services/api';
-import { useAuth } from '../../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import MediaUploader from '../../../components/MediaUploader';
 
 const EditProduct = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { token } = useAuth();
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
   const [media, setMedia] = useState([]);
@@ -68,9 +66,7 @@ const EditProduct = () => {
         condition: formData.condition,
         media: media.map((m, idx) => ({ ...m, order: idx, isPrimary: idx === 0 }))
       };
-      await api.put(`/products/${id}`, productData, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await api.put(`/products/${id}`, productData);
       toast.success('Product updated successfully!');
       navigate('/seller/dashboard/products');
     } catch (error) {

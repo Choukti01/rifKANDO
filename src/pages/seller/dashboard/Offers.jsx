@@ -13,7 +13,7 @@ const Offers = () => {
   const [sending, setSending] = useState({});
   const messagesEndRef = useRef({});
 
-  const { token, user } = useAuth();
+  const { user } = useAuth();
 
   useEffect(() => {
     fetchOffers();

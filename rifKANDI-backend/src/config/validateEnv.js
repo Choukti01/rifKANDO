@@ -1,5 +1,7 @@
 const REQUIRED_PRODUCTION_ENV = [
   'JWT_SECRET',
+  'SESSION_SECRET',
+  'AUDIT_LOG_SECRET',
   'CLIENT_URL',
   'GOOGLE_CLIENT_ID',
   'DATABASE_PATH',
@@ -101,6 +103,12 @@ const validateEnvironment = () => {
   }
   if (process.env.JWT_SECRET.length < 32) {
     throw new Error('JWT_SECRET must be at least 32 characters in production.');
+  }
+  if (process.env.SESSION_SECRET.length < 32) {
+    throw new Error('SESSION_SECRET must be at least 32 characters in production.');
+  }
+  if (process.env.AUDIT_LOG_SECRET.length < 32) {
+    throw new Error('AUDIT_LOG_SECRET must be at least 32 characters in production.');
   }
   normalizeOrigin(process.env.CLIENT_URL, 'CLIENT_URL');
   getAllowedOrigins();

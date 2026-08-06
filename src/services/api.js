@@ -1,43 +1,94 @@
 import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const unsafeMethods = new Set(['post', 'put', 'patch', 'delete']);
+const nonRefreshableAuthPaths = [
+  '/auth/login',
+  '/auth/register',
+  '/auth/verify-email',
+  '/auth/google',
+  '/auth/refresh',
+  '/auth/logout',
+  '/auth/logout-all',
+];
+
+let csrfToken = null;
+let refreshPromise = null;
+
+export const setCsrfToken = (value) => {
+  csrfToken = typeof value === 'string' && value.length >= 32 ? value : null;
+};
+
+export const clearCsrfToken = () => {
+  csrfToken = null;
+};
 
 const api = axios.create({
   baseURL: API_URL,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Request interceptor to add token
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
+api.interceptors.request.use((config) => {
+  config.withCredentials = true;
+  // Cookie sessions intentionally do not accept a browser-supplied bearer
+  // token. Strip stale per-call headers during the migration as a safeguard.
+  if (typeof config.headers?.delete === 'function') {
+    config.headers.delete('Authorization');
+  } else {
+    delete config.headers?.Authorization;
+    delete config.headers?.authorization;
   }
-);
 
-// Response interceptor to handle errors
+  if (unsafeMethods.has(String(config.method || 'get').toLowerCase()) && csrfToken) {
+    config.headers = config.headers || {};
+    config.headers['X-CSRF-Token'] = csrfToken;
+  }
+  return config;
+});
+
+const isRefreshableRequest = (config = {}) => {
+  if (config._retryAfterSessionRefresh || config._skipSessionRefresh) return false;
+  return !nonRefreshableAuthPaths.some((path) => String(config.url || '').startsWith(path));
+};
+
+const expireClientSession = () => {
+  clearCsrfToken();
+  window.dispatchEvent(new Event('rifkando:session-expired'));
+};
+
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
+  async (error) => {
+    const originalRequest = error.config;
+    if (error.response?.status !== 401 || !isRefreshableRequest(originalRequest)) {
+      if (error.response?.status === 401 && !originalRequest?._skipSessionExpiryEvent) {
+        expireClientSession();
+      }
+      return Promise.reject(error);
     }
-    return Promise.reject(error);
+
+    try {
+      refreshPromise ||= api.post('/auth/refresh', {}, {
+        _skipSessionRefresh: true,
+        _skipSessionExpiryEvent: true,
+      });
+      const refreshResponse = await refreshPromise;
+      setCsrfToken(refreshResponse.data.csrfToken);
+      originalRequest._retryAfterSessionRefresh = true;
+      return api(originalRequest);
+    } catch (refreshError) {
+      expireClientSession();
+      return Promise.reject(refreshError);
+    } finally {
+      refreshPromise = null;
+    }
   }
 );
 
 // ==================== AUTH APIs ====================
-// Authentication requests are managed by AuthContext.
 export const getMe = () => api.get('/auth/me');
 
 // ==================== PRODUCT APIs ====================

@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { PlusIcon, EyeIcon, PencilIcon, TrashIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { getMyProducts, deleteProduct } from '../../../services/api';
 import api from '../../../services/api';
-import { useAuth } from '../../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import { getImageUrl } from '../../../utils/imageUtils';
 import EmptyState from '../../../components/common/EmptyState';
@@ -13,7 +12,6 @@ const ProductsDashboard = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
-  const { token } = useAuth();
   const [stats, setStats] = useState({
     totalProducts: 0,
     totalValue: 0,
