@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const cmi = require('cmi-payment-nodejs');
 const config = require('../config/cmi');
 const WalletService = require('./walletService');
+const Money = require('./moneyService');
 
 const PAYMENT_FIELDS_TO_STORE = [
   'oid', 'clientid', 'amount', 'currency', 'ProcReturnCode', 'Response',
@@ -22,16 +23,12 @@ class CmiPaymentService {
     }, {});
   }
 
-  static amountsMatch(expectedAmount, receivedAmount) {
-    const toMinorUnits = (value) => {
-      const normalized = String(value ?? '').replace(',', '.').trim();
-      if (!/^\d+(\.\d{1,2})?$/.test(normalized)) return null;
-      return Math.round(Number(normalized) * 100);
-    };
-
-    const expected = toMinorUnits(expectedAmount);
-    const received = toMinorUnits(receivedAmount);
-    return expected !== null && received !== null && expected === received;
+  static amountsMatch(expectedMinor, receivedAmount) {
+    try {
+      return Money.assertMinor(expectedMinor, { allowZero: true }) === Money.toMinor(receivedAmount, { allowZero: true });
+    } catch (_) {
+      return false;
+    }
   }
 
   /**
@@ -97,10 +94,11 @@ class CmiPaymentService {
       if (pendingTransaction) {
         throw new Error('A CMI payment attempt is already pending for this order.');
       }
+      const totalMinor = WalletService.minorFromRow(currentOrder, 'total_minor', 'total');
       await tx.run(
-        `INSERT INTO payment_transactions (order_id, cmi_oid, amount, status)
-         VALUES (?, ?, ?, 'pending')`,
-        [currentOrder.id, oid, currentOrder.total]
+        `INSERT INTO payment_transactions (order_id, cmi_oid, amount, amount_minor, status)
+         VALUES (?, ?, ?, ?, 'pending')`,
+        [currentOrder.id, oid, Money.fromMinor(totalMinor), totalMinor]
       );
     });
 
@@ -113,7 +111,7 @@ class CmiPaymentService {
         okUrl: config.okUrl,
         failUrl: config.failUrl,
         callbackURL: config.callbackURL,
-        amount: String(order.total),
+        amount: Money.formatMinor(WalletService.minorFromRow(order, 'total_minor', 'total')),
         email: user.email,
         BillToName: user.name,
         tel: user.phone || '',
@@ -149,7 +147,7 @@ class CmiPaymentService {
         [oid]
       );
       if (!transaction) throw new Error('Payment transaction not found.');
-      if (!this.amountsMatch(transaction.amount, paymentData.amount)) {
+      if (!this.amountsMatch(WalletService.minorFromRow(transaction, 'amount_minor', 'amount'), paymentData.amount)) {
         throw new Error('CMI callback amount does not match the order.');
       }
       if (String(paymentData.clientid) !== String(config.clientid)) {

@@ -16,14 +16,14 @@ export const useCart = () => {
 export const CartProvider = ({ children }) => {
   const [cart, setCart] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { isAuthenticated, token } = useAuth();
+  const { isAuthenticated } = useAuth();
 
   // Loading cart from backend when user is authenticated
   useEffect(() => {
     let isMounted = true;
     
     const loadData = async () => {
-      if (isAuthenticated && token) {
+      if (isAuthenticated) {
         await loadCartFromBackend(isMounted);
       } else {
         loadCartFromLocal(isMounted);
@@ -35,7 +35,7 @@ export const CartProvider = ({ children }) => {
     return () => {
       isMounted = false;
     };
-  }, [isAuthenticated, token]);
+  }, [isAuthenticated]);
 
   // Loading cart from backend API
   const loadCartFromBackend = async (isMounted) => {
@@ -102,7 +102,7 @@ export const CartProvider = ({ children }) => {
     localStorage.setItem('rifkandi_cart', JSON.stringify(newCart));
     
     // Sync to backend if authenticated (don't await to avoid blocking)
-    if (isAuthenticated && token) {
+    if (isAuthenticated) {
       api.post('/cart', {
         product_id: item.id,
         quantity: quantity
@@ -117,7 +117,7 @@ export const CartProvider = ({ children }) => {
     setCart(newCart);
     localStorage.setItem('rifkandi_cart', JSON.stringify(newCart));
     
-    if (isAuthenticated && token) {
+    if (isAuthenticated) {
       api.delete(`/cart/${itemId}`).catch(error => {
         console.error('Failed to remove from backend cart:', error);
       });
@@ -141,7 +141,7 @@ export const CartProvider = ({ children }) => {
     setCart(newCart);
     localStorage.setItem('rifkandi_cart', JSON.stringify(newCart));
     
-    if (isAuthenticated && token) {
+    if (isAuthenticated) {
       api.put(`/cart/${itemId}`, { quantity }).catch(error => {
         console.error('Failed to update backend cart:', error);
       });
@@ -149,7 +149,7 @@ export const CartProvider = ({ children }) => {
   };
 
   const clearCart = async () => {
-    if (isAuthenticated && token) {
+    if (isAuthenticated) {
       for (const item of cart) {
         await api.delete(`/cart/${item.id}`).catch(error => {
           console.error('Failed to clear cart item:', error);

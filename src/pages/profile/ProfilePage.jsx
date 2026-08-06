@@ -65,15 +65,21 @@ const ProfilePage = () => {
       try {
         const productsRes = await api.get('/my-products');
         setStats(prev => ({ ...prev, productsCount: productsRes.data.products?.length || 0 }));
-      } catch (e) {}
+      } catch {
+        // Dashboard statistics are independent; an unavailable endpoint must not hide the profile.
+      }
       try {
         const ordersRes = await api.get('/orders');
         setStats(prev => ({ ...prev, ordersCount: ordersRes.data.orders?.length || 0 }));
-      } catch (e) {}
+      } catch {
+        // Dashboard statistics are independent; an unavailable endpoint must not hide the profile.
+      }
       try {
         const favRes = await api.get('/favorites');
         setStats(prev => ({ ...prev, favoritesCount: favRes.data.favorites?.length || 0 }));
-      } catch (e) {}
+      } catch {
+        // Dashboard statistics are independent; an unavailable endpoint must not hide the profile.
+      }
       if (user?.createdAt) {
         setStats(prev => ({ ...prev, memberSince: new Date(user.createdAt).toLocaleDateString() }));
       }

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { StarIcon, HeartIcon, TruckIcon, ShieldCheckIcon, ArrowPathIcon, ChatBubbleLeftRightIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { StarIcon, HeartIcon, TruckIcon, ShieldCheckIcon, ArrowPathIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { useCart } from '../../contexts/CartContext';
 import { useFavorites } from '../../contexts/FavoritesContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -20,10 +20,6 @@ const ProductDetailsPage = () => {
   const [activeTab, setActiveTab] = useState('description');
   const [isFav, setIsFav] = useState(false);
   const [showGallery, setShowGallery] = useState(false);
-  const [showAIChat, setShowAIChat] = useState(false);
-  const [aiQuestion, setAiQuestion] = useState('');
-  const [aiAnswer, setAiAnswer] = useState('');
-  const [aiLoading, setAiLoading] = useState(false);
   
   // Offer modal state (for Joutiya products)
   const [showOfferModal, setShowOfferModal] = useState(false);
@@ -186,37 +182,6 @@ const ProductDetailsPage = () => {
     }
   };
 
-  const askAI = async () => {
-    if (!aiQuestion.trim()) {
-      toast.error('Please enter a question');
-      return;
-    }
-    setAiLoading(true);
-    try {
-      const response = await api.post('/ai/ask', {
-        productTitle: product.title,
-        productDescription: product.description,
-        question: aiQuestion
-      });
-      if (response.data.success) {
-        setAiAnswer(response.data.answer);
-      } else {
-        setAiAnswer('Sorry, I could not answer that. Please try asking about shipping, returns, materials, or contact the seller.');
-      }
-    } catch (error) {
-      console.error('AI error:', error);
-      setAiAnswer('Something went wrong. Please try again or click "Message Seller" to ask directly.');
-    } finally {
-      setAiLoading(false);
-    }
-  };
-
-  const closeAIChat = () => {
-    setShowAIChat(false);
-    setAiQuestion('');
-    setAiAnswer('');
-  };
-
   if (loading) return <div className="container text-center py-16"><div className="spinner"></div><p>Loading product...</p></div>;
   if (!product) return <div className="container text-center py-16"><p>Product not found</p><Link to="/products" className="btn btn-primary">Back</Link></div>;
 
@@ -288,9 +253,6 @@ const ProductDetailsPage = () => {
                 <button className="add-to-cart-btn" onClick={handleAddToCart} disabled={product.stock===0}>Add to Cart</button>
               )}
               <button className="favorite-btn" onClick={handleFavorite}><HeartIcon className={`heart-icon ${isFav ? 'text-red-500 fill-current' : ''}`} /></button>
-              <button className="ai-chat-btn" onClick={() => setShowAIChat(true)} title="Ask AI about this product">
-                <ChatBubbleLeftRightIcon className="w-5 h-5" />
-              </button>
             </div>
             <div className="product-shipping">
               <div className="shipping-item"><TruckIcon className="shipping-icon" /><span>Free shipping on orders over 500 MAD</span></div>
@@ -392,40 +354,6 @@ const ProductDetailsPage = () => {
         </div>
       </div>
 
-      {/* AI Chat Modal */}
-      {showAIChat && (
-        <div className="ai-chat-modal" onClick={closeAIChat}>
-          <div className="ai-chat-container" onClick={(e) => e.stopPropagation()}>
-            <div className="ai-chat-header">
-              <h3>🤖 rifKANDI AI Assistant</h3>
-              <button onClick={closeAIChat} className="close-chat-btn"><XMarkIcon className="w-5 h-5" /></button>
-            </div>
-            <div className="ai-chat-body">
-              <p className="ai-welcome">Ask me anything about <strong>{product.title}</strong></p>
-              <p className="ai-examples">💡 Try asking: "Is this authentic?" "Shipping time?" "Return policy?" "What material?"</p>
-              {aiAnswer && (
-                <div className="ai-answer">
-                  <div className="ai-avatar">🤖</div>
-                  <div className="ai-message">{aiAnswer}</div>
-                </div>
-              )}
-            </div>
-            <div className="ai-chat-footer">
-              <textarea
-                value={aiQuestion}
-                onChange={(e) => setAiQuestion(e.target.value)}
-                placeholder="e.g., Is this product authentic? What's the material? How long is delivery?"
-                rows="2"
-                className="ai-question-input"
-              />
-              <button onClick={askAI} disabled={aiLoading} className="ai-send-btn">
-                {aiLoading ? 'Thinking...' : 'Ask AI'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Make Offer Modal for Joutiya Products */}
       {showOfferModal && (
         <div className="offer-modal" onClick={() => setShowOfferModal(false)}>
@@ -507,8 +435,6 @@ const ProductDetailsPage = () => {
         .add-to-cart-btn, .make-offer-btn { flex: 1; padding: 0.75rem; background: #1a1a1a; color: white; border: none; border-radius: 2rem; cursor: pointer; }
         .make-offer-btn { background: #8b5cf6; }
         .favorite-btn { padding: 0.75rem; border: 1px solid #e5e7eb; background: white; border-radius: 2rem; cursor: pointer; }
-        .ai-chat-btn { padding: 0.75rem; border: 1px solid #e5e7eb; background: white; border-radius: 2rem; cursor: pointer; color: #87CEEB; transition: all 0.2s; }
-        .ai-chat-btn:hover { background: #87CEEB; color: white; border-color: #87CEEB; }
         .heart-icon { width: 1.25rem; height: 1.25rem; }
         .text-red-500 { color: #ef4444; }
         .fill-current { fill: currentColor; }
@@ -546,13 +472,11 @@ const ProductDetailsPage = () => {
         .review-date { font-size: 0.7rem; color: #9ca3af; }
         .review-comment-text { color: #4b5563; font-size: 0.875rem; line-height: 1.5; }
         .no-reviews { color: #6b7280; text-align: center; padding: 2rem; }
-        .ai-chat-modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1001; }
-        .ai-chat-container { background: white; border-radius: 1rem; width: 90%; max-width: 450px; max-height: 80vh; display: flex; flex-direction: column; overflow: hidden; }
         .offer-modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1002; }
         .offer-container { background: white; border-radius: 1rem; width: 90%; max-width: 450px; max-height: 80vh; display: flex; flex-direction: column; overflow: hidden; }
-        .offer-header, .ai-chat-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem; border-bottom: 1px solid #e5e7eb; background: #1a1a1a; color: white; }
-        .offer-header h3, .ai-chat-header h3 { margin: 0; font-size: 1rem; }
-        .close-offer-btn, .close-chat-btn { background: none; border: none; color: white; cursor: pointer; }
+        .offer-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem; border-bottom: 1px solid #e5e7eb; background: #1a1a1a; color: white; }
+        .offer-header h3 { margin: 0; font-size: 1rem; }
+        .close-offer-btn { background: none; border: none; color: white; cursor: pointer; }
         .offer-body { padding: 1rem; }
         .offer-field { margin-bottom: 1rem; }
         .offer-field label { display: block; margin-bottom: 0.25rem; font-weight: 500; font-size: 0.875rem; }
@@ -561,16 +485,6 @@ const ProductDetailsPage = () => {
         .cancel-offer-btn { background: #9ca3af; color: white; border: none; padding: 0.5rem 1rem; border-radius: 2rem; cursor: pointer; }
         .submit-offer-btn { background: #8b5cf6; color: white; border: none; padding: 0.5rem 1rem; border-radius: 2rem; cursor: pointer; }
         .submit-offer-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        .ai-chat-body { flex: 1; padding: 1rem; overflow-y: auto; min-height: 150px; }
-        .ai-welcome { color: #6b7280; font-size: 0.875rem; margin-bottom: 0.5rem; }
-        .ai-examples { font-size: 0.7rem; color: #9ca3af; margin-bottom: 1rem; }
-        .ai-answer { display: flex; gap: 0.75rem; margin-top: 1rem; }
-        .ai-avatar { width: 32px; height: 32px; background: #87CEEB; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
-        .ai-message { background: #f3f4f6; padding: 0.75rem; border-radius: 1rem; font-size: 0.875rem; line-height: 1.4; flex: 1; white-space: pre-line; }
-        .ai-chat-footer { padding: 1rem; border-top: 1px solid #e5e7eb; }
-        .ai-question-input { width: 100%; padding: 0.75rem; border: 1px solid #e5e7eb; border-radius: 0.75rem; font-size: 0.875rem; resize: none; margin-bottom: 0.5rem; }
-        .ai-send-btn { width: 100%; padding: 0.5rem; background: #1a1a1a; color: white; border: none; border-radius: 2rem; cursor: pointer; font-weight: 500; }
-        .ai-send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
         @media (max-width: 640px) {
           .product-details { padding: 1rem 0; }
           .main-image { height: min(78vw, 320px); border-radius: 0.75rem; }
@@ -579,13 +493,13 @@ const ProductDetailsPage = () => {
           .product-info h1 { font-size: 1.5rem; }
           .product-actions { flex-wrap: wrap; gap: .75rem; }
           .add-to-cart-btn, .make-offer-btn { flex: 1 1 calc(50% - .375rem); min-height: 44px; }
-          .favorite-btn, .ai-chat-btn { min-width: 44px; min-height: 44px; }
+          .favorite-btn { min-width: 44px; min-height: 44px; }
           .tabs-header { flex-wrap: nowrap; overflow-x: auto; }
           .tab-btn { flex: 0 0 auto; padding: .875rem 1rem; }
           .tabs-content { padding: 1rem; }
           .spec-item { flex-direction: column; gap: .25rem; }
           .spec-label { width: auto; }
-          .offer-container, .ai-chat-container { width: calc(100% - 2rem); max-height: calc(100dvh - 2rem); }
+          .offer-container { width: calc(100% - 2rem); max-height: calc(100dvh - 2rem); }
         }
       `}</style>
     </div>

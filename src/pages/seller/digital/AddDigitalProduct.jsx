@@ -1,13 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../../services/api';
-import { useAuth } from '../../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import MediaUploader from '../../../components/MediaUploader';
 
 const AddDigitalProduct = () => {
   const navigate = useNavigate();
-  const { token } = useAuth();
   const [loading, setLoading] = useState(false);
   const [media, setMedia] = useState([]);
   const [uploadingFile, setUploadingFile] = useState(false);
@@ -37,7 +35,7 @@ const AddDigitalProduct = () => {
     setUploadingFile(true);
     try {
       const response = await api.post('/upload-digital-file', formDataFile, {
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
+        headers: { 'Content-Type': 'multipart/form-data' }
       });
       if (response.data.success) {
         setUploadedFile({
@@ -75,9 +73,7 @@ const AddDigitalProduct = () => {
         media: media.map((m, idx) => ({ ...m, order: idx, isPrimary: idx === 0 }))
       };
       
-      await api.post('/digital', productData, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await api.post('/digital', productData);
       
       toast.success('Digital product created successfully!');
       navigate('/seller/dashboard/digital');

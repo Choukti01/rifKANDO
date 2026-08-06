@@ -1,4 +1,5 @@
 const db = require('../config/database');
+const Money = require('./moneyService');
 
 const WALLET_ACCOUNTS = new Set([
   'available_balance',
@@ -6,8 +7,14 @@ const WALLET_ACCOUNTS = new Set([
   'pending_withdrawal',
 ]);
 
-const PLATFORM_COMMISSION_RATE = 0.10;
-const MAX_MONETARY_AMOUNT = 10000000;
+const WALLET_ACCOUNT_MINOR_COLUMNS = Object.freeze({
+  available_balance: 'available_balance_minor',
+  escrow_balance: 'escrow_balance_minor',
+  pending_withdrawal: 'pending_withdrawal_minor',
+});
+const DELIVERY_FEE_MINOR = 5000;
+const FREE_DELIVERY_THRESHOLD_MINOR = 50000;
+const PLATFORM_COMMISSION_PERCENT = 10;
 
 class WalletService {
   // SQLite uses one shared connection in this application. Serialising financial
@@ -42,20 +49,36 @@ class WalletService {
   }
 
   static money(value, { allowZero = false, allowNegative = false } = {}) {
-    const amount = Number(value);
-    if (!Number.isFinite(amount) || Math.abs(amount) > MAX_MONETARY_AMOUNT) {
-      throw new Error('Invalid monetary amount.');
-    }
+    return Money.toMinor(value, { allowZero, allowNegative });
+  }
 
-    const rounded = Math.round((amount + Number.EPSILON) * 100) / 100;
-    if (
-      (!allowNegative && !allowZero && rounded <= 0) ||
-      (!allowNegative && allowZero && rounded < 0) ||
-      (allowNegative && !allowZero && rounded === 0)
-    ) {
-      throw new Error('Amount must be greater than zero.');
+  static minor(value, { allowZero = false, allowNegative = false } = {}) {
+    return Money.assertMinor(value, { allowZero, allowNegative });
+  }
+
+  static minorFromRow(row, minorColumn, legacyColumn) {
+    if (Number.isSafeInteger(row?.[minorColumn])) {
+      return this.minor(row[minorColumn], { allowZero: true, allowNegative: true });
     }
-    return rounded;
+    return this.money(row?.[legacyColumn] ?? 0, { allowZero: true, allowNegative: true });
+  }
+
+  static presentWallet(wallet) {
+    const available = this.minorFromRow(wallet, 'available_balance_minor', 'available_balance');
+    const escrow = this.minorFromRow(wallet, 'escrow_balance_minor', 'escrow_balance');
+    const pending = this.minorFromRow(wallet, 'pending_withdrawal_minor', 'pending_withdrawal');
+    const earned = this.minorFromRow(wallet, 'total_earned_minor', 'total_earned');
+    return {
+      ...wallet,
+      available_balance_minor: available,
+      escrow_balance_minor: escrow,
+      pending_withdrawal_minor: pending,
+      total_earned_minor: earned,
+      available_balance: Money.fromMinor(available),
+      escrow_balance: Money.fromMinor(escrow),
+      pending_withdrawal: Money.fromMinor(pending),
+      total_earned: Money.fromMinor(earned),
+    };
   }
 
   static positiveInteger(value, fieldName) {
@@ -108,8 +131,9 @@ class WalletService {
     const safeUserId = this.positiveInteger(userId, 'User ID');
     await tx.run(
       `INSERT OR IGNORE INTO wallets
-       (user_id, available_balance, escrow_balance, pending_withdrawal, total_earned)
-       VALUES (?, 0, 0, 0, 0)`,
+       (user_id, available_balance, escrow_balance, pending_withdrawal, total_earned,
+        available_balance_minor, escrow_balance_minor, pending_withdrawal_minor, total_earned_minor)
+       VALUES (?, 0, 0, 0, 0, 0, 0, 0, 0)`,
       [safeUserId]
     );
     const wallet = await tx.get('SELECT * FROM wallets WHERE user_id = ?', [safeUserId]);
@@ -153,7 +177,7 @@ class WalletService {
   }) {
     if (!WALLET_ACCOUNTS.has(account)) throw new Error('Invalid wallet account.');
     const safeUserId = this.positiveInteger(userId, 'User ID');
-    const safeDelta = this.money(delta, { allowZero: true, allowNegative: true });
+    const safeDelta = this.minor(delta, { allowZero: true, allowNegative: true });
     if (safeDelta === 0) throw new Error('Wallet movement cannot be zero.');
     const safeKey = this.normalizeIdempotencyKey(idempotencyKey, 'Ledger entry key');
 
@@ -162,33 +186,44 @@ class WalletService {
       [safeKey]
     );
     if (existing) {
-      return { alreadyProcessed: true, balance: Number(existing.balance_after), entry: existing };
+      const balanceMinor = this.minorFromRow(existing, 'balance_after_minor', 'balance_after');
+      return { alreadyProcessed: true, balance: Money.fromMinor(balanceMinor), balanceMinor, entry: existing };
     }
 
     const wallet = await this.ensureWalletTx(tx, safeUserId);
-    const balanceBefore = this.money(wallet[account], { allowZero: true });
-    const balanceAfter = this.money(balanceBefore + safeDelta, { allowZero: true });
+    const accountMinorColumn = WALLET_ACCOUNT_MINOR_COLUMNS[account];
+    const balanceBefore = this.minorFromRow(wallet, accountMinorColumn, account);
+    const balanceAfter = this.minor(balanceBefore + safeDelta, { allowZero: true });
     if (balanceAfter < 0) throw new Error('Insufficient wallet balance.');
+    const safeEarnedDelta = this.minor(earnedDelta, { allowZero: true, allowNegative: true });
+    const totalEarnedBefore = this.minorFromRow(wallet, 'total_earned_minor', 'total_earned');
+    const totalEarnedAfter = this.minor(totalEarnedBefore + safeEarnedDelta, { allowZero: true, allowNegative: true });
 
     const update = await tx.run(
       `UPDATE wallets
-       SET ${account} = ?,
-           total_earned = ROUND(total_earned + ?, 2),
-           updated_at = CURRENT_TIMESTAMP
-       WHERE user_id = ?`,
-      [balanceAfter, this.money(earnedDelta, { allowZero: true }), safeUserId]
+       SET ${accountMinorColumn} = ?,
+            ${account} = ?,
+            total_earned_minor = ?,
+            total_earned = ?,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE user_id = ?`,
+      [balanceAfter, Money.fromMinor(balanceAfter), totalEarnedAfter, Money.fromMinor(totalEarnedAfter), safeUserId]
     );
     if (update.changes !== 1) throw new Error('Wallet balance update failed.');
 
     const ledgerResult = await tx.run(
       `INSERT INTO wallet_ledger_entries
-       (idempotency_key, user_id, account, amount, balance_before, balance_after,
-        entry_type, reference_type, reference_id, description)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (idempotency_key, user_id, account, amount, balance_before, balance_after,
+         amount_minor, balance_before_minor, balance_after_minor,
+         entry_type, reference_type, reference_id, description)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         safeKey,
         safeUserId,
         account,
+        Money.fromMinor(safeDelta),
+        Money.fromMinor(balanceBefore),
+        Money.fromMinor(balanceAfter),
         safeDelta,
         balanceBefore,
         balanceAfter,
@@ -204,11 +239,15 @@ class WalletService {
     if (account === 'available_balance') {
       await tx.run(
         `INSERT INTO wallet_transactions
-         (user_id, type, amount, balance_before, balance_after, reference_id, description)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          (user_id, type, amount, balance_before, balance_after,
+           amount_minor, balance_before_minor, balance_after_minor, reference_id, description)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           safeUserId,
           String(type).slice(0, 64),
+          Money.fromMinor(safeDelta),
+          Money.fromMinor(balanceBefore),
+          Money.fromMinor(balanceAfter),
           safeDelta,
           balanceBefore,
           balanceAfter,
@@ -220,26 +259,43 @@ class WalletService {
 
     return {
       alreadyProcessed: false,
-      balance: balanceAfter,
+      balance: Money.fromMinor(balanceAfter),
+      balanceMinor: balanceAfter,
       entry: { id: ledgerResult.lastID, idempotency_key: safeKey },
     };
   }
 
   static async getWallet(userId) {
-    return this.withFinancialTransaction(async (tx) => this.ensureWalletTx(tx, userId));
+    return this.withFinancialTransaction(async (tx) => this.presentWallet(await this.ensureWalletTx(tx, userId)));
   }
 
   static async getTransactions(userId, limit = 50) {
     const safeUserId = this.positiveInteger(userId, 'User ID');
     const safeLimit = Math.min(Math.max(Number(limit) || 50, 1), 100);
-    return this.all(
-      `SELECT id, user_id, type, amount, balance_before, balance_after, reference_id, description, created_at
+    const transactions = await this.all(
+      `SELECT id, user_id, type, amount, balance_before, balance_after,
+              amount_minor, balance_before_minor, balance_after_minor,
+              reference_id, description, created_at
        FROM wallet_transactions
        WHERE user_id = ?
        ORDER BY created_at DESC, id DESC
        LIMIT ?`,
       [safeUserId, safeLimit]
     );
+    return transactions.map((transaction) => {
+      const amountMinor = this.minorFromRow(transaction, 'amount_minor', 'amount');
+      const beforeMinor = this.minorFromRow(transaction, 'balance_before_minor', 'balance_before');
+      const afterMinor = this.minorFromRow(transaction, 'balance_after_minor', 'balance_after');
+      return {
+        ...transaction,
+        amount_minor: amountMinor,
+        balance_before_minor: beforeMinor,
+        balance_after_minor: afterMinor,
+        amount: Money.fromMinor(amountMinor),
+        balance_before: Money.fromMinor(beforeMinor),
+        balance_after: Money.fromMinor(afterMinor),
+      };
+    });
   }
 
   static async addFunds(userId, amount, type, referenceId, description, operationKey = null) {
@@ -297,9 +353,9 @@ class WalletService {
     const safeOrderId = this.positiveInteger(orderId, 'Order ID');
     const safeBuyerId = this.positiveInteger(buyerId, 'Buyer ID');
     const safeSellerId = this.positiveInteger(sellerId, 'Seller ID');
-    const amount = this.money(grossAmount);
-    const safeCommission = this.money(commission, { allowZero: true });
-    const sellerAmount = this.money(amount - safeCommission, { allowZero: true });
+    const amount = this.minor(grossAmount);
+    const safeCommission = this.minor(commission, { allowZero: true });
+    const sellerAmount = this.minor(amount - safeCommission, { allowZero: true });
 
     const existing = await tx.get(
       'SELECT * FROM escrow_transactions WHERE order_id = ? AND seller_id = ? ORDER BY id ASC LIMIT 1',
@@ -309,9 +365,14 @@ class WalletService {
 
     const result = await tx.run(
       `INSERT INTO escrow_transactions
-       (order_id, buyer_id, seller_id, amount, commission, seller_amount, status)
-       VALUES (?, ?, ?, ?, ?, ?, 'pending')`,
-      [safeOrderId, safeBuyerId, safeSellerId, amount, safeCommission, sellerAmount]
+        (order_id, buyer_id, seller_id, amount, commission, seller_amount,
+         amount_minor, commission_minor, seller_amount_minor, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
+       [
+         safeOrderId, safeBuyerId, safeSellerId,
+         Money.fromMinor(amount), Money.fromMinor(safeCommission), Money.fromMinor(sellerAmount),
+         amount, safeCommission, sellerAmount,
+       ]
     );
     return {
       id: result.lastID,
@@ -355,7 +416,7 @@ class WalletService {
       await this.moveBalanceTx(tx, {
         userId: escrow.seller_id,
         account: 'escrow_balance',
-        delta: this.money(escrow.seller_amount),
+        delta: this.minorFromRow(escrow, 'seller_amount_minor', 'seller_amount'),
         type: 'escrow_hold',
         referenceId: escrow.id,
         referenceType: 'escrow',
@@ -394,7 +455,7 @@ class WalletService {
     );
     if (statusUpdate.changes !== 1) throw new Error('Escrow was already processed.');
 
-    const sellerAmount = this.money(escrow.seller_amount);
+    const sellerAmount = this.minorFromRow(escrow, 'seller_amount_minor', 'seller_amount');
     await this.moveBalanceTx(tx, {
       userId: escrow.seller_id,
       account: 'escrow_balance',
@@ -491,7 +552,7 @@ class WalletService {
         operationType: 'withdrawal_request',
         referenceType: 'withdrawal',
         referenceId: null,
-        metadata: { userId: safeUserId, amount: safeAmount },
+        metadata: { userId: safeUserId, amountMinor: safeAmount },
       });
       if (operation.alreadyProcessed) throw new Error('Withdrawal request state is inconsistent.');
 
@@ -518,9 +579,9 @@ class WalletService {
 
       const request = await tx.run(
         `INSERT INTO withdrawal_requests
-         (user_id, amount, method, bank_details, status, request_key)
-         VALUES (?, ?, ?, ?, 'pending', ?)`,
-        [safeUserId, safeAmount, method, bankDetailsJson, safeKey]
+         (user_id, amount, amount_minor, method, bank_details, status, request_key)
+          VALUES (?, ?, ?, ?, ?, 'pending', ?)`,
+         [safeUserId, Money.fromMinor(safeAmount), safeAmount, method, bankDetailsJson, safeKey]
       );
       await tx.run(
         `UPDATE wallet_ledger_entries SET reference_id = ?
@@ -568,7 +629,7 @@ class WalletService {
       );
       if (statusUpdate.changes !== 1) throw new Error('Withdrawal was already processed.');
 
-      const amount = this.money(withdrawal.amount);
+      const amount = this.minorFromRow(withdrawal, 'amount_minor', 'amount');
       await this.moveBalanceTx(tx, {
         userId: withdrawal.user_id,
         account: 'pending_withdrawal',
@@ -665,7 +726,7 @@ class WalletService {
       let subtotal = 0;
       for (const [productId, quantity] of requestedQuantities) {
         const product = await tx.get(
-          `SELECT id, seller_id, title, image, price, stock, status
+          `SELECT id, seller_id, title, image, price, price_minor, stock, status
            FROM products
            WHERE id = ?`,
           [productId]
@@ -676,9 +737,9 @@ class WalletService {
           throw new Error(`Insufficient stock for "${product.title}".`);
         }
 
-        const price = this.money(product.price);
-        const lineTotal = this.money(price * quantity);
-        subtotal = this.money(subtotal + lineTotal, { allowZero: true });
+        const price = this.minorFromRow(product, 'price_minor', 'price');
+        const lineTotal = this.minor(price * quantity);
+        subtotal = this.minor(subtotal + lineTotal, { allowZero: true });
         const orderItem = {
           productId: product.id,
           sellerId: product.seller_id,
@@ -690,13 +751,13 @@ class WalletService {
         };
         orderItems.push(orderItem);
         const group = sellerGroups.get(product.seller_id) || { grossAmount: 0, items: [] };
-        group.grossAmount = this.money(group.grossAmount + lineTotal, { allowZero: true });
+        group.grossAmount = this.minor(group.grossAmount + lineTotal, { allowZero: true });
         group.items.push(orderItem);
         sellerGroups.set(product.seller_id, group);
       }
 
-      const deliveryFee = subtotal > 500 ? 0 : 50;
-      const total = this.money(subtotal + deliveryFee);
+      const deliveryFee = subtotal > FREE_DELIVERY_THRESHOLD_MINOR ? 0 : DELIVERY_FEE_MINOR;
+      const total = this.minor(subtotal + deliveryFee);
       if (expectedTotal !== undefined && expectedTotal !== null && expectedTotal !== '') {
         const clientTotal = this.money(expectedTotal);
         if (clientTotal !== total) {
@@ -708,11 +769,12 @@ class WalletService {
       const initialStatus = paymentMethod === 'wallet' ? 'processing' : 'pending';
       const orderInsert = await tx.run(
         `INSERT INTO orders
-         (order_number, user_id, total, payment_method, payment_status, shipping_address, notes, status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          (order_number, user_id, total, total_minor, payment_method, payment_status, shipping_address, notes, status)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           String(orderNumber).slice(0, 100),
           safeBuyerId,
+          Money.fromMinor(total),
           total,
           paymentMethod,
           paymentStatus,
@@ -733,22 +795,22 @@ class WalletService {
         if (stockUpdate.changes !== 1) throw new Error(`Stock changed for "${item.title}". Please try again.`);
         await tx.run(
           `INSERT INTO order_items
-           (order_id, product_id, quantity, price, product_title, product_image)
-           VALUES (?, ?, ?, ?, ?, ?)`,
-          [orderId, item.productId, item.quantity, item.price, item.title, item.image]
+            (order_id, product_id, quantity, price, price_minor, product_title, product_image)
+            VALUES (?, ?, ?, ?, ?, ?, ?)`,
+           [orderId, item.productId, item.quantity, Money.fromMinor(item.price), item.price, item.title, item.image]
         );
       }
 
       let sellerNetTotal = 0;
       for (const [sellerId, group] of sellerGroups) {
-        const grossAmount = this.money(group.grossAmount);
-        const commission = this.money(grossAmount * PLATFORM_COMMISSION_RATE, { allowZero: true });
-        const sellerAmount = this.money(grossAmount - commission, { allowZero: true });
-        sellerNetTotal = this.money(sellerNetTotal + sellerAmount, { allowZero: true });
+        const grossAmount = this.minor(group.grossAmount);
+        const commission = Math.round(grossAmount * PLATFORM_COMMISSION_PERCENT / 100);
+        const sellerAmount = this.minor(grossAmount - commission, { allowZero: true });
+        sellerNetTotal = this.minor(sellerNetTotal + sellerAmount, { allowZero: true });
         await tx.run(
-          `INSERT INTO payment_splits (order_id, party_type, party_id, amount, status)
-           VALUES (?, 'seller', ?, ?, 'pending')`,
-          [orderId, sellerId, sellerAmount]
+          `INSERT INTO payment_splits (order_id, party_type, party_id, amount, amount_minor, status)
+           VALUES (?, 'seller', ?, ?, ?, 'pending')`,
+          [orderId, sellerId, Money.fromMinor(sellerAmount), sellerAmount]
         );
         if (paymentMethod !== 'cash') {
           await this.createEscrowTx(tx, {
@@ -760,17 +822,17 @@ class WalletService {
           });
         }
       }
-      const platformAmount = this.money(subtotal - sellerNetTotal, { allowZero: true });
+      const platformAmount = this.minor(subtotal - sellerNetTotal, { allowZero: true });
       await tx.run(
-        `INSERT INTO payment_splits (order_id, party_type, amount, status)
-         VALUES (?, 'platform', ?, 'pending')`,
-        [orderId, platformAmount]
+        `INSERT INTO payment_splits (order_id, party_type, amount, amount_minor, status)
+         VALUES (?, 'platform', ?, ?, 'pending')`,
+        [orderId, Money.fromMinor(platformAmount), platformAmount]
       );
       if (deliveryFee > 0) {
         await tx.run(
-          `INSERT INTO payment_splits (order_id, party_type, amount, status)
-           VALUES (?, 'delivery', ?, 'pending')`,
-          [orderId, deliveryFee]
+          `INSERT INTO payment_splits (order_id, party_type, amount, amount_minor, status)
+           VALUES (?, 'delivery', ?, ?, 'pending')`,
+          [orderId, Money.fromMinor(deliveryFee), deliveryFee]
         );
       }
 
@@ -807,7 +869,8 @@ class WalletService {
         order: {
           id: orderId,
           order_number: orderNumber,
-          total,
+          total: Money.fromMinor(total),
+          total_minor: total,
           status: initialStatus,
           payment_method: paymentMethod,
           payment_status: paymentStatus,
@@ -884,9 +947,16 @@ class WalletService {
       const existing = await tx.get('SELECT * FROM refund_requests WHERE order_id = ?', [safeOrderId]);
       if (existing) return { requestId: existing.id, alreadyProcessed: true, status: existing.status };
       const result = await tx.run(
-        `INSERT INTO refund_requests (order_id, requested_by, amount, payment_method, reason)
-         VALUES (?, ?, ?, ?, ?)`,
-        [safeOrderId, safeRequesterId, this.money(order.total), order.payment_method, String(reason).trim()]
+        `INSERT INTO refund_requests (order_id, requested_by, amount, amount_minor, payment_method, reason)
+          VALUES (?, ?, ?, ?, ?, ?)`,
+        [
+          safeOrderId,
+          safeRequesterId,
+          Money.fromMinor(this.minorFromRow(order, 'total_minor', 'total')),
+          this.minorFromRow(order, 'total_minor', 'total'),
+          order.payment_method,
+          String(reason).trim(),
+        ]
       );
       return { requestId: result.lastID, alreadyProcessed: false, status: 'pending' };
     });
@@ -936,7 +1006,7 @@ class WalletService {
         [refund.order_id]
       );
       for (const escrow of heldEscrows) {
-        const escrowAmount = this.money(escrow.seller_amount);
+        const escrowAmount = this.minorFromRow(escrow, 'seller_amount_minor', 'seller_amount');
         await this.moveBalanceTx(tx, {
           userId: escrow.seller_id,
           account: 'escrow_balance',
@@ -963,7 +1033,7 @@ class WalletService {
         await this.moveBalanceTx(tx, {
           userId: order.user_id,
           account: 'available_balance',
-          delta: this.money(refund.amount),
+          delta: this.minorFromRow(refund, 'amount_minor', 'amount'),
           type: 'refund',
           referenceId: refund.id,
           referenceType: 'refund',
@@ -1040,16 +1110,17 @@ class WalletService {
           [split.id]
         );
         if (splitUpdate.changes !== 1) throw new Error('COD seller settlement was already processed.');
+        const amountMinor = this.minorFromRow(split, 'amount_minor', 'amount');
         await this.moveBalanceTx(tx, {
           userId: split.party_id,
           account: 'available_balance',
-          delta: this.money(split.amount),
+          delta: amountMinor,
           type: 'cod_settlement',
           referenceId: safeOrderId,
           referenceType: 'order',
           description: `COD settlement for order #${order.order_number}`,
           idempotencyKey: `${operationKey}:seller:${split.party_id}`,
-          earnedDelta: this.money(split.amount),
+          earnedDelta: amountMinor,
         });
       }
       await tx.run(

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../../services/api';
-import { useAuth } from '../../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 
 const VerificationUpload = () => {
@@ -8,7 +7,6 @@ const VerificationUpload = () => {
   const [documentType, setDocumentType] = useState('national_id');
   const [uploading, setUploading] = useState(false);
   const [verificationStatus, setVerificationStatus] = useState(null);
-  const { token } = useAuth();
 
   useEffect(() => {
     fetchStatus();

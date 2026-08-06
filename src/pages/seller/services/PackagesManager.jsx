@@ -2,13 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { PlusIcon, PencilIcon, TrashIcon, XMarkIcon, CheckIcon } from '@heroicons/react/24/outline';
 import api from '../../../services/api';
-import { useAuth } from '../../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 
 const PackagesManager = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { token } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [service, setService] = useState(null);
@@ -80,14 +78,10 @@ const PackagesManager = () => {
       };
 
       if (editingPackage) {
-        await api.put(`/services/${id}/packages/${editingPackage.id}`, packageData, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        await api.put(`/services/${id}/packages/${editingPackage.id}`, packageData);
         toast.success('Package updated successfully');
       } else {
-        await api.post(`/services/${id}/packages`, packageData, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        await api.post(`/services/${id}/packages`, packageData);
         toast.success('Package added successfully');
       }
       setShowModal(false);
@@ -103,9 +97,7 @@ const PackagesManager = () => {
   const handleDelete = async (packageId) => {
     if (!window.confirm('Are you sure you want to delete this package?')) return;
     try {
-      await api.delete(`/services/${id}/packages/${packageId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await api.delete(`/services/${id}/packages/${packageId}`);
       toast.success('Package deleted successfully');
       fetchServiceAndPackages();
     } catch (error) {

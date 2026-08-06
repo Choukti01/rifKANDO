@@ -16,16 +16,16 @@ export const useFavorites = () => {
 export const FavoritesProvider = ({ children }) => {
   const [favorites, setFavorites] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { isAuthenticated, token } = useAuth();
+  const { isAuthenticated } = useAuth();
 
   useEffect(() => {
-    if (isAuthenticated && token) {
+    if (isAuthenticated) {
       loadFavorites();
     } else {
       setFavorites([]);
       setLoading(false);
     }
-  }, [isAuthenticated, token]);
+  }, [isAuthenticated]);
 
   const loadFavorites = async () => {
     try {

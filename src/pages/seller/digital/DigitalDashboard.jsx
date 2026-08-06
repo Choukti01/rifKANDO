@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { PlusIcon, EyeIcon, PencilIcon, TrashIcon, XMarkIcon, ArrowDownTrayIcon, ChartBarIcon, ChatBubbleLeftIcon } from '@heroicons/react/24/outline';
 import { getMyDigitalProducts, deleteDigitalProduct } from '../../../services/api';
 import api from '../../../services/api';
-import { useAuth } from '../../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import DigitalRequests from './DigitalRequests';
 import { getImageUrl } from '../../../utils/imageUtils';
@@ -13,7 +12,6 @@ const DigitalDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('products');
   const navigate = useNavigate();
-  const { token } = useAuth();
 
   const [stats, setStats] = useState({
     totalProducts: 0,

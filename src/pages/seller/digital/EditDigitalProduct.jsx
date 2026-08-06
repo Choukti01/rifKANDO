@@ -1,14 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../../../services/api';
-import { useAuth } from '../../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import MediaUploader from '../../../components/MediaUploader';
 
 const EditDigitalProduct = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { token } = useAuth();
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
   const [media, setMedia] = useState([]);
@@ -74,7 +72,7 @@ const EditDigitalProduct = () => {
     setUploadingFile(true);
     try {
       const response = await api.post('/upload-digital-file', formDataFile, {
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
+        headers: { 'Content-Type': 'multipart/form-data' }
       });
       setUploadedFile({
         storageReference: response.data.storageReference,
@@ -105,9 +103,7 @@ const EditDigitalProduct = () => {
         media: media.map((m, idx) => ({ ...m, order: idx, isPrimary: idx === 0 }))
       };
       
-      await api.put(`/digital/${id}`, productData, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await api.put(`/digital/${id}`, productData);
       
       toast.success('Digital product updated successfully!');
       navigate('/seller/dashboard/digital');

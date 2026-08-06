@@ -24,7 +24,10 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - run: npm ci
+      - run: npm run lint
+      - run: npm test
       - run: npm run build
+      - run: npm audit --omit=dev --audit-level=high
 
   backend:
     name: Backend checks
@@ -41,6 +44,11 @@ jobs:
           cache-dependency-path: rifKANDI-backend/package-lock.json
       - run: npm ci
       - run: npm run check
+      - run: npm run test:authorization
+      - run: npm run test:sessions
+      - run: npm run test:validation
       - run: npm run test:financial
+      - run: npm run test:money-migration
+      - run: npm run test:audit
       - run: npm run test:storage
       - run: npm audit --omit=dev --audit-level=high

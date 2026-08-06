@@ -1,7 +1,16 @@
 const express = require('express');
 const cors = require('cors');
 const db = require('./config/database');
-const { protect, authorize } = require('./middleware/auth');
+const {
+  protect,
+  optionalProtect,
+  authorize,
+  isAdmin,
+  ROLES,
+  ADMIN_ROLES,
+  FINANCE_ROLES,
+  VERIFICATION_REVIEWER_ROLES,
+} = require('./middleware/auth');
 const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
@@ -10,17 +19,61 @@ const crypto = require('crypto');
 const { pipeline } = require('node:stream/promises');
 const { securityHeaders, createRateLimiter } = require('./middleware/security');
 const errorHandler = require('./middleware/errorHandler');
+const {
+  validateIdParams,
+  validateCheckout,
+  validateWithdrawal,
+  validateWithdrawalDecision,
+  validateRefundRequest,
+  validateRefundCompletion,
+  validateOrderStatus,
+  validateCmiInitiation,
+  validateOffer,
+  validateOfferResponse,
+  validateCartItem,
+  validateCartQuantity,
+  validateProductCreate,
+  validateProductUpdate,
+  validateProfileUpdate,
+  validatePasswordChange,
+  validateSellerType,
+  validateProductReview,
+  validateCourseCreate,
+  validateCourseUpdate,
+  validateServiceCreate,
+  validateServiceUpdate,
+  validateBookingCreate,
+  validateBookingUpdate,
+  validateDigitalCreate,
+  validateDigitalUpdate,
+  validateLessonCreate,
+  validateLessonUpdate,
+  validateLessonProgress,
+  validatePackageCreate,
+  validatePackageUpdate,
+  validateProductQuery,
+} = require('./middleware/validateRequest');
 const { getAllowedOrigins } = require('./config/validateEnv');
 const { sendVerificationEmail, sendWelcomeEmail, sendLoginNotificationEmail } = require('./utils/sendEmail');
 const storageService = require('./services/storageService');
+const sessionService = require('./services/sessionService');
+const AuditService = require('./services/auditService');
+const Money = require('./services/moneyService');
+const createProductRoutes = require('./routes/productRoutes');
+const createCourseRoutes = require('./routes/courseRoutes');
+const createServiceRoutes = require('./routes/serviceRoutes');
+const createDigitalRoutes = require('./routes/digitalRoutes');
+const createBookingRoutes = require('./routes/bookingRoutes');
 // const EmailService = require('./services/emailService');
 
 
 
 const app = express();
 
-const requireSeller = authorize('seller');
-const requireAdmin = authorize('admin');
+const requireSeller = authorize(ROLES.SELLER);
+const requireAdmin = authorize(...ADMIN_ROLES);
+const requireFinance = authorize(...FINANCE_ROLES);
+const requireVerificationReviewer = authorize(...VERIFICATION_REVIEWER_ROLES);
 const allowedOrigins = new Set(getAllowedOrigins());
 
 app.set('trust proxy', 1);
@@ -108,7 +161,7 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Authorization', 'Content-Type', 'Idempotency-Key', 'X-Request-ID'],
+  allowedHeaders: ['Content-Type', 'Idempotency-Key', 'X-Request-ID', 'X-CSRF-Token'],
   maxAge: 86400
 }));
 
@@ -240,7 +293,7 @@ const requireOrderStatusAccess = (req, res, next) => {
     if (!transitions[order.status]?.includes(requestedStatus)) {
       return res.status(409).json({ error: 'This order status transition is not allowed.' });
     }
-    if (req.user.role === 'admin') return next();
+    if (isAdmin(req.user)) return next();
     if (req.user.role !== 'seller') {
       return res.status(403).json({ error: 'Only sellers or administrators can update orders.' });
     }
@@ -257,8 +310,37 @@ const requireOrderStatusAccess = (req, res, next) => {
   });
 };
 
+// An order timeline contains fulfilment and staff activity. Only the buyer,
+// an involved seller, or an administrator may see it. Returning 404 for both
+// missing and inaccessible orders prevents authenticated ID enumeration.
+const requireOrderHistoryAccess = (req, res, next) => {
+  if (isAdmin(req.user)) return next();
+
+  db.get(
+    `SELECT 1
+     FROM orders o
+     WHERE o.id = ?
+       AND (
+         o.user_id = ?
+         OR EXISTS (
+           SELECT 1
+           FROM order_items oi
+           JOIN products p ON p.id = oi.product_id
+           WHERE oi.order_id = o.id AND p.seller_id = ?
+         )
+       )
+     LIMIT 1`,
+    [req.params.id, req.user.id, req.user.id],
+    (accessError, order) => {
+      if (accessError) return res.status(500).json({ error: 'Unable to verify order access.' });
+      if (!order) return res.status(404).json({ error: 'Order not found.' });
+      return next();
+    }
+  );
+};
+
 // Update order status (seller) - SIMPLIFIED WORKING VERSION
-app.patch('/api/orders/:id/status', protect, requireOrderStatusAccess, async (req, res) => {
+app.patch('/api/orders/:id/status', protect, validateIdParams('id'), validateOrderStatus, requireOrderStatusAccess, async (req, res) => {
   const { status } = req.body;
   const validStatuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
   
@@ -274,6 +356,12 @@ app.patch('/api/orders/:id/status', protect, requireOrderStatusAccess, async (re
   if (status === 'delivered') {
     try {
       const result = await WalletService.releaseOrderEscrowsAfterDelivery(req.params.id, req.user.id);
+      await AuditService.recordFromRequest(req, {
+        action: 'order.status_changed',
+        resourceType: 'order',
+        resourceId: req.params.id,
+        metadata: { toStatus: 'delivered', alreadyProcessed: result.alreadyProcessed },
+      });
       return res.json({
         success: true,
         alreadyProcessed: result.alreadyProcessed,
@@ -301,7 +389,7 @@ app.patch('/api/orders/:id/status', protect, requireOrderStatusAccess, async (re
     }
     console.log(`📦 Updating order ${req.params.id} from ${oldStatus} to ${status}`);
 
-    db.run('UPDATE orders SET status = ? WHERE id = ?', [status, req.params.id], function(err) {
+    db.run('UPDATE orders SET status = ? WHERE id = ?', [status, req.params.id], async function onStatusUpdate(err) {
       if (err) {
         console.error('❌ Update error:', err);
         return res.status(500).json({ error: err.message });
@@ -313,6 +401,18 @@ app.patch('/api/orders/:id/status', protect, requireOrderStatusAccess, async (re
         [req.params.id, status, `Status changed from ${oldStatus} to ${status}`, req.user.id], (logErr) => {
           if (logErr) console.error('History log error (non-critical):', logErr);
         });
+
+      try {
+        await AuditService.recordFromRequest(req, {
+          action: 'order.status_changed',
+          resourceType: 'order',
+          resourceId: req.params.id,
+          metadata: { fromStatus: oldStatus, toStatus: status },
+        });
+      } catch (auditError) {
+        console.error(JSON.stringify({ level: 'error', event: 'audit_log_write_failed', action: 'order.status_changed', requestId: req.requestId, error: auditError.message }));
+        return res.status(500).json({ error: 'Order status was updated but its audit record could not be written. Contact support with the request ID.', requestId: req.requestId });
+      }
 
       console.log(`✅ Order ${req.params.id} status updated to ${status}`);
       res.json({ success: true, message: `Order status updated to ${status}` });
@@ -341,12 +441,6 @@ app.use('/api/auth', (req, res, next) => {
   next();
 });
 
-app.patch('/api/users/update-password', (req, res) => {
-  res.status(410).json({
-    error: 'Password authentication is not available. Manage your credentials through Google.'
-  });
-});
-
 const registrationExpiryMs = 10 * 60 * 1000;
 const registrationMaxAttempts = 5;
 
@@ -355,25 +449,36 @@ const hashRegistrationCode = (code) => crypto
   .update(code)
   .digest('hex');
 
-const createAuthenticatedResponse = (user) => {
-  const jwt = require('jsonwebtoken');
+const createSessionResponse = (res, user, session) => {
+  sessionService.setSessionCookies(res, session);
+  const authenticatedUser = sessionService.publicUser(user);
   return {
     success: true,
-    token: jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRE }),
-    user: {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      phone: user.phone,
-      role: user.role,
-      sellerType: user.seller_type,
-      bio: user.bio,
-      city: user.city,
-      country: user.country,
-      profilePicture: user.profilePicture,
-      is_verified_seller: user.is_verified_seller || 0
-    }
+    user: authenticatedUser,
+    data: { user: authenticatedUser },
+    csrfToken: session.csrfToken,
   };
+};
+
+const createAuthenticatedResponse = async (req, res, user) => {
+  const session = await sessionService.createSession({
+    userId: user.id,
+    userAgent: req.get('user-agent'),
+    ip: req.ip,
+  });
+  return createSessionResponse(res, user, session);
+};
+
+const getUserById = (id) => new Promise((resolve, reject) => {
+  db.get('SELECT * FROM users WHERE id = ?', [id], (error, user) => {
+    if (error) reject(error);
+    else resolve(user);
+  });
+});
+
+const hasTrustedBrowserOrigin = (req) => {
+  const origin = req.get('origin');
+  return !origin || allowedOrigins.has(origin);
 };
 
 app.post('/api/auth/register', authRateLimit, async (req, res) => {
@@ -429,12 +534,16 @@ app.post('/api/auth/verify-email', authRateLimit, (req, res) => {
       return res.status(400).json({ error: 'Verification code is invalid or expired.' });
     }
 
-    db.run('INSERT INTO users (name, email, password, phone, is_verified) VALUES (?, ?, ?, ?, 1)', [registration.name, email, registration.password_hash, registration.phone], function (createError) {
+    db.run('INSERT INTO users (name, email, password, phone, is_verified) VALUES (?, ?, ?, ?, 1)', [registration.name, email, registration.password_hash, registration.phone], async function (createError) {
       if (createError) return res.status(409).json({ error: 'An account already exists for this email.' });
       const user = { id: this.lastID, name: registration.name, email, phone: registration.phone, role: 'buyer', seller_type: null, bio: '', city: '', country: 'Morocco', profilePicture: '', is_verified_seller: 0 };
       db.run('DELETE FROM pending_registrations WHERE email = ?', [email]);
-      res.json(createAuthenticatedResponse(user));
-      sendWelcomeEmail(email, registration.name).catch((emailError) => console.error('Welcome email failed:', emailError.message));
+      try {
+        res.json(await createAuthenticatedResponse(req, res, user));
+        sendWelcomeEmail(email, registration.name).catch((emailError) => console.error('Welcome email failed:', emailError.message));
+      } catch (sessionError) {
+        res.status(500).json({ error: 'Could not establish a secure session.' });
+      }
     });
   });
 });
@@ -445,7 +554,7 @@ app.post('/api/auth/login', authRateLimit, (req, res) => {
   const bcrypt = require('bcryptjs');
   db.get('SELECT * FROM users WHERE email = ?', [email], async (error, user) => {
     if (error || !user || !(await bcrypt.compare(password || '', user.password))) return res.status(401).json({ error: 'Invalid credentials' });
-    res.json(createAuthenticatedResponse(user));
+    res.json(await createAuthenticatedResponse(req, res, user));
     sendLoginNotificationEmail(user.email, user.name).catch((emailError) => console.error('Login notification email failed:', emailError.message));
   });
 });
@@ -534,24 +643,61 @@ app.post('/api/auth/login', authRateLimit, (req, res) => {
 });
 
 */
-// Get current user
+app.post('/api/auth/refresh', authRateLimit, async (req, res) => {
+  if (!hasTrustedBrowserOrigin(req)) return res.status(403).json({ error: 'Origin is not allowed.' });
+  try {
+    const cookies = sessionService.readCookies(req);
+    const session = await sessionService.rotateRefreshToken({
+      refreshToken: cookies[sessionService.REFRESH_COOKIE],
+      userAgent: req.get('user-agent'),
+      ip: req.ip,
+    });
+    if (!session) {
+      sessionService.clearSessionCookies(res);
+      return res.status(401).json({ error: 'Your session has expired. Please sign in again.' });
+    }
+    const user = await getUserById(session.userId);
+    if (!user) {
+      await sessionService.revokeSession(session.id, 'missing_user');
+      sessionService.clearSessionCookies(res);
+      return res.status(401).json({ error: 'Your session has expired. Please sign in again.' });
+    }
+    return res.json(createSessionResponse(res, user, session));
+  } catch (error) {
+    sessionService.clearSessionCookies(res);
+    return res.status(401).json({ error: 'Your session has expired. Please sign in again.' });
+  }
+});
+
+app.post('/api/auth/logout', protect, async (req, res) => {
+  try {
+    await sessionService.revokeSession(req.authSession.id, 'logout');
+  } finally {
+    sessionService.clearSessionCookies(res);
+  }
+  return res.status(204).end();
+});
+
+app.post('/api/auth/logout-all', protect, async (req, res) => {
+  try {
+    await sessionService.revokeAllUserSessions(req.user.id, 'logout_all');
+  } finally {
+    sessionService.clearSessionCookies(res);
+  }
+  return res.status(204).end();
+});
+
+// Get current user and the per-session CSRF token required for unsafe requests.
 app.get('/api/auth/me', protect, (req, res) => {
+  const csrfToken = sessionService.readCookies(req)[sessionService.CSRF_COOKIE];
+  if (!sessionService.hasValidCsrfToken(req.authSession, csrfToken)) {
+    return res.status(401).json({ error: 'Your session must be refreshed.' });
+  }
   res.json({
     success: true,
+    csrfToken,
     data: {
-      user: {
-        id: req.user.id,
-        name: req.user.name,
-        email: req.user.email,
-        phone: req.user.phone,
-        role: req.user.role,
-        sellerType: req.user.seller_type,
-        bio: req.user.bio,
-        city: req.user.city,
-        country: req.user.country,
-        profilePicture: req.user.profilePicture,
-        is_verified_seller: req.user.is_verified_seller || 0
-      }
+      user: sessionService.publicUser(req.user)
     }
   });
 });
@@ -787,6 +933,22 @@ app.post('/api/upload-digital-file', protect, requireSeller, (req, res, next) =>
 
 // ==================== ADVANCED AUTH ENDPOINTS ====================
 
+// These routes predate the verified registration flow above and returned
+// browser-readable JWTs (including a development verification code). Keep the
+// paths explicitly disabled so they cannot be re-enabled accidentally.
+const disabledLegacyAuthRoutes = new Set([
+  '/api/auth/send-verification',
+  '/api/auth/verify-and-register',
+  '/api/auth/forgot-password',
+  '/api/auth/reset-password',
+]);
+app.use((req, res, next) => {
+  if (disabledLegacyAuthRoutes.has(req.path)) {
+    return res.status(410).json({ error: 'This legacy authentication endpoint is no longer available.' });
+  }
+  return next();
+});
+
 const generateCode = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
@@ -1000,15 +1162,7 @@ app.post('/api/auth/google', authRateLimit, async (req, res) => {
       }
 
       if (user?.is_verified) {
-        const jwt = require('jsonwebtoken');
-        const authToken = jwt.sign(
-          { id: user.id, email: user.email },
-          process.env.JWT_SECRET,
-          { expiresIn: process.env.JWT_EXPIRE }
-        );
-        
-        const authenticatedUser = { id: user.id, name: user.name, email: user.email, role: user.role, profilePicture: user.profilePicture, is_verified_seller: user.is_verified_seller || 0 };
-        return res.json({ success: true, token: authToken, user: authenticatedUser, data: { user: authenticatedUser } });
+        return res.json(await createAuthenticatedResponse(req, res, user));
       }
 
       const sendCode = async () => {
@@ -1082,13 +1236,14 @@ app.post('/api/auth/google/verify', authRateLimit, async (req, res) => {
 
       db.run('UPDATE users SET is_verified = 1 WHERE email = ?', [email], (updateError) => {
         if (updateError) return res.status(500).json({ error: 'Could not activate the account.' });
-        db.get('SELECT * FROM users WHERE email = ?', [email], (userError, user) => {
+        db.get('SELECT * FROM users WHERE email = ?', [email], async (userError, user) => {
           if (userError || !user) return res.status(500).json({ error: 'Could not load the account.' });
           db.run('DELETE FROM google_verifications WHERE email = ?', [email]);
-          const jwt = require('jsonwebtoken');
-          const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRE });
-          const authenticatedUser = { id: user.id, name: user.name, email: user.email, role: user.role, profilePicture: user.profilePicture, is_verified_seller: user.is_verified_seller || 0 };
-          res.json({ success: true, token, user: authenticatedUser, data: { user: authenticatedUser } });
+          try {
+            res.json(await createAuthenticatedResponse(req, res, user));
+          } catch (sessionError) {
+            res.status(500).json({ error: 'Could not establish a secure session.' });
+          }
         });
       });
     });
@@ -1117,1390 +1272,63 @@ app.post('/api/auth/google/resend-verification', authRateLimit, async (req, res)
   }
 });
 
-// ==================== PRODUCT ENDPOINTS (UPDATED WITH SELLER VERIFICATION) ====================
-
-// Get all products with search, filters, pagination, condition, and seller verification
-app.get('/api/products', (req, res) => {
-  const page = parseInt(req.query.page) || 1;
-  const limit = parseInt(req.query.limit) || 20;
-  const offset = (page - 1) * limit;
-  
-  const search = req.query.search || '';
-  const category = req.query.category || '';
-  const minPrice = req.query.minPrice ? parseFloat(req.query.minPrice) : null;
-  const maxPrice = req.query.maxPrice ? parseFloat(req.query.maxPrice) : null;
-  const minRating = req.query.minRating ? parseFloat(req.query.minRating) : null;
-  const sortBy = req.query.sortBy || 'newest';
-  const condition = req.query.condition || '';
-  const verifiedOnly = req.query.verified === 'true';
-  
-  let whereClause = 'p.status = "published"';
-  const params = [];
-  
-  if (condition) {
-    whereClause += ` AND p.condition = ?`;
-    params.push(condition);
-  }
-  if (search) {
-    whereClause += ` AND (p.title LIKE ? OR p.description LIKE ?)`;
-    params.push(`%${search}%`, `%${search}%`);
-  }
-  if (category) {
-    whereClause += ` AND p.category = ?`;
-    params.push(category);
-  }
-  if (minPrice !== null) {
-    whereClause += ` AND p.price >= ?`;
-    params.push(minPrice);
-  }
-  if (maxPrice !== null) {
-    whereClause += ` AND p.price <= ?`;
-    params.push(maxPrice);
-  }
-  if (minRating !== null) {
-    whereClause += ` AND p.rating >= ?`;
-    params.push(minRating);
-  }
-  if (verifiedOnly) {
-    whereClause += ` AND u.is_verified_seller = 1`;
-  }
-  
-  let orderBy = '';
-  switch (sortBy) {
-    case 'price_asc':
-      orderBy = 'ORDER BY p.price ASC';
-      break;
-    case 'price_desc':
-      orderBy = 'ORDER BY p.price DESC';
-      break;
-    case 'rating':
-      orderBy = 'ORDER BY p.rating DESC';
-      break;
-    case 'popular':
-      orderBy = 'ORDER BY p.sold DESC';
-      break;
-    default:
-      orderBy = 'ORDER BY p.created_at DESC';
-  }
-  
-  db.get(`SELECT COUNT(*) as total FROM products p JOIN users u ON p.seller_id = u.id WHERE ${whereClause}`, params, (err, countResult) => {
-    if (err) {
-      return res.status(500).json({ error: err.message });
-    }
-    
-    const total = countResult.total;
-    const totalPages = Math.ceil(total / limit);
-    
-    db.all(`
-      SELECT p.*, u.name as seller_name, u.id as seller_id, u.is_verified_seller as seller_verified
-      FROM products p
-      JOIN users u ON p.seller_id = u.id
-      WHERE ${whereClause}
-      ${orderBy}
-      LIMIT ? OFFSET ?
-    `, [...params, limit, offset], (err, rows) => {
-      if (err) {
-        return res.status(500).json({ error: err.message });
-      }
-      
-      if (!rows.length) {
-        return res.json({ success: true, products: [], pagination: { page, limit, total, totalPages } });
-      }
-      
-      let completed = 0;
-      rows.forEach((product) => {
-        db.all('SELECT * FROM product_media WHERE product_id = ? ORDER BY display_order, id', [product.id], (err, media) => {
-          if (!err) product.media = media || [];
-          completed++;
-          if (completed === rows.length) {
-            res.json({ 
-              success: true, 
-              products: rows,
-              pagination: { page, limit, total, totalPages }
-            });
-          }
-        });
-      });
-    });
-  });
-});
-
-// Get single product (include media, seller name, and seller verification)
-app.get('/api/products/:id', (req, res) => {
-  db.get(`
-    SELECT p.*, u.name as seller_name, u.id as seller_id, u.is_verified_seller as seller_verified
-    FROM products p
-    JOIN users u ON p.seller_id = u.id
-    WHERE p.id = ?
-  `, [req.params.id], (err, product) => {
-    if (err) {
-      res.status(500).json({ error: err.message });
-    } else if (!product) {
-      res.status(404).json({ error: 'Product not found' });
-    } else {
-      db.all('SELECT * FROM product_media WHERE product_id = ? ORDER BY display_order, id', [product.id], (err, media) => {
-        if (!err) product.media = media || [];
-        res.json({ success: true, product });
-      });
-    }
-  });
-});
-
-// Add product (seller only, with media) – includes condition
-app.post('/api/products', protect, requireSeller, (req, res) => {
-  const { title, description, price, old_price, category, stock, media, condition } = req.body;
-  
-  db.run(
-    'INSERT INTO products (title, description, price, old_price, category, stock, seller_id, condition) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-    [title, description, price, old_price, category, stock, req.user.id, condition || 'new'],
-    function(err) {
-      if (err) {
-        res.status(400).json({ error: err.message });
-      } else {
-        const productId = this.lastID;
-        if (media && media.length) {
-          let inserted = 0;
-          media.forEach((item, idx) => {
-            db.run(
-              'INSERT INTO product_media (product_id, media_type, media_url, display_order, is_primary) VALUES (?, ?, ?, ?, ?)',
-              [productId, item.type, item.url, idx, idx === 0 ? 1 : 0],
-              (err) => {
-                if (err) console.error('Media insert error:', err);
-                inserted++;
-                if (inserted === media.length) {
-                  res.json({ success: true, product: { id: productId, ...req.body } });
-                }
-              }
-            );
-          });
-        } else {
-          res.json({ success: true, product: { id: productId, ...req.body } });
-        }
-      }
-    }
-  );
-});
-
-// Update product (with media) – includes condition
-app.put('/api/products/:id', protect, requireSeller, (req, res) => {
-  const { title, description, price, old_price, category, stock, media, condition } = req.body;
-  
-  db.get('SELECT seller_id FROM products WHERE id = ?', [req.params.id], (err, product) => {
-    if (err || !product) {
-      return res.status(404).json({ error: 'Product not found' });
-    }
-    if (product.seller_id !== req.user.id && req.user.role !== 'admin') {
-      return res.status(403).json({ error: 'Not authorized' });
-    }
-    
-    db.run(`
-      UPDATE products SET 
-        title = COALESCE(?, title),
-        description = COALESCE(?, description),
-        price = COALESCE(?, price),
-        old_price = COALESCE(?, old_price),
-        category = COALESCE(?, category),
-        stock = COALESCE(?, stock),
-        condition = COALESCE(?, condition)
-      WHERE id = ?
-    `, [title, description, price, old_price, category, stock, condition, req.params.id], function(err) {
-      if (err) {
-        return res.status(400).json({ error: err.message });
-      }
-      
-      db.run('DELETE FROM product_media WHERE product_id = ?', [req.params.id], () => {
-        if (media && media.length) {
-          media.forEach((item, idx) => {
-            db.run(
-              'INSERT INTO product_media (product_id, media_type, media_url, display_order, is_primary) VALUES (?, ?, ?, ?, ?)',
-              [req.params.id, item.type, item.url, idx, idx === 0 ? 1 : 0]
-            );
-          });
-        }
-        res.json({ success: true, message: 'Product updated' });
-      });
-    });
-  });
-});
-
-// Delete product
-app.delete('/api/products/:id', protect, requireSeller, (req, res) => {
-  db.get('SELECT seller_id FROM products WHERE id = ?', [req.params.id], (err, product) => {
-    if (err || !product) {
-      return res.status(404).json({ error: 'Product not found' });
-    }
-    if (product.seller_id !== req.user.id && req.user.role !== 'admin') {
-      return res.status(403).json({ error: 'Not authorized' });
-    }
-    
-    db.run('DELETE FROM products WHERE id = ?', [req.params.id], function(err) {
-      if (err) {
-        res.status(400).json({ error: err.message });
-      } else {
-        res.json({ success: true, message: 'Product deleted' });
-      }
-    });
-  });
-});
-
-// Get seller's products (with media and seller verification)
-app.get('/api/my-products', protect, requireSeller, (req, res) => {
-  db.all(`
-    SELECT p.*, u.name as seller_name, u.is_verified_seller as seller_verified
-    FROM products p
-    JOIN users u ON p.seller_id = u.id
-    WHERE p.seller_id = ?
-  `, [req.user.id], (err, rows) => {
-    if (err) {
-      res.status(500).json({ error: err.message });
-    } else {
-      if (!rows.length) return res.json({ success: true, products: [] });
-      let completed = 0;
-      rows.forEach((product) => {
-        db.all('SELECT * FROM product_media WHERE product_id = ? ORDER BY display_order, id', [product.id], (err, media) => {
-          if (!err) product.media = media || [];
-          completed++;
-          if (completed === rows.length) {
-            res.json({ success: true, products: rows });
-          }
-        });
-      });
-    }
-  });
-});
-
-// Get reviews for a product
-app.get('/api/products/:id/reviews', (req, res) => {
-  const productId = req.params.id;
-  db.all(`
-    SELECT r.*, u.name as user_name
-    FROM product_reviews r
-    JOIN users u ON r.user_id = u.id
-    WHERE r.product_id = ?
-    ORDER BY r.created_at DESC
-  `, [productId], (err, rows) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json({ success: true, reviews: rows });
-  });
-});
-
-// Add a review (only if user purchased the product)
-app.post('/api/products/:id/reviews', protect, (req, res) => {
-  const productId = req.params.id;
-  const { rating, comment } = req.body;
-  
-  if (!rating || rating < 1 || rating > 5) {
-    return res.status(400).json({ error: 'Rating must be between 1 and 5' });
-  }
-  
-  // Check if user purchased this product
-  db.get('SELECT * FROM order_items oi JOIN orders o ON oi.order_id = o.id WHERE oi.product_id = ? AND o.user_id = ?', [productId, req.user.id], (err, purchase) => {
-    if (err || !purchase) {
-      return res.status(403).json({ error: 'You can only review products you have purchased' });
-    }
-    
-    // Check if already reviewed
-    db.get('SELECT * FROM product_reviews WHERE product_id = ? AND user_id = ?', [productId, req.user.id], (err, existing) => {
-      if (existing) {
-        return res.status(400).json({ error: 'You have already reviewed this product' });
-      }
-      
-      db.run('INSERT INTO product_reviews (product_id, user_id, rating, comment) VALUES (?, ?, ?, ?)',
-        [productId, req.user.id, rating, comment || ''],
-        function(err) {
-          if (err) return res.status(500).json({ error: err.message });
-          
-          // Update product average rating
-          db.get('SELECT AVG(rating) as avg_rating, COUNT(*) as review_count FROM product_reviews WHERE product_id = ?', [productId], (err, result) => {
-            if (!err && result) {
-              db.run('UPDATE products SET rating = ?, reviews_count = ? WHERE id = ?', 
-                [Math.round(result.avg_rating * 10) / 10, result.review_count, productId]);
-            }
-            res.json({ success: true, message: 'Review added' });
-          });
-        });
-    });
-  });
-});
-
-// ==================== COURSE ENDPOINTS ====================
-// (unchanged – kept exactly as in original)
-app.post('/api/courses', protect, requireSeller, (req, res) => {
-  const { title, description, price, old_price, category, level, duration, what_you_learn, media } = req.body;
-
-  db.run(`
-    INSERT INTO courses (
-      title, description, price, old_price, category, level,
-      duration, what_you_learn, instructor_id, status
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'published')
-  `, [
-    title, description, price, old_price || null, category, level,
-    duration || 0, what_you_learn || '[]', req.user.id
-  ], function(err) {
-    if (err) {
-      console.error('Course creation error:', err);
-      res.status(400).json({ error: err.message });
-    } else {
-      const courseId = this.lastID;
-      if (media && media.length) {
-        let inserted = 0;
-        media.forEach((item, idx) => {
-          db.run(
-            `INSERT INTO course_media (course_id, media_type, media_url, display_order, is_primary)
-             VALUES (?, ?, ?, ?, ?)`,
-            [courseId, item.type, item.url, idx, idx === 0 ? 1 : 0],
-            (err) => {
-              if (err) console.error('Media insert error:', err);
-              inserted++;
-              if (inserted === media.length) {
-                res.json({ success: true, course: { id: courseId, ...req.body } });
-              }
-            }
-          );
-        });
-      } else {
-        res.json({ success: true, course: { id: courseId, ...req.body } });
-      }
-    }
-  });
-});
-
-app.get('/api/courses', (req, res) => {
-  db.all(`
-    SELECT c.*, u.name as instructor_name, u.id as instructor_id
-    FROM courses c
-    JOIN users u ON c.instructor_id = u.id
-    WHERE c.status = 'published' OR c.status IS NULL
-    ORDER BY c.created_at DESC
-  `, (err, rows) => {
-    if (err) {
-      console.error('Courses fetch error:', err);
-      return res.status(500).json({ error: err.message });
-    }
-    if (!rows.length) {
-      return res.json({ success: true, courses: [] });
-    }
-    let completed = 0;
-    rows.forEach((course) => {
-      db.all(`SELECT * FROM course_media WHERE course_id = ? ORDER BY display_order, id`, [course.id], (err, media) => {
-        if (!err) course.media = media || [];
-        completed++;
-        if (completed === rows.length) {
-          res.json({ success: true, courses: rows });
-        }
-      });
-    });
-  });
-});
-
-app.get('/api/courses/:id', (req, res) => {
-  db.get(`
-    SELECT c.*, u.name as instructor_name, u.id as instructor_id
-    FROM courses c
-    JOIN users u ON c.instructor_id = u.id
-    WHERE c.id = ?
-  `, [req.params.id], (err, course) => {
-    if (err) {
-      console.error('Course fetch error:', err);
-      return res.status(500).json({ error: err.message });
-    }
-    if (!course) {
-      return res.status(404).json({ error: 'Course not found' });
-    }
-    
-    db.all(`
-      SELECT * FROM course_lessons 
-      WHERE course_id = ? 
-      ORDER BY "order" ASC, id ASC
-    `, [course.id], (err, lessons) => {
-      if (err) {
-        console.error('Lessons fetch error:', err);
-        course.lessons = [];
-      } else {
-        course.lessons = lessons || [];
-      }
-      
-      db.all(`SELECT * FROM course_media WHERE course_id = ? ORDER BY display_order, id`, [course.id], (err, media) => {
-        if (!err) course.media = media || [];
-        
-        if (req.headers.authorization) {
-          const jwt = require('jsonwebtoken');
-          try {
-            const token = req.headers.authorization.split(' ')[1];
-            const decoded = jwt.verify(token, process.env.JWT_SECRET);
-            db.get(`
-              SELECT * FROM enrollments WHERE user_id = ? AND course_id = ?
-            `, [decoded.id, course.id], (err, enrollment) => {
-              course.isEnrolled = !!enrollment;
-              course.progress = enrollment?.progress || 0;
-              res.json({ success: true, course });
-            });
-          } catch(e) {
-            course.isEnrolled = false;
-            course.progress = 0;
-            res.json({ success: true, course });
-          }
-        } else {
-          course.isEnrolled = false;
-          course.progress = 0;
-          res.json({ success: true, course });
-        }
-      });
-    });
-  });
-});
-
-app.get('/api/my-courses', protect, requireSeller, (req, res) => {
-  db.all(`
-    SELECT c.*,
-      (SELECT COUNT(*) FROM enrollments WHERE course_id = c.id) as students_count
-    FROM courses c
-    WHERE c.instructor_id = ?
-    ORDER BY c.created_at DESC
-  `, [req.user.id], (err, rows) => {
-    if (err) {
-      res.status(500).json({ error: err.message });
-    } else {
-      if (!rows.length) return res.json({ success: true, courses: [] });
-      let completed = 0;
-      rows.forEach((course) => {
-        db.all(`SELECT * FROM course_media WHERE course_id = ? ORDER BY display_order, id`, [course.id], (err, media) => {
-          if (!err) course.media = media || [];
-          completed++;
-          if (completed === rows.length) {
-            res.json({ success: true, courses: rows });
-          }
-        });
-      });
-    }
-  });
-});
-
-app.put('/api/courses/:id', protect, requireSeller, (req, res) => {
-  const { title, description, price, old_price, category, level, duration, what_you_learn, media } = req.body;
-  const courseId = req.params.id;
-
-  db.get('SELECT instructor_id FROM courses WHERE id = ?', [courseId], (err, course) => {
-    if (err || !course) return res.status(404).json({ error: 'Course not found' });
-    if (course.instructor_id !== req.user.id) return res.status(403).json({ error: 'Not authorized' });
-
-    db.run(`
-      UPDATE courses SET
-        title = COALESCE(?, title),
-        description = COALESCE(?, description),
-        price = COALESCE(?, price),
-        old_price = COALESCE(?, old_price),
-        category = COALESCE(?, category),
-        level = COALESCE(?, level),
-        duration = COALESCE(?, duration),
-        what_you_learn = COALESCE(?, what_you_learn)
-      WHERE id = ?
-    `, [title, description, price, old_price, category, level, duration, what_you_learn, courseId], function(err) {
-      if (err) return res.status(400).json({ error: err.message });
-
-      db.run('DELETE FROM course_media WHERE course_id = ?', [courseId], () => {
-        if (media && media.length) {
-          media.forEach((item, idx) => {
-            db.run(
-              `INSERT INTO course_media (course_id, media_type, media_url, display_order, is_primary)
-               VALUES (?, ?, ?, ?, ?)`,
-              [courseId, item.type, item.url, idx, idx === 0 ? 1 : 0]
-            );
-          });
-        }
-        res.json({ success: true, message: 'Course updated' });
-      });
-    });
-  });
-});
-
-app.post('/api/courses/:id/enroll', protect, (req, res) => {
-  const courseId = req.params.id;
-  const userId = req.user.id;
-
-  db.get('SELECT * FROM enrollments WHERE user_id = ? AND course_id = ?', 
-    [userId, courseId], (err, existing) => {
-    if (err) {
-      return res.status(500).json({ error: err.message });
-    }
-    if (existing) {
-      return res.status(400).json({ error: 'Already enrolled' });
-    }
-
-    db.run(`
-      INSERT INTO enrollments (user_id, course_id) VALUES (?, ?)
-    `, [userId, courseId], function(err) {
-      if (err) {
-        res.status(400).json({ error: err.message });
-      } else {
-        db.run(`UPDATE courses SET students_count = students_count + 1 WHERE id = ?`, [courseId]);
-        res.json({ success: true, message: 'Enrolled successfully' });
-      }
-    });
-  });
-});
-
-app.put('/api/courses/:courseId/lessons/:lessonId/progress', protect, (req, res) => {
-  const { courseId, lessonId } = req.params;
-  const { completed } = req.body;
-  
-  db.run(`
-    INSERT OR REPLACE INTO lesson_progress (user_id, course_id, lesson_id, completed)
-    VALUES (?, ?, ?, ?)
-  `, [req.user.id, courseId, lessonId, completed ? 1 : 0], function(err) {
-    if (err) {
-      res.status(400).json({ error: err.message });
-    } else {
-      db.get(`
-        SELECT COUNT(*) as total_lessons FROM course_lessons WHERE course_id = ?
-      `, [courseId], (err, result) => {
-        if (err) return;
-        
-        db.get(`
-          SELECT COUNT(*) as completed_lessons FROM lesson_progress 
-          WHERE user_id = ? AND course_id = ? AND completed = 1
-        `, [req.user.id, courseId], (err, progress) => {
-          if (err) return;
-          
-          const percentComplete = result.total_lessons > 0 
-            ? Math.round((progress.completed_lessons / result.total_lessons) * 100) 
-            : 0;
-          
-          db.run(`
-            UPDATE enrollments SET progress = ? WHERE user_id = ? AND course_id = ?
-          `, [percentComplete, req.user.id, courseId]);
-          
-          res.json({ success: true });
-        });
-      });
-    }
-  });
-});
-
-app.post('/api/courses/:courseId/lessons', protect, requireSeller, (req, res) => {
-  const { courseId } = req.params;
-  const { title, description, duration, order, is_preview } = req.body;
-  
-  db.get('SELECT instructor_id FROM courses WHERE id = ?', [courseId], (err, course) => {
-    if (err) {
-      return res.status(500).json({ error: err.message });
-    }
-    if (!course) {
-      return res.status(404).json({ error: 'Course not found' });
-    }
-    if (course.instructor_id !== req.user.id) {
-      return res.status(403).json({ error: 'Not authorized' });
-    }
-    
-    db.run(`
-      INSERT INTO course_lessons (course_id, title, description, duration, "order", is_preview)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `, [courseId, title, description, duration, order || 0, is_preview || 0], function(err) {
-      if (err) {
-        res.status(400).json({ error: err.message });
-      } else {
-        res.json({ success: true, lessonId: this.lastID });
-      }
-    });
-  });
-});
-
-app.put('/api/courses/:courseId/lessons/:lessonId', protect, requireSeller, (req, res) => {
-  const { courseId, lessonId } = req.params;
-  const { title, description, duration, order, is_preview } = req.body;
-  
-  db.get('SELECT instructor_id FROM courses WHERE id = ?', [courseId], (err, course) => {
-    if (err || !course || course.instructor_id !== req.user.id) {
-      return res.status(403).json({ error: 'Not authorized' });
-    }
-    
-    db.run(`
-      UPDATE course_lessons SET
-        title = COALESCE(?, title),
-        description = COALESCE(?, description),
-        duration = COALESCE(?, duration),
-        "order" = COALESCE(?, "order"),
-        is_preview = COALESCE(?, is_preview)
-      WHERE id = ? AND course_id = ?
-    `, [title, description, duration, order, is_preview, lessonId, courseId], function(err) {
-      if (err) {
-        res.status(400).json({ error: err.message });
-      } else {
-        res.json({ success: true });
-      }
-    });
-  });
-});
-
-app.delete('/api/courses/:id', protect, requireSeller, (req, res) => {
-  db.get('SELECT instructor_id FROM courses WHERE id = ?', [req.params.id], (err, course) => {
-    if (err) {
-      return res.status(500).json({ error: err.message });
-    }
-    if (!course) {
-      return res.status(404).json({ error: 'Course not found' });
-    }
-    if (course.instructor_id !== req.user.id) {
-      return res.status(403).json({ error: 'Not authorized' });
-    }
-    
-    db.run('DELETE FROM courses WHERE id = ?', [req.params.id], function(err) {
-      if (err) {
-        res.status(400).json({ error: err.message });
-      } else {
-        db.run('DELETE FROM course_lessons WHERE course_id = ?', [req.params.id]);
-        db.run('DELETE FROM enrollments WHERE course_id = ?', [req.params.id]);
-        res.json({ success: true, message: 'Course deleted' });
-      }
-    });
-  });
-});
-
-app.delete('/api/courses/:courseId/lessons/:lessonId', protect, requireSeller, (req, res) => {
-  const { courseId, lessonId } = req.params;
-  
-  db.get('SELECT instructor_id FROM courses WHERE id = ?', [courseId], (err, course) => {
-    if (err) {
-      return res.status(500).json({ error: err.message });
-    }
-    if (!course || course.instructor_id !== req.user.id) {
-      return res.status(403).json({ error: 'Not authorized' });
-    }
-    
-    db.run('DELETE FROM course_lessons WHERE id = ? AND course_id = ?', [lessonId, courseId], function(err) {
-      if (err) {
-        res.status(400).json({ error: err.message });
-      } else {
-        res.json({ success: true });
-      }
-    });
-  });
-});
-
-// ==================== SERVICE ENDPOINTS ====================
-// (unchanged – kept exactly as in original)
-app.post('/api/services', protect, requireSeller, (req, res) => {
-  const { title, description, price, old_price, category, delivery_time, revisions, image, media } = req.body;
-
-  db.run(`
-    INSERT INTO services (
-      title, description, price, old_price, category, delivery_time, revisions, image, provider_id, status
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'published')
-  `, [
-    title, description, price, old_price || null, category, delivery_time, revisions || 0, image || '🛠️', req.user.id
-  ], function(err) {
-    if (err) {
-      console.error('Service creation error:', err);
-      res.status(400).json({ error: err.message });
-    } else {
-      const serviceId = this.lastID;
-      if (media && media.length) {
-        let inserted = 0;
-        media.forEach((item, idx) => {
-          db.run(
-            `INSERT INTO service_media (service_id, media_type, media_url, display_order, is_primary)
-             VALUES (?, ?, ?, ?, ?)`,
-            [serviceId, item.type, item.url, idx, idx === 0 ? 1 : 0],
-            (err) => {
-              if (err) console.error('Media insert error:', err);
-              inserted++;
-              if (inserted === media.length) {
-                res.json({ success: true, service: { id: serviceId, ...req.body } });
-              }
-            }
-          );
-        });
-      } else {
-        res.json({ success: true, service: { id: serviceId, ...req.body } });
-      }
-    }
-  });
-});
-
-app.get('/api/services', (req, res) => {
-  db.all(`
-    SELECT s.*, u.name as provider_name
-    FROM services s
-    JOIN users u ON s.provider_id = u.id
-    WHERE s.status = 'published'
-    ORDER BY s.created_at DESC
-  `, (err, rows) => {
-    if (err) {
-      res.status(500).json({ error: err.message });
-    } else {
-      if (!rows.length) return res.json({ success: true, services: [] });
-      let completed = 0;
-      rows.forEach((service) => {
-        db.all(`SELECT * FROM service_media WHERE service_id = ? ORDER BY display_order, id`, [service.id], (err, media) => {
-          if (!err) service.media = media || [];
-          completed++;
-          if (completed === rows.length) {
-            res.json({ success: true, services: rows });
-          }
-        });
-      });
-    }
-  });
-});
-
-app.get('/api/services/:id', (req, res) => {
-  db.get(`
-    SELECT s.*, u.name as provider_name, u.email as provider_email, u.id as provider_id
-    FROM services s
-    JOIN users u ON s.provider_id = u.id
-    WHERE s.id = ?
-  `, [req.params.id], (err, service) => {
-    if (err) {
-      res.status(500).json({ error: err.message });
-    } else if (!service) {
-      res.status(404).json({ error: 'Service not found' });
-    } else {
-      db.all(`SELECT * FROM service_packages WHERE service_id = ? ORDER BY price`, [service.id], (err, packages) => {
-        if (err) {
-          res.status(500).json({ error: err.message });
-        } else {
-          service.packages = packages || [];
-          db.all(`SELECT * FROM service_media WHERE service_id = ? ORDER BY display_order, id`, [service.id], (err, media) => {
-            if (!err) service.media = media || [];
-            res.json({ success: true, service });
-          });
-        }
-      });
-    }
-  });
-});
-
-app.get('/api/my-services', protect, requireSeller, (req, res) => {
-  db.all(`
-    SELECT s.*,
-      (SELECT COUNT(*) FROM service_orders WHERE service_id = s.id) as orders_count
-    FROM services s
-    WHERE s.provider_id = ?
-    ORDER BY s.created_at DESC
-  `, [req.user.id], (err, rows) => {
-    if (err) {
-      res.status(500).json({ error: err.message });
-    } else {
-      if (!rows.length) return res.json({ success: true, services: [] });
-      let completed = 0;
-      rows.forEach((service) => {
-        db.all(`SELECT * FROM service_media WHERE service_id = ? ORDER BY display_order, id`, [service.id], (err, media) => {
-          if (!err) service.media = media || [];
-          completed++;
-          if (completed === rows.length) {
-            res.json({ success: true, services: rows });
-          }
-        });
-      });
-    }
-  });
-});
-
-app.put('/api/services/:id', protect, requireSeller, (req, res) => {
-  const { title, description, price, old_price, category, delivery_time, revisions, image, media } = req.body;
-  const serviceId = req.params.id;
-
-  db.get('SELECT provider_id FROM services WHERE id = ?', [serviceId], (err, service) => {
-    if (err || !service) return res.status(404).json({ error: 'Service not found' });
-    if (service.provider_id !== req.user.id) return res.status(403).json({ error: 'Not authorized' });
-
-    db.run(`
-      UPDATE services SET
-        title = COALESCE(?, title),
-        description = COALESCE(?, description),
-        price = COALESCE(?, price),
-        old_price = COALESCE(?, old_price),
-        category = COALESCE(?, category),
-        delivery_time = COALESCE(?, delivery_time),
-        revisions = COALESCE(?, revisions),
-        image = COALESCE(?, image)
-      WHERE id = ?
-    `, [title, description, price, old_price, category, delivery_time, revisions, image, serviceId], function(err) {
-      if (err) return res.status(400).json({ error: err.message });
-
-      db.run('DELETE FROM service_media WHERE service_id = ?', [serviceId], () => {
-        if (media && media.length) {
-          media.forEach((item, idx) => {
-            db.run(
-              `INSERT INTO service_media (service_id, media_type, media_url, display_order, is_primary)
-               VALUES (?, ?, ?, ?, ?)`,
-              [serviceId, item.type, item.url, idx, idx === 0 ? 1 : 0]
-            );
-          });
-        }
-        res.json({ success: true, message: 'Service updated' });
-      });
-    });
-  });
-});
-
-app.delete('/api/services/:id', protect, requireSeller, (req, res) => {
-  db.get('SELECT provider_id FROM services WHERE id = ?', [req.params.id], (err, service) => {
-    if (err) {
-      return res.status(500).json({ error: err.message });
-    }
-    if (!service) {
-      return res.status(404).json({ error: 'Service not found' });
-    }
-    if (service.provider_id !== req.user.id) {
-      return res.status(403).json({ error: 'Not authorized' });
-    }
-    
-    db.run('DELETE FROM services WHERE id = ?', [req.params.id], function(err) {
-      if (err) {
-        res.status(400).json({ error: err.message });
-      } else {
-        db.run('DELETE FROM service_packages WHERE service_id = ?', [req.params.id]);
-        res.json({ success: true, message: 'Service deleted' });
-      }
-    });
-  });
-});
-
-app.post('/api/services/:id/order', protect, (req, res) => {
-  const serviceId = req.params.id;
-  const { package_name, requirements, price } = req.body;
-  const orderNumber = 'SRV-' + Date.now();
-
-  db.get('SELECT provider_id, title FROM services WHERE id = ?', [serviceId], (err, service) => {
-    if (err) {
-      return res.status(500).json({ error: err.message });
-    }
-    if (!service) {
-      return res.status(404).json({ error: 'Service not found' });
-    }
-
-    db.run(`
-      INSERT INTO service_orders (order_number, service_id, buyer_id, provider_id, package_name, price, requirements)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `, [orderNumber, serviceId, req.user.id, service.provider_id, package_name, price, requirements], function(err) {
-      if (err) {
-        res.status(400).json({ error: err.message });
-      } else {
-        db.run('UPDATE services SET orders_count = orders_count + 1 WHERE id = ?', [serviceId]);
-        res.json({ 
-          success: true, 
-          order: { 
-            id: this.lastID, 
-            orderNumber,
-            status: 'pending'
-          } 
-        });
-      }
-    });
-  });
-});
-
-// ==================== DIGITAL PRODUCT ENDPOINTS ====================
-// (unchanged – kept exactly as in original)
-const privateDigitalKeyForSeller = (storageReference, sellerId) => {
-  try {
-    const key = storageService.keyFromReference(storageReference, 'private');
-    const ownerPrefix = sellerId === undefined
-      ? 'private/digital-files-user-'
-      : `private/digital-files-user-${sellerId}/`;
-    return key?.startsWith(ownerPrefix) ? key : null;
-  } catch (_) {
-    return null;
-  }
-};
-
-const removePrivateDigitalFields = (product) => {
-  if (!product) return product;
-  delete product.file_url;
-  delete product.file_name;
-  delete product.file_content_type;
-  return product;
-};
-
-app.post('/api/digital', protect, requireSeller, (req, res) => {
-  const { title, description, price, old_price, category, file_url, file_name, file_content_type, file_size, download_limit, image, media } = req.body;
-  const fileKey = privateDigitalKeyForSeller(file_url, req.user.id);
-  if (!fileKey) return res.status(400).json({ error: 'Upload a private digital file before publishing this product.' });
-  if (media && (!Array.isArray(media) || !media.every((item) => item?.type === 'image' && storageService.publicKeyFromUrl(item.url)))) {
-    return res.status(400).json({ error: 'Digital product media must use uploaded public images.' });
-  }
-
-  db.run(`
-    INSERT INTO digital_products (
-      title, description, price, old_price, category, file_type, file_url, file_name, file_content_type, file_size, download_limit, image, seller_id, status
-    ) VALUES (?, ?, ?, ?, ?, 'file', ?, ?, ?, ?, ?, ?, ?, 'published')
-  `, [
-    title, description, price, old_price || null, category, file_url, file_name || path.basename(fileKey), file_content_type || 'application/octet-stream', file_size || '', download_limit || 0, image || '💻', req.user.id
-  ], function(err) {
-    if (err) {
-      console.error('Digital product creation error:', err);
-      res.status(400).json({ error: err.message });
-    } else {
-      const productId = this.lastID;
-      if (media && media.length) {
-        let inserted = 0;
-        media.forEach((item, idx) => {
-          db.run(
-            `INSERT INTO digital_media (digital_id, media_type, media_url, display_order, is_primary)
-             VALUES (?, ?, ?, ?, ?)`,
-            [productId, item.type, item.url, idx, idx === 0 ? 1 : 0],
-            (err) => {
-              if (err) console.error('Media insert error:', err);
-              inserted++;
-              if (inserted === media.length) {
-                res.json({ success: true, product: { id: productId, ...req.body } });
-              }
-            }
-          );
-        });
-      } else {
-        res.json({ success: true, product: { id: productId, ...req.body } });
-      }
-    }
-  });
-});
-
-app.get('/api/digital', (req, res) => {
-  db.all(`
-    SELECT d.*, u.name as seller_name, u.id as seller_id
-    FROM digital_products d
-    JOIN users u ON d.seller_id = u.id
-    WHERE d.status = 'published'
-    ORDER BY d.created_at DESC
-  `, (err, rows) => {
-    if (err) {
-      res.status(500).json({ error: err.message });
-    } else {
-      if (!rows.length) return res.json({ success: true, products: [] });
-      let completed = 0;
-      rows.forEach((product) => {
-        db.all(`SELECT * FROM digital_media WHERE digital_id = ? ORDER BY display_order, id`, [product.id], (err, media) => {
-          if (!err) product.media = media || [];
-          completed++;
-          if (completed === rows.length) {
-            res.json({ success: true, products: rows.map(removePrivateDigitalFields) });
-          }
-        });
-      });
-    }
-  });
-});
-
-app.get('/api/digital/:id', (req, res) => {
-  db.get(`
-    SELECT d.*, u.name as seller_name, u.id as seller_id
-    FROM digital_products d
-    JOIN users u ON d.seller_id = u.id
-    WHERE d.id = ?
-  `, [req.params.id], (err, product) => {
-    if (err) {
-      res.status(500).json({ error: err.message });
-    } else if (!product) {
-      res.status(404).json({ error: 'Product not found' });
-    } else {
-      db.all(`SELECT * FROM digital_media WHERE digital_id = ? ORDER BY display_order, id`, [product.id], (err, media) => {
-        if (!err) product.media = media || [];
-        res.json({ success: true, product: removePrivateDigitalFields(product) });
-      });
-    }
-  });
-});
-
-app.get('/api/my-digital', protect, requireSeller, (req, res) => {
-  db.all(`
-    SELECT d.*, 
-      (SELECT COUNT(*) FROM digital_purchases WHERE product_id = d.id) as sales_count
-    FROM digital_products d
-    WHERE d.seller_id = ?
-    ORDER BY d.created_at DESC
-  `, [req.user.id], (err, rows) => {
-    if (err) {
-      res.status(500).json({ error: err.message });
-    } else {
-      if (!rows.length) return res.json({ success: true, products: [] });
-      let completed = 0;
-      rows.forEach((product) => {
-        db.all(`SELECT * FROM digital_media WHERE digital_id = ? ORDER BY display_order, id`, [product.id], (err, media) => {
-          if (!err) product.media = media || [];
-          completed++;
-          if (completed === rows.length) {
-            res.json({ success: true, products: rows });
-          }
-        });
-      });
-    }
-  });
-});
-
-app.put('/api/digital/:id', protect, requireSeller, async (req, res) => {
-  try {
-    const existing = await getDatabaseRow('SELECT * FROM digital_products WHERE id = ? AND seller_id = ?', [req.params.id, req.user.id]);
-    if (!existing) return res.status(404).json({ error: 'Digital product not found.' });
-
-    const { title, description, price, old_price, category, file_url, file_name, file_content_type, file_size, download_limit, image, media } = req.body;
-    const fileKey = privateDigitalKeyForSeller(file_url || existing.file_url, req.user.id);
-    if (!fileKey) return res.status(400).json({ error: 'Upload a private digital file before updating this product.' });
-    if (media && (!Array.isArray(media) || !media.every((item) => item?.type === 'image' && storageService.publicKeyFromUrl(item.url)))) {
-      return res.status(400).json({ error: 'Digital product media must use uploaded public images.' });
-    }
-
-    await runDatabaseStatement(`
-      UPDATE digital_products SET
-        title = ?, description = ?, price = ?, old_price = ?, category = ?, file_type = 'file',
-        file_url = ?, file_name = ?, file_content_type = ?, file_size = ?, download_limit = ?, image = ?
-      WHERE id = ?
-    `, [
-      title, description, price, old_price || null, category,
-      file_url || existing.file_url,
-      file_name || existing.file_name || path.basename(fileKey),
-      file_content_type || existing.file_content_type || 'application/octet-stream',
-      file_size || existing.file_size || '', download_limit || 0, image || existing.image,
-      existing.id,
-    ]);
-
-    if (media) {
-      await runDatabaseStatement('DELETE FROM digital_media WHERE digital_id = ?', [existing.id]);
-      for (const [index, item] of media.entries()) {
-        await runDatabaseStatement(
-          'INSERT INTO digital_media (digital_id, media_type, media_url, display_order, is_primary) VALUES (?, ?, ?, ?, ?)',
-          [existing.id, item.type, item.url, index, index === 0 ? 1 : 0]
-        );
-      }
-    }
-    return res.json({ success: true, message: 'Digital product updated.' });
-  } catch (error) {
-    console.error(JSON.stringify({ level: 'error', event: 'digital_product_update_failed', error: error.message }));
-    return res.status(500).json({ error: 'Unable to update the digital product.' });
-  }
-});
-
-app.delete('/api/digital/:id', protect, requireSeller, (req, res) => {
-  db.get('SELECT seller_id FROM digital_products WHERE id = ?', [req.params.id], (err, product) => {
-    if (err) {
-      return res.status(500).json({ error: err.message });
-    }
-    if (!product) {
-      return res.status(404).json({ error: 'Product not found' });
-    }
-    if (product.seller_id !== req.user.id) {
-      return res.status(403).json({ error: 'Not authorized' });
-    }
-    
-    db.run('DELETE FROM digital_products WHERE id = ?', [req.params.id], function(err) {
-      if (err) {
-        res.status(400).json({ error: err.message });
-      } else {
-        db.run('DELETE FROM digital_media WHERE digital_id = ?', [req.params.id]);
-        res.json({ success: true, message: 'Product deleted' });
-      }
-    });
-  });
-});
-
-app.post('/api/digital/:id/purchase', protect, (req, res) => {
-  return res.status(410).json({ error: 'This legacy purchase endpoint is disabled. Request access and wait for the seller to approve it.' });
-});
-
-app.get('/api/my-purchases', protect, (req, res) => {
-  db.all(`
-    SELECT 
-      p.id, p.order_number, p.product_id, p.seller_id, p.price, p.file_type,
-      p.download_limit, p.download_count, p.last_downloaded_at, p.status, p.created_at,
-      d.title, 
-      d.image, 
-      d.file_type, 
-      d.file_name,
-      d.download_limit,
-      d.file_size,
-      d.seller_id
-    FROM digital_purchases p
-    JOIN digital_products d ON p.product_id = d.id
-    WHERE p.buyer_id = ?
-    ORDER BY p.created_at DESC
-  `, [req.user.id], (err, rows) => {
-    if (err) {
-      res.status(500).json({ error: err.message });
-    } else {
-      res.json({ success: true, purchases: rows });
-    }
-  });
-});
-
-const downloadDigitalProduct = async (req, res) => {
-  try {
-    const purchase = await getDatabaseRow(`
-      SELECT dp.id, dp.download_limit, dp.download_count, d.file_url, d.file_name, d.file_content_type
-      FROM digital_purchases dp
-      JOIN digital_products d ON d.id = dp.product_id
-      WHERE dp.product_id = ? AND dp.buyer_id = ?
-      ORDER BY dp.id DESC
-      LIMIT 1
-    `, [req.params.id, req.user.id]);
-    if (!purchase) return res.status(403).json({ error: 'You do not have download access to this product.' });
-    if (purchase.download_limit > 0 && purchase.download_count >= purchase.download_limit) {
-      return res.status(403).json({ error: 'Your download limit has been reached.' });
-    }
-    const key = privateDigitalKeyForSeller(purchase.file_url, undefined);
-    if (!key) {
-      return res.status(410).json({ error: 'This digital file must be migrated to private storage before it can be downloaded.' });
-    }
-    const reserved = await runDatabaseStatement(
-      `UPDATE digital_purchases
-       SET download_count = download_count + 1, last_downloaded_at = CURRENT_TIMESTAMP
-       WHERE id = ? AND (download_limit = 0 OR download_count < download_limit)`,
-      [purchase.id]
-    );
-    if (reserved.changes !== 1) return res.status(403).json({ error: 'Your download limit has been reached.' });
-    await streamPrivateAttachment(res, key, purchase.file_name || `digital-${req.params.id}`, purchase.file_content_type || 'application/octet-stream');
-  } catch (error) {
-    console.error(JSON.stringify({ level: 'error', event: 'digital_download_failed', error: error.message }));
-    if (!res.headersSent) return res.status(500).json({ error: 'Unable to prepare this download.' });
-  }
-};
-
-app.get('/api/digital/:id/download', protect, downloadDigitalProduct);
-
-// ==================== BOOKING ENDPOINTS ====================
-// (unchanged – kept exactly as in original)
-app.post('/api/bookings', protect, requireSeller, (req, res) => {
-  const { title, description, price, old_price, category, duration, location_type, location, max_participants, available_days, image, media } = req.body;
-
-  db.run(`
-    INSERT INTO bookings (
-      title, description, price, old_price, category, duration, location_type, location,
-      max_participants, available_days, image, provider_id, status
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'published')
-  `, [
-    title, description, price, old_price || null, category, duration || 60, location_type || 'online',
-    location || '', max_participants || 1, available_days || '[]', image || '📅', req.user.id
-  ], function(err) {
-    if (err) {
-      console.error('Booking creation error:', err);
-      res.status(400).json({ error: err.message });
-    } else {
-      const bookingId = this.lastID;
-      if (media && media.length) {
-        let inserted = 0;
-        media.forEach((item, idx) => {
-          db.run(
-            `INSERT INTO booking_media (booking_id, media_type, media_url, display_order, is_primary)
-             VALUES (?, ?, ?, ?, ?)`,
-            [bookingId, item.type, item.url, idx, idx === 0 ? 1 : 0],
-            (err) => {
-              if (err) console.error('Media insert error:', err);
-              inserted++;
-              if (inserted === media.length) {
-                res.json({ success: true, booking: { id: bookingId, ...req.body } });
-              }
-            }
-          );
-        });
-      } else {
-        res.json({ success: true, booking: { id: bookingId, ...req.body } });
-      }
-    }
-  });
-});
-
-app.get('/api/bookings', (req, res) => {
-  db.all(`
-    SELECT b.*, u.name as provider_name, u.id as provider_id
-    FROM bookings b
-    JOIN users u ON b.provider_id = u.id
-    WHERE b.status = 'published'
-    ORDER BY b.created_at DESC
-  `, (err, rows) => {
-    if (err) {
-      res.status(500).json({ error: err.message });
-    } else {
-      if (!rows.length) return res.json({ success: true, bookings: [] });
-      let completed = 0;
-      rows.forEach((booking) => {
-        db.all(`SELECT * FROM booking_media WHERE booking_id = ? ORDER BY display_order, id`, [booking.id], (err, media) => {
-          if (!err) booking.media = media || [];
-          completed++;
-          if (completed === rows.length) {
-            res.json({ success: true, bookings: rows });
-          }
-        });
-      });
-    }
-  });
-});
-
-app.get('/api/bookings/:id', (req, res) => {
-  db.get(`
-    SELECT b.*, u.name as provider_name, u.email as provider_email, u.id as provider_id
-    FROM bookings b
-    JOIN users u ON b.provider_id = u.id
-    WHERE b.id = ?
-  `, [req.params.id], (err, booking) => {
-    if (err) {
-      res.status(500).json({ error: err.message });
-    } else if (!booking) {
-      res.status(404).json({ error: 'Booking not found' });
-    } else {
-      db.all(`SELECT * FROM booking_media WHERE booking_id = ? ORDER BY display_order, id`, [booking.id], (err, media) => {
-        if (!err) booking.media = media || [];
-        res.json({ success: true, booking });
-      });
-    }
-  });
-});
-
-app.get('/api/my-bookings', protect, requireSeller, (req, res) => {
-  db.all(`
-    SELECT b.*,
-      (SELECT COUNT(*) FROM appointments WHERE booking_id = b.id) as appointments_count
-    FROM bookings b
-    WHERE b.provider_id = ?
-    ORDER BY b.created_at DESC
-  `, [req.user.id], (err, rows) => {
-    if (err) {
-      res.status(500).json({ error: err.message });
-    } else {
-      if (!rows.length) return res.json({ success: true, bookings: [] });
-      let completed = 0;
-      rows.forEach((booking) => {
-        db.all(`SELECT * FROM booking_media WHERE booking_id = ? ORDER BY display_order, id`, [booking.id], (err, media) => {
-          if (!err) booking.media = media || [];
-          completed++;
-          if (completed === rows.length) {
-            res.json({ success: true, bookings: rows });
-          }
-        });
-      });
-    }
-  });
-});
-
-app.put('/api/bookings/:id', protect, requireSeller, (req, res) => {
-  const { title, description, price, old_price, category, duration, location_type, location, max_participants, available_days, image, media } = req.body;
-  const bookingId = req.params.id;
-
-  db.get('SELECT provider_id FROM bookings WHERE id = ?', [bookingId], (err, booking) => {
-    if (err || !booking) return res.status(404).json({ error: 'Booking not found' });
-    if (booking.provider_id !== req.user.id) return res.status(403).json({ error: 'Not authorized' });
-
-    db.run(`
-      UPDATE bookings SET
-        title = COALESCE(?, title),
-        description = COALESCE(?, description),
-        price = COALESCE(?, price),
-        old_price = COALESCE(?, old_price),
-        category = COALESCE(?, category),
-        duration = COALESCE(?, duration),
-        location_type = COALESCE(?, location_type),
-        location = COALESCE(?, location),
-        max_participants = COALESCE(?, max_participants),
-        available_days = COALESCE(?, available_days),
-        image = COALESCE(?, image)
-      WHERE id = ?
-    `, [title, description, price, old_price, category, duration, location_type, location, max_participants, available_days, image, bookingId], function(err) {
-      if (err) return res.status(400).json({ error: err.message });
-
-      db.run('DELETE FROM booking_media WHERE booking_id = ?', [bookingId], () => {
-        if (media && media.length) {
-          media.forEach((item, idx) => {
-            db.run(
-              `INSERT INTO booking_media (booking_id, media_type, media_url, display_order, is_primary)
-               VALUES (?, ?, ?, ?, ?)`,
-              [bookingId, item.type, item.url, idx, idx === 0 ? 1 : 0]
-            );
-          });
-        }
-        res.json({ success: true, message: 'Booking updated' });
-      });
-    });
-  });
-});
-
-app.delete('/api/bookings/:id', protect, requireSeller, (req, res) => {
-  db.get('SELECT provider_id FROM bookings WHERE id = ?', [req.params.id], (err, booking) => {
-    if (err) {
-      return res.status(500).json({ error: err.message });
-    }
-    if (!booking) {
-      return res.status(404).json({ error: 'Booking not found' });
-    }
-    if (booking.provider_id !== req.user.id) {
-      return res.status(403).json({ error: 'Not authorized' });
-    }
-    
-    db.run('DELETE FROM bookings WHERE id = ?', [req.params.id], function(err) {
-      if (err) {
-        res.status(400).json({ error: err.message });
-      } else {
-        db.run('DELETE FROM booking_slots WHERE booking_id = ?', [req.params.id]);
-        res.json({ success: true, message: 'Booking deleted' });
-      }
-    });
-  });
-});
-
-app.post('/api/bookings/:id/book', protect, (req, res) => {
-  const bookingId = req.params.id;
-  const { appointment_date, appointment_time, notes } = req.body;
-  const bookingNumber = 'BKG-' + Date.now();
-
-  db.get('SELECT * FROM bookings WHERE id = ?', [bookingId], (err, booking) => {
-    if (err) {
-      return res.status(500).json({ error: err.message });
-    }
-    if (!booking) {
-      return res.status(404).json({ error: 'Booking not found' });
-    }
-
-    db.run(`
-      INSERT INTO appointments (booking_number, booking_id, client_id, provider_id, appointment_date, appointment_time, duration, notes)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `, [bookingNumber, bookingId, req.user.id, booking.provider_id, appointment_date, appointment_time, booking.duration, notes || ''], function(err) {
-      if (err) {
-        res.status(400).json({ error: err.message });
-      } else {
-        db.run('UPDATE bookings SET bookings_count = bookings_count + 1 WHERE id = ?', [bookingId]);
-        res.json({ 
-          success: true, 
-          appointment: { 
-            id: this.lastID, 
-            bookingNumber,
-            status: 'pending'
-          } 
-        });
-      }
-    });
-  });
-});
-
-app.get('/api/my-appointments', protect, (req, res) => {
-  db.all(`
-    SELECT a.*, b.title, b.image, b.duration, u.name as provider_name
-    FROM appointments a
-    JOIN bookings b ON a.booking_id = b.id
-    JOIN users u ON a.provider_id = u.id
-    WHERE a.client_id = ?
-    ORDER BY a.appointment_date DESC
-  `, [req.user.id], (err, rows) => {
-    if (err) {
-      res.status(500).json({ error: err.message });
-    } else {
-      res.json({ success: true, appointments: rows });
-    }
-  });
-});
-
-app.get('/api/provider-appointments', protect, requireSeller, (req, res) => {
-  db.all(`
-    SELECT a.*, b.title, u.name as client_name, u.email as client_email, u.phone as client_phone
-    FROM appointments a
-    JOIN bookings b ON a.booking_id = b.id
-    JOIN users u ON a.client_id = u.id
-    WHERE a.provider_id = ?
-    ORDER BY a.appointment_date DESC
-  `, [req.user.id], (err, rows) => {
-    if (err) {
-      res.status(500).json({ error: err.message });
-    } else {
-      res.json({ success: true, appointments: rows });
-    }
-  });
-});
+app.use('/api', createProductRoutes({
+  db,
+  protect,
+  requireSeller,
+  isAdmin,
+  validateIdParams,
+  validateProductCreate,
+  validateProductQuery,
+  validateProductReview,
+  validateProductUpdate,
+  Money,
+}));
+
+app.use('/api', createCourseRoutes({
+  db,
+  protect,
+  optionalProtect,
+  requireSeller,
+  validateIdParams,
+  validateCourseCreate,
+  validateCourseUpdate,
+  validateLessonCreate,
+  validateLessonProgress,
+  validateLessonUpdate,
+}));
+
+app.use('/api', createServiceRoutes({
+  db,
+  protect,
+  requireSeller,
+  validateIdParams,
+  validateServiceCreate,
+  validateServiceUpdate,
+}));
+
+app.use('/api', createDigitalRoutes({
+  db,
+  protect,
+  requireSeller,
+  validateIdParams,
+  validateDigitalCreate,
+  validateDigitalUpdate,
+  storageService,
+  path,
+  getDatabaseRow,
+  runDatabaseStatement,
+  streamPrivateAttachment,
+}));
+
+app.use('/api', createBookingRoutes({
+  db,
+  protect,
+  requireSeller,
+  validateIdParams,
+  validateBookingCreate,
+  validateBookingUpdate,
+}));
 
 // ==================== CART ENDPOINTS ====================
 app.get('/api/cart', protect, (req, res) => {
@@ -2523,7 +1351,7 @@ app.get('/api/cart', protect, (req, res) => {
   });
 });
 
-app.post('/api/cart', protect, (req, res) => {
+app.post('/api/cart', protect, validateCartItem, (req, res) => {
   const { product_id, quantity } = req.body;
   
   if (!product_id || !quantity || quantity < 1) {
@@ -2611,7 +1439,7 @@ app.get('/api/orders/:id', protect, (req, res) => {
   });
 });
 
-app.put('/api/cart/:productId', protect, (req, res) => {
+app.put('/api/cart/:productId', protect, validateIdParams('productId'), validateCartQuantity, (req, res) => {
   const { quantity } = req.body;
   
   if (!quantity || quantity < 1) {
@@ -2632,7 +1460,7 @@ app.put('/api/cart/:productId', protect, (req, res) => {
   });
 });
 
-app.delete('/api/cart/:productId', protect, (req, res) => {
+app.delete('/api/cart/:productId', protect, validateIdParams('productId'), (req, res) => {
   db.run(`
     DELETE FROM cart WHERE user_id = ? AND product_id = ?
   `, [req.user.id, req.params.productId], function(err) {
@@ -2665,7 +1493,7 @@ const generateOrderNumber = () => {
   return `RIF-${year}${month}${day}-${random}`;
 };
 
-app.post('/api/orders', protect, async (req, res) => {
+app.post('/api/orders', protect, validateCheckout, async (req, res) => {
   const { shippingAddress, paymentMethod, notes, items, total } = req.body || {};
   const idempotencyKey = req.get('Idempotency-Key');
   if (!idempotencyKey) {
@@ -2973,7 +1801,7 @@ app.get('/api/favorites/check/:itemId/:itemType', protect, (req, res) => {
 });
 
 // ==================== USER PROFILE ENDPOINTS ====================
-app.patch('/api/users/update-me', protect, (req, res) => {
+app.patch('/api/users/update-me', protect, validateProfileUpdate, (req, res) => {
   const { name, phone, bio, city, country } = req.body;
   
   db.run(`
@@ -3000,7 +1828,7 @@ app.patch('/api/users/update-me', protect, (req, res) => {
   });
 });
 
-app.patch('/api/users/update-password', protect, async (req, res) => {
+app.patch('/api/users/update-password', protect, validatePasswordChange, async (req, res) => {
   const { currentPassword, newPassword } = req.body;
   const bcrypt = require('bcryptjs');
   
@@ -3016,10 +1844,11 @@ app.patch('/api/users/update-password', protect, async (req, res) => {
     
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     
-    db.run('UPDATE users SET password = ? WHERE id = ?', [hashedPassword, req.user.id], function(err) {
+    db.run('UPDATE users SET password = ? WHERE id = ?', [hashedPassword, req.user.id], async function(err) {
       if (err) {
         res.status(400).json({ error: err.message });
       } else {
+        await sessionService.revokeOtherUserSessions(req.user.id, req.authSession.id, 'password_changed');
         res.json({ success: true, message: 'Password updated successfully' });
       }
     });
@@ -3047,7 +1876,7 @@ app.get('/api/my-courses-stats', protect, requireSeller, (req, res) => {
 });
 
 // ==================== SELLER TYPE & PUBLIC PROFILE ====================
-app.patch('/api/users/update-seller-type', protect, (req, res) => {
+app.patch('/api/users/update-seller-type', protect, validateSellerType, (req, res) => {
   const { sellerType } = req.body;
   const valid = ['product', 'course', 'service', 'digital', 'booking'];
   if (!valid.includes(sellerType)) {
@@ -3275,7 +2104,7 @@ app.patch('/api/courses/:courseId/lessons/reorder', protect, requireSeller, (req
 });
 
 // ==================== SERVICE PACKAGES ENDPOINTS ====================
-app.post('/api/services/:serviceId/packages', protect, requireSeller, (req, res) => {
+app.post('/api/services/:serviceId/packages', protect, requireSeller, validateIdParams('serviceId'), validatePackageCreate, (req, res) => {
   const { serviceId } = req.params;
   const { name, price, delivery_time, revisions, features } = req.body;
   
@@ -3302,7 +2131,7 @@ app.post('/api/services/:serviceId/packages', protect, requireSeller, (req, res)
   });
 });
 
-app.put('/api/services/:serviceId/packages/:packageId', protect, requireSeller, (req, res) => {
+app.put('/api/services/:serviceId/packages/:packageId', protect, requireSeller, validateIdParams('serviceId', 'packageId'), validatePackageUpdate, (req, res) => {
   const { serviceId, packageId } = req.params;
   const { name, price, delivery_time, revisions, features } = req.body;
   
@@ -3334,7 +2163,7 @@ app.put('/api/services/:serviceId/packages/:packageId', protect, requireSeller, 
   });
 });
 
-app.delete('/api/services/:serviceId/packages/:packageId', protect, requireSeller, (req, res) => {
+app.delete('/api/services/:serviceId/packages/:packageId', protect, requireSeller, validateIdParams('serviceId', 'packageId'), (req, res) => {
   const { serviceId, packageId } = req.params;
   
   db.get('SELECT provider_id FROM services WHERE id = ?', [serviceId], (err, service) => {
@@ -3467,98 +2296,6 @@ app.get('/api/messages/unread-count', protect, (req, res) => {
   });
 });
 
-const AIService = require('./services/aiService');
-
-// ==================== AI ENDPOINTS ====================
-app.get('/api/ai/search', async (req, res) => {
-  const { q } = req.query;
-  if (!q) return res.status(400).json({ error: 'Query required' });
-  
-  try {
-    const parsed = await AIService.parseSearchQuery(q);
-    res.json({ success: true, parsed });
-  } catch (error) {
-    console.error('AI search error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.post('/api/ai/generate-description', protect, async (req, res) => {
-  const { title, category, keywords } = req.body;
-  if (!title) return res.status(400).json({ error: 'Title required' });
-  
-  try {
-    const description = await AIService.generateDescription(title, category, keywords || '');
-    res.json({ success: true, description });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.post('/api/ai/suggest-price', protect, async (req, res) => {
-  const { title, category, similarPrices } = req.body;
-  
-  try {
-    const price = await AIService.suggestPrice(title, category, similarPrices || []);
-    res.json({ success: true, suggestedPrice: price });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.post('/api/ai/detect-fraud', protect, async (req, res) => {
-  const { title, description, price, category } = req.body;
-  
-  try {
-    const result = await AIService.detectFraud(title, description, price, category);
-    res.json({ success: true, ...result });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.post('/api/ai/ask', async (req, res) => {
-  const { productTitle, productDescription, question } = req.body;
-  
-  try {
-    const answer = await AIService.answerQuestion(productTitle, productDescription, question);
-    res.json({ success: true, answer });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.get('/api/ai/admin-report', protect, requireAdmin, async (req, res) => {
-  if (req.user.role !== 'admin') {
-    return res.status(403).json({ error: 'Admin only' });
-  }
-  
-  try {
-    db.get('SELECT COUNT(*) as totalProducts FROM products WHERE status = "published"', [], (err, total) => {
-      db.get('SELECT COUNT(*) as newProducts FROM products WHERE created_at > datetime("now", "-7 days")', [], (err, newP) => {
-        db.get('SELECT SUM(total) as totalSales FROM orders WHERE created_at > datetime("now", "-7 days")', [], (err, sales) => {
-          db.all('SELECT category, COUNT(*) as count FROM products GROUP BY category ORDER BY count DESC LIMIT 3', [], (err, cats) => {
-            db.get('SELECT COUNT(*) as lowStock FROM products WHERE stock < 5 AND stock > 0', [], async (err, lowStock) => {
-              const stats = {
-                totalProducts: total?.totalProducts || 0,
-                newProducts: newP?.newProducts || 0,
-                totalSales: sales?.totalSales || 0,
-                topCategories: cats.map(c => `${c.category} (${c.count})`).join(', '),
-                lowStockCount: lowStock?.lowStock || 0
-              };
-              
-              const report = await AIService.generateAdminReport(stats);
-              res.json({ success: true, report, stats });
-            });
-          });
-        });
-      });
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
 const WalletService = require('./services/walletService');
 
 // ==================== WALLET & PAYMENT ENDPOINTS ====================
@@ -3580,7 +2317,7 @@ app.get('/api/wallet/transactions', protect, async (req, res) => {
   }
 });
 
-app.post('/api/wallet/withdraw', protect, async (req, res) => {
+app.post('/api/wallet/withdraw', protect, validateWithdrawal, async (req, res) => {
   const { amount, method, bankDetails } = req.body;
   const requestKey = req.get('Idempotency-Key');
   
@@ -3593,6 +2330,12 @@ app.post('/api/wallet/withdraw', protect, async (req, res) => {
   
   try {
     const result = await WalletService.requestWithdrawal(req.user.id, amount, method, bankDetails, requestKey);
+    await AuditService.recordFromRequest(req, {
+      action: 'withdrawal.requested',
+      resourceType: 'withdrawal',
+      resourceId: result.requestId,
+      metadata: { method, alreadyProcessed: result.alreadyProcessed },
+    });
     res.status(result.alreadyProcessed ? 200 : 201).json({
       success: true,
       alreadyProcessed: result.alreadyProcessed,
@@ -3604,11 +2347,15 @@ app.post('/api/wallet/withdraw', protect, async (req, res) => {
   }
 });
 
-app.get('/api/admin/withdrawals', protect, requireAdmin, async (req, res) => {
-  if (req.user.role !== 'admin') {
-    return res.status(403).json({ error: 'Admin only' });
+app.get('/api/admin/withdrawals', protect, requireFinance, async (req, res) => {
+  try {
+    await AuditService.recordFromRequest(req, {
+      action: 'finance.withdrawals_viewed',
+      resourceType: 'withdrawal',
+    });
+  } catch (error) {
+    return res.status(500).json({ error: 'Unable to record this privileged action.', requestId: req.requestId });
   }
-  
   db.all(`
     SELECT w.*, u.name as user_name, u.email as user_email
     FROM withdrawal_requests w
@@ -3623,7 +2370,7 @@ app.get('/api/admin/withdrawals', protect, requireAdmin, async (req, res) => {
 
 /* Legacy withdrawal processing was not atomic and did not require a payout reference. */
 /*
-app.patch('/api/admin/withdrawals/:id/process', protect, requireAdmin, async (req, res) => {
+app.patch('/api/admin/withdrawals/:id/process', protect, requireFinance, validateIdParams('id'), validateWithdrawalDecision, async (req, res) => {
   if (req.user.role !== 'admin') {
     return res.status(403).json({ error: 'Admin only' });
   }
@@ -3671,7 +2418,7 @@ app.patch('/api/admin/withdrawals/:id/process', protect, requireAdmin, async (re
 });
 */
 
-app.patch('/api/admin/withdrawals/:id/process', protect, requireAdmin, async (req, res) => {
+app.patch('/api/admin/withdrawals/:id/process', protect, requireFinance, validateIdParams('id'), validateWithdrawalDecision, async (req, res) => {
   const { action, notes, providerReference } = req.body || {};
   try {
     const result = await WalletService.processWithdrawal({
@@ -3680,6 +2427,12 @@ app.patch('/api/admin/withdrawals/:id/process', protect, requireAdmin, async (re
       adminId: req.user.id,
       notes,
       providerReference,
+    });
+    await AuditService.recordFromRequest(req, {
+      action: 'withdrawal.processed',
+      resourceType: 'withdrawal',
+      resourceId: req.params.id,
+      metadata: { decision: action, status: result.status, alreadyProcessed: result.alreadyProcessed },
     });
     return res.json({
       success: true,
@@ -3698,7 +2451,7 @@ const InvoiceService = require('./services/invoiceService');
 // ==================== BUYER ORDER CANCELLATION ====================
 /* Legacy cancellation could credit a wallet twice under concurrent requests. */
 /*
-app.post('/api/orders/:id/cancel', protect, async (req, res) => {
+app.post('/api/orders/:id/cancel', protect, validateIdParams('id'), async (req, res) => {
   const orderId = req.params.id;
   const userId = req.user.id;
 
@@ -3747,21 +2500,33 @@ app.post('/api/orders/:id/cancel', protect, async (req, res) => {
 });
 */
 
-app.post('/api/orders/:id/cancel', protect, async (req, res) => {
+app.post('/api/orders/:id/cancel', protect, validateIdParams('id'), async (req, res) => {
   try {
     await WalletService.cancelUnpaidOrder(req.params.id, req.user.id);
+    await AuditService.recordFromRequest(req, {
+      action: 'order.cancelled',
+      resourceType: 'order',
+      resourceId: req.params.id,
+      metadata: { paymentMethod: 'unpaid' },
+    });
     return res.json({ success: true, message: 'Order cancelled successfully' });
   } catch (error) {
     return res.status(400).json({ error: error.message });
   }
 });
 
-app.post('/api/orders/:id/refund-request', protect, async (req, res) => {
+app.post('/api/orders/:id/refund-request', protect, validateIdParams('id'), validateRefundRequest, async (req, res) => {
   try {
     const result = await WalletService.requestRefund({
       orderId: req.params.id,
       requesterId: req.user.id,
       reason: req.body?.reason,
+    });
+    await AuditService.recordFromRequest(req, {
+      action: 'refund.requested',
+      resourceType: 'refund',
+      resourceId: result.requestId,
+      metadata: { orderId: req.params.id, alreadyProcessed: result.alreadyProcessed },
     });
     return res.status(result.alreadyProcessed ? 200 : 201).json({ success: true, ...result });
   } catch (error) {
@@ -3769,8 +2534,12 @@ app.post('/api/orders/:id/refund-request', protect, async (req, res) => {
   }
 });
 
-app.get('/api/admin/refunds', protect, requireAdmin, async (req, res) => {
+app.get('/api/admin/refunds', protect, requireFinance, async (req, res) => {
   try {
+    await AuditService.recordFromRequest(req, {
+      action: 'finance.refunds_viewed',
+      resourceType: 'refund',
+    });
     const refunds = await WalletService.all(`
       SELECT r.*, o.order_number, u.name AS requester_name, u.email AS requester_email
       FROM refund_requests r
@@ -3784,7 +2553,7 @@ app.get('/api/admin/refunds', protect, requireAdmin, async (req, res) => {
   }
 });
 
-app.patch('/api/admin/refunds/:id/complete', protect, requireAdmin, async (req, res) => {
+app.patch('/api/admin/refunds/:id/complete', protect, requireFinance, validateIdParams('id'), validateRefundCompletion, async (req, res) => {
   try {
     const result = await WalletService.completeRefund({
       refundId: req.params.id,
@@ -3792,28 +2561,39 @@ app.patch('/api/admin/refunds/:id/complete', protect, requireAdmin, async (req, 
       providerReference: req.body?.providerReference,
       notes: req.body?.notes,
     });
+    await AuditService.recordFromRequest(req, {
+      action: 'refund.completed',
+      resourceType: 'refund',
+      resourceId: req.params.id,
+      metadata: { status: result.status, alreadyProcessed: result.alreadyProcessed },
+    });
     return res.json({ success: true, ...result });
   } catch (error) {
     return res.status(400).json({ error: error.message });
   }
 });
 
-app.get('/api/admin/finance/reconciliation', protect, requireAdmin, async (req, res) => {
+app.get('/api/admin/finance/reconciliation', protect, requireFinance, async (req, res) => {
   try {
+    await AuditService.recordFromRequest(req, {
+      action: 'finance.reconciliation_viewed',
+      resourceType: 'reconciliation',
+    });
     const [negativeWallets, withdrawalMismatches, cmiTransactionMismatches,
       paidOrdersWithoutGatewayRecord, paidOrdersWithoutEscrow, releasedEscrowMismatches] = await Promise.all([
       WalletService.all(`
-        SELECT user_id, available_balance, escrow_balance, pending_withdrawal
+        SELECT user_id, available_balance, escrow_balance, pending_withdrawal,
+               available_balance_minor, escrow_balance_minor, pending_withdrawal_minor
         FROM wallets
-        WHERE available_balance < 0 OR escrow_balance < 0 OR pending_withdrawal < 0
+        WHERE available_balance_minor < 0 OR escrow_balance_minor < 0 OR pending_withdrawal_minor < 0
       `),
       WalletService.all(`
-        SELECT w.user_id, w.pending_withdrawal,
-               ROUND(COALESCE(SUM(r.amount), 0), 2) AS expected_pending_withdrawal
+        SELECT w.user_id, w.pending_withdrawal, w.pending_withdrawal_minor,
+               COALESCE(SUM(r.amount_minor), 0) AS expected_pending_withdrawal_minor
         FROM wallets w
         LEFT JOIN withdrawal_requests r ON r.user_id = w.user_id AND r.status = 'pending'
         GROUP BY w.user_id
-        HAVING ABS(ROUND(w.pending_withdrawal - COALESCE(SUM(r.amount), 0), 2)) >= 0.01
+        HAVING w.pending_withdrawal_minor != COALESCE(SUM(r.amount_minor), 0)
       `),
       WalletService.all(`
         SELECT pt.id, pt.order_id, pt.cmi_oid, pt.status AS transaction_status, o.payment_status
@@ -3871,7 +2651,7 @@ app.get('/api/admin/finance/reconciliation', protect, requireAdmin, async (req, 
   }
 });
 
-app.get('/api/orders/:id/history', protect, (req, res) => {
+app.get('/api/orders/:id/history', protect, requireOrderHistoryAccess, (req, res) => {
   db.all(`
     SELECT h.*, u.name as updated_by_name
     FROM order_status_history h
@@ -3899,35 +2679,39 @@ app.get('/api/seller/orders', protect, requireSeller, (req, res) => {
   });
 });
 
-const getDatabaseRow = (query, values) => new Promise((resolve, reject) => {
+function getDatabaseRow(query, values) {
+  return new Promise((resolve, reject) => {
   db.get(query, values, (error, row) => (error ? reject(error) : resolve(row)));
-});
+  });
+}
 
 const getDatabaseRows = (query, values) => new Promise((resolve, reject) => {
   db.all(query, values, (error, rows) => (error ? reject(error) : resolve(rows)));
 });
 
-const runDatabaseStatement = (query, values) => new Promise((resolve, reject) => {
-  db.run(query, values, function callback(error) {
-    if (error) return reject(error);
-    return resolve({ lastID: this.lastID, changes: this.changes });
+function runDatabaseStatement(query, values) {
+  return new Promise((resolve, reject) => {
+    db.run(query, values, function callback(error) {
+      if (error) return reject(error);
+      return resolve({ lastID: this.lastID, changes: this.changes });
+    });
   });
-});
+}
 
-const streamPrivateAttachment = async (res, key, filename, contentType) => {
+async function streamPrivateAttachment(res, key, filename, contentType) {
   res.setHeader('Cache-Control', 'private, no-store');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Content-Security-Policy', 'sandbox');
   res.setHeader('Content-Type', contentType);
   res.setHeader('Content-Disposition', `attachment; filename="${filename.replace(/[^a-zA-Z0-9._-]/g, '_')}"`);
   await pipeline(await storageService.getPrivateStream(key), res);
-};
+}
 
 app.get('/api/orders/:id/invoice', protect, async (req, res) => {
   try {
     const order = await getDatabaseRow('SELECT * FROM orders WHERE id = ?', [req.params.id]);
     if (!order) return res.status(404).json({ error: 'Order not found.' });
-    if (req.user.role !== 'admin' && order.user_id !== req.user.id) {
+    if (!isAdmin(req.user) && order.user_id !== req.user.id) {
       return res.status(403).json({ error: 'You are not allowed to access this invoice.' });
     }
 
@@ -3979,7 +2763,7 @@ app.get('/api/orders/:id/invoice', protect, async (req, res) => {
 });
 
 // ==================== RATINGS & REVIEWS ====================
-app.post('/api/products/:id/review', protect, async (req, res) => {
+app.post('/api/products/:id/review', protect, validateIdParams('id'), validateProductReview, async (req, res) => {
   const { rating, comment } = req.body;
   const productId = req.params.id;
   
@@ -4031,11 +2815,15 @@ app.get('/api/products/:id/reviews', (req, res) => {
 });
 
 // ==================== ADMIN DASHBOARD (UPDATED WITH SELLER VERIFICATION) ====================
-app.get('/api/admin/stats', protect, requireAdmin, (req, res) => {
-  if (req.user.role !== 'admin') {
-    return res.status(403).json({ error: 'Admin only' });
+app.get('/api/admin/stats', protect, requireAdmin, async (req, res) => {
+  try {
+    await AuditService.recordFromRequest(req, {
+      action: 'admin.dashboard_viewed',
+      resourceType: 'admin_dashboard',
+    });
+  } catch (error) {
+    return res.status(500).json({ error: 'Unable to record this privileged action.', requestId: req.requestId });
   }
-  
   const stats = {};
   let completed = 0;
   
@@ -4053,9 +2841,15 @@ app.get('/api/admin/stats', protect, requireAdmin, (req, res) => {
   }
 });
 
-app.get('/api/admin/recent-orders', protect, requireAdmin, (req, res) => {
-  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
-  
+app.get('/api/admin/recent-orders', protect, requireAdmin, async (req, res) => {
+  try {
+    await AuditService.recordFromRequest(req, {
+      action: 'admin.recent_orders_viewed',
+      resourceType: 'order',
+    });
+  } catch (error) {
+    return res.status(500).json({ error: 'Unable to record this privileged action.', requestId: req.requestId });
+  }
   db.all(`
     SELECT o.*, u.name as user_name
     FROM orders o
@@ -4069,9 +2863,15 @@ app.get('/api/admin/recent-orders', protect, requireAdmin, (req, res) => {
 });
 
 // ==================== SELLER VERIFICATION ADMIN ENDPOINTS ====================
-app.get('/api/admin/unverified-sellers', protect, requireAdmin, (req, res) => {
-  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
-  
+app.get('/api/admin/unverified-sellers', protect, requireVerificationReviewer, async (req, res) => {
+  try {
+    await AuditService.recordFromRequest(req, {
+      action: 'verification.unverified_sellers_viewed',
+      resourceType: 'seller_verification',
+    });
+  } catch (error) {
+    return res.status(500).json({ error: 'Unable to record this privileged action.', requestId: req.requestId });
+  }
   db.all(`
     SELECT id, name, email, phone, seller_type, created_at
     FROM users
@@ -4083,27 +2883,55 @@ app.get('/api/admin/unverified-sellers', protect, requireAdmin, (req, res) => {
   });
 });
 
-app.put('/api/admin/verify-seller/:userId', protect, requireAdmin, (req, res) => {
-  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
-  
+app.put('/api/admin/verify-seller/:userId', protect, requireVerificationReviewer, validateIdParams('userId'), (req, res) => {
   const { userId } = req.params;
   const { verified } = req.body;
   if (typeof verified !== 'boolean') {
     return res.status(400).json({ error: 'verified must be boolean' });
   }
   
-  db.run('UPDATE users SET is_verified_seller = ? WHERE id = ?', [verified ? 1 : 0, userId], function(err) {
+  db.run('UPDATE users SET is_verified_seller = ? WHERE id = ?', [verified ? 1 : 0, userId], async function onSellerVerificationUpdate(err) {
     if (err) return res.status(500).json({ error: err.message });
+    try {
+      await AuditService.recordFromRequest(req, {
+        action: 'seller.verification_changed',
+        resourceType: 'user',
+        resourceId: userId,
+        metadata: { verified },
+      });
+    } catch (auditError) {
+      return res.status(500).json({ error: 'Seller verification was updated but its audit record could not be written. Contact support with the request ID.', requestId: req.requestId });
+    }
     res.json({ success: true, message: `Seller verification set to ${verified}` });
   });
 });
 
-// ==================== COD ADMIN PANEL ====================
-app.get('/api/admin/cod-orders', protect, requireAdmin, (req, res) => {
-  if (req.user.role !== 'admin') {
-    return res.status(403).json({ error: 'Admin only' });
+app.get('/api/admin/audit-logs', protect, authorize(ROLES.SUPER_ADMIN), async (req, res) => {
+  try {
+    await AuditService.recordFromRequest(req, {
+      action: 'admin.audit_logs_viewed',
+      resourceType: 'audit_log',
+    });
+    const [entries, integrity] = await Promise.all([
+      AuditService.list({ limit: req.query.limit, beforeId: req.query.beforeId }),
+      AuditService.verifyIntegrity(),
+    ]);
+    return res.json({ success: true, entries, integrity });
+  } catch (error) {
+    return res.status(500).json({ error: 'Unable to retrieve audit logs.', requestId: req.requestId });
   }
+});
 
+// ==================== COD ADMIN PANEL ====================
+app.get('/api/admin/cod-orders', protect, requireFinance, async (req, res) => {
+  try {
+    await AuditService.recordFromRequest(req, {
+      action: 'finance.cod_orders_viewed',
+      resourceType: 'order',
+    });
+  } catch (error) {
+    return res.status(500).json({ error: 'Unable to record this privileged action.', requestId: req.requestId });
+  }
   const sql = `
     SELECT 
       o.id, o.order_number, o.total, o.created_at, o.shipping_address, o.notes,
@@ -4131,7 +2959,7 @@ app.get('/api/admin/cod-orders', protect, requireAdmin, (req, res) => {
 
 /* Legacy COD settlement could credit sellers more than once under concurrent requests. */
 /*
-app.post('/api/admin/cod-orders/:id/confirm', protect, requireAdmin, async (req, res) => {
+app.post('/api/admin/cod-orders/:id/confirm', protect, requireFinance, async (req, res) => {
   if (req.user.role !== 'admin') {
     return res.status(403).json({ error: 'Admin only' });
   }
@@ -4198,9 +3026,15 @@ app.post('/api/admin/cod-orders/:id/confirm', protect, requireAdmin, async (req,
 });
 */
 
-app.post('/api/admin/cod-orders/:id/confirm', protect, requireAdmin, async (req, res) => {
+app.post('/api/admin/cod-orders/:id/confirm', protect, requireFinance, validateIdParams('id'), async (req, res) => {
   try {
     const result = await WalletService.settleCodOrder(req.params.id, req.user.id);
+    await AuditService.recordFromRequest(req, {
+      action: 'order.cod_settled',
+      resourceType: 'order',
+      resourceId: req.params.id,
+      metadata: { alreadyProcessed: result.alreadyProcessed },
+    });
     return res.json({
       success: true,
       alreadyProcessed: result.alreadyProcessed,
@@ -4214,7 +3048,7 @@ app.post('/api/admin/cod-orders/:id/confirm', protect, requireAdmin, async (req,
 // ==================== CMI PAYMENT ENDPOINTS ====================
 const CmiPaymentService = require('./services/cmiPaymentService');
 
-app.post('/api/payment/cmi/initiate', protect, async (req, res) => {
+app.post('/api/payment/cmi/initiate', protect, validateCmiInitiation, async (req, res) => {
   const { orderId } = req.body;
   
   if (!orderId) {
@@ -4235,6 +3069,12 @@ app.post('/api/payment/cmi/initiate', protect, async (req, res) => {
       `, [orderId], async (err, items) => {
         try {
           const { htmlForm, oid } = await CmiPaymentService.initiatePayment(order, user);
+          await AuditService.recordFromRequest(req, {
+            action: 'payment.cmi_initiated',
+            resourceType: 'order',
+            resourceId: orderId,
+            metadata: { paymentMethod: 'cmi' },
+          });
           res.json({
             success: true,
             htmlForm: htmlForm,
@@ -4274,9 +3114,21 @@ app.post('/api/payment/callback', async (req, res) => {
   try {
     if (result === 'success' || ProcReturnCode === '00') {
       await CmiPaymentService.processSuccessPayment(oid, params);
+      await AuditService.recordFromRequest(req, {
+        action: 'payment.cmi_callback_processed',
+        resourceType: 'payment',
+        resourceId: oid,
+        metadata: { outcome: 'success' },
+      });
       return res.send('OK');
     }
     await CmiPaymentService.processFailedPayment(oid, params);
+    await AuditService.recordFromRequest(req, {
+      action: 'payment.cmi_callback_processed',
+      resourceType: 'payment',
+      resourceId: oid,
+      metadata: { outcome: 'failed' },
+    });
     return res.send('FAIL');
   } catch (error) {
     console.error('CMI callback processing failed:', error.message);
@@ -4284,7 +3136,7 @@ app.post('/api/payment/callback', async (req, res) => {
   }
 });
 
-app.get('/api/payment/status/:orderId', protect, async (req, res) => {
+app.get('/api/payment/status/:orderId', protect, validateIdParams('orderId'), async (req, res) => {
   const { orderId } = req.params;
   
   db.get(`
@@ -4299,24 +3151,28 @@ app.get('/api/payment/status/:orderId', protect, async (req, res) => {
 });
 
 // ==================== PRODUCT OFFERS (JOUTIYA) ====================
-app.post('/api/products/:id/offers', protect, (req, res) => {
+app.post('/api/products/:id/offers', protect, validateIdParams('id'), validateOffer, (req, res) => {
   const productId = req.params.id;
   const buyerId = req.user.id;
   const { amount, message } = req.body;
+  const amountMinor = Money.toMinor(amount);
 
   if (!amount || amount <= 0) {
     return res.status(400).json({ error: 'Valid offer amount is required' });
   }
 
-  db.get('SELECT seller_id, price, condition FROM products WHERE id = ?', [productId], (err, product) => {
+  db.get('SELECT seller_id, price, price_minor, condition FROM products WHERE id = ?', [productId], (err, product) => {
     if (err || !product) {
       return res.status(404).json({ error: 'Product not found' });
     }
     if (product.condition !== 'joutiya') {
       return res.status(400).json({ error: 'Offers are only allowed on Joutiya items' });
     }
-    if (amount > product.price) {
-      return res.status(400).json({ error: `Offer cannot exceed the original price of ${product.price} MAD` });
+    const productPriceMinor = Number.isSafeInteger(product.price_minor)
+      ? product.price_minor
+      : Money.toMinor(product.price);
+    if (amountMinor > productPriceMinor) {
+      return res.status(400).json({ error: `Offer cannot exceed the original price of ${Money.fromMinor(productPriceMinor)} MAD` });
     }
 
     db.get('SELECT id FROM product_offers WHERE product_id = ? AND buyer_id = ? AND status = "pending"',
@@ -4326,16 +3182,16 @@ app.post('/api/products/:id/offers', protect, (req, res) => {
         }
 
         db.run(`
-          INSERT INTO product_offers (product_id, buyer_id, seller_id, amount, message, status)
-          VALUES (?, ?, ?, ?, ?, 'pending')
-        `, [productId, buyerId, product.seller_id, amount, message || ''], function(err) {
+          INSERT INTO product_offers (product_id, buyer_id, seller_id, amount, amount_minor, message, status)
+          VALUES (?, ?, ?, ?, ?, ?, 'pending')
+        `, [productId, buyerId, product.seller_id, Money.fromMinor(amountMinor), amountMinor, message || ''], function(err) {
           if (err) {
             console.error('Offer insert error:', err);
             return res.status(500).json({ error: 'Failed to submit offer' });
           }
           res.json({
             success: true,
-            message: `Offer of ${amount} MAD sent to seller`,
+            message: `Offer of ${Money.fromMinor(amountMinor)} MAD sent to seller`,
             offerId: this.lastID
           });
         });
@@ -4362,7 +3218,7 @@ app.get('/api/seller/offers', protect, requireSeller, (req, res) => {
   });
 });
 
-app.patch('/api/seller/offers/:offerId/respond', protect, requireSeller, (req, res) => {
+app.patch('/api/seller/offers/:offerId/respond', protect, requireSeller, validateIdParams('offerId'), validateOfferResponse, (req, res) => {
   const { offerId } = req.params;
   const { action } = req.body;
   const sellerId = req.user.id;
@@ -4454,6 +3310,12 @@ app.post('/api/seller/upload-verification', protect, requireSeller, documentUplo
       [req.user.id, documentUrl, req.body.document_type],
       (error) => (error ? reject(error) : resolve())
     ));
+    await AuditService.recordFromRequest(req, {
+      action: 'verification.submitted',
+      resourceType: 'seller_verification',
+      resourceId: req.user.id,
+      metadata: { type: req.body.document_type },
+    });
     return res.json({ success: true, message: 'Verification document uploaded. Awaiting admin review.' });
   } catch (error) {
     if (key) storageService.delete(key).catch(() => {});
@@ -4479,8 +3341,15 @@ app.get('/api/seller/verification-status', protect, requireSeller, (req, res) =>
 
 
 
-app.get('/api/admin/pending-verifications', protect, requireAdmin, (req, res) => {
-  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+app.get('/api/admin/pending-verifications', protect, requireVerificationReviewer, async (req, res) => {
+  try {
+    await AuditService.recordFromRequest(req, {
+      action: 'verification.pending_list_viewed',
+      resourceType: 'seller_verification',
+    });
+  } catch (error) {
+    return res.status(500).json({ error: 'Unable to record this privileged action.', requestId: req.requestId });
+  }
   db.all(`
     SELECT v.id, v.user_id, v.document_type, v.status, v.created_at, v.updated_at,
            u.name as user_name, u.email as user_email, u.seller_type
@@ -4494,8 +3363,7 @@ app.get('/api/admin/pending-verifications', protect, requireAdmin, (req, res) =>
   });
 });
 
-app.get('/api/admin/verification-documents/:docId/file', protect, requireAdmin, (req, res) => {
-  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+app.get('/api/admin/verification-documents/:docId/file', protect, requireVerificationReviewer, validateIdParams('docId'), (req, res) => {
 
   db.get('SELECT document_url, document_type FROM verification_documents WHERE id = ?', [req.params.docId], async (error, document) => {
     if (error) return res.status(500).json({ error: 'Unable to retrieve the verification document.' });
@@ -4508,6 +3376,15 @@ app.get('/api/admin/verification-documents/:docId/file', protect, requireAdmin, 
       return res.status(404).json({ error: 'Verification document not found.' });
     }
     if (documentKey) {
+      try {
+        await AuditService.recordFromRequest(req, {
+          action: 'verification.document_accessed',
+          resourceType: 'verification_document',
+          resourceId: req.params.docId,
+        });
+      } catch (auditError) {
+        return res.status(500).json({ error: 'Unable to record this privileged action.', requestId: req.requestId });
+      }
       try {
         const extension = path.extname(documentKey).toLowerCase();
         const contentTypes = { '.pdf': 'application/pdf', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp', '.gif': 'image/gif' };
@@ -4535,6 +3412,15 @@ app.get('/api/admin/verification-documents/:docId/file', protect, requireAdmin, 
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Content-Security-Policy', 'sandbox');
     res.setHeader('Content-Disposition', 'attachment');
+    try {
+      await AuditService.recordFromRequest(req, {
+        action: 'verification.document_accessed',
+        resourceType: 'verification_document',
+        resourceId: req.params.docId,
+      });
+    } catch (auditError) {
+      return res.status(500).json({ error: 'Unable to record this privileged action.', requestId: req.requestId });
+    }
     return res.sendFile(documentPath);
   });
 });
@@ -4545,8 +3431,7 @@ app.get('/api/admin/verification-documents/:docId/file', protect, requireAdmin, 
 
 
 
-app.patch('/api/admin/verify-document/:docId', protect, requireAdmin, (req, res) => {
-  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+app.patch('/api/admin/verify-document/:docId', protect, requireVerificationReviewer, validateIdParams('docId'), (req, res) => {
   const { docId } = req.params;
   const { action, admin_notes } = req.body; // action: 'approve' or 'reject'
   if (!['approve', 'reject'].includes(action)) return res.status(400).json({ error: 'Invalid action' });
@@ -4558,17 +3443,23 @@ app.patch('/api/admin/verify-document/:docId', protect, requireAdmin, (req, res)
     db.run(
       `UPDATE verification_documents SET status = ?, admin_notes = ?, reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP WHERE id = ?`,
       [newStatus, admin_notes || null, req.user.id, docId],
-      function(err) {
+      async function onVerificationDocumentUpdate(err) {
         if (err) return res.status(500).json({ error: err.message });
-        
-        if (action === 'approve') {
-          // Set user as verified seller
-          db.run('UPDATE users SET is_verified_seller = 1 WHERE id = ?', [doc.user_id]);
-        } else {
-          // Optionally keep unverified
-          db.run('UPDATE users SET is_verified_seller = 0 WHERE id = ?', [doc.user_id]);
-        }
-        res.json({ success: true, message: `Document ${action}d` });
+
+        db.run('UPDATE users SET is_verified_seller = ? WHERE id = ?', [action === 'approve' ? 1 : 0, doc.user_id], async (userError) => {
+          if (userError) return res.status(500).json({ error: 'Verification document was updated but seller verification could not be updated.' });
+          try {
+            await AuditService.recordFromRequest(req, {
+              action: 'verification.reviewed',
+              resourceType: 'verification_document',
+              resourceId: docId,
+              metadata: { decision: action, sellerId: doc.user_id },
+            });
+          } catch (auditError) {
+            return res.status(500).json({ error: 'Verification decision was updated but its audit record could not be written. Contact support with the request ID.', requestId: req.requestId });
+          }
+          return res.json({ success: true, message: `Document ${action}d` });
+        });
       }
     );
   });

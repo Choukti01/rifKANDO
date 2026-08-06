@@ -6,13 +6,11 @@ import {
   ChevronUpIcon, ChevronDownIcon, PlayIcon
 } from '@heroicons/react/24/outline';
 import api from '../../../services/api';
-import { useAuth } from '../../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 
 const LessonsManager = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { token } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [course, setCourse] = useState(null);
