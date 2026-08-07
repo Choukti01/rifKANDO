@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import MediaGallery from '../../components/MediaGallery';
 import { getImageUrl } from '../../utils/imageUtils';
 import MarketplaceImage from '../../components/common/MarketplaceImage';
+import VerifiedBadge from '../../components/common/VerifiedBadge';
 
 const CoursesPage = () => {
   const [courses, setCourses] = useState([]);
@@ -68,6 +69,15 @@ const CoursesPage = () => {
                       }
                     }}
                     style={{ cursor: course.media && course.media.length > 0 ? 'pointer' : 'default' }}
+                    role={course.media?.length ? 'button' : undefined}
+                    tabIndex={course.media?.length ? 0 : undefined}
+                    aria-label={course.media?.length ? `View media for ${course.title}` : undefined}
+                    onKeyDown={(event) => {
+                      if (course.media?.length && (event.key === 'Enter' || event.key === ' ')) {
+                        event.preventDefault();
+                        setGalleryCourse(course);
+                      }
+                    }}
                   >
                     {primaryMedia ? (
                       <>
@@ -92,6 +102,7 @@ const CoursesPage = () => {
                     by <Link to={`/profile/${course.instructor_id}`} className="instructor-link">
                       {course.instructor_name || 'Unknown Instructor'}
                     </Link>
+                    {course.instructor_verified === 1 && <VerifiedBadge size="small" />}
                   </p>
                   
                   <div className="course-meta">
@@ -103,6 +114,7 @@ const CoursesPage = () => {
                     <span className="current-price">{course.price} MAD</span>
                     {course.old_price && <span className="old-price">{course.old_price} MAD</span>}
                   </div>
+                  <Link to={`/course/${course.id}`} className="listing-card-action">Explore course</Link>
                 </div>
               );
             })
@@ -144,6 +156,8 @@ const CoursesPage = () => {
           border-radius: 1rem;
           overflow: hidden;
           box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+          display: flex;
+          flex-direction: column;
           transition: transform 0.3s;
         }
         .course-card:hover {

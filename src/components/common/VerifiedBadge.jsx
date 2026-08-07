@@ -12,7 +12,7 @@ const VerifiedBadge = ({ size = 'small', showTooltip = true }) => {
         cursor: 'help',
         verticalAlign: 'middle'
       }}
-      title={showTooltip ? 'Verified seller — identity or business documents reviewed by rifKANDO.' : ''}
+      title={showTooltip ? 'Verified seller. Identity or business documents reviewed by rifKANDO.' : ''}
       aria-label={showTooltip ? 'Verified seller. Identity or business documents reviewed by rifKANDO.' : 'Verified seller'}
     >
       <svg 

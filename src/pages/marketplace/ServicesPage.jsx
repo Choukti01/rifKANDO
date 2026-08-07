@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import MediaGallery from '../../components/MediaGallery';
 import { getImageUrl } from '../../utils/imageUtils';
 import MarketplaceImage from '../../components/common/MarketplaceImage';
+import VerifiedBadge from '../../components/common/VerifiedBadge';
 
 const ServicesPage = () => {
   const [services, setServices] = useState([]);
@@ -59,6 +60,16 @@ const ServicesPage = () => {
                       e.preventDefault();
                       if (service.media?.length) setGalleryService(service);
                     }}
+                    style={{ cursor: service.media?.length ? 'pointer' : 'default' }}
+                    role={service.media?.length ? 'button' : undefined}
+                    tabIndex={service.media?.length ? 0 : undefined}
+                    aria-label={service.media?.length ? `View media for ${service.title}` : undefined}
+                    onKeyDown={(event) => {
+                      if (service.media?.length && (event.key === 'Enter' || event.key === ' ')) {
+                        event.preventDefault();
+                        setGalleryService(service);
+                      }
+                    }}
                   >
                     {primaryMedia ? (
                       <>
@@ -79,6 +90,7 @@ const ServicesPage = () => {
                     by <Link to={`/profile/${service.provider_id}`} className="provider-link">
                       {service.provider_name || 'Unknown Provider'}
                     </Link>
+                    {service.provider_verified === 1 && <VerifiedBadge size="small" />}
                   </p>
                   <div className="service-meta">
                     <span>⭐ {service.rating || 0}</span>
@@ -88,6 +100,7 @@ const ServicesPage = () => {
                     <span className="current-price">{service.price} MAD</span>
                     {service.old_price && <span className="old-price">{service.old_price} MAD</span>}
                   </div>
+                  <Link to={`/service/${service.id}`} className="listing-card-action">View service</Link>
                 </div>
               );
             })
@@ -108,7 +121,7 @@ const ServicesPage = () => {
         .services-header h1 { font-size: 2rem; margin-bottom: 0.5rem; }
         .services-header p { color: #6b7280; }
         .services-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem; }
-        .service-card { background: white; border-radius: 1rem; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); transition: transform 0.3s; }
+        .service-card { display: flex; flex-direction: column; background: white; border-radius: 1rem; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); transition: transform 0.3s; }
         .service-card:hover { transform: translateY(-4px); box-shadow: 0 12px 24px rgba(0,0,0,0.1); }
         .service-image { height: 180px; background: #f3f4f6; cursor: pointer; position: relative; overflow: hidden; }
         .service-image img { width: 100%; height: 100%; object-fit: cover; }

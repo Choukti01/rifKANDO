@@ -267,6 +267,27 @@ a {
   .grid-cols-2, .grid-cols-3, .grid-cols-4, .grid-cols-5 { grid-template-columns: 1fr; }
 }
 
+.listing-card-action {
+  display: inline-flex;
+  min-height: 44px;
+  margin: auto var(--space-4) var(--space-4);
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-black);
+  border-radius: var(--radius-full);
+  color: var(--color-black);
+  font-size: var(--font-sm);
+  font-weight: 700;
+  text-decoration: none;
+  transition: background-color var(--transition-base), color var(--transition-base), transform var(--transition-base);
+}
+
+.listing-card-action:hover {
+  background: var(--color-black);
+  color: var(--color-white);
+  transform: translateY(-1px);
+}
+
 @media (max-width: 640px) {
   .app-main {
     padding-top: 64px;

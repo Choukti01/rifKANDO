@@ -139,7 +139,7 @@ const Overview = () => {
       {/* Welcome Section */}
       <div className="welcome-section">
         <h2>Welcome back, {user?.name?.split(' ')[0] || 'Seller'}!</h2>
-        <p>{totalListings ? "Here's what's happening with your store today." : 'Almost there — your shop is ready for its first listing.'}</p>
+        <p>{totalListings ? "Here's what's happening with your store today." : 'Almost there. Your shop is ready for its first listing.'}</p>
       </div>
 
       {completedSteps < checklist.length && (

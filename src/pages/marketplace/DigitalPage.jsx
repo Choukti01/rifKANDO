@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import MediaGallery from '../../components/MediaGallery';
 import { getImageUrl } from '../../utils/imageUtils';
 import MarketplaceImage from '../../components/common/MarketplaceImage';
+import VerifiedBadge from '../../components/common/VerifiedBadge';
 
 const DigitalPage = () => {
   const [products, setProducts] = useState([]);
@@ -59,6 +60,16 @@ const DigitalPage = () => {
                       e.preventDefault();
                       if (product.media?.length) setGalleryProduct(product);
                     }}
+                    style={{ cursor: product.media?.length ? 'pointer' : 'default' }}
+                    role={product.media?.length ? 'button' : undefined}
+                    tabIndex={product.media?.length ? 0 : undefined}
+                    aria-label={product.media?.length ? `View media for ${product.title}` : undefined}
+                    onKeyDown={(event) => {
+                      if (product.media?.length && (event.key === 'Enter' || event.key === ' ')) {
+                        event.preventDefault();
+                        setGalleryProduct(product);
+                      }
+                    }}
                   >
                     {primaryMedia ? (
                       <>
@@ -79,6 +90,7 @@ const DigitalPage = () => {
                     by <Link to={`/profile/${product.seller_id}`} className="seller-link">
                       {product.seller_name || 'Unknown Seller'}
                     </Link>
+                    {product.seller_verified === 1 && <VerifiedBadge size="small" />}
                   </p>
                   <div className="digital-meta">
                     <span>⭐ {product.rating || 0}</span>
@@ -88,6 +100,7 @@ const DigitalPage = () => {
                     <span className="current-price">{product.price} MAD</span>
                     {product.old_price && <span className="old-price">{product.old_price} MAD</span>}
                   </div>
+                  <Link to={`/digital/${product.id}`} className="listing-card-action">View download</Link>
                 </div>
               );
             })
@@ -108,7 +121,7 @@ const DigitalPage = () => {
         .digital-header h1 { font-size: 2rem; margin-bottom: 0.5rem; }
         .digital-header p { color: #6b7280; }
         .digital-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem; }
-        .digital-card { background: white; border-radius: 1rem; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); transition: transform 0.3s; }
+        .digital-card { display: flex; flex-direction: column; background: white; border-radius: 1rem; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); transition: transform 0.3s; }
         .digital-card:hover { transform: translateY(-4px); box-shadow: 0 12px 24px rgba(0,0,0,0.1); }
         .digital-image { height: 180px; background: #f3f4f6; cursor: pointer; position: relative; overflow: hidden; }
         .digital-image img { width: 100%; height: 100%; object-fit: cover; }
