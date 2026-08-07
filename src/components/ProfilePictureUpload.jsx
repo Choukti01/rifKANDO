@@ -68,7 +68,7 @@ const ProfilePictureUpload = ({ currentImage, userName, onUploadSuccess }) => {
         toast.success('Profile picture removed');
         onUploadSuccess('');
       }
-    } catch (error) {
+    } catch {
       toast.error('Failed to remove profile picture');
     } finally {
       setUploading(false);

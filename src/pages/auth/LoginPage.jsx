@@ -1,38 +1,41 @@
 import React, { useCallback, useState } from 'react';
 import { GoogleLogin } from '@react-oauth/google';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 
 const LoginPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login, googleLogin, verifyGoogleRegistration, resendGoogleVerification } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [pendingCredential, setPendingCredential] = useState(null);
   const [verificationCode, setVerificationCode] = useState('');
+  const requestedPath = new URLSearchParams(location.search).get('next');
+  const redirectAfterAuth = requestedPath?.startsWith('/') && !requestedPath.startsWith('//') ? requestedPath : '/';
 
   const handleLogin = async (event) => {
     event.preventDefault();
     setSubmitting(true);
     const result = await login(email, password);
     setSubmitting(false);
-    if (result.success) navigate('/');
+    if (result.success) navigate(redirectAfterAuth, { replace: true });
   };
 
   const handleGoogleSuccess = useCallback(async (credentialResponse) => {
     const result = await googleLogin(credentialResponse.credential);
-    if (result.success) navigate('/');
+    if (result.success) navigate(redirectAfterAuth, { replace: true });
     if (result.verificationRequired) setPendingCredential(credentialResponse.credential);
-  }, [googleLogin, navigate]);
+  }, [googleLogin, navigate, redirectAfterAuth]);
 
   const handleGoogleVerification = async (event) => {
     event.preventDefault();
     setSubmitting(true);
     const result = await verifyGoogleRegistration(pendingCredential, verificationCode);
     setSubmitting(false);
-    if (result.success) navigate('/');
+    if (result.success) navigate(redirectAfterAuth, { replace: true });
   };
 
   return (
@@ -52,7 +55,7 @@ const LoginPage = () => {
         </form>
         <div className="divider">or</div>
         <div className="google"><GoogleLogin onError={() => toast.error('Google sign-in was cancelled or failed')} onSuccess={handleGoogleSuccess} theme="outline" width="320" /></div>
-        <p className="switch">New here? <Link to="/register">Create an account</Link></p>
+        <p className="switch">New here? <Link to={`/register${location.search}`}>Create an account</Link></p>
       </>}
     </section><style>{styles}</style></main>
   );

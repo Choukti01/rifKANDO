@@ -48,6 +48,15 @@ const addressFor = (email) => ({
   postalCode: '10000',
 });
 
+const signCmiCallback = (callback) => {
+  callback.HASHPARAMS = 'oid:amount:clientid:currency:ProcReturnCode:';
+  callback.HASHPARAMSVAL = `${callback.oid}${callback.amount}${callback.clientid}${callback.currency}${callback.ProcReturnCode}`;
+  callback.HASH = crypto.createHash('sha512')
+    .update(`${callback.HASHPARAMSVAL}test-store-key`, 'utf8')
+    .digest('base64');
+  return callback;
+};
+
 const run = async () => {
   await db.ready;
 
@@ -117,18 +126,23 @@ const run = async () => {
     "INSERT INTO payment_transactions (order_id, cmi_oid, amount, amount_minor, status) VALUES (?, ?, ?, ?, 'pending')",
     [cmiOrder.order.id, oid, 250, 25000]
   ));
-  const callback = {
+  const callback = signCmiCallback({
     oid,
     amount: '250.00',
     clientid: 'test-client-id',
     currency: '504',
     ProcReturnCode: '00',
-  };
-  callback.HASHPARAMS = 'oid:amount:clientid:currency:ProcReturnCode:';
-  callback.HASHPARAMSVAL = `${callback.oid}${callback.amount}${callback.clientid}${callback.currency}${callback.ProcReturnCode}`;
-  callback.HASH = crypto.createHash('sha512')
-    .update(`${callback.HASHPARAMSVAL}test-store-key`, 'utf8')
-    .digest('base64');
+  });
+  await assert.rejects(
+    CmiPaymentService.processSuccessPayment(oid, { ...callback, HASH: 'forged-signature' }),
+    /Invalid CMI payment callback/,
+    'a forged CMI callback must never change payment state'
+  );
+  await assert.rejects(
+    CmiPaymentService.processSuccessPayment(oid, signCmiCallback({ ...callback, amount: '0.01' })),
+    /amount does not match/,
+    'a validly signed callback with the wrong amount must be rejected'
+  );
   const firstCallback = await CmiPaymentService.processSuccessPayment(oid, callback);
   const secondCallback = await CmiPaymentService.processSuccessPayment(oid, callback);
   assert.equal(firstCallback.alreadyProcessed, false);
@@ -141,6 +155,51 @@ const run = async () => {
   assert.equal(persistedCmiOrder.status, 'processing');
   assert.equal(cmiSellerWallet.escrow_balance, 180);
   assert.equal(cmiSellerWallet.escrow_balance_minor, 18000);
+
+  const refundFlow = await createUsersAndProduct('Refund product', 200);
+  await WalletService.addFunds(
+    refundFlow.buyerId, 1000, 'test_seed', 1, 'Refund test funding', 'test-seed-credit:buyer:1002'
+  );
+  const refundableOrder = await WalletService.createMarketplaceOrder({
+    buyerId: refundFlow.buyerId,
+    orderNumber: 'RIF-TEST-REFUND-1001',
+    paymentMethod: 'wallet',
+    shippingAddress: addressFor('refund-product@buyer.test'),
+    items: [{ id: refundFlow.productId, quantity: 1 }],
+    expectedTotal: 250,
+    idempotencyKey: 'test-refund-checkout-request:1001',
+  });
+  const refundRequest = await WalletService.requestRefund({
+    orderId: refundableOrder.order.id,
+    requesterId: refundFlow.buyerId,
+    reason: 'Product arrived damaged.',
+  });
+  const duplicateRefundRequest = await WalletService.requestRefund({
+    orderId: refundableOrder.order.id,
+    requesterId: refundFlow.buyerId,
+    reason: 'Product arrived damaged.',
+  });
+  assert.equal(duplicateRefundRequest.alreadyProcessed, true, 'refund requests must be idempotent');
+  assert.equal(duplicateRefundRequest.requestId, refundRequest.requestId);
+  const firstRefund = await WalletService.completeRefund({
+    refundId: refundRequest.requestId,
+    adminId: refundFlow.sellerId,
+    notes: 'Approved after review.',
+  });
+  const duplicateRefund = await WalletService.completeRefund({
+    refundId: refundRequest.requestId,
+    adminId: refundFlow.sellerId,
+  });
+  assert.equal(firstRefund.alreadyProcessed, false);
+  assert.equal(duplicateRefund.alreadyProcessed, true, 'refund completion must be idempotent');
+  const refundedOrder = await WalletService.get(
+    'SELECT payment_status, status FROM orders WHERE id = ?', [refundableOrder.order.id]
+  );
+  const refundedBuyerWallet = await WalletService.getWallet(refundFlow.buyerId);
+  const refundedSellerWallet = await WalletService.getWallet(refundFlow.sellerId);
+  assert.deepEqual(refundedOrder, { payment_status: 'refunded', status: 'cancelled' });
+  assert.equal(refundedBuyerWallet.available_balance_minor, 100000, 'refund must restore the buyer balance exactly once');
+  assert.equal(refundedSellerWallet.escrow_balance_minor, 0, 'refund must reverse unreleased seller escrow');
 
   const monetaryRows = await WalletService.all(`
     SELECT total_minor FROM orders

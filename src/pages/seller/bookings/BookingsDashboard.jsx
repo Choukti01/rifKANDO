@@ -54,7 +54,7 @@ const BookingsDashboard = () => {
         await api.patch(`/${type}/${id}/status`, { status: 'ended' });
         toast.success('Service marked as ended');
         fetchBookings();
-      } catch (error) {
+      } catch {
         toast.error('Failed to update status');
       }
     }
@@ -66,7 +66,7 @@ const BookingsDashboard = () => {
         await deleteBooking(bookingId);
         toast.success('Booking deleted successfully');
         fetchBookings();
-      } catch (error) {
+      } catch {
         toast.error('Failed to delete booking');
       }
     }

@@ -16,8 +16,9 @@ module.exports = {
 
 
 
-  // Test mode (set to false for production)
-  testMode: process.env.NODE_ENV !== 'production',
+  // Staging uses the gateway's test mode even though NODE_ENV remains
+  // production to retain Secure cookies and production security headers.
+  testMode: (process.env.APP_ENV || process.env.NODE_ENV || 'development').trim().toLowerCase() !== 'production',
   
   // Currency code for MAD (Moroccan Dirham)
   currency: '504', // 504 = MAD [citation:8]

@@ -105,20 +105,20 @@ const Navbar = () => {
 
             {/* Icons */}
             <div className="nav-icons">
-              <Link to="/favorites" className="nav-icon"><HeartIcon className="icon" /></Link>
-              <Link to="/cart" className="nav-icon"><ShoppingBagIcon className="icon" /></Link>
+              <Link to="/favorites" className="nav-icon nav-icon-secondary" aria-label={t('nav.favorites')} title={t('nav.favorites')}><HeartIcon className="icon" /></Link>
+              <Link to="/cart" className="nav-icon" aria-label="Cart" title="Cart"><ShoppingBagIcon className="icon" /></Link>
               {/* Language Switcher (now only EN/AR) */}
-              <LanguageSwitcher />
+              <div className="desktop-language-switcher"><LanguageSwitcher /></div>
 
               {/* Profile Dropdown */}
-              <div className="profile-dropdown" ref={dropdownRef}>
-                <button onClick={() => setIsProfileOpen(!isProfileOpen)} className="nav-icon profile-btn">
+              <div className="profile-dropdown desktop-profile-dropdown" ref={dropdownRef}>
+                <button onClick={() => setIsProfileOpen(!isProfileOpen)} className="nav-icon profile-btn" aria-label="Account menu" aria-expanded={isProfileOpen} aria-haspopup="menu">
                   <UserIcon className="icon" />
                   {isAuthenticated && user && <span className="user-name">{user.name?.split(' ')[0]}</span>}
                   <ChevronDownIcon className="chevron-icon" />
                 </button>
                 {isProfileOpen && (
-                  <div className="dropdown-menu">
+                  <div className="dropdown-menu" role="menu">
                     {isAuthenticated ? (
                       <>
                         <div className="dropdown-header">
@@ -140,7 +140,7 @@ const Navbar = () => {
                 )}
               </div>
 
-              <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="mobile-menu-btn">
+              <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="mobile-menu-btn" aria-label={isMenuOpen ? 'Close navigation menu' : 'Open navigation menu'} aria-controls="mobile-navigation" aria-expanded={isMenuOpen}>
                 {isMenuOpen ? <XMarkIcon className="icon" /> : <Bars3Icon className="icon" />}
               </button>
             </div>
@@ -150,7 +150,7 @@ const Navbar = () => {
 
       {/* Mobile Menu */}
       {isMenuOpen && (
-        <div className="mobile-menu">
+        <div id="mobile-navigation" className="mobile-menu">
           <div className="container">
             <form onSubmit={handleSearch} className="mobile-search">
               <input
@@ -167,6 +167,7 @@ const Navbar = () => {
               </Link>
             ))}
             <div className="mobile-menu-divider"></div>
+            <Link to="/favorites" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>{t('nav.favorites')}</Link>
             {/* Language Switcher in mobile menu */}
             <div className="mobile-lang-section">
               <LanguageSwitcher />
@@ -175,12 +176,11 @@ const Navbar = () => {
               <>
                 <Link to="/profile" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>{t('common.profile')}</Link>
                 <Link to="/orders" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>My Orders</Link>
-                <Link to="/favorites" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>{t('nav.favorites')}</Link>
                 <button onClick={handleLogout} className="mobile-nav-link logout-mobile">{t('common.logout')}</button>
               </>
             ) : (
               <>
-                <Link to="/login" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>{t('common.login')}</Link>
+                <Link to="/login" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>{t('common.signIn', 'Sign in')}</Link>
               </>
             )}
           </div>
@@ -531,6 +531,11 @@ const Navbar = () => {
           display: block;
         }
 
+        .desktop-language-switcher,
+        .desktop-profile-dropdown {
+          display: block;
+        }
+
         .mobile-menu {
           position: fixed;
           top: 4rem;
@@ -730,8 +735,47 @@ const Navbar = () => {
           .navbar .mobile-menu-btn {
             color: #374151;
           }
+          .navbar-content {
+            gap: 0.5rem;
+          }
+          .brand-link {
+            gap: 0.45rem;
+            min-width: 0;
+          }
+          .logo-icon {
+            width: 34px;
+            height: 34px;
+          }
+          .logo-img {
+            width: 220%;
+            height: 220%;
+          }
+          .navbar .brand-name {
+            font-size: 1.2rem;
+          }
+          .nav-icons {
+            gap: 0.2rem;
+          }
+          .nav-icon,
+          .mobile-menu-btn {
+            display: inline-flex;
+            width: 2.75rem;
+            min-width: 2.75rem;
+            height: 2.75rem;
+            align-items: center;
+            justify-content: center;
+            border-radius: 0.75rem;
+          }
+          .nav-icon-secondary,
+          .desktop-language-switcher,
+          .desktop-profile-dropdown {
+            display: none;
+          }
           .mobile-menu {
-            top: 60px;
+            top: 62px;
+            max-height: calc(100dvh - 62px);
+            overflow-y: auto;
+            overscroll-behavior: contain;
             background: rgba(255, 255, 255, 0.46);
             backdrop-filter: blur(22px) saturate(155%);
             -webkit-backdrop-filter: blur(22px) saturate(155%);
@@ -742,6 +786,10 @@ const Navbar = () => {
           .mobile-search-input {
             background: rgba(255, 255, 255, 0.42);
             border-color: rgba(17, 24, 39, 0.1);
+          }
+          .mobile-nav-link {
+            min-height: 2.75rem;
+            padding: 0.8rem 0;
           }
         }
       `}</style>

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
-import { useAuth } from '../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import VerifiedBadge from '../../components/common/VerifiedBadge';
 import EmptyState from '../../components/common/EmptyState';
@@ -10,7 +9,6 @@ import LoadingSkeleton from '../../components/common/LoadingSkeleton';
 const MessagesInbox = () => {
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
 
   useEffect(() => {
     fetchConversations();

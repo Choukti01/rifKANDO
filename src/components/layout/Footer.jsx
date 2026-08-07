@@ -79,11 +79,6 @@ const Footer = () => {
                 <span>{t('footer.book')}</span>
               </div>
               <div className="footer-social">
-                <a href="#" target="_blank" rel="noopener noreferrer" className="footer-social-link" aria-label="WhatsApp">
-                  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                    <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.567 1.085 3.649l-1.084 3.853 3.934-1.078c1.032.574 2.176.877 3.344.877 3.18 0 5.767-2.586 5.768-5.766.001-3.18-2.585-5.767-5.765-5.768h-.004z" />
-                  </svg>
-                </a>
                 <a href="https://www.facebook.com/share/1JKtSWNcUQ/?mibextid=wwXIfr" target="_blank" rel="noopener noreferrer" className="footer-social-link" aria-label="Facebook">
                   <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                     <path d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.879v-6.99h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.99C18.343 21.128 22 16.991 22 12z" />

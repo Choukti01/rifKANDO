@@ -26,6 +26,8 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm test
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
       - run: npm run build
       - run: npm audit --omit=dev --audit-level=high
 
@@ -44,10 +46,14 @@ jobs:
           cache-dependency-path: rifKANDI-backend/package-lock.json
       - run: npm ci
       - run: npm run check
+      - run: npm run test:environment
+      - run: npm run test:feature-flags
+      - run: npm run test:performance-schema
       - run: npm run test:authorization
       - run: npm run test:sessions
       - run: npm run test:validation
       - run: npm run test:financial
+      - run: npm run test:workflows
       - run: npm run test:money-migration
       - run: npm run test:audit
       - run: npm run test:storage

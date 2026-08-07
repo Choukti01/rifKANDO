@@ -9,6 +9,6 @@ export default defineConfig({
     host: 'localhost',
     port: 5173,
     strictPort: true,
-    open: true
+    open: !process.env.CI
   }
 });

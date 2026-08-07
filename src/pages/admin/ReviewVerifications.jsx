@@ -14,7 +14,7 @@ const ReviewVerifications = () => {
     try {
       const res = await api.get('/admin/pending-verifications');
       setVerifications(res.data.verifications || []);
-    } catch (error) {
+    } catch {
       toast.error('Failed to load verifications');
     } finally {
       setLoading(false);
@@ -26,7 +26,7 @@ const ReviewVerifications = () => {
       await api.patch(`/admin/verify-document/${docId}`, { action });
       toast.success(`Document ${action}d`);
       fetchVerifications();
-    } catch (error) {
+    } catch {
       toast.error('Action failed');
     }
   };
@@ -37,7 +37,7 @@ const ReviewVerifications = () => {
       const documentUrl = URL.createObjectURL(response.data);
       window.open(documentUrl, '_blank', 'noopener,noreferrer');
       window.setTimeout(() => URL.revokeObjectURL(documentUrl), 60_000);
-    } catch (error) {
+    } catch {
       toast.error('Failed to retrieve the private document');
     }
   };

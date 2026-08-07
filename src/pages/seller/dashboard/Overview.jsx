@@ -47,12 +47,6 @@ const Overview = () => {
       const bookings = bookingsRes.data.bookings || [];
       const orders = ordersRes.data.orders || [];
 
-      // Calculate total revenue from orders where user is seller
-      const sellerOrders = orders.filter(order => {
-        // Check if order contains user's products
-        return true; // Simplified for now
-      });
-      
       const totalRevenue = orders.reduce((sum, order) => sum + (order.total || 0), 0);
       const totalViews = [...products, ...courses, ...services, ...digital, ...bookings].reduce((sum, item) => sum + (item.views || 0), 0);
 

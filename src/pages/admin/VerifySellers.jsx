@@ -14,7 +14,7 @@ const VerifySellers = () => {
     try {
       const res = await api.get('/admin/unverified-sellers');
       setSellers(res.data.sellers || []);
-    } catch (error) {
+    } catch {
       toast.error('Failed to load sellers');
     } finally {
       setLoading(false);
@@ -26,7 +26,7 @@ const VerifySellers = () => {
       await api.put(`/admin/verify-seller/${userId}`, { verified });
       toast.success(`Seller ${verified ? 'verified' : 'unverified'}`);
       fetchSellers();
-    } catch (error) {
+    } catch {
       toast.error('Update failed');
     }
   };

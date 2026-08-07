@@ -47,6 +47,11 @@ button, input, select, textarea {
   padding: 0 var(--container-padding);
 }
 
+.app-main {
+  flex-grow: 1;
+  padding-top: 80px;
+}
+
 /* Typography */
 h1, h2, h3, h4, h5, h6 {
   font-weight: 700;
@@ -263,6 +268,10 @@ a {
 }
 
 @media (max-width: 640px) {
+  .app-main {
+    padding-top: 64px;
+  }
+
   .btn {
     min-height: 44px;
   }
@@ -271,6 +280,43 @@ a {
   select,
   textarea {
     font-size: 16px;
+  }
+
+  .booking-details-grid,
+  .cart-grid,
+  .checkout-grid,
+  .course-grid,
+  .details-grid,
+  .digital-grid,
+  .favorites-grid,
+  .form-row,
+  .packages-grid,
+  .profile-grid,
+  .purchases-grid,
+  .results-grid,
+  .seller-type-grid,
+  .service-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .orders-table-container,
+  .items-table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .admin-table,
+  .items-table,
+  .orders-table {
+    min-width: 40rem;
+  }
+
+  .cart-btn,
+  .remove-btn,
+  .page-btn,
+  .quantity-selector button {
+    min-width: 44px;
+    min-height: 44px;
   }
 }
 

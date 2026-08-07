@@ -4,6 +4,7 @@ import { getDigitalProducts } from '../../services/api';
 import toast from 'react-hot-toast';
 import MediaGallery from '../../components/MediaGallery';
 import { getImageUrl } from '../../utils/imageUtils';
+import MarketplaceImage from '../../components/common/MarketplaceImage';
 
 const DigitalPage = () => {
   const [products, setProducts] = useState([]);
@@ -62,10 +63,7 @@ const DigitalPage = () => {
                     {primaryMedia ? (
                       <>
                         {primaryMedia.media_type === 'video' && <div className="video-badge">🎬 Video</div>}
-                        <img 
-                          src={getImageUrl(primaryMedia.media_url)} 
-                          alt={product.title}
-                            />
+                        <MarketplaceImage source={primaryMedia.media_url} alt={product.title} />
                         {product.media.length > 1 && (
                           <div className="media-count">{product.media.length} items</div>
                         )}

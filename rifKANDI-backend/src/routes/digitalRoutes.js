@@ -12,6 +12,7 @@ const createDigitalRoutes = ({
   validateIdParams,
   validateDigitalCreate,
   validateDigitalUpdate,
+  requireFeature,
   storageService,
   path,
   getDatabaseRow,
@@ -283,7 +284,7 @@ const downloadDigitalProduct = async (req, res) => {
   }
 };
 
-router.get('/digital/:id/download', protect, downloadDigitalProduct);
+router.get('/digital/:id/download', protect, requireFeature('digital_downloads'), downloadDigitalProduct);
 
   return router;
 };

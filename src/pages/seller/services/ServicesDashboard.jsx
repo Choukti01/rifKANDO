@@ -55,7 +55,7 @@ const ServicesDashboard = () => {
         await api.patch(`/${type}/${id}/status`, { status: 'ended' });
         toast.success('Service marked as ended');
         fetchServices();
-      } catch (error) {
+      } catch {
         toast.error('Failed to update status');
       }
     }
@@ -67,7 +67,7 @@ const ServicesDashboard = () => {
         await deleteService(serviceId);
         toast.success('Service deleted successfully');
         fetchServices();
-      } catch (error) {
+      } catch {
         toast.error('Failed to delete service');
       }
     }

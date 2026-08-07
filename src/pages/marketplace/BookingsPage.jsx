@@ -4,6 +4,8 @@ import { StarIcon, ClockIcon, MapPinIcon } from '@heroicons/react/24/outline';
 import { getBookings } from '../../services/api';
 import toast from 'react-hot-toast';
 import MediaGallery from '../../components/MediaGallery';
+import MarketplaceImage from '../../components/common/MarketplaceImage';
+import { getImageUrl } from '../../utils/imageUtils';
 
 
 
@@ -93,7 +95,7 @@ const BookingsPage = () => {
                     {primaryMedia ? (
                       <>
                         {primaryMedia.media_type === 'video' && <div className="video-badge">🎬 Video</div>}
-                        <img src={`http://localhost:5000${primaryMedia.media_url}`} alt={booking.title} />
+                        <MarketplaceImage source={primaryMedia.media_url} alt={booking.title} />
                         {booking.media.length > 1 && <div className="media-count">{booking.media.length} items</div>}
                       </>
                     ) : (
@@ -135,7 +137,7 @@ const BookingsPage = () => {
 
       {galleryBooking && (
         <MediaGallery
-          media={galleryBooking.media.map(m => ({ url: `http://localhost:5000${m.media_url}`, type: m.media_type }))}
+          media={galleryBooking.media.map(m => ({ url: getImageUrl(m.media_url), type: m.media_type }))}
           onClose={() => setGalleryBooking(null)}
         />
       )}

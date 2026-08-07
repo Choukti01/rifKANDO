@@ -14,7 +14,7 @@ const MyPurchasesPage = () => {
     try {
       const response = await api.get('/my-purchases');
       setPurchases(response.data.purchases || []);
-    } catch (error) {
+    } catch {
       toast.error('Failed to load purchases');
     } finally {
       setLoading(false);

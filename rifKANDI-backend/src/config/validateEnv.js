@@ -1,3 +1,5 @@
+const { validateFeatureFlags } = require('../services/featureFlagService');
+
 const REQUIRED_PRODUCTION_ENV = [
   'JWT_SECRET',
   'SESSION_SECRET',
@@ -6,6 +8,19 @@ const REQUIRED_PRODUCTION_ENV = [
   'GOOGLE_CLIENT_ID',
   'DATABASE_PATH',
 ];
+
+const APPLICATION_ENVIRONMENTS = new Set(['development', 'test', 'staging', 'production']);
+
+const getApplicationEnvironment = () => {
+  const explicitEnvironment = String(process.env.APP_ENV || '').trim().toLowerCase();
+  const environment = explicitEnvironment || String(process.env.NODE_ENV || 'development').trim().toLowerCase();
+  if (!APPLICATION_ENVIRONMENTS.has(environment)) {
+    throw new Error('APP_ENV must be one of development, test, staging, or production.');
+  }
+  return environment;
+};
+
+const isDeploymentEnvironment = () => ['staging', 'production'].includes(getApplicationEnvironment());
 
 const normalizeOrigin = (value, variableName) => {
   try {
@@ -28,6 +43,28 @@ const normalizeHttpsUrl = (value, variableName) => {
     return url.toString().replace(/\/$/, '');
   } catch (error) {
     throw new Error(`${variableName} must be a valid HTTPS URL without credentials, query, or fragment.`);
+  }
+};
+
+const normalizeSecureOrigin = (value, variableName) => {
+  const origin = normalizeOrigin(value, variableName);
+  if (!origin.startsWith('https://')) {
+    throw new Error(`${variableName} must use HTTPS in staging and production.`);
+  }
+  return origin;
+};
+
+const assertStrongDistinctSecrets = () => {
+  const secrets = ['JWT_SECRET', 'SESSION_SECRET', 'AUDIT_LOG_SECRET'].map((name) => process.env[name]);
+  for (const [index, secret] of secrets.entries()) {
+    const name = ['JWT_SECRET', 'SESSION_SECRET', 'AUDIT_LOG_SECRET'][index];
+    if (secret.length < 32) throw new Error(`${name} must be at least 32 characters in production.`);
+    if (/(replace-with|change[-_ ]?me|your[-_ ]|example|default[-_ ]?secret)/i.test(secret)) {
+      throw new Error(`${name} must not use a placeholder value in staging or production.`);
+    }
+  }
+  if (new Set(secrets).size !== secrets.length) {
+    throw new Error('JWT_SECRET, SESSION_SECRET, and AUDIT_LOG_SECRET must be different values.');
   }
 };
 
@@ -82,7 +119,8 @@ const validateObjectStorage = () => {
 };
 
 const getAllowedOrigins = () => {
-  const defaults = process.env.NODE_ENV === 'production'
+  const deployed = isDeploymentEnvironment();
+  const defaults = deployed
     ? [process.env.CLIENT_URL]
     : ['http://localhost:5173', 'http://127.0.0.1:5173', process.env.CLIENT_URL];
   const configured = (process.env.ALLOWED_ORIGINS || '')
@@ -90,27 +128,29 @@ const getAllowedOrigins = () => {
     .map((value) => value.trim())
     .filter(Boolean);
   const origins = [...configured, ...defaults.filter(Boolean)]
-    .map((origin) => normalizeOrigin(origin, 'ALLOWED_ORIGINS'));
+    .map((origin) => (deployed
+      ? normalizeSecureOrigin(origin, 'ALLOWED_ORIGINS')
+      : normalizeOrigin(origin, 'ALLOWED_ORIGINS')));
   return [...new Set(origins)];
 };
 
 const validateEnvironment = () => {
-  if (process.env.NODE_ENV !== 'production') return;
+  validateFeatureFlags();
+  const applicationEnvironment = getApplicationEnvironment();
+  if (process.env.NODE_ENV === 'production' && !isDeploymentEnvironment()) {
+    throw new Error('APP_ENV must be staging or production when NODE_ENV is production.');
+  }
+  if (!isDeploymentEnvironment()) return;
+  if (process.env.NODE_ENV !== 'production') {
+    throw new Error(`APP_ENV=${applicationEnvironment} requires NODE_ENV=production for deployment safety.`);
+  }
 
   const missing = REQUIRED_PRODUCTION_ENV.filter((name) => !process.env[name]);
   if (missing.length > 0) {
     throw new Error(`Missing required production environment variables: ${missing.join(', ')}`);
   }
-  if (process.env.JWT_SECRET.length < 32) {
-    throw new Error('JWT_SECRET must be at least 32 characters in production.');
-  }
-  if (process.env.SESSION_SECRET.length < 32) {
-    throw new Error('SESSION_SECRET must be at least 32 characters in production.');
-  }
-  if (process.env.AUDIT_LOG_SECRET.length < 32) {
-    throw new Error('AUDIT_LOG_SECRET must be at least 32 characters in production.');
-  }
-  normalizeOrigin(process.env.CLIENT_URL, 'CLIENT_URL');
+  assertStrongDistinctSecrets();
+  normalizeSecureOrigin(process.env.CLIENT_URL, 'CLIENT_URL');
   getAllowedOrigins();
 
   if (!process.env.DATABASE_PATH.startsWith('/var/data/')) {
@@ -122,7 +162,13 @@ const validateEnvironment = () => {
   if (configuredCmiVariables.length > 0 && configuredCmiVariables.length !== cmiVariables.length) {
     throw new Error('CMI_STORE_KEY, CMI_CLIENT_ID, and BACKEND_URL must be configured together.');
   }
-  if (process.env.BACKEND_URL) normalizeOrigin(process.env.BACKEND_URL, 'BACKEND_URL');
+  if (process.env.BACKEND_URL) normalizeSecureOrigin(process.env.BACKEND_URL, 'BACKEND_URL');
 };
 
-module.exports = { getAllowedOrigins, validateEnvironment, validateObjectStorage };
+module.exports = {
+  getAllowedOrigins,
+  getApplicationEnvironment,
+  isDeploymentEnvironment,
+  validateEnvironment,
+  validateObjectStorage,
+};

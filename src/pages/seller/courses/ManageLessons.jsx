@@ -45,7 +45,7 @@ const ManageLessons = () => {
       setShowForm(false);
       setFormData({ title: '', description: '', duration: '', order: '', is_preview: false });
       fetchCourseAndLessons();
-    } catch (error) {
+    } catch {
       toast.error('Failed to add lesson');
     }
   };
@@ -56,7 +56,7 @@ const ManageLessons = () => {
         await api.delete(`/courses/${courseId}/lessons/${lessonId}`);
         toast.success('Lesson deleted');
         fetchCourseAndLessons();
-      } catch (error) {
+      } catch {
         toast.error('Failed to delete lesson');
       }
     }

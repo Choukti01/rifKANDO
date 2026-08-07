@@ -109,3 +109,25 @@ GET /api/admin/finance/reconciliation
 It detects internal ledger, escrow, withdrawal, and CMI-record mismatches.
 Compare its CMI records with the merchant portal or a gateway statement; the
 application cannot independently verify the gateway's bank settlement.
+
+## Feature-flag rollback
+
+The backend supports three operational switches through the Render
+`FEATURE_FLAGS` environment variable:
+
+```text
+checkout=true,cmi_payments=true,digital_downloads=true
+```
+
+Set a switch to `false` and restart the service to stop only that new operation:
+
+- `checkout=false` stops new marketplace orders.
+- `cmi_payments=false` stops new CMI payment initiation. Signed CMI callbacks
+  remain active so payments already in flight can be reconciled safely.
+- `digital_downloads=false` temporarily stops protected digital file delivery.
+
+Use all three values explicitly when changing the variable. The service rejects
+unknown, duplicated, or malformed values at startup. After a restart, verify
+`/ready` and, as a super administrator, `GET /api/admin/feature-flags`. That
+read is recorded in the tamper-evident audit log. Restore the prior value only
+after the incident is understood and a regression test covers its cause.

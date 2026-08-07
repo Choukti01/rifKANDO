@@ -5,6 +5,7 @@ import { getCourse, enrollCourse } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import MediaGallery from '../../components/MediaGallery';
+import MarketplaceImage from '../../components/common/MarketplaceImage';
 import { getImageUrl } from '../../utils/imageUtils';
 
 const CourseDetailsPage = () => {
@@ -143,10 +144,10 @@ const CourseDetailsPage = () => {
       style={{ width: '100%', height: '100%', objectFit: 'cover' }}
     />
   ) : (
-    <img 
-      src={getImageUrl(primaryMedia.media_url)} 
-      alt={course.title} 
-      style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+    <MarketplaceImage
+      source={primaryMedia.media_url}
+      alt={course.title}
+      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
     />
   )
 ) : (

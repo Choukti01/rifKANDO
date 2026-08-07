@@ -57,7 +57,7 @@ const DigitalDashboard = () => {
         await api.patch(`/${type}/${id}/status`, { status: 'ended' });
         toast.success('Product marked as ended');
         fetchProducts();
-      } catch (error) {
+      } catch {
         toast.error('Failed to update status');
       }
     }
@@ -69,7 +69,7 @@ const DigitalDashboard = () => {
         await deleteDigitalProduct(productId);
         toast.success('Product deleted successfully');
         fetchProducts();
-      } catch (error) {
+      } catch {
         toast.error('Failed to delete product');
       }
     }

@@ -987,6 +987,33 @@ db.serialize(() => {
   db.run('CREATE INDEX IF NOT EXISTS idx_orders_total_minor ON orders(total_minor)');
   db.run('CREATE INDEX IF NOT EXISTS idx_payment_transactions_amount_minor ON payment_transactions(amount_minor)');
 
+  // These indexes match the live catalogue, media, purchase, appointment, and
+  // buyer-history queries. They make the current single-node SQLite service
+  // materially faster without changing API responses or business behavior.
+  const queryIndexes = [
+    ['idx_products_catalog_created', 'products(status, created_at DESC)'],
+    ['idx_products_catalog_condition_created', 'products(status, condition, created_at DESC)'],
+    ['idx_courses_catalog_created', 'courses(status, created_at DESC)'],
+    ['idx_services_catalog_created', 'services(status, created_at DESC)'],
+    ['idx_digital_products_catalog_created', 'digital_products(status, created_at DESC)'],
+    ['idx_bookings_catalog_created', 'bookings(status, created_at DESC)'],
+    ['idx_orders_buyer_created', 'orders(user_id, created_at DESC)'],
+    ['idx_digital_purchases_buyer_created', 'digital_purchases(buyer_id, created_at DESC)'],
+    ['idx_digital_purchases_product_buyer', 'digital_purchases(product_id, buyer_id, id DESC)'],
+    ['idx_appointments_client_date', 'appointments(client_id, appointment_date DESC)'],
+    ['idx_appointments_provider_date', 'appointments(provider_id, appointment_date DESC)'],
+    ['idx_product_media_listing', 'product_media(product_id, display_order, id)'],
+    ['idx_course_media_listing', 'course_media(course_id, display_order, id)'],
+    ['idx_service_media_listing', 'service_media(service_id, display_order, id)'],
+    ['idx_digital_media_listing', 'digital_media(digital_id, display_order, id)'],
+    ['idx_booking_media_listing', 'booking_media(booking_id, display_order, id)'],
+  ];
+  for (const [name, definition] of queryIndexes) {
+    db.run(`CREATE INDEX IF NOT EXISTS ${name} ON ${definition}`, (err) => {
+      if (err) console.error(`Error creating ${name}:`, err.message);
+    });
+  }
+
   // ========== NEW: Product Offers table (for Joutiya items) ==========
   db.run(`
     CREATE TABLE IF NOT EXISTS product_offers (

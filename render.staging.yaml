@@ -1,0 +1,53 @@
+# Create this as a separate Render Blueprint/service. It must never share the
+# production disk, database, secrets, frontend origin, or live CMI credentials.
+services:
+  - type: web
+    name: rifkando-backend-staging
+    runtime: node
+    rootDir: rifKANDI-backend
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /ready
+    disk:
+      name: rifkando-staging-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: APP_ENV
+        value: staging
+      - key: NODE_VERSION
+        value: 22.22.3
+      - key: DATABASE_PATH
+        value: /var/data/rifkandi-staging.db
+      - key: DB_BACKUP_DIR
+        value: /var/data/backups
+      - key: DB_BACKUP_RETENTION_DAYS
+        value: 14
+      - key: CLIENT_URL
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: OBJECT_STORAGE_DRIVER
+        value: local
+      - key: UPLOADS_DIR
+        value: /var/data/uploads
+      - key: JWT_SECRET
+        generateValue: true
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: AUDIT_LOG_SECRET
+        generateValue: true
+      - key: ACCESS_TOKEN_TTL_SECONDS
+        value: 900
+      - key: REFRESH_TOKEN_TTL_DAYS
+        value: 30
+      - key: FEATURE_FLAGS
+        value: checkout=true,cmi_payments=true,digital_downloads=true
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false

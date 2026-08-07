@@ -6,6 +6,7 @@ import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import MediaGallery from '../../components/MediaGallery';
+import MarketplaceImage from '../../components/common/MarketplaceImage';
 import { getImageUrl } from '../../utils/imageUtils';
 
 const DigitalDetailsPage = () => {
@@ -18,7 +19,7 @@ const DigitalDetailsPage = () => {
   const [showRequestForm, setShowRequestForm] = useState(false);
   const [requestFormData, setRequestFormData] = useState({ phone: '', email: '' });
   const [submitting, setSubmitting] = useState(false);
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated } = useAuth();
 
   useEffect(() => {
     fetchProduct();
@@ -32,7 +33,7 @@ const DigitalDetailsPage = () => {
       setLoading(true);
       const response = await getDigitalProduct(id);
       setProduct(response.data.product);
-    } catch (error) {
+    } catch {
       toast.error('Failed to load product');
     } finally {
       setLoading(false);
@@ -125,7 +126,7 @@ const DigitalDetailsPage = () => {
                 {primaryMedia ? (
                   primaryMedia.media_type === 'video' ? (
                    <video src={getImageUrl(primaryMedia.media_url)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />                  ) : (
-                    <img src={getImageUrl(primaryMedia.media_url)} alt={product.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />                  )
+                    <MarketplaceImage source={primaryMedia.media_url} alt={product.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />                  )
                 ) : (
                   <span style={{ fontSize: '3rem' }}>{product.image || '💻'}</span>
                 )}

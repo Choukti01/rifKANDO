@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { getOrders, getMyProducts, getMyCourses, getMyServices, getMyDigitalProducts, getMyBookings } from '../../../services/api';
-import { useAuth } from '../../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 
 const Earnings = () => {
-  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [earnings, setEarnings] = useState({
     totalEarnings: 0,
@@ -68,7 +66,6 @@ const Earnings = () => {
       for (const order of orders) {
         // Check if order contains any of seller's items
         let orderBelongsToSeller = false;
-        let orderAmount = 0;
         
         // For now, we'll assume commission is 10% of order total
         // In a real app, you'd calculate based on actual items

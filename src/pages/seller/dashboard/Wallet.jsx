@@ -23,7 +23,7 @@ const Wallet = () => {
       ]);
       setWallet(walletRes.data.wallet);
       setTransactions(transRes.data.transactions || []);
-    } catch (error) {
+    } catch {
       toast.error('Failed to load wallet data');
     } finally {
       setLoading(false);
