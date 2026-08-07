@@ -39,7 +39,7 @@ const MediaUploader = ({ onMediaUploaded, existingMedia = [], maxFiles = 10 }) =
           const updatedList = [...mediaList, newMedia];
           setMediaList(updatedList);
           onMediaUploaded(updatedList);
-          toast.success(`${file.name} uploaded — you're all set`);
+          toast.success(`${file.name} uploaded. You're all set.`);
         }
       } catch (error) {
         console.error('Upload error:', error);

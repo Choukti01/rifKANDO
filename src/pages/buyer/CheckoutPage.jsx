@@ -96,7 +96,7 @@ const CheckoutPage = () => {
         const response = await api.post('/orders', orderData, requestConfig)
         
         if (response.data.success) {
-          toast.success('Order placed — thank you for shopping with rifKANDO!')
+          toast.success('Order placed. Thank you for shopping with rifKANDO!')
           clearCart()
           navigate('/orders')
         }
