@@ -149,10 +149,11 @@ const HomePage = () => {
         <div className="container">
           <div className="hero-content">
             <h1 className="hero-title">
-              {t('home.welcome')} <span className="brand-wordmark brand-wordmark--hero">rif<span>KANDO</span></span>
+              <span className="hero-title-leading">{t('home.headlineLead')}</span>{' '}
+              <span className="hero-title-accent">{t('home.headlineAccent')}</span>
             </h1>
             <p className="hero-description">
-              {t('home.description')}
+              {t('home.valueStatement')}
             </p>
             <div className="hero-buttons">
               <Link to="/products" className="btn btn-primary btn-large">{t('home.startShopping')}</Link>
@@ -299,7 +300,11 @@ const HomePage = () => {
         .brand-wordmark span { color: var(--color-primary); }
         .brand-wordmark--hero { display: inline-block; }
         @media (min-width: 768px) { .hero-title { font-size: 3.5rem; } }
-        .hero-description { font-size: 1.125rem; color: #4b5563; margin-bottom: 2rem; }
+        .hero-title { color: var(--color-black); letter-spacing: -0.045em; }
+        .hero-title-leading { color: var(--color-black); }
+        .hero-title-accent { position: relative; display: inline-block; color: var(--color-primary); }
+        .hero-title-accent::after { content: ''; position: absolute; right: 0; bottom: -0.12em; left: 0; height: 0.12em; border-radius: var(--radius-full); background: var(--color-primary); opacity: 0.75; }
+        .hero-description { max-width: 46rem; margin: 0 auto 2rem; font-size: 1.125rem; color: #475569; line-height: 1.7; }
         .hero-buttons { display: flex; gap: 1rem; justify-content: center; }
         .btn-large { padding: 0.875rem 2rem; font-size: 1rem; }
         .categories-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 1.5rem; }

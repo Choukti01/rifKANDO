@@ -7,6 +7,19 @@ const resources = {
   ar: { translation: { common: { search: 'ابحث عن منتجات أو دورات أو خدمات...', profile: 'ملفي الشخصي', dashboard: 'لوحة تحكم البائع', login: 'المتابعة باستخدام Google', logout: 'تسجيل الخروج', loading: 'جارٍ التحميل...', backToTop: 'العودة إلى الأعلى ↑', allRightsReserved: 'جميع الحقوق محفوظة.' }, nav: { products: 'المنتجات', courses: 'الدورات', services: 'الخدمات', digital: 'المنتجات الرقمية', bookings: 'الحجوزات', favorites: 'المفضلة', cart: 'السلة', menu: 'القائمة' }, footer: { kicker: 'مكان واحد. إمكانيات كثيرة.', description: 'أول منصة متعددة الخدمات في المغرب. اشترِ المنتجات، وتعلم عبر الدورات، واستعن بالمحترفين، كل ذلك في مكان واحد.', marketplace: 'المتجر', sellers: 'للبائعين', support: 'الدعم', startSelling: 'ابدأ البيع', sellerGuidelines: 'دليل البائع', pricing: 'الأسعار', helpCenter: 'مركز المساعدة', contactUs: 'تواصل معنا', terms: 'شروط الاستخدام', privacy: 'سياسة الخصوصية', shop: 'تسوّق', learn: 'تعلّم', hire: 'اطلب خدمة', book: 'احجز' }, home: { welcome: 'مرحبًا بك في', description: 'أول منصة متعددة الخدمات في المغرب. اشترِ المنتجات، وتعلم عبر الدورات، واستعن بالمحترفين، كل ذلك في مكان واحد.', startShopping: 'ابدأ التسوق', becomeSeller: 'كن بائعًا', explore: 'استكشف', categories: 'الفئات', featured: 'عناصر مميزة', viewAll: 'عرض الكل', ready: 'هل أنت مستعد لبدء البيع؟', join: 'انضم إلى آلاف البائعين على rifKANDO' } } }
 };
 
+resources.en.translation.home.headline = 'Buy. Learn. Hire. Grow.';
+resources.en.translation.home.headlineLead = 'Buy. Learn. Hire.';
+resources.en.translation.home.headlineAccent = 'Grow.';
+resources.en.translation.home.valueStatement = 'Quality products, practical courses, trusted professionals, digital tools, and bookings, connecting Morocco to the world.';
+resources.fr.translation.home.headline = 'Achetez. Apprenez. Engagez. Progressez.';
+resources.fr.translation.home.headlineLead = 'Achetez. Apprenez. Engagez.';
+resources.fr.translation.home.headlineAccent = 'Progressez.';
+resources.fr.translation.home.valueStatement = 'Des produits de qualité, des cours pratiques, des professionnels de confiance, des outils numériques et des réservations, le Maroc connecté au monde.';
+resources.ar.translation.home.headline = 'اشترِ. تعلّم. اطلب خدمة. تقدّم.';
+resources.ar.translation.home.headlineLead = 'اشترِ. تعلّم. اطلب خدمة.';
+resources.ar.translation.home.headlineAccent = 'تقدّم.';
+resources.ar.translation.home.valueStatement = 'منتجات موثوقة، ودورات عملية، ومحترفون موثوقون، وأدوات رقمية، وحجوزات، نربط المغرب بالعالم.';
+
 const supportedLanguages = ['en', 'fr', 'ar'];
 const savedLanguage = localStorage.getItem('rifkando_language');
 const initialLanguage = supportedLanguages.includes(savedLanguage) ? savedLanguage : 'en';
