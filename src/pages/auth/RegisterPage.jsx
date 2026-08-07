@@ -1,14 +1,17 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 
 const RegisterPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { register, verifyEmail } = useAuth();
   const [formData, setFormData] = useState({ name: '', email: '', phone: '', password: '', confirmPassword: '' });
   const [code, setCode] = useState('');
   const [pending, setPending] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const requestedPath = new URLSearchParams(location.search).get('next');
+  const redirectAfterAuth = requestedPath?.startsWith('/') && !requestedPath.startsWith('//') ? requestedPath : '/';
 
   const update = (event) => setFormData((current) => ({ ...current, [event.target.name]: event.target.value }));
 
@@ -26,7 +29,7 @@ const RegisterPage = () => {
     setSubmitting(true);
     const result = await verifyEmail(formData.email, code);
     setSubmitting(false);
-    if (result.success) navigate('/');
+    if (result.success) navigate(redirectAfterAuth, { replace: true });
   };
 
   return (
@@ -44,7 +47,7 @@ const RegisterPage = () => {
         <label>Confirm password<input autoComplete="new-password" minLength={8} name="confirmPassword" onChange={update} required type="password" value={formData.confirmPassword} /></label>
         <button disabled={submitting} type="submit">{submitting ? 'Sending code…' : 'Create account'}</button>
       </form>}
-      {!pending && <p className="switch">Already registered? <Link to="/login">Sign in</Link></p>}
+      {!pending && <p className="switch">Already registered? <Link to={`/login${location.search}`}>Sign in</Link></p>}
     </section><style>{styles}</style></main>
   );
 };

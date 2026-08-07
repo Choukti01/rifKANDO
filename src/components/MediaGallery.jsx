@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon, XMarkIcon, PlayIcon } from '@heroicons/react/24/outline';
+import MarketplaceImage from './common/MarketplaceImage';
 import { getImageUrl } from '../utils/imageUtils';   // ✅ added
 
 const MediaGallery = ({ media = [], onClose }) => {
@@ -48,11 +49,11 @@ const MediaGallery = ({ media = [], onClose }) => {
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-        <button className="close-btn" onClick={onClose}><XMarkIcon className="w-6 h-6" /></button>
+        <button className="close-btn" onClick={onClose} aria-label="Close gallery"><XMarkIcon className="w-6 h-6" /></button>
         {media.length > 1 && (
           <>
-            <button className="nav prev" onClick={prevSlide}><ChevronLeftIcon className="w-8 h-8" /></button>
-            <button className="nav next" onClick={nextSlide}><ChevronRightIcon className="w-8 h-8" /></button>
+            <button className="nav prev" onClick={prevSlide} aria-label="Previous image"><ChevronLeftIcon className="w-8 h-8" /></button>
+            <button className="nav next" onClick={nextSlide} aria-label="Next image"><ChevronRightIcon className="w-8 h-8" /></button>
           </>
         )}
         <div className="media-viewer">
@@ -65,7 +66,7 @@ const MediaGallery = ({ media = [], onClose }) => {
               }
             </div>
           ) : (
-            <img src={getImageUrl(current.url)} alt="Gallery" className="gallery-image" />
+            <MarketplaceImage source={current.url} alt="Gallery image" className="gallery-image" />
           )}
         </div>
         <div className="counter">{currentIndex+1} / {media.length}</div>
@@ -74,7 +75,7 @@ const MediaGallery = ({ media = [], onClose }) => {
             <div key={idx} className={`thumb ${idx === currentIndex ? 'active' : ''}`} onClick={() => setCurrentIndex(idx)}>
               {item.type === 'video' ? 
                 <div className="video-thumb">🎬</div> : 
-                <img src={getImageUrl(item.url)} alt="" />
+                <MarketplaceImage source={item.url} alt="Gallery thumbnail" />
               }
             </div>
           ))}
@@ -97,6 +98,15 @@ const MediaGallery = ({ media = [], onClose }) => {
         .thumb.active { opacity: 1; border-color: #87CEEB; }
         .thumb img { width: 100%; height: 100%; object-fit: cover; }
         .video-thumb { width: 100%; height: 100%; background: #1a1a1a; display: flex; align-items: center; justify-content: center; font-size: 2rem; }
+        @media (max-width: 640px) {
+          .gallery-container { width: 100vw; height: 100dvh; padding: 1rem; }
+          .close-btn { top: max(1rem, env(safe-area-inset-top)); right: 1rem; display: grid; width: 44px; height: 44px; padding: 0; place-items: center; }
+          .nav { display: grid; width: 44px; height: 44px; padding: 0; place-items: center; }
+          .prev { left: 0.75rem; } .next { right: 0.75rem; }
+          .counter { bottom: 4.5rem; }
+          .thumbnails { bottom: 0.75rem; width: calc(100% - 2rem); max-width: none; padding: 0.375rem; }
+          .thumb { flex: 0 0 48px; width: 48px; height: 48px; }
+        }
       `}</style>
     </div>
   );

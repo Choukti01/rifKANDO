@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ShoppingBagIcon, AcademicCapIcon, WrenchScrewdriverIcon, ComputerDesktopIcon, CalendarIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
 import { getProducts, getCourses, getServices, getDigitalProducts, getBookings } from '/src/services/api';
-import toast from 'react-hot-toast';
 import MediaGallery from '../../components/MediaGallery';
 import { getImageUrl } from '../../utils/imageUtils';
+import MarketplaceImage from '../../components/common/MarketplaceImage';
 import { useTranslation } from 'react-i18next';
 
 const HomePage = () => {
@@ -155,12 +155,8 @@ const HomePage = () => {
               {t('home.description')}
             </p>
             <div className="hero-buttons">
-              <Link to="/products">
-                <button className="btn btn-primary btn-large">{t('home.startShopping')}</button>
-              </Link>
-              <Link to="/choose-seller-type">
-                <button className="btn btn-outline btn-large">{t('home.becomeSeller')}</button>
-              </Link>
+              <Link to="/products" className="btn btn-primary btn-large">{t('home.startShopping')}</Link>
+              <Link to="/choose-seller-type" className="btn btn-outline btn-large">{t('home.becomeSeller')}</Link>
             </div>
           </div>
         </div>
@@ -181,7 +177,7 @@ const HomePage = () => {
                     <Icon className="category-icon-svg" />
                   </div>
                   <h3 className="category-name">{cat.name}</h3>
-                  <p className="category-count">{cat.count.toLocaleString()} items</p>
+                  <p className="category-count">{cat.count.toLocaleString()} {cat.count === 1 ? 'item' : 'items'}</p>
                 </Link>
               )
             })}
@@ -212,8 +208,8 @@ const HomePage = () => {
                     style={{ cursor: itemHasMedia ? 'pointer' : 'default' }}
                   >
                     {isImageUrl ? (
-                      <img 
-                        src={itemImage} 
+                      <MarketplaceImage
+                        source={itemImage}
                         alt={item.title}
                         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                       />
@@ -240,9 +236,7 @@ const HomePage = () => {
                         ★ {item.rating || 0}
                       </div>
                     </div>
-                    <Link to={getItemUrl(item)}>
-                      <button className="btn btn-primary btn-sm btn-block">View Details</button>
-                    </Link>
+                    <Link to={getItemUrl(item)} className="btn btn-primary btn-sm btn-block">View Details</Link>
                   </div>
                 </div>
               );
@@ -268,8 +262,8 @@ const HomePage = () => {
               <div className="stat-label">Services Offered</div>
             </div>
             <div className="stat-item">
-              <div className="stat-number">500+</div>
-              <div className="stat-label">Happy Customers</div>
+              <div className="stat-number">{categories.length}</div>
+              <div className="stat-label">Marketplace Categories</div>
             </div>
           </div>
         </div>
@@ -280,9 +274,7 @@ const HomePage = () => {
         <div className="container text-center">
           <h2 className="cta-title">{t('home.ready')}</h2>
           <p className="cta-description">{t('home.join')}</p>
-          <Link to="/choose-seller-type">
-            <button className="cta-button">{t('home.becomeSeller')}</button>
-          </Link>
+          <Link to="/choose-seller-type" className="cta-button">{t('home.becomeSeller')}</Link>
         </div>
       </section>
 
@@ -353,6 +345,18 @@ const HomePage = () => {
         .cta-description { font-size: 1.125rem; margin-bottom: 2rem; color: #1a1a1a; }
         .cta-button { background: #1a1a1a; color: white; padding: 0.875rem 2rem; font-size: 1rem; border: none; border-radius: 2rem; cursor: pointer; transition: all 0.2s; }
         .cta-button:hover { background: #2c2c2c; transform: translateY(-2px); }
+        @media (max-width: 480px) {
+          .hero-section { padding: 3.5rem 0; }
+          .hero-buttons { flex-direction: column; gap: 0.75rem; }
+          .hero-buttons .btn { width: 100%; }
+          .category-card { padding: 1.25rem 0.75rem; }
+          .category-icon { width: 56px; height: 56px; margin-bottom: 0.75rem; }
+          .category-icon-svg { width: 28px; height: 28px; }
+          .featured-header { align-items: flex-start; gap: 0.75rem; margin-bottom: 1.25rem; }
+          .view-all-link { flex: 0 0 auto; padding-top: 0.35rem; }
+          .cta-section { padding: 3rem 0; }
+          .cta-button { display: inline-flex; min-height: 44px; align-items: center; justify-content: center; }
+        }
       `}</style>
     </div>
   );

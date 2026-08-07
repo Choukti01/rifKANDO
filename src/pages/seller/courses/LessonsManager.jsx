@@ -133,7 +133,7 @@ const LessonsManager = () => {
       await api.delete(`/courses/${id}/lessons/${lessonId}`);
       toast.success('Lesson deleted');
       fetchCourseAndLessons();
-    } catch (error) {
+    } catch {
       toast.error('Failed to delete lesson');
     }
   };
@@ -151,7 +151,7 @@ const LessonsManager = () => {
     try {
       await api.patch(`/courses/${id}/lessons/reorder`, { lessons: updatedLessons });
       toast.success('Lesson reordered');
-    } catch (error) {
+    } catch {
       toast.error('Failed to reorder');
       fetchCourseAndLessons();
     }

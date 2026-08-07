@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { EnvelopeIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 
-const VerificationModal = ({ email, name, onVerify, onClose, onResend }) => {
+const VerificationModal = ({ email, onVerify, onClose, onResend }) => {
   const [code, setCode] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [timer, setTimer] = useState(60);

@@ -9,6 +9,7 @@ import VerifiedBadge from '../../components/common/VerifiedBadge';
 import { getImageUrl } from '../../utils/imageUtils';
 import EmptyState from '../../components/common/EmptyState';
 import LoadingSkeleton from '../../components/common/LoadingSkeleton';
+import MarketplaceImage from '../../components/common/MarketplaceImage';
 
 const ProductsPage = () => {
   const [products, setProducts] = useState([]);
@@ -64,12 +65,6 @@ const ProductsPage = () => {
   const handleAddToCart = (product) => {
     if (!isAuthenticated) { toast.error('Please login'); return; }
     addToCart(product, 1, 'product');
-  };
-
-  const handleSearch = (e) => {
-    e.preventDefault();
-    setCurrentPage(1);
-    fetchProducts();
   };
 
   const handlePageChange = (newPage) => {
@@ -144,7 +139,7 @@ const ProductsPage = () => {
                   {product.media && product.media.length > 0 ? (
                     <>
                       {product.media[0].media_type === 'video' && <div className="video-badge">🎬 Video</div>}
-                      <img src={getImageUrl(product.media[0].media_url)} alt={product.title} />
+                      <MarketplaceImage source={product.media[0].media_url} alt={product.title} />
                       {product.media.length > 1 && <div className="media-count">{product.media.length} items</div>}
                     </>
                   ) : (

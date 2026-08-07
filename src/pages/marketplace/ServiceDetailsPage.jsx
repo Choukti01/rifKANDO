@@ -5,6 +5,7 @@ import { getService, orderService } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import MediaGallery from '../../components/MediaGallery';
+import MarketplaceImage from '../../components/common/MarketplaceImage';
 import { getImageUrl } from '../../utils/imageUtils';
 
 const ServiceDetailsPage = () => {
@@ -154,7 +155,7 @@ const ServiceDetailsPage = () => {
                   primaryMedia.media_type === 'video' ? (
                     <video src={getImageUrl(primaryMedia.media_url)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   ) : (
-                    <img src={getImageUrl(primaryMedia.media_url)} alt={service.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <MarketplaceImage source={primaryMedia.media_url} alt={service.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   )
                 ) : (
                   <span style={{ fontSize: '3rem' }}>🛠️</span>

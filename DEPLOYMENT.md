@@ -21,6 +21,26 @@ Set these build-time values in the frontend host:
 The frontend environment file is intentionally not committed. Do not put
 backend secrets in a `VITE_` variable; Vite exposes those values to browsers.
 
+## Staging and production separation
+
+Create staging as a separate Render service from `render.staging.yaml` and a
+separate frontend site (or a protected staging branch) using
+`.env.staging.example`. It must have its own persistent disk/database,
+frontend hostname, Google OAuth client, email sender, object-storage
+credentials, and secrets. Never point staging at the production database,
+uploads, API URL, or payment credentials.
+
+Both deployed environments use `NODE_ENV=production`, so browser cookies stay
+`Secure` and API security headers remain enabled. `APP_ENV` differentiates the
+application environment: use `staging` in the staging service and `production`
+in the live service. Startup rejects an unsafe combination, weak or reused
+session/audit secrets, HTTP origins, placeholder secrets, or a partial payment
+configuration.
+
+CMI is in test mode when `APP_ENV=staging`; configure separate test credentials
+only if CMI provides them. Otherwise leave all three CMI settings absent in
+staging. Do not route live CMI callbacks to staging.
+
 ## Google registration verification
 
 New Google sign-ups are activated only after the user enters a six-digit code

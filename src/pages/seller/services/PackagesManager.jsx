@@ -100,7 +100,7 @@ const PackagesManager = () => {
       await api.delete(`/services/${id}/packages/${packageId}`);
       toast.success('Package deleted successfully');
       fetchServiceAndPackages();
-    } catch (error) {
+    } catch {
       toast.error('Failed to delete package');
     }
   };
@@ -134,7 +134,7 @@ const PackagesManager = () => {
         </div>
       ) : (
         <div className="packages-grid">
-          {packages.map((pkg, index) => (
+              {packages.map((pkg) => (
             <div key={pkg.id} className="package-card">
               <div className="package-header">
                 <h3>{pkg.name}</h3>

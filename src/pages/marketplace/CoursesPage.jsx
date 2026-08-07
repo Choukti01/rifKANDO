@@ -4,6 +4,7 @@ import { getCourses } from '../../services/api';
 import toast from 'react-hot-toast';
 import MediaGallery from '../../components/MediaGallery';
 import { getImageUrl } from '../../utils/imageUtils';
+import MarketplaceImage from '../../components/common/MarketplaceImage';
 
 const CoursesPage = () => {
   const [courses, setCourses] = useState([]);
@@ -71,9 +72,7 @@ const CoursesPage = () => {
                     {primaryMedia ? (
                       <>
                         {primaryMedia.media_type === 'video' && <div className="video-badge">🎬 Video</div>}
-                        <img 
-                           src={getImageUrl(primaryMedia.media_url)}                          alt={course.title}
-                        />
+                        <MarketplaceImage source={primaryMedia.media_url} alt={course.title} />
                         {course.media.length > 1 && (
                           <div className="media-count">{course.media.length} items</div>
                         )}

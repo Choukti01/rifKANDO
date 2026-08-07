@@ -70,7 +70,7 @@ export const FavoritesProvider = ({ children }) => {
       setFavorites(prev => prev.filter(fav => !(fav.item_id === itemId && fav.type === type)));
       toast.success('Removed from favorites');
       return true;
-    } catch (error) {
+    } catch {
       toast.error('Failed to remove from favorites');
       return false;
     }

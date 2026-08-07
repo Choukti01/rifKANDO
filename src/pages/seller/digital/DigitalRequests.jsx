@@ -14,7 +14,7 @@ const DigitalRequests = () => {
     try {
       const res = await api.get('/seller/digital-requests');
       setRequests(res.data.requests || []);
-    } catch (error) {
+    } catch {
       toast.error('Failed to load requests');
     } finally {
       setLoading(false);
@@ -27,7 +27,7 @@ const DigitalRequests = () => {
       await api.patch(`/seller/digital-requests/${requestId}/complete`);
       toast.success('Request completed! Buyer can now download.');
       fetchRequests();
-    } catch (error) {
+    } catch {
       toast.error('Failed to complete request');
     }
   };

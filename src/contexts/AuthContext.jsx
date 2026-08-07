@@ -32,7 +32,7 @@ export const AuthProvider = ({ children }) => {
       setCsrfToken(response.data.csrfToken);
       setUser(normalizeUser(userData));
       return true;
-    } catch (_) {
+    } catch {
       clearSessionState();
       return false;
     } finally {
@@ -130,7 +130,7 @@ export const AuthProvider = ({ children }) => {
   const logout = useCallback(async () => {
     try {
       await api.post('/auth/logout');
-    } catch (_) {
+    } catch {
       // The local state must be cleared even when an access cookie has expired.
     } finally {
       clearSessionState();

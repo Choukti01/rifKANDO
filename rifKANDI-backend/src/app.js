@@ -59,6 +59,7 @@ const storageService = require('./services/storageService');
 const sessionService = require('./services/sessionService');
 const AuditService = require('./services/auditService');
 const Money = require('./services/moneyService');
+const FeatureFlags = require('./services/featureFlagService');
 const createProductRoutes = require('./routes/productRoutes');
 const createCourseRoutes = require('./routes/courseRoutes');
 const createServiceRoutes = require('./routes/serviceRoutes');
@@ -74,6 +75,7 @@ const requireSeller = authorize(ROLES.SELLER);
 const requireAdmin = authorize(...ADMIN_ROLES);
 const requireFinance = authorize(...FINANCE_ROLES);
 const requireVerificationReviewer = authorize(...VERIFICATION_REVIEWER_ROLES);
+const requireFeature = FeatureFlags.requireFeature;
 const allowedOrigins = new Set(getAllowedOrigins());
 
 app.set('trust proxy', 1);
@@ -1314,6 +1316,7 @@ app.use('/api', createDigitalRoutes({
   validateIdParams,
   validateDigitalCreate,
   validateDigitalUpdate,
+  requireFeature,
   storageService,
   path,
   getDatabaseRow,
@@ -1493,7 +1496,7 @@ const generateOrderNumber = () => {
   return `RIF-${year}${month}${day}-${random}`;
 };
 
-app.post('/api/orders', protect, validateCheckout, async (req, res) => {
+app.post('/api/orders', protect, requireFeature('checkout'), validateCheckout, async (req, res) => {
   const { shippingAddress, paymentMethod, notes, items, total } = req.body || {};
   const idempotencyKey = req.get('Idempotency-Key');
   if (!idempotencyKey) {
@@ -2815,6 +2818,22 @@ app.get('/api/products/:id/reviews', (req, res) => {
 });
 
 // ==================== ADMIN DASHBOARD (UPDATED WITH SELLER VERIFICATION) ====================
+app.get('/api/admin/feature-flags', protect, authorize(ROLES.SUPER_ADMIN), async (req, res) => {
+  try {
+    await AuditService.recordFromRequest(req, {
+      action: 'operations.feature_flags_viewed',
+      resourceType: 'feature_flags',
+    });
+    return res.json({
+      success: true,
+      environment: process.env.APP_ENV || process.env.NODE_ENV || 'development',
+      flags: FeatureFlags.getFeatureFlags(),
+    });
+  } catch (error) {
+    return res.status(500).json({ error: 'Unable to retrieve feature flags.', requestId: req.requestId });
+  }
+});
+
 app.get('/api/admin/stats', protect, requireAdmin, async (req, res) => {
   try {
     await AuditService.recordFromRequest(req, {
@@ -3048,7 +3067,7 @@ app.post('/api/admin/cod-orders/:id/confirm', protect, requireFinance, validateI
 // ==================== CMI PAYMENT ENDPOINTS ====================
 const CmiPaymentService = require('./services/cmiPaymentService');
 
-app.post('/api/payment/cmi/initiate', protect, validateCmiInitiation, async (req, res) => {
+app.post('/api/payment/cmi/initiate', protect, requireFeature('cmi_payments'), validateCmiInitiation, async (req, res) => {
   const { orderId } = req.body;
   
   if (!orderId) {

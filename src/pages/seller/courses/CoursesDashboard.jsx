@@ -55,7 +55,7 @@ const CoursesDashboard = () => {
         await api.patch(`/${type}/${id}/status`, { status: 'ended' });
         toast.success('Course marked as ended');
         fetchCourses();
-      } catch (error) {
+      } catch {
         toast.error('Failed to update status');
       }
     }
@@ -67,7 +67,7 @@ const CoursesDashboard = () => {
         await deleteCourse(courseId);
         toast.success('Course deleted successfully');
         fetchCourses();
-      } catch (error) {
+      } catch {
         toast.error('Failed to delete course');
       }
     }

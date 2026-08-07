@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { StarIcon, HeartIcon, TruckIcon, ShieldCheckIcon, ArrowPathIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { useCart } from '../../contexts/CartContext';
 import { useFavorites } from '../../contexts/FavoritesContext';
@@ -8,12 +8,12 @@ import { getProduct } from '../../services/api';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 import MediaGallery from '../../components/MediaGallery';
+import MarketplaceImage from '../../components/common/MarketplaceImage';
 import VerifiedBadge from '../../components/common/VerifiedBadge';
 import { getImageUrl } from '../../utils/imageUtils';
 
 const ProductDetailsPage = () => {
   const { id } = useParams();
-  const navigate = useNavigate();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
@@ -200,7 +200,7 @@ const ProductDetailsPage = () => {
                 primaryMedia.media_type === 'video' ? (
                   <video src={getImageUrl(primaryMedia.media_url)} controls />
                 ) : (
-                  <img src={getImageUrl(primaryMedia.media_url)} alt={product.title} />
+                  <MarketplaceImage source={primaryMedia.media_url} alt={product.title} />
                 )
               ) : (
                 <div className="image-placeholder">📦</div>
@@ -215,7 +215,7 @@ const ProductDetailsPage = () => {
                     [newMedia[0], newMedia[index]] = [newMedia[index], newMedia[0]];
                     setProduct({ ...product, media: newMedia });
                   }}>
-                    {media.media_type === 'video' ? <div className="video-thumb">🎬</div> : <img src={getImageUrl(media.media_url)} alt="" />}
+                    {media.media_type === 'video' ? <div className="video-thumb">🎬</div> : <MarketplaceImage source={media.media_url} alt="" />}
                   </div>
                 ))}
               </div>

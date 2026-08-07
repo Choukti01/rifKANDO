@@ -90,7 +90,7 @@ import PageTransition from './components/common/PageTransition'
 
 function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <AppContent />
     </BrowserRouter>
   )
@@ -105,7 +105,7 @@ function AppContent() {
           <FavoritesProvider>
             <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
               <Navbar />
-              <main style={{ flexGrow: 1, paddingTop: '80px' }}>
+              <main className="app-main">
                 <AnimatePresence mode="wait" initial={false}>
                   <PageTransition key={location.pathname}>
                     <Routes location={location}>

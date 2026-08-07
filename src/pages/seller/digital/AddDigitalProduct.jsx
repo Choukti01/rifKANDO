@@ -46,7 +46,7 @@ const AddDigitalProduct = () => {
         });
         toast.success('File uploaded successfully');
       }
-    } catch (error) {
+    } catch {
       toast.error('Failed to upload file');
     } finally {
       setUploadingFile(false);

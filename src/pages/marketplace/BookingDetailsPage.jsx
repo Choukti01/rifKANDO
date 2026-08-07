@@ -5,8 +5,10 @@ import { getBooking, bookAppointment } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import MediaGallery from '../../components/MediaGallery';
+import MarketplaceImage from '../../components/common/MarketplaceImage';
+import { getImageUrl } from '../../utils/imageUtils';
 
-const BookingDetailsPage = () => {5
+const BookingDetailsPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [booking, setBooking] = useState(null);
@@ -18,7 +20,7 @@ const BookingDetailsPage = () => {5
   const [showBookingForm, setShowBookingForm] = useState(false);
   const [bookingComplete, setBookingComplete] = useState(false);
   const [showGallery, setShowGallery] = useState(false);
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated } = useAuth();
 
   useEffect(() => {
     if (id) {
@@ -177,9 +179,9 @@ const BookingDetailsPage = () => {5
               <div className="booking-image-large" onClick={() => booking.media?.length && setShowGallery(true)}>
                 {primaryMedia ? (
                   primaryMedia.media_type === 'video' ? (
-                    <video src={`http://localhost:5000${primaryMedia.media_url}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <video src={getImageUrl(primaryMedia.media_url)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   ) : (
-                    <img src={`http://localhost:5000${primaryMedia.media_url}`} alt={booking.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <MarketplaceImage source={primaryMedia.media_url} alt={booking.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   )
                 ) : (
                   <span style={{ fontSize: '3rem' }}>{booking.image || ''}</span>
@@ -257,7 +259,7 @@ const BookingDetailsPage = () => {5
       </div>
       {showGallery && (
         <MediaGallery
-          media={booking.media.map(m => ({ url: `http://localhost:5000${m.media_url}`, type: m.media_type }))}
+          media={booking.media.map(m => ({ url: getImageUrl(m.media_url), type: m.media_type }))}
           onClose={() => setShowGallery(false)}
         />
       )}
