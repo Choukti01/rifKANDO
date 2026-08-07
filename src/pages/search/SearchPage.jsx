@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { MagnifyingGlassIcon, FunnelIcon, XMarkIcon, StarIcon } from '@heroicons/react/24/outline';
 import { getProducts, getCourses, getServices, getDigitalProducts, getBookings } from '../../services/api';
 import toast from 'react-hot-toast';
+import MarketplaceImage from '../../components/common/MarketplaceImage';
 
 const SearchPage = () => {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const query = searchParams.get('q') || '';
   const [searchQuery, setSearchQuery] = useState(query);
   const [showFilters, setShowFilters] = useState(false);
@@ -51,6 +53,10 @@ const SearchPage = () => {
     }
   }, [query, filterType, sortBy]);
 
+  useEffect(() => {
+    setSearchQuery(query);
+  }, [query]);
+
   const performSearch = async () => {
     setLoading(true);
     const allData = await fetchAllData();
@@ -81,19 +87,8 @@ const SearchPage = () => {
   const handleSearch = (e) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      window.location.href = `/search?q=${encodeURIComponent(searchQuery)}`;
+      navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
     }
-  };
-
-  const getTypeColor = (type) => {
-    const colors = {
-      product: 'bg-blue-100 text-blue-600',
-      course: 'bg-green-100 text-green-600',
-      service: 'bg-purple-100 text-purple-600',
-      digital: 'bg-orange-100 text-orange-600',
-      booking: 'bg-red-100 text-red-600'
-    };
-    return colors[type] || 'bg-gray-100 text-gray-600';
   };
 
   const getTypeLabel = (type) => {
@@ -130,6 +125,19 @@ const SearchPage = () => {
     return icons[item.type] || '📦';
   };
 
+  const getPrimaryMedia = (item) => item.media?.find((media) => media.is_primary) || item.media?.[0];
+  const hasActiveFilters = filterType !== 'all' || sortBy !== 'relevance';
+
+  const clearFilters = () => {
+    setFilterType('all');
+    setSortBy('relevance');
+    setShowFilters(false);
+  };
+
+  const runSuggestedSearch = (suggestion) => {
+    navigate(`/search?q=${encodeURIComponent(suggestion)}`);
+  };
+
   if (loading) {
     return (
       <div className="search-page">
@@ -144,7 +152,7 @@ const SearchPage = () => {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
-                <button type="button" onClick={() => setShowFilters(!showFilters)} className="filter-toggle">
+                <button type="button" onClick={() => setShowFilters(!showFilters)} className="filter-toggle" aria-label="Toggle search filters" aria-controls="search-filters" aria-expanded={showFilters}>
                   <FunnelIcon className="w-5 h-5" />
                 </button>
               </div>
@@ -173,7 +181,8 @@ const SearchPage = () => {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
-              <button type="button" onClick={() => setShowFilters(!showFilters)} className="filter-toggle">
+              <button type="submit" className="search-submit">Search</button>
+              <button type="button" onClick={() => setShowFilters(!showFilters)} className="filter-toggle" aria-label="Toggle search filters" aria-controls="search-filters" aria-expanded={showFilters}>
                 <FunnelIcon className="w-5 h-5" />
               </button>
             </div>
@@ -182,10 +191,10 @@ const SearchPage = () => {
 
         {/* Filters Panel */}
         {showFilters && (
-          <div className="filters-panel">
+          <div id="search-filters" className="filters-panel">
             <div className="filters-header">
               <h3>Filters</h3>
-              <button onClick={() => setShowFilters(false)}>
+              <button type="button" onClick={() => setShowFilters(false)} aria-label="Close filters">
                 <XMarkIcon className="w-5 h-5" />
               </button>
             </div>
@@ -214,8 +223,24 @@ const SearchPage = () => {
           </div>
         )}
 
+        {hasActiveFilters && (
+          <div className="search-active-filters" aria-label="Active search filters">
+            {filterType !== 'all' && (
+              <button type="button" onClick={() => setFilterType('all')}>
+                {getTypeLabel(filterType)} <span aria-hidden="true">×</span>
+              </button>
+            )}
+            {sortBy !== 'relevance' && (
+              <button type="button" onClick={() => setSortBy('relevance')}>
+                {sortBy === 'price-low' ? 'Price: low to high' : sortBy === 'price-high' ? 'Price: high to low' : 'Top rated'} <span aria-hidden="true">×</span>
+              </button>
+            )}
+            <button type="button" className="search-clear-filters" onClick={clearFilters}>Clear filters</button>
+          </div>
+        )}
+
         {/* Results Count */}
-        <div className="results-header">
+        <div className="results-header" aria-live="polite">
           <p>Found <strong>{results.length}</strong> results for "{query}"</p>
         </div>
 
@@ -228,10 +253,10 @@ const SearchPage = () => {
             <div className="suggestions">
               <p>Popular searches:</p>
               <div className="suggestion-tags">
-                <span onClick={() => window.location.href = '/search?q=iphone'}>iphone</span>
-                <span onClick={() => window.location.href = '/search?q=react'}>react</span>
-                <span onClick={() => window.location.href = '/search?q=logo'}>logo design</span>
-                <span onClick={() => window.location.href = '/search?q=course'}>course</span>
+                <button type="button" onClick={() => runSuggestedSearch('iphone')}>iphone</button>
+                <button type="button" onClick={() => runSuggestedSearch('react')}>react</button>
+                <button type="button" onClick={() => runSuggestedSearch('logo design')}>logo design</button>
+                <button type="button" onClick={() => runSuggestedSearch('course')}>course</button>
               </div>
             </div>
           </div>
@@ -240,10 +265,14 @@ const SearchPage = () => {
             {results.map(result => (
               <Link key={`${result.type}-${result.id}`} to={getDetailUrl(result)} className="result-card">
                 <div className="result-image">
-                  {getImageIcon(result)}
+                  {getPrimaryMedia(result) ? (
+                    <MarketplaceImage source={getPrimaryMedia(result).media_url} alt={result.title} />
+                  ) : (
+                    <span aria-hidden="true">{getImageIcon(result)}</span>
+                  )}
                 </div>
                 <div className="result-content">
-                  <span className={`result-type ${getTypeColor(result.type)}`}>
+                  <span className={`result-type result-type-${result.type}`}>
                     {getTypeLabel(result.type)}
                   </span>
                   <h3>{result.title}</h3>
@@ -305,6 +334,27 @@ const SearchPage = () => {
           border-radius: 1rem;
           cursor: pointer;
         }
+        .search-submit {
+          min-height: 46px;
+          padding: 0.75rem 1rem;
+          background: #1a1a1a;
+          border: 1px solid #1a1a1a;
+          border-radius: 1rem;
+          color: white;
+          font-weight: 700;
+          cursor: pointer;
+        }
+        .search-submit:hover {
+          background: #333;
+        }
+        .search-submit:focus-visible,
+        .filter-toggle:focus-visible,
+        .filters-header button:focus-visible,
+        .search-active-filters button:focus-visible,
+        .suggestion-tags button:focus-visible {
+          outline: 3px solid rgba(135, 206, 235, 0.55);
+          outline-offset: 2px;
+        }
         .filters-panel {
           background: white;
           border-radius: 1rem;
@@ -335,6 +385,29 @@ const SearchPage = () => {
           border: 1px solid #e5e7eb;
           border-radius: 0.5rem;
         }
+        .search-active-filters {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 0.5rem;
+          margin: 0 0 1rem;
+        }
+        .search-active-filters button {
+          min-height: 32px;
+          padding: 0.35rem 0.65rem;
+          background: rgba(135, 206, 235, 0.2);
+          border: 1px solid rgba(95, 158, 160, 0.28);
+          border-radius: 999px;
+          color: #1f2937;
+          font-size: 0.8rem;
+          font-weight: 600;
+          cursor: pointer;
+        }
+        .search-active-filters .search-clear-filters {
+          background: transparent;
+          border-color: transparent;
+          color: #4b5563;
+        }
         .results-header {
           margin-bottom: 1.5rem;
         }
@@ -362,6 +435,12 @@ const SearchPage = () => {
           align-items: center;
           justify-content: center;
           font-size: 3rem;
+          overflow: hidden;
+        }
+        .result-image img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
         }
         .result-content {
           padding: 1rem;
@@ -374,6 +453,11 @@ const SearchPage = () => {
           font-weight: 600;
           margin-bottom: 0.5rem;
         }
+        .result-type-product { background: #e8f7fc; color: #216275; }
+        .result-type-course { background: #eaf7ef; color: #23633b; }
+        .result-type-service { background: #f2ecfb; color: #65409b; }
+        .result-type-digital { background: #fff2e3; color: #9a550e; }
+        .result-type-booking { background: #fcecee; color: #9a3041; }
         .result-content h3 {
           font-size: 1rem;
           font-weight: 600;
@@ -432,21 +516,26 @@ const SearchPage = () => {
           flex-wrap: wrap;
           margin-top: 0.5rem;
         }
-        .suggestion-tags span {
+        .suggestion-tags button {
           padding: 0.375rem 1rem;
           background: #f3f4f6;
+          border: 1px solid transparent;
           border-radius: 2rem;
           font-size: 0.875rem;
           cursor: pointer;
         }
-        .suggestion-tags span:hover {
+        .suggestion-tags button:hover {
           background: #e5e7eb;
         }
         @media (max-width: 640px) {
           .search-page { padding: 1rem 0; }
           .search-header, .filters-panel { margin-bottom: 1rem; }
+          .search-input-wrapper { gap: 0.4rem; }
+          .search-submit { padding: 0.75rem; }
+          .filter-toggle { min-width: 46px; padding: 0.75rem; }
           .filters-panel { padding: 1rem; border-radius: .75rem; }
           .filters-grid { grid-template-columns: 1fr; }
+          .search-active-filters { margin-bottom: 0.75rem; }
           .results-grid { grid-template-columns: 1fr; gap: 1rem; }
           .result-card:hover { transform: translateY(-1px); }
         }

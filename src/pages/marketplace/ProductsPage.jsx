@@ -29,6 +29,7 @@ const ProductsPage = () => {
   const [totalProducts, setTotalProducts] = useState(0);
   const [searchInput, setSearchInput] = useState('');
   const [verifiedOnly, setVerifiedOnly] = useState(false);
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
 
   const categories = ['electronics', 'fashion', 'handicrafts', 'books', 'home'];
 
@@ -78,6 +79,26 @@ const ProductsPage = () => {
     joutiya: 'Joutiya (Haggle)'
   };
 
+  const hasActiveFilters = Boolean(searchTerm || selectedCategory || minPrice || maxPrice || verifiedOnly);
+  const activeFilterCount = [searchTerm, selectedCategory, minPrice, maxPrice, verifiedOnly].filter(Boolean).length;
+
+  const clearFilters = () => {
+    setSearchInput('');
+    setSearchTerm('');
+    setSelectedCategory('');
+    setMinPrice('');
+    setMaxPrice('');
+    setVerifiedOnly(false);
+    setCurrentPage(1);
+    setShowMobileFilters(false);
+  };
+
+  const applySearch = (event) => {
+    event.preventDefault();
+    setSearchTerm(searchInput.trim());
+    setCurrentPage(1);
+  };
+
   if (loading) return <div className="container py-16"><LoadingSkeleton label="Loading products" /></div>;
 
   return (
@@ -95,32 +116,49 @@ const ProductsPage = () => {
         </div>
 
         <div className="filters-bar">
-          <div className="search-form">
-            <input type="text" placeholder="Search products..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} className="search-input" onKeyPress={(e) => { if (e.key === 'Enter') { setSearchTerm(searchInput); setCurrentPage(1); } }} />
-            <button onClick={() => { setSearchTerm(searchInput); setCurrentPage(1); }} className="search-btn">Search</button>
+          <form className="search-form" onSubmit={applySearch}>
+            <input type="search" placeholder="Search products..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} className="search-input" aria-label="Search products" />
+            <button type="submit" className="search-btn">Search</button>
+          </form>
+          <div className="filter-toolbar">
+            <button type="button" className="filters-toggle" onClick={() => setShowMobileFilters((isOpen) => !isOpen)} aria-controls="product-filter-fields" aria-expanded={showMobileFilters}>
+              Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
+            </button>
+            {hasActiveFilters && <button type="button" className="clear-filters-btn" onClick={clearFilters}>Clear filters</button>}
           </div>
-          <div className="filters">
-            <select value={selectedCategory} onChange={(e) => { setSelectedCategory(e.target.value); setCurrentPage(1); }} className="filter-select">
-              <option value="">All Categories</option>
-              {categories.map(cat => <option key={cat} value={cat}>{cat.charAt(0).toUpperCase() + cat.slice(1)}</option>)}
-            </select>
-            <input type="number" placeholder="Min Price" value={minPrice} onChange={(e) => { setMinPrice(e.target.value); setCurrentPage(1); }} className="price-input" />
-            <input type="number" placeholder="Max Price" value={maxPrice} onChange={(e) => { setMaxPrice(e.target.value); setCurrentPage(1); }} className="price-input" />
-            <select value={sortBy} onChange={(e) => { setSortBy(e.target.value); setCurrentPage(1); }} className="filter-select">
-              <option value="newest">Newest First</option>
-              <option value="price_asc">Price: Low to High</option>
-              <option value="price_desc">Price: High to Low</option>
-              <option value="rating">Top Rated</option>
-              <option value="popular">Most Popular</option>
-            </select>
+          <div id="product-filter-fields" className={`filter-fields ${showMobileFilters ? 'filter-fields-open' : ''}`}>
+            <div className="filters">
+              <select value={selectedCategory} onChange={(e) => { setSelectedCategory(e.target.value); setCurrentPage(1); }} className="filter-select" aria-label="Category">
+                <option value="">All Categories</option>
+                {categories.map(cat => <option key={cat} value={cat}>{cat.charAt(0).toUpperCase() + cat.slice(1)}</option>)}
+              </select>
+              <input type="number" min="0" placeholder="Min Price" value={minPrice} onChange={(e) => { setMinPrice(e.target.value); setCurrentPage(1); }} className="price-input" aria-label="Minimum price" />
+              <input type="number" min="0" placeholder="Max Price" value={maxPrice} onChange={(e) => { setMaxPrice(e.target.value); setCurrentPage(1); }} className="price-input" aria-label="Maximum price" />
+              <select value={sortBy} onChange={(e) => { setSortBy(e.target.value); setCurrentPage(1); }} className="filter-select" aria-label="Sort products">
+                <option value="newest">Newest First</option>
+                <option value="price_asc">Price: Low to High</option>
+                <option value="price_desc">Price: High to Low</option>
+                <option value="rating">Top Rated</option>
+                <option value="popular">Most Popular</option>
+              </select>
+            </div>
+            <div className="filter-verified">
+              <label>
+                <input type="checkbox" checked={verifiedOnly} onChange={(e) => { setVerifiedOnly(e.target.checked); setCurrentPage(1); }} />
+                <span>Verified sellers only</span>
+              </label>
+            </div>
           </div>
-          <div className="filter-verified">
-            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-              <input type="checkbox" checked={verifiedOnly} onChange={(e) => { setVerifiedOnly(e.target.checked); setCurrentPage(1); }} />
-              <span>Verified sellers only</span>
-            </label>
-          </div>
-          <div className="results-count">{totalProducts} products found</div>
+          {hasActiveFilters && (
+            <div className="active-filters" aria-label="Active filters">
+              {searchTerm && <button type="button" className="filter-chip" onClick={() => { setSearchInput(''); setSearchTerm(''); setCurrentPage(1); }}>Search: {searchTerm} <span aria-hidden="true">×</span></button>}
+              {selectedCategory && <button type="button" className="filter-chip" onClick={() => { setSelectedCategory(''); setCurrentPage(1); }}>{selectedCategory} <span aria-hidden="true">×</span></button>}
+              {minPrice && <button type="button" className="filter-chip" onClick={() => { setMinPrice(''); setCurrentPage(1); }}>From {minPrice} MAD <span aria-hidden="true">×</span></button>}
+              {maxPrice && <button type="button" className="filter-chip" onClick={() => { setMaxPrice(''); setCurrentPage(1); }}>Up to {maxPrice} MAD <span aria-hidden="true">×</span></button>}
+              {verifiedOnly && <button type="button" className="filter-chip" onClick={() => { setVerifiedOnly(false); setCurrentPage(1); }}>Verified sellers <span aria-hidden="true">×</span></button>}
+            </div>
+          )}
+          <div className="results-count" aria-live="polite">{totalProducts} products found{hasActiveFilters ? ` with ${activeFilterCount} active filter${activeFilterCount === 1 ? '' : 's'}` : ''}</div>
         </div>
 
         <div className="products-grid">
@@ -129,7 +167,7 @@ const ProductsPage = () => {
               <EmptyState
                 title="No products found"
                 description="Try a different search or clear a filter to see more listings."
-                action={<button type="button" className="btn btn-outline" onClick={() => { setSearchInput(''); setSearchTerm(''); setSelectedCategory(''); setMinPrice(''); setMaxPrice(''); setVerifiedOnly(false); setCurrentPage(1); }}>Clear filters</button>}
+                action={<button type="button" className="btn btn-outline" onClick={clearFilters}>Clear filters</button>}
               />
             </div>
           ) : (
@@ -207,10 +245,18 @@ const ProductsPage = () => {
         .search-form { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
         .search-input { flex: 1; padding: 0.75rem; border: 1px solid #e5e7eb; border-radius: 0.5rem; font-size: 0.875rem; }
         .search-btn { padding: 0.75rem 1.5rem; background: #1a1a1a; color: white; border: none; border-radius: 0.5rem; cursor: pointer; }
+        .filter-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 1rem; }
+        .filters-toggle { display: none; min-height: 44px; padding: 0.5rem 1rem; background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 0.5rem; color: #1a1a1a; font-weight: 600; cursor: pointer; }
+        .clear-filters-btn { min-height: 36px; padding: 0.4rem 0.75rem; background: none; border: none; color: #4b5563; font-weight: 600; cursor: pointer; }
+        .filters-toggle:focus-visible, .clear-filters-btn:focus-visible, .filter-chip:focus-visible { outline: 3px solid rgba(135, 206, 235, 0.55); outline-offset: 2px; }
         .filters { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1rem; }
         .filter-select, .price-input { padding: 0.5rem 0.75rem; border: 1px solid #e5e7eb; border-radius: 0.5rem; font-size: 0.875rem; }
         .price-input { width: 100px; }
         .filter-verified { margin-bottom: 1rem; font-size: 0.875rem; }
+        .filter-verified label { display: flex; align-items: center; gap: 0.5rem; width: fit-content; cursor: pointer; }
+        .active-filters { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0 0 1rem; }
+        .filter-chip { display: inline-flex; min-height: 32px; align-items: center; gap: 0.35rem; padding: 0.35rem 0.65rem; background: rgba(135, 206, 235, 0.2); border: 1px solid rgba(95, 158, 160, 0.28); border-radius: 999px; color: #1f2937; font-size: 0.8rem; font-weight: 600; cursor: pointer; }
+        .filter-chip:hover { background: rgba(135, 206, 235, 0.34); }
         .results-count { font-size: 0.875rem; color: #6b7280; text-align: right; }
         .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
         .product-card { display: flex; flex-direction: column; background: white; border-radius: 1rem; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); transition: all 0.3s; position: relative; }
@@ -235,7 +281,17 @@ const ProductsPage = () => {
         .page-btn { padding: 0.5rem 1rem; background: #f3f4f6; border: none; border-radius: 0.5rem; cursor: pointer; }
         .page-btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .page-info { font-size: 0.875rem; color: #6b7280; }
-        @media (max-width: 768px) { .filters { flex-direction: column; } .price-input { width: 100%; } .condition-badge { font-size: 0.6rem; } }
+        @media (max-width: 768px) {
+          .condition-tabs { gap: 0.25rem; }
+          .condition-tabs .tab-btn { flex: 1; min-height: 44px; padding: 0.5rem; font-size: 0.8rem; }
+          .filters-toggle { display: inline-flex; align-items: center; }
+          .filter-fields { display: none; }
+          .filter-fields.filter-fields-open { display: block; }
+          .filters { flex-direction: column; }
+          .filter-select, .price-input { width: 100%; min-height: 44px; }
+          .filter-verified { margin-bottom: 0.5rem; }
+          .results-count { text-align: left; }
+        }
       `}</style>
     </div>
   );
