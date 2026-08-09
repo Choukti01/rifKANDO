@@ -1,46 +1,62 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
+import useAuth from '../../hooks/useAuth';
 import { UserIcon, EnvelopeIcon, PhoneIcon, MapPinIcon, BellIcon, PencilIcon } from '@heroicons/react/24/outline';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 import ProfilePictureUpload from '../../components/ProfilePictureUpload';
 import { useNavigate } from 'react-router-dom';
 
+const getProfileFormData = (user) => ({
+  name: user?.name || '',
+  email: user?.email || '',
+  phone: user?.phone || '',
+  bio: user?.bio || '',
+  city: user?.city || '',
+  country: user?.country || 'Morocco'
+});
+
 const ProfilePage = () => {
   const { user, updateUser } = useAuth();
+  const userId = user?.id;
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('profile');
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    bio: '',
-    city: '',
-    country: 'Morocco'
-  });
+  const [formData, setFormData] = useState(() => getProfileFormData(user));
   const [stats, setStats] = useState({
     productsCount: 0,
     ordersCount: 0,
-    favoritesCount: 0,
-    memberSince: ''
+    favoritesCount: 0
   });
   const hasRefreshed = useRef(false); // Prevents infinite loop
 
   useEffect(() => {
-    if (user) {
-      setFormData({
-        name: user.name || '',
-        email: user.email || '',
-        phone: user.phone || '',
-        bio: user.bio || '',
-        city: user.city || '',
-        country: user.country || 'Morocco'
+    if (!userId) return undefined;
+
+    let isCurrent = true;
+
+    const loadUserStats = async () => {
+      const [productsResult, ordersResult, favoritesResult] = await Promise.allSettled([
+        api.get('/my-products'),
+        api.get('/orders'),
+        api.get('/favorites')
+      ]);
+
+      if (!isCurrent) return;
+
+      setStats({
+        productsCount: productsResult.status === 'fulfilled' ? productsResult.value.data.products?.length || 0 : 0,
+        ordersCount: ordersResult.status === 'fulfilled' ? ordersResult.value.data.orders?.length || 0 : 0,
+        favoritesCount: favoritesResult.status === 'fulfilled' ? favoritesResult.value.data.favorites?.length || 0 : 0
       });
-      fetchUserStats();
-    }
-  }, [user]);
+    };
+
+    void loadUserStats();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [userId]);
 
   // Refresh user data once to get sellerType from server
   useEffect(() => {
@@ -59,34 +75,6 @@ const ProfilePage = () => {
     };
     refreshUser();
   }, [user, updateUser]);
-
-  const fetchUserStats = async () => {
-    try {
-      try {
-        const productsRes = await api.get('/my-products');
-        setStats(prev => ({ ...prev, productsCount: productsRes.data.products?.length || 0 }));
-      } catch {
-        // Dashboard statistics are independent; an unavailable endpoint must not hide the profile.
-      }
-      try {
-        const ordersRes = await api.get('/orders');
-        setStats(prev => ({ ...prev, ordersCount: ordersRes.data.orders?.length || 0 }));
-      } catch {
-        // Dashboard statistics are independent; an unavailable endpoint must not hide the profile.
-      }
-      try {
-        const favRes = await api.get('/favorites');
-        setStats(prev => ({ ...prev, favoritesCount: favRes.data.favorites?.length || 0 }));
-      } catch {
-        // Dashboard statistics are independent; an unavailable endpoint must not hide the profile.
-      }
-      if (user?.createdAt) {
-        setStats(prev => ({ ...prev, memberSince: new Date(user.createdAt).toLocaleDateString() }));
-      }
-    } catch (error) {
-      console.error('Failed to fetch stats:', error);
-    }
-  };
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -110,6 +98,11 @@ const ProfilePage = () => {
 
   const handleProfilePictureUpdate = (newImageUrl) => {
     updateUser({ ...user, profilePicture: newImageUrl });
+  };
+
+  const startEditing = () => {
+    setFormData(getProfileFormData(user));
+    setIsEditing(true);
   };
 
   const tabs = [
@@ -189,7 +182,7 @@ const ProfilePage = () => {
             </div>
 
             <div className="profile-info">
-              <p className="member-since">Member since {stats.memberSince || '2024'}</p>
+              <p className="member-since">Member since {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : '2024'}</p>
             </div>
           </div>
 
@@ -200,7 +193,7 @@ const ProfilePage = () => {
                 <div className="card-header">
                   <h2>Profile Information</h2>
                   {!isEditing ? (
-                    <button className="edit-btn" onClick={() => setIsEditing(true)}>
+                    <button className="edit-btn" onClick={startEditing}>
                       <PencilIcon className="w-4 h-4" />
                       Edit Profile
                     </button>

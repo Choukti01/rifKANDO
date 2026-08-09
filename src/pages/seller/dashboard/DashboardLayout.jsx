@@ -6,7 +6,7 @@ import {
   ArrowLeftOnRectangleIcon, ComputerDesktopIcon, CalendarIcon,
   ChatBubbleLeftRightIcon, ShieldCheckIcon, Bars3Icon, XMarkIcon, ClipboardDocumentListIcon
 } from '@heroicons/react/24/outline';
-import { useAuth } from '../../../contexts/AuthContext';
+import useAuth from '../../../hooks/useAuth';
 import { getImageUrl } from '../../../utils/imageUtils';
 import api from '../../../services/api';
 
@@ -17,11 +17,6 @@ const DashboardLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
-
-  // Close mobile menu on route change
-  useEffect(() => {
-    setIsMobileMenuOpen(false);
-  }, [location.pathname]);
 
   useEffect(() => {
     if (!isMobileMenuOpen) return undefined;

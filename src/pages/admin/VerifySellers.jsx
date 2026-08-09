@@ -7,7 +7,24 @@ const VerifySellers = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchSellers();
+    let isCurrent = true;
+
+    const loadSellers = async () => {
+      try {
+        const res = await api.get('/admin/unverified-sellers');
+        if (isCurrent) setSellers(res.data.sellers || []);
+      } catch {
+        if (isCurrent) toast.error('Failed to load sellers');
+      } finally {
+        if (isCurrent) setLoading(false);
+      }
+    };
+
+    void loadSellers();
+
+    return () => {
+      isCurrent = false;
+    };
   }, []);
 
   const fetchSellers = async () => {

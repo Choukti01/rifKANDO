@@ -22,37 +22,42 @@ const EditCourse = () => {
   });
 
   useEffect(() => {
-    fetchCourse();
-  }, [id]);
+    let isCurrent = true;
 
-  const fetchCourse = async () => {
-    try {
-      setFetching(true);
-      const response = await api.get(`/courses/${id}`);
-      const course = response.data.course;
-      setFormData({
-        title: course.title || '',
-        description: course.description || '',
-        price: course.price || '',
-        old_price: course.old_price || '',
-        level: course.level || 'beginner',
-        category: course.category || 'programming',
-        duration: course.duration || '',
-        what_you_learn: course.what_you_learn ? JSON.parse(course.what_you_learn).join('\n') : ''
-      });
-      if (course.media && course.media.length) {
-          setMedia(course.media.map(m => ({ 
-          url: m.media_url,
-          type: m.media_type 
-          })));    }
-    } catch (error) {
-      console.error('Error fetching course:', error);
-      toast.error('Failed to load course data');
-      navigate('/seller/dashboard/courses');
-    } finally {
-      setFetching(false);
-    }
-  };
+    const loadCourse = async () => {
+      try {
+        const response = await api.get(`/courses/${id}`);
+        if (!isCurrent) return;
+
+        const course = response.data.course;
+        setFormData({
+          title: course.title || '',
+          description: course.description || '',
+          price: course.price || '',
+          old_price: course.old_price || '',
+          level: course.level || 'beginner',
+          category: course.category || 'programming',
+          duration: course.duration || '',
+          what_you_learn: course.what_you_learn ? JSON.parse(course.what_you_learn).join('\n') : ''
+        });
+        setMedia(course.media?.map(m => ({ url: m.media_url, type: m.media_type })) || []);
+      } catch (error) {
+        if (isCurrent) {
+          console.error('Error fetching course:', error);
+          toast.error('Failed to load course data');
+          navigate('/seller/dashboard/courses');
+        }
+      } finally {
+        if (isCurrent) setFetching(false);
+      }
+    };
+
+    void loadCourse();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [id, navigate]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });

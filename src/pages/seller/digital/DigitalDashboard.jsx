@@ -21,7 +21,42 @@ const DigitalDashboard = () => {
   });
 
   useEffect(() => {
-    fetchProducts();
+    let isCurrent = true;
+
+    const loadProducts = async () => {
+      try {
+        const response = await getMyDigitalProducts();
+        if (!isCurrent) return;
+
+        const productsData = response.data.products || [];
+        const totalDownloads = productsData.reduce((sum, product) => sum + (product.downloads || 0), 0);
+        const totalRevenue = productsData.reduce((sum, product) => sum + ((product.price || 0) * (product.downloads || 0)), 0);
+        const avgRating = productsData.length > 0
+          ? productsData.reduce((sum, product) => sum + (product.rating || 0), 0) / productsData.length
+          : 0;
+
+        setProducts(productsData);
+        setStats({
+          totalProducts: productsData.length,
+          totalDownloads,
+          totalRevenue,
+          avgRating: avgRating.toFixed(1)
+        });
+      } catch (error) {
+        if (isCurrent) {
+          console.error('Failed to fetch digital products:', error);
+          toast.error('Failed to load products');
+        }
+      } finally {
+        if (isCurrent) setLoading(false);
+      }
+    };
+
+    void loadProducts();
+
+    return () => {
+      isCurrent = false;
+    };
   }, []);
 
   const fetchProducts = async () => {

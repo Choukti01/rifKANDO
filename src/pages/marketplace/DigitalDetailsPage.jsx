@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { StarIcon, ArrowDownTrayIcon, ShieldCheckIcon, DocumentIcon, CheckCircleIcon, EnvelopeIcon, PhoneIcon, PaperAirplaneIcon } from '@heroicons/react/24/outline';
 import { getDigitalProduct } from '../../services/api';
 import api from '../../services/api';
-import { useAuth } from '../../contexts/AuthContext';
+import useAuth from '../../hooks/useAuth';
 import toast from 'react-hot-toast';
 import MediaGallery from '../../components/MediaGallery';
 import MarketplaceImage from '../../components/common/MarketplaceImage';
@@ -22,32 +22,38 @@ const DigitalDetailsPage = () => {
   const { isAuthenticated } = useAuth();
 
   useEffect(() => {
-    fetchProduct();
-    if (isAuthenticated) {
-      checkCanDownload();
-    }
-  }, [id, isAuthenticated]);
+    let isCurrent = true;
 
-  const fetchProduct = async () => {
-    try {
-      setLoading(true);
-      const response = await getDigitalProduct(id);
-      setProduct(response.data.product);
-    } catch {
-      toast.error('Failed to load product');
-    } finally {
+    const loadProduct = async () => {
+      const [productResult, downloadResult] = await Promise.allSettled([
+        getDigitalProduct(id),
+        isAuthenticated ? api.get(`/digital/${id}/can-download`) : Promise.resolve(null)
+      ]);
+
+      if (!isCurrent) return;
+
+      if (productResult.status === 'fulfilled') {
+        setProduct(productResult.value.data.product);
+      } else {
+        toast.error('Failed to load product');
+      }
+
+      if (downloadResult.status === 'fulfilled') {
+        setCanDownload(Boolean(downloadResult.value?.data.canDownload));
+      } else {
+        console.error('Error checking download status:', downloadResult.reason);
+        setCanDownload(false);
+      }
+
       setLoading(false);
-    }
-  };
+    };
 
-  const checkCanDownload = async () => {
-    try {
-      const res = await api.get(`/digital/${id}/can-download`);
-      setCanDownload(res.data.canDownload);
-    } catch (error) {
-      console.error('Error checking download status:', error);
-    }
-  };
+    void loadProduct();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [id, isAuthenticated]);
 
   const handleRequestSubmit = async (e) => {
     e.preventDefault();

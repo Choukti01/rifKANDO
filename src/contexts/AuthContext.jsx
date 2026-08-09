@@ -1,14 +1,7 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import api, { clearCsrfToken, getMe, setCsrfToken } from '../services/api';
 import toast from 'react-hot-toast';
-
-const AuthContext = createContext();
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) throw new Error('useAuth must be used within AuthProvider');
-  return context;
-};
+import AuthContext from './authStore';
 
 const normalizeUser = (user) => ({
   ...user,
@@ -24,35 +17,44 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   }, []);
 
-  const fetchUser = useCallback(async () => {
-    try {
-      const response = await getMe();
-      const userData = response.data.data?.user || response.data.user;
-      if (!userData || !response.data.csrfToken) throw new Error('Invalid session response');
-      setCsrfToken(response.data.csrfToken);
-      setUser(normalizeUser(userData));
-      return true;
-    } catch {
-      clearSessionState();
-      return false;
-    } finally {
-      setLoading(false);
-    }
-  }, [clearSessionState]);
-
   useEffect(() => {
+    let isCurrent = true;
+
     // Invalidate credentials from the legacy localStorage implementation.
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    fetchUser();
+
+    const initializeSession = async () => {
+      try {
+        const response = await getMe();
+        const userData = response.data.data?.user || response.data.user;
+        if (!userData || !response.data.csrfToken) throw new Error('Invalid session response');
+        if (!isCurrent) return;
+
+        setCsrfToken(response.data.csrfToken);
+        setUser(normalizeUser(userData));
+      } catch {
+        if (!isCurrent) return;
+
+        clearCsrfToken();
+        setUser(null);
+      } finally {
+        if (isCurrent) setLoading(false);
+      }
+    };
+
+    void initializeSession();
 
     const handleSessionExpiry = () => {
       clearSessionState();
       setLoading(false);
     };
     window.addEventListener('rifkando:session-expired', handleSessionExpiry);
-    return () => window.removeEventListener('rifkando:session-expired', handleSessionExpiry);
-  }, [clearSessionState, fetchUser]);
+    return () => {
+      isCurrent = false;
+      window.removeEventListener('rifkando:session-expired', handleSessionExpiry);
+    };
+  }, [clearSessionState]);
 
   const completeAuthentication = useCallback((response, successMessage) => {
     const authenticatedUser = response.data.data?.user || response.data.user;

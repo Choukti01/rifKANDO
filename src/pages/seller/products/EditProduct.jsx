@@ -21,34 +21,41 @@ const EditProduct = () => {
   });
 
   useEffect(() => {
-    fetchProduct();
-  }, [id]);
+    let isCurrent = true;
 
-  const fetchProduct = async () => {
-    try {
-      setFetching(true);
-      const response = await api.get(`/products/${id}`);
-      const product = response.data.product;
-      setFormData({
-        title: product.title || '',
-        description: product.description || '',
-        price: product.price || '',
-        old_price: product.old_price || '',
-        category: product.category || 'electronics',
-        stock: product.stock || '',
-        condition: product.condition || 'new',
-      });
-      if (product.media && product.media.length) {
-        setMedia(product.media.map(m => ({ url: m.media_url, type: m.media_type })));
+    const loadProduct = async () => {
+      try {
+        const response = await api.get(`/products/${id}`);
+        if (!isCurrent) return;
+
+        const product = response.data.product;
+        setFormData({
+          title: product.title || '',
+          description: product.description || '',
+          price: product.price || '',
+          old_price: product.old_price || '',
+          category: product.category || 'electronics',
+          stock: product.stock || '',
+          condition: product.condition || 'new',
+        });
+        setMedia(product.media?.map(m => ({ url: m.media_url, type: m.media_type })) || []);
+      } catch (error) {
+        if (isCurrent) {
+          console.error('Error fetching product:', error);
+          toast.error('Failed to load product data');
+          navigate('/seller/dashboard/products');
+        }
+      } finally {
+        if (isCurrent) setFetching(false);
       }
-    } catch (error) {
-      console.error('Error fetching product:', error);
-      toast.error('Failed to load product data');
-      navigate('/seller/dashboard/products');
-    } finally {
-      setFetching(false);
-    }
-  };
+    };
+
+    void loadProduct();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [id, navigate]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });

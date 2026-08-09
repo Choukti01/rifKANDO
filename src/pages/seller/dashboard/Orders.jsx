@@ -9,7 +9,33 @@ const SellerOrders = () => {
   const [updating, setUpdating] = useState(null);
 
   useEffect(() => {
-    fetchOrders();
+    let isCurrent = true;
+
+    const loadOrders = async () => {
+      try {
+        const response = await api.get('/seller/orders');
+        if (!isCurrent) return;
+
+        if (response.data.success) {
+          setOrders(response.data.orders || []);
+        } else {
+          toast.error('Failed to load orders');
+        }
+      } catch (error) {
+        if (isCurrent) {
+          console.error('Fetch orders error:', error);
+          toast.error('Failed to load orders');
+        }
+      } finally {
+        if (isCurrent) setLoading(false);
+      }
+    };
+
+    void loadOrders();
+
+    return () => {
+      isCurrent = false;
+    };
   }, []);
 
   const fetchOrders = async () => {

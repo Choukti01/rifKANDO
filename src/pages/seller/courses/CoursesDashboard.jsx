@@ -19,7 +19,42 @@ const CoursesDashboard = () => {
   });
 
   useEffect(() => {
-    fetchCourses();
+    let isCurrent = true;
+
+    const loadCourses = async () => {
+      try {
+        const response = await getMyCourses();
+        if (!isCurrent) return;
+
+        const coursesData = response.data.courses || [];
+        const totalStudents = coursesData.reduce((sum, course) => sum + (course.students_count || 0), 0);
+        const totalRevenue = coursesData.reduce((sum, course) => sum + ((course.price || 0) * (course.students_count || 0)), 0);
+        const avgRating = coursesData.length > 0
+          ? coursesData.reduce((sum, course) => sum + (course.rating || 0), 0) / coursesData.length
+          : 0;
+
+        setCourses(coursesData);
+        setStats({
+          totalCourses: coursesData.length,
+          totalStudents,
+          totalRevenue,
+          avgRating: avgRating.toFixed(1)
+        });
+      } catch (error) {
+        if (isCurrent) {
+          console.error('Failed to fetch courses:', error);
+          toast.error('Failed to load courses');
+        }
+      } finally {
+        if (isCurrent) setLoading(false);
+      }
+    };
+
+    void loadCourses();
+
+    return () => {
+      isCurrent = false;
+    };
   }, []);
 
   const fetchCourses = async () => {

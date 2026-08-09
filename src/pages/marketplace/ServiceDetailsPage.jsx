@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { StarIcon, ClockIcon, ArrowPathIcon, CheckBadgeIcon, PlayIcon } from '@heroicons/react/24/outline';
 import { getService, orderService } from '../../services/api';
-import { useAuth } from '../../contexts/AuthContext';
+import useAuth from '../../hooks/useAuth';
 import toast from 'react-hot-toast';
 import MediaGallery from '../../components/MediaGallery';
 import MarketplaceImage from '../../components/common/MarketplaceImage';
@@ -20,36 +20,38 @@ const ServiceDetailsPage = () => {
   const { isAuthenticated } = useAuth();
 
   useEffect(() => {
-    fetchService();
-  }, [id]);
+    let isCurrent = true;
 
-  const fetchService = async () => {
-    try {
-      setLoading(true);
-      const response = await getService(id);
-      const serviceData = response.data.service;
-      setService(serviceData);
-      
-      // If there are packages, select the first one; otherwise create a default "package" from the service itself
-      if (serviceData.packages && serviceData.packages.length > 0) {
-        setSelectedPackage(serviceData.packages[0]);
-      } else {
-        // Create a virtual package from the service's own data
-        setSelectedPackage({
+    const loadService = async () => {
+      try {
+        const response = await getService(id);
+        if (!isCurrent) return;
+
+        const serviceData = response.data.service;
+        setService(serviceData);
+        setSelectedPackage(serviceData.packages?.[0] || {
           id: 'default',
           name: 'Standard Service',
           price: serviceData.price,
           delivery_time: serviceData.delivery_time || 'As agreed',
           revisions: serviceData.revisions || 0
         });
+      } catch (error) {
+        if (isCurrent) {
+          console.error('Error fetching service:', error);
+          toast.error('Failed to load service');
+        }
+      } finally {
+        if (isCurrent) setLoading(false);
       }
-    } catch (error) {
-      console.error('Error fetching service:', error);
-      toast.error('Failed to load service');
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
+
+    void loadService();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [id]);
 
   const handleOrder = async () => {
     if (!isAuthenticated) {

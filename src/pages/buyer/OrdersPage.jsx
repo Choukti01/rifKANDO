@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import api from '../../services/api'
-import { useAuth } from '../../contexts/AuthContext'
+import useAuth from '../../hooks/useAuth'
 import toast from 'react-hot-toast'
 import { 
   EyeIcon, 
@@ -23,23 +23,30 @@ const OrdersPage = () => {
   const { isAuthenticated } = useAuth()
 
   useEffect(() => {
-    if (isAuthenticated) {
-      fetchOrders()
+    if (!isAuthenticated) return undefined
+
+    let isCurrent = true
+
+    const loadOrders = async () => {
+      try {
+        const response = await api.get('/orders')
+        if (isCurrent) setOrders(response.data.orders || [])
+      } catch (error) {
+        if (isCurrent) {
+          console.error('Failed to fetch orders:', error)
+          toast.error('Failed to load orders')
+        }
+      } finally {
+        if (isCurrent) setLoading(false)
+      }
+    }
+
+    void loadOrders()
+
+    return () => {
+      isCurrent = false
     }
   }, [isAuthenticated])
-
-  const fetchOrders = async () => {
-    try {
-      setLoading(true)
-      const response = await api.get('/orders')
-      setOrders(response.data.orders || [])
-    } catch (error) {
-      console.error('Failed to fetch orders:', error)
-      toast.error('Failed to load orders')
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const getStatusConfig = (status) => {
     const configs = {

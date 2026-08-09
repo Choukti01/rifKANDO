@@ -20,7 +20,30 @@ const ManageLessons = () => {
   });
 
   useEffect(() => {
-    fetchCourseAndLessons();
+    let isCurrent = true;
+
+    const loadCourseAndLessons = async () => {
+      try {
+        const response = await api.get(`/courses/${courseId}`);
+        if (!isCurrent) return;
+
+        setCourse(response.data.course);
+        setLessons(response.data.course.lessons || []);
+      } catch (error) {
+        if (isCurrent) {
+          console.error('Failed to fetch course:', error);
+          toast.error('Failed to load course');
+        }
+      } finally {
+        if (isCurrent) setLoading(false);
+      }
+    };
+
+    void loadCourseAndLessons();
+
+    return () => {
+      isCurrent = false;
+    };
   }, [courseId]);
 
   const fetchCourseAndLessons = async () => {

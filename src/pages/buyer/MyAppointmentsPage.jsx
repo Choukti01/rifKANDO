@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { CalendarIcon, ClockIcon, MapPinIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import { getMyAppointments } from '../../services/api';
-import { useAuth } from '../../contexts/AuthContext';
+import useAuth from '../../hooks/useAuth';
 import toast from 'react-hot-toast';
 
 const MyAppointmentsPage = () => {
@@ -11,23 +11,30 @@ const MyAppointmentsPage = () => {
   const { isAuthenticated } = useAuth();
 
   useEffect(() => {
-    if (isAuthenticated) {
-      fetchAppointments();
-    }
-  }, [isAuthenticated]);
+    if (!isAuthenticated) return undefined;
 
-  const fetchAppointments = async () => {
-    try {
-      setLoading(true);
-      const response = await getMyAppointments();
-      setAppointments(response.data.appointments || []);
-    } catch (error) {
-      console.error('Failed to fetch appointments:', error);
-      toast.error('Failed to load your appointments');
-    } finally {
-      setLoading(false);
-    }
-  };
+    let isCurrent = true;
+
+    const loadAppointments = async () => {
+      try {
+        const response = await getMyAppointments();
+        if (isCurrent) setAppointments(response.data.appointments || []);
+      } catch (error) {
+        if (isCurrent) {
+          console.error('Failed to fetch appointments:', error);
+          toast.error('Failed to load your appointments');
+        }
+      } finally {
+        if (isCurrent) setLoading(false);
+      }
+    };
+
+    void loadAppointments();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [isAuthenticated]);
 
   const getStatusColor = (status) => {
     switch(status) {

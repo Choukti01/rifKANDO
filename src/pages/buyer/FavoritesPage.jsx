@@ -1,9 +1,9 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { TrashIcon, ShoppingBagIcon, StarIcon } from '@heroicons/react/24/outline';
-import { useFavorites } from '../../contexts/FavoritesContext';
-import { useCart } from '../../contexts/CartContext';
-import { useAuth } from '../../contexts/AuthContext';
+import useFavorites from '../../hooks/useFavorites';
+import useCart from '../../hooks/useCart';
+import useAuth from '../../hooks/useAuth';
 import toast from 'react-hot-toast';
 import EmptyState from '../../components/common/EmptyState';
 import LoadingSkeleton from '../../components/common/LoadingSkeleton';

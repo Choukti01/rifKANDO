@@ -11,7 +11,27 @@ const CODReconciliation = () => {
   const [processing, setProcessing] = useState(null);
 
   useEffect(() => {
-    fetchOrders();
+    let isCurrent = true;
+
+    const loadOrders = async () => {
+      try {
+        const res = await api.get('/admin/cod-orders');
+        if (isCurrent) setOrders(res.data.orders);
+      } catch (error) {
+        if (isCurrent) {
+          console.error(error);
+          alert('Failed to load COD orders');
+        }
+      } finally {
+        if (isCurrent) setLoading(false);
+      }
+    };
+
+    void loadOrders();
+
+    return () => {
+      isCurrent = false;
+    };
   }, []);
 
   const fetchOrders = async () => {

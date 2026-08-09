@@ -1,7 +1,7 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
 import { TrashIcon, PlusIcon, MinusIcon, ShoppingCartIcon, ArrowLeftIcon, ShieldCheckIcon } from '@heroicons/react/24/outline'
-import { useCart } from '../../contexts/CartContext'
+import useCart from '../../hooks/useCart'
 import MarketplaceImage from '../../components/common/MarketplaceImage'
 
 const CartPage = () => {

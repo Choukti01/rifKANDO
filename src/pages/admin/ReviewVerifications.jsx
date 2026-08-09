@@ -7,7 +7,24 @@ const ReviewVerifications = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchVerifications();
+    let isCurrent = true;
+
+    const loadVerifications = async () => {
+      try {
+        const res = await api.get('/admin/pending-verifications');
+        if (isCurrent) setVerifications(res.data.verifications || []);
+      } catch {
+        if (isCurrent) toast.error('Failed to load verifications');
+      } finally {
+        if (isCurrent) setLoading(false);
+      }
+    };
+
+    void loadVerifications();
+
+    return () => {
+      isCurrent = false;
+    };
   }, []);
 
   const fetchVerifications = async () => {

@@ -1,17 +1,8 @@
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
-import { useAuth } from './AuthContext';
-
-const CartContext = createContext();
-
-export const useCart = () => {
-  const context = useContext(CartContext);
-  if (!context) {
-    throw new Error('useCart must be used within CartProvider');
-  }
-  return context;
-};
+import useAuth from '../hooks/useAuth';
+import CartContext from './cartStore';
 
 export const CartProvider = ({ children }) => {
   const [cart, setCart] = useState([]);

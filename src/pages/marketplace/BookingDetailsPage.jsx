@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { StarIcon, CalendarIcon, ClockIcon, MapPinIcon, UserIcon, CheckCircleIcon, HomeIcon } from '@heroicons/react/24/outline';
 import { getBooking, bookAppointment } from '../../services/api';
-import { useAuth } from '../../contexts/AuthContext';
+import useAuth from '../../hooks/useAuth';
 import toast from 'react-hot-toast';
 import MediaGallery from '../../components/MediaGallery';
 import MarketplaceImage from '../../components/common/MarketplaceImage';
@@ -23,23 +23,30 @@ const BookingDetailsPage = () => {
   const { isAuthenticated } = useAuth();
 
   useEffect(() => {
-    if (id) {
-      fetchBooking();
-    }
-  }, [id]);
+    if (!id) return undefined;
 
-  const fetchBooking = async () => {
-    try {
-      setLoading(true);
-      const response = await getBooking(id);
-      setBooking(response.data.booking);
-    } catch (error) {
-      console.error('Error fetching booking:', error);
-      toast.error('Failed to load booking details');
-    } finally {
-      setLoading(false);
-    }
-  };
+    let isCurrent = true;
+
+    const loadBooking = async () => {
+      try {
+        const response = await getBooking(id);
+        if (isCurrent) setBooking(response.data.booking);
+      } catch (error) {
+        if (isCurrent) {
+          console.error('Error fetching booking:', error);
+          toast.error('Failed to load booking details');
+        }
+      } finally {
+        if (isCurrent) setLoading(false);
+      }
+    };
+
+    void loadBooking();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [id]);
 
   const handleBookClick = () => {
     if (!isAuthenticated) {

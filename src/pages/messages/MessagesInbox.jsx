@@ -11,22 +11,32 @@ const MessagesInbox = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchConversations();
-    const interval = setInterval(fetchConversations, 5000);
-    return () => clearInterval(interval);
-  }, []);
+    let isCurrent = true;
 
-  const fetchConversations = async () => {
-    try {
-      const response = await api.get('/messages/conversations');
-      setConversations(response.data.conversations || []);
-    } catch (error) {
-      console.error('Error fetching conversations:', error);
-      toast.error('Failed to load messages');
-    } finally {
-      setLoading(false);
-    }
-  };
+    const loadConversations = async () => {
+      try {
+        const response = await api.get('/messages/conversations');
+        if (isCurrent) setConversations(response.data.conversations || []);
+      } catch (error) {
+        if (isCurrent) {
+          console.error('Error fetching conversations:', error);
+          toast.error('Failed to load messages');
+        }
+      } finally {
+        if (isCurrent) setLoading(false);
+      }
+    };
+
+    void loadConversations();
+    const interval = setInterval(() => {
+      void loadConversations();
+    }, 5000);
+
+    return () => {
+      isCurrent = false;
+      clearInterval(interval);
+    };
+  }, []);
 
   const formatTime = (dateStr) => {
     const date = new Date(dateStr);

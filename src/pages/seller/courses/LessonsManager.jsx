@@ -28,8 +28,32 @@ const LessonsManager = () => {
   });
 
   useEffect(() => {
-    fetchCourseAndLessons();
-  }, [id]);
+    let isCurrent = true;
+
+    const loadCourseAndLessons = async () => {
+      try {
+        const response = await api.get(`/courses/${id}`);
+        if (!isCurrent) return;
+
+        setCourse(response.data.course);
+        setLessons(response.data.course.lessons || []);
+      } catch (error) {
+        if (isCurrent) {
+          console.error('Error fetching course:', error);
+          toast.error('Failed to load course');
+          navigate('/seller/dashboard/courses');
+        }
+      } finally {
+        if (isCurrent) setLoading(false);
+      }
+    };
+
+    void loadCourseAndLessons();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [id, navigate]);
 
   const fetchCourseAndLessons = async () => {
     try {

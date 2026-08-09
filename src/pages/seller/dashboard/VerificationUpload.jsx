@@ -9,7 +9,22 @@ const VerificationUpload = () => {
   const [verificationStatus, setVerificationStatus] = useState(null);
 
   useEffect(() => {
-    fetchStatus();
+    let isCurrent = true;
+
+    const loadStatus = async () => {
+      try {
+        const res = await api.get('/seller/verification-status');
+        if (isCurrent) setVerificationStatus(res.data.verification);
+      } catch (error) {
+        if (isCurrent) console.error('Error fetching verification status:', error);
+      }
+    };
+
+    void loadStatus();
+
+    return () => {
+      isCurrent = false;
+    };
   }, []);
 
   const fetchStatus = async () => {

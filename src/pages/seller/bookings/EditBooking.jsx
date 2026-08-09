@@ -24,37 +24,44 @@ const EditBooking = () => {
   });
 
   useEffect(() => {
-    fetchBooking();
-  }, [id]);
+    let isCurrent = true;
 
-  const fetchBooking = async () => {
-    try {
-      setFetching(true);
-      const response = await api.get(`/bookings/${id}`);
-      const booking = response.data.booking;
-      setFormData({
-        title: booking.title || '',
-        description: booking.description || '',
-        price: booking.price || '',
-        old_price: booking.old_price || '',
-        category: booking.category || 'consultation',
-        duration: booking.duration || '60',
-        location_type: booking.location_type || 'online',
-        location: booking.location || '',
-        max_participants: booking.max_participants || '1',
-        image: booking.image || ''
-      });
-      if (booking.media && booking.media.length) {
-        setMedia(booking.media.map(m => ({ url: m.media_url, type: m.media_type })));
+    const loadBooking = async () => {
+      try {
+        const response = await api.get(`/bookings/${id}`);
+        if (!isCurrent) return;
+
+        const booking = response.data.booking;
+        setFormData({
+          title: booking.title || '',
+          description: booking.description || '',
+          price: booking.price || '',
+          old_price: booking.old_price || '',
+          category: booking.category || 'consultation',
+          duration: booking.duration || '60',
+          location_type: booking.location_type || 'online',
+          location: booking.location || '',
+          max_participants: booking.max_participants || '1',
+          image: booking.image || ''
+        });
+        setMedia(booking.media?.map(m => ({ url: m.media_url, type: m.media_type })) || []);
+      } catch (error) {
+        if (isCurrent) {
+          console.error('Error fetching booking:', error);
+          toast.error('Failed to load booking data');
+          navigate('/seller/dashboard/bookings');
+        }
+      } finally {
+        if (isCurrent) setFetching(false);
       }
-    } catch (error) {
-      console.error('Error fetching booking:', error);
-      toast.error('Failed to load booking data');
-      navigate('/seller/dashboard/bookings');
-    } finally {
-      setFetching(false);
-    }
-  };
+    };
+
+    void loadBooking();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [id, navigate]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
