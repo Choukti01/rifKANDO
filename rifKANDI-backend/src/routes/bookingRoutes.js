@@ -1,4 +1,5 @@
 const express = require('express');
+const { createPaginationMetadata, getPagination } = require('../utils/pagination');
 
 const createBookingRoutes = ({
   db,
@@ -53,28 +54,43 @@ router.post('/bookings', protect, requireSeller, validateBookingCreate, (req, re
 });
 
 router.get('/bookings', (req, res) => {
-  db.all(`
-    SELECT b.*, u.name as provider_name, u.id as provider_id
-    FROM bookings b
-    JOIN users u ON b.provider_id = u.id
-    WHERE b.status = 'published'
-    ORDER BY b.created_at DESC
-  `, (err, rows) => {
-    if (err) {
-      res.status(500).json({ error: err.message });
-    } else {
-      if (!rows.length) return res.json({ success: true, bookings: [] });
+  const { page, limit, offset } = getPagination(req.query);
+  const category = typeof req.query.category === 'string' && req.query.category.trim().length <= 80
+    ? req.query.category.trim()
+    : '';
+  const filterValues = category ? [category] : [];
+  const countCategoryFilter = category ? ' AND category = ?' : '';
+  const listCategoryFilter = category ? ' AND b.category = ?' : '';
+
+  db.get(`SELECT COUNT(*) AS total FROM bookings WHERE status = 'published'${countCategoryFilter}`, filterValues, (countError, countRow) => {
+    if (countError) return res.status(500).json({ error: countError.message });
+
+    const pagination = createPaginationMetadata(page, limit, countRow?.total || 0);
+    const sendBookings = (bookings) => {
+      res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
+      return res.json({ success: true, bookings, pagination });
+    };
+
+    db.all(`
+      SELECT b.*, u.name as provider_name, u.id as provider_id
+      FROM bookings b
+      JOIN users u ON b.provider_id = u.id
+      WHERE b.status = 'published'${listCategoryFilter}
+      ORDER BY b.created_at DESC
+      LIMIT ? OFFSET ?
+    `, [...filterValues, limit, offset], (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      if (!rows.length) return sendBookings([]);
+
       let completed = 0;
       rows.forEach((booking) => {
-        db.all(`SELECT * FROM booking_media WHERE booking_id = ? ORDER BY display_order, id`, [booking.id], (err, media) => {
-          if (!err) booking.media = media || [];
+        db.all(`SELECT * FROM booking_media WHERE booking_id = ? ORDER BY display_order, id`, [booking.id], (mediaError, media) => {
+          if (!mediaError) booking.media = media || [];
           completed++;
-          if (completed === rows.length) {
-            res.json({ success: true, bookings: rows });
-          }
+          if (completed === rows.length) sendBookings(rows);
         });
       });
-    }
+    });
   });
 });
 

@@ -20,7 +20,10 @@ export default defineConfig({
     url: 'http://127.0.0.1:5173',
     reuseExistingServer: !process.env.CI,
     env: {
+      ...process.env,
       CI: '1',
+      VITE_API_URL: process.env.VITE_API_URL || 'http://127.0.0.1:5000/api',
+      VITE_GOOGLE_CLIENT_ID: process.env.VITE_GOOGLE_CLIENT_ID || 'rifkando-e2e.apps.googleusercontent.com',
     },
     timeout: 120_000,
   },

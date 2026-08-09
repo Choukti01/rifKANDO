@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getServices } from '../../services/api';
 import toast from 'react-hot-toast';
@@ -6,28 +6,35 @@ import MediaGallery from '../../components/MediaGallery';
 import { getImageUrl } from '../../utils/imageUtils';
 import MarketplaceImage from '../../components/common/MarketplaceImage';
 import VerifiedBadge from '../../components/common/VerifiedBadge';
+import LoadMoreButton from '../../components/common/LoadMoreButton';
 
 const ServicesPage = () => {
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [galleryService, setGalleryService] = useState(null);
+  const [pagination, setPagination] = useState({ page: 1, totalPages: 1 });
 
-  useEffect(() => {
-    fetchServices();
-  }, []);
-
-  const fetchServices = async () => {
+  const fetchServices = useCallback(async ({ page = 1, append = false } = {}) => {
     try {
-      setLoading(true);
-      const response = await getServices();
-      setServices(response.data.services || []);
+      if (append) setLoadingMore(true);
+
+      const response = await getServices({ page, limit: 12 });
+      const nextServices = response.data.services || [];
+      setServices((currentServices) => (append ? [...currentServices, ...nextServices] : nextServices));
+      setPagination(response.data.pagination || { page: 1, totalPages: 1 });
     } catch (error) {
       console.error('Error fetching services:', error);
       toast.error('Failed to load services');
     } finally {
-      setLoading(false);
+      if (append) setLoadingMore(false);
+      else setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchServices();
+  }, [fetchServices]);
 
   if (loading) {
     return (
@@ -106,6 +113,13 @@ const ServicesPage = () => {
             })
           )}
         </div>
+
+        <LoadMoreButton
+          hasMore={pagination.page < pagination.totalPages}
+          isLoading={loadingMore}
+          onLoadMore={() => fetchServices({ page: pagination.page + 1, append: true })}
+          itemLabel="services"
+        />
       </div>
 
       {galleryService && (

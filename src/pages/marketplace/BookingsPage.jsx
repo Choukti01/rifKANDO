@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { StarIcon, ClockIcon, MapPinIcon } from '@heroicons/react/24/outline';
 import { getBookings } from '../../services/api';
@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import MediaGallery from '../../components/MediaGallery';
 import MarketplaceImage from '../../components/common/MarketplaceImage';
 import { getImageUrl } from '../../utils/imageUtils';
+import LoadMoreButton from '../../components/common/LoadMoreButton';
 
 
 
@@ -13,8 +14,10 @@ import { getImageUrl } from '../../utils/imageUtils';
 const BookingsPage = () => {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [galleryBooking, setGalleryBooking] = useState(null);
+  const [pagination, setPagination] = useState({ page: 1, totalPages: 1 });
 
   const categories = [
     { id: 'all', name: 'All' },
@@ -24,26 +27,38 @@ const BookingsPage = () => {
     { id: 'events', name: 'Events' },
   ];
 
-  useEffect(() => {
-    fetchBookings();
-  }, []);
-
-  const fetchBookings = async () => {
+  const fetchBookings = useCallback(async ({ page = 1, append = false, category = 'all' } = {}) => {
     try {
-      setLoading(true);
-      const response = await getBookings();
-      setBookings(response.data.bookings || []);
+      if (append) setLoadingMore(true);
+
+      const response = await getBookings({
+        page,
+        limit: 12,
+        ...(category !== 'all' ? { category } : {}),
+      });
+      const nextBookings = response.data.bookings || [];
+      setBookings((currentBookings) => (append ? [...currentBookings, ...nextBookings] : nextBookings));
+      setPagination(response.data.pagination || { page: 1, totalPages: 1 });
     } catch (error) {
       console.error('Error fetching bookings:', error);
       toast.error('Failed to load bookings');
     } finally {
-      setLoading(false);
+      if (append) setLoadingMore(false);
+      else setLoading(false);
     }
-  };
+  }, []);
 
-  const filteredBookings = selectedCategory === 'all' 
-    ? bookings 
-    : bookings.filter(b => b.category === selectedCategory);
+  useEffect(() => {
+    fetchBookings();
+  }, [fetchBookings]);
+
+  const handleCategoryChange = (category) => {
+    if (category === selectedCategory) return;
+
+    setSelectedCategory(category);
+    setLoading(true);
+    fetchBookings({ category });
+  };
 
   if (loading) {
     return (
@@ -66,7 +81,7 @@ const BookingsPage = () => {
           {categories.map(cat => (
             <button
               key={cat.id}
-              onClick={() => setSelectedCategory(cat.id)}
+              onClick={() => handleCategoryChange(cat.id)}
               className={`cat-btn ${selectedCategory === cat.id ? 'active' : ''}`}
             >
               {cat.name}
@@ -75,13 +90,13 @@ const BookingsPage = () => {
         </div>
 
         <div className="bookings-grid">
-          {filteredBookings.length === 0 ? (
+          {bookings.length === 0 ? (
             <div className="empty-state">
               <div className="empty-icon"></div>
               <p>No bookings available</p>
             </div>
           ) : (
-            filteredBookings.map(booking => {
+            bookings.map(booking => {
               const primaryMedia = booking.media?.find(m => m.is_primary) || booking.media?.[0];
               return (
                 <div key={booking.id} className="booking-card">
@@ -133,6 +148,13 @@ const BookingsPage = () => {
             })
           )}
         </div>
+
+        <LoadMoreButton
+          hasMore={pagination.page < pagination.totalPages}
+          isLoading={loadingMore}
+          onLoadMore={() => fetchBookings({ page: pagination.page + 1, append: true, category: selectedCategory })}
+          itemLabel="bookings"
+        />
       </div>
 
       {galleryBooking && (

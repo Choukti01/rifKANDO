@@ -100,7 +100,7 @@ export const deleteProduct = (id) => api.delete(`/products/${id}`);
 export const getMyProducts = () => api.get('/my-products');
 
 // ==================== COURSE APIs ====================
-export const getCourses = () => api.get('/courses');
+export const getCourses = (params) => api.get('/courses', { params });
 export const getCourse = (id) => api.get(`/courses/${id}`);
 export const createCourse = (courseData) => api.post('/courses', courseData);
 export const updateCourse = (id, courseData) => api.put(`/courses/${id}`, courseData);
@@ -116,7 +116,7 @@ export const updateLesson = (courseId, lessonId, lessonData) => api.put(`/course
 export const deleteLesson = (courseId, lessonId) => api.delete(`/courses/${courseId}/lessons/${lessonId}`);
 
 // ==================== SERVICE APIs ====================
-export const getServices = () => api.get('/services');
+export const getServices = (params) => api.get('/services', { params });
 export const getService = (id) => api.get(`/services/${id}`);
 export const createService = (serviceData) => api.post('/services', serviceData);
 export const updateService = (id, serviceData) => api.put(`/services/${id}`, serviceData);
@@ -125,7 +125,7 @@ export const getMyServices = () => api.get('/my-services');
 export const orderService = (id, orderData) => api.post(`/services/${id}/order`, orderData);
 
 // ==================== DIGITAL PRODUCT APIs ====================
-export const getDigitalProducts = () => api.get('/digital');
+export const getDigitalProducts = (params) => api.get('/digital', { params });
 export const getDigitalProduct = (id) => api.get(`/digital/${id}`);
 export const createDigitalProduct = (productData) => api.post('/digital', productData);
 export const updateDigitalProduct = (id, productData) => api.put(`/digital/${id}`, productData);
@@ -135,7 +135,7 @@ export const purchaseDigitalProduct = (id) => api.post(`/digital/${id}/purchase`
 export const getMyPurchases = () => api.get('/my-purchases');
 
 // ==================== BOOKING APIs ====================
-export const getBookings = () => api.get('/bookings');
+export const getBookings = (params) => api.get('/bookings', { params });
 export const getBooking = (id) => api.get(`/bookings/${id}`);
 export const createBooking = (bookingData) => api.post('/bookings', bookingData);
 export const updateBooking = (id, bookingData) => api.put(`/bookings/${id}`, bookingData);

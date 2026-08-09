@@ -1,4 +1,5 @@
 const express = require('express');
+const { createPaginationMetadata, getPagination } = require('../utils/pagination');
 
 const createCourseRoutes = ({
   db,
@@ -57,28 +58,42 @@ router.post('/courses', protect, requireSeller, validateCourseCreate, (req, res)
 });
 
 router.get('/courses', (req, res) => {
-  db.all(`
-    SELECT c.*, u.name as instructor_name, u.id as instructor_id
-    FROM courses c
-    JOIN users u ON c.instructor_id = u.id
-    WHERE c.status = 'published' OR c.status IS NULL
-    ORDER BY c.created_at DESC
-  `, (err, rows) => {
-    if (err) {
-      console.error('Courses fetch error:', err);
-      return res.status(500).json({ error: err.message });
+  const { page, limit, offset } = getPagination(req.query);
+  const whereClause = "c.status = 'published' OR c.status IS NULL";
+
+  db.get(`SELECT COUNT(*) AS total FROM courses c WHERE ${whereClause}`, (countError, countRow) => {
+    if (countError) {
+      console.error('Courses count error:', countError);
+      return res.status(500).json({ error: countError.message });
     }
-    if (!rows.length) {
-      return res.json({ success: true, courses: [] });
-    }
-    let completed = 0;
-    rows.forEach((course) => {
-      db.all(`SELECT * FROM course_media WHERE course_id = ? ORDER BY display_order, id`, [course.id], (err, media) => {
-        if (!err) course.media = media || [];
-        completed++;
-        if (completed === rows.length) {
-          res.json({ success: true, courses: rows });
-        }
+
+    const pagination = createPaginationMetadata(page, limit, countRow?.total || 0);
+    const sendCourses = (courses) => {
+      res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
+      return res.json({ success: true, courses, pagination });
+    };
+
+    db.all(`
+      SELECT c.*, u.name as instructor_name, u.id as instructor_id
+      FROM courses c
+      JOIN users u ON c.instructor_id = u.id
+      WHERE ${whereClause}
+      ORDER BY c.created_at DESC
+      LIMIT ? OFFSET ?
+    `, [limit, offset], (err, rows) => {
+      if (err) {
+        console.error('Courses fetch error:', err);
+        return res.status(500).json({ error: err.message });
+      }
+      if (!rows.length) return sendCourses([]);
+
+      let completed = 0;
+      rows.forEach((course) => {
+        db.all(`SELECT * FROM course_media WHERE course_id = ? ORDER BY display_order, id`, [course.id], (mediaError, media) => {
+          if (!mediaError) course.media = media || [];
+          completed++;
+          if (completed === rows.length) sendCourses(rows);
+        });
       });
     });
   });

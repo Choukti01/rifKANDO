@@ -96,7 +96,19 @@ class WalletService {
     return value;
   }
 
+  static lockForUpdate(sql) {
+    if (db.dialect !== 'postgres') return sql;
+    return `${String(sql).trim().replace(/;$/, '')} FOR UPDATE`;
+  }
+
   static async withFinancialTransaction(work) {
+    if (typeof db.withTransaction === 'function') {
+      return db.withTransaction((transaction) => work(transaction), {
+        isolationLevel: 'SERIALIZABLE',
+        retries: 2,
+      });
+    }
+
     const previous = this.transactionTail;
     let releaseQueue;
     this.transactionTail = new Promise((resolve) => {
@@ -136,7 +148,10 @@ class WalletService {
        VALUES (?, 0, 0, 0, 0, 0, 0, 0, 0)`,
       [safeUserId]
     );
-    const wallet = await tx.get('SELECT * FROM wallets WHERE user_id = ?', [safeUserId]);
+    const wallet = await tx.get(
+      this.lockForUpdate('SELECT * FROM wallets WHERE user_id = ?'),
+      [safeUserId]
+    );
     if (!wallet) throw new Error('Wallet could not be created.');
     return wallet;
   }
@@ -144,7 +159,7 @@ class WalletService {
   static async createOperationTx(tx, { operationKey, operationType, referenceType, referenceId, metadata = {} }) {
     const safeKey = this.normalizeIdempotencyKey(operationKey, 'Financial operation key');
     const existing = await tx.get(
-      'SELECT * FROM financial_operations WHERE operation_key = ?',
+      this.lockForUpdate('SELECT * FROM financial_operations WHERE operation_key = ?'),
       [safeKey]
     );
     if (existing) return { alreadyProcessed: true, operation: existing };
@@ -182,7 +197,7 @@ class WalletService {
     const safeKey = this.normalizeIdempotencyKey(idempotencyKey, 'Ledger entry key');
 
     const existing = await tx.get(
-      'SELECT * FROM wallet_ledger_entries WHERE idempotency_key = ?',
+      this.lockForUpdate('SELECT * FROM wallet_ledger_entries WHERE idempotency_key = ?'),
       [safeKey]
     );
     if (existing) {
@@ -358,7 +373,7 @@ class WalletService {
     const sellerAmount = this.minor(amount - safeCommission, { allowZero: true });
 
     const existing = await tx.get(
-      'SELECT * FROM escrow_transactions WHERE order_id = ? AND seller_id = ? ORDER BY id ASC LIMIT 1',
+      this.lockForUpdate('SELECT * FROM escrow_transactions WHERE order_id = ? AND seller_id = ? ORDER BY id ASC LIMIT 1'),
       [safeOrderId, safeSellerId]
     );
     if (existing) return existing;
@@ -389,9 +404,9 @@ class WalletService {
   static async fundOrderEscrowsTx(tx, orderId) {
     const safeOrderId = this.positiveInteger(orderId, 'Order ID');
     const escrows = await tx.all(
-      `SELECT * FROM escrow_transactions
+      this.lockForUpdate(`SELECT * FROM escrow_transactions
        WHERE order_id = ? AND status = 'pending'
-       ORDER BY id ASC`,
+       ORDER BY id ASC`),
       [safeOrderId]
     );
 
@@ -433,7 +448,10 @@ class WalletService {
 
   static async releaseEscrowTx(tx, escrowId) {
     const safeEscrowId = this.positiveInteger(escrowId, 'Escrow ID');
-    const escrow = await tx.get('SELECT * FROM escrow_transactions WHERE id = ?', [safeEscrowId]);
+    const escrow = await tx.get(
+      this.lockForUpdate('SELECT * FROM escrow_transactions WHERE id = ?'),
+      [safeEscrowId]
+    );
     if (!escrow) throw new Error('Escrow not found.');
     if (escrow.status === 'released') return { success: true, alreadyProcessed: true };
     if (escrow.status !== 'held') throw new Error('Escrow is not eligible for release.');
@@ -493,7 +511,10 @@ class WalletService {
   static async releaseOrderEscrowsAfterDelivery(orderId, actorId) {
     const safeOrderId = this.positiveInteger(orderId, 'Order ID');
     return this.withFinancialTransaction(async (tx) => {
-      const order = await tx.get('SELECT * FROM orders WHERE id = ?', [safeOrderId]);
+      const order = await tx.get(
+        this.lockForUpdate('SELECT * FROM orders WHERE id = ?'),
+        [safeOrderId]
+      );
       if (!order) throw new Error('Order not found.');
       if (order.status === 'delivered') return { alreadyProcessed: true, order };
 
@@ -504,7 +525,7 @@ class WalletService {
       if (orderUpdate.changes !== 1) throw new Error('Order must be shipped before delivery is confirmed.');
 
       const escrows = await tx.all(
-        `SELECT id FROM escrow_transactions WHERE order_id = ? AND status = 'held' ORDER BY id ASC`,
+        this.lockForUpdate(`SELECT id FROM escrow_transactions WHERE order_id = ? AND status = 'held' ORDER BY id ASC`),
         [safeOrderId]
       );
       for (const escrow of escrows) {
@@ -541,7 +562,7 @@ class WalletService {
 
     return this.withFinancialTransaction(async (tx) => {
       const existing = await tx.get(
-        'SELECT * FROM withdrawal_requests WHERE request_key = ?',
+        this.lockForUpdate('SELECT * FROM withdrawal_requests WHERE request_key = ?'),
         [safeKey]
       );
       if (existing) return { success: true, alreadyProcessed: true, requestId: existing.id };
@@ -604,7 +625,10 @@ class WalletService {
     }
 
     return this.withFinancialTransaction(async (tx) => {
-      const withdrawal = await tx.get('SELECT * FROM withdrawal_requests WHERE id = ?', [safeWithdrawalId]);
+      const withdrawal = await tx.get(
+        this.lockForUpdate('SELECT * FROM withdrawal_requests WHERE id = ?'),
+        [safeWithdrawalId]
+      );
       if (!withdrawal) throw new Error('Withdrawal not found.');
       if (withdrawal.status !== 'pending') {
         return { success: true, alreadyProcessed: true, status: withdrawal.status };
@@ -726,9 +750,9 @@ class WalletService {
       let subtotal = 0;
       for (const [productId, quantity] of requestedQuantities) {
         const product = await tx.get(
-          `SELECT id, seller_id, title, image, price, price_minor, stock, status
+          this.lockForUpdate(`SELECT id, seller_id, title, image, price, price_minor, stock, status
            FROM products
-           WHERE id = ?`,
+           WHERE id = ?`),
           [productId]
         );
         if (!product || product.status !== 'published') throw new Error('A product in your cart is no longer available.');
@@ -886,7 +910,7 @@ class WalletService {
     const safeBuyerId = this.positiveInteger(buyerId, 'Buyer ID');
     return this.withFinancialTransaction(async (tx) => {
       const order = await tx.get(
-        'SELECT * FROM orders WHERE id = ? AND user_id = ?',
+        this.lockForUpdate('SELECT * FROM orders WHERE id = ? AND user_id = ?'),
         [safeOrderId, safeBuyerId]
       );
       if (!order) throw new Error('Order not found.');
@@ -895,8 +919,8 @@ class WalletService {
         throw new Error('Paid orders must use the refund workflow.');
       }
       const activeCmiAttempt = await tx.get(
-        `SELECT id FROM payment_transactions
-         WHERE order_id = ? AND status = 'pending'`,
+        this.lockForUpdate(`SELECT id FROM payment_transactions
+         WHERE order_id = ? AND status = 'pending'`),
         [safeOrderId]
       );
       if (activeCmiAttempt) {
@@ -909,7 +933,10 @@ class WalletService {
         [safeOrderId, safeBuyerId]
       );
       if (update.changes !== 1) throw new Error('Order was already updated.');
-      const items = await tx.all('SELECT product_id, quantity FROM order_items WHERE order_id = ?', [safeOrderId]);
+      const items = await tx.all(
+        this.lockForUpdate('SELECT product_id, quantity FROM order_items WHERE order_id = ?'),
+        [safeOrderId]
+      );
       for (const item of items) {
         await tx.run(
           `UPDATE products
@@ -939,12 +966,15 @@ class WalletService {
     }
     return this.withFinancialTransaction(async (tx) => {
       const order = await tx.get(
-        'SELECT * FROM orders WHERE id = ? AND user_id = ?',
+        this.lockForUpdate('SELECT * FROM orders WHERE id = ? AND user_id = ?'),
         [safeOrderId, safeRequesterId]
       );
       if (!order) throw new Error('Order not found.');
       if (order.payment_status !== 'paid') throw new Error('Only paid orders can have a refund request.');
-      const existing = await tx.get('SELECT * FROM refund_requests WHERE order_id = ?', [safeOrderId]);
+      const existing = await tx.get(
+        this.lockForUpdate('SELECT * FROM refund_requests WHERE order_id = ?'),
+        [safeOrderId]
+      );
       if (existing) return { requestId: existing.id, alreadyProcessed: true, status: existing.status };
       const result = await tx.run(
         `INSERT INTO refund_requests (order_id, requested_by, amount, amount_minor, payment_method, reason)
@@ -969,7 +999,10 @@ class WalletService {
       throw new Error('Refund processing details are too large.');
     }
     return this.withFinancialTransaction(async (tx) => {
-      const refund = await tx.get('SELECT * FROM refund_requests WHERE id = ?', [safeRefundId]);
+      const refund = await tx.get(
+        this.lockForUpdate('SELECT * FROM refund_requests WHERE id = ?'),
+        [safeRefundId]
+      );
       if (!refund) throw new Error('Refund request not found.');
       if (refund.status !== 'pending') {
         return { success: true, alreadyProcessed: true, status: refund.status };
@@ -982,13 +1015,16 @@ class WalletService {
       }
 
       const releasedEscrow = await tx.get(
-        `SELECT id FROM escrow_transactions WHERE order_id = ? AND status = 'released' LIMIT 1`,
+        this.lockForUpdate(`SELECT id FROM escrow_transactions WHERE order_id = ? AND status = 'released' LIMIT 1`),
         [refund.order_id]
       );
       if (releasedEscrow) {
         throw new Error('Seller funds were already released. Resolve the recovery manually before completing this refund.');
       }
-      const order = await tx.get('SELECT * FROM orders WHERE id = ?', [refund.order_id]);
+      const order = await tx.get(
+        this.lockForUpdate('SELECT * FROM orders WHERE id = ?'),
+        [refund.order_id]
+      );
       if (!order || order.payment_status !== 'paid') throw new Error('Order is not eligible for refund completion.');
 
       const operationKey = `refund-complete:${refund.id}`;
@@ -1002,7 +1038,7 @@ class WalletService {
       if (operation.alreadyProcessed) return { success: true, alreadyProcessed: true, status: 'completed' };
 
       const heldEscrows = await tx.all(
-        `SELECT * FROM escrow_transactions WHERE order_id = ? AND status = 'held' ORDER BY id ASC`,
+        this.lockForUpdate(`SELECT * FROM escrow_transactions WHERE order_id = ? AND status = 'held' ORDER BY id ASC`),
         [refund.order_id]
       );
       for (const escrow of heldEscrows) {
@@ -1078,16 +1114,16 @@ class WalletService {
     const safeOrderId = this.positiveInteger(orderId, 'Order ID');
     return this.withFinancialTransaction(async (tx) => {
       const order = await tx.get(
-        `SELECT * FROM orders
-         WHERE id = ? AND payment_method = 'cash' AND status = 'delivered'`,
+        this.lockForUpdate(`SELECT * FROM orders
+         WHERE id = ? AND payment_method = 'cash' AND status = 'delivered'`),
         [safeOrderId]
       );
       if (!order) throw new Error('Order not found or not eligible for COD settlement.');
 
       const sellerSplits = await tx.all(
-        `SELECT * FROM payment_splits
+        this.lockForUpdate(`SELECT * FROM payment_splits
          WHERE order_id = ? AND party_type = 'seller' AND status = 'pending'
-         ORDER BY id ASC`,
+         ORDER BY id ASC`),
         [safeOrderId]
       );
       if (sellerSplits.length === 0) return { success: true, alreadyProcessed: true };

@@ -1,83 +1,73 @@
-import React from 'react'
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { AnimatePresence } from 'framer-motion'
-
-import ChatPage from './pages/messages/ChatPage';
-import MessagesInbox from './pages/messages/MessagesInbox';
 
 // Layout
 import Navbar from './components/layout/Navbar'
 import Footer from './components/layout/Footer'
 
-// Pages
 import HomePage from './pages/home/HomePage'
-import ProductsPage from './pages/marketplace/ProductsPage'
-import ProductDetailsPage from './pages/marketplace/ProductDetailsPage'
-import CoursesPage from './pages/marketplace/CoursesPage'
-import CourseDetailsPage from './pages/marketplace/CourseDetailsPage'
-import ServicesPage from './pages/marketplace/ServicesPage'
-import ServiceDetailsPage from './pages/marketplace/ServiceDetailsPage'
-import DigitalPage from './pages/marketplace/DigitalPage'
-import DigitalDetailsPage from './pages/marketplace/DigitalDetailsPage'
-import BookingsPage from './pages/marketplace/BookingsPage'
-import BookingDetailsPage from './pages/marketplace/BookingDetailsPage'
-import CartPage from './pages/buyer/CartPage'
-import FavoritesPage from './pages/buyer/FavoritesPage'
-import CheckoutPage from './pages/buyer/CheckoutPage'
-import OrdersPage from './pages/buyer/OrdersPage'
-import OrderDetailsPage from './pages/buyer/OrderDetailsPage'
-import MyPurchasesPage from './pages/buyer/MyPurchasesPage'
-import MyAppointmentsPage from './pages/buyer/MyAppointmentsPage'
-import LoginPage from './pages/auth/LoginPage'
-import RegisterPage from './pages/auth/RegisterPage'
-import SellerTypePage from './pages/seller/SellerTypePage'
-import ProfilePage from './pages/profile/ProfilePage'
-import PublicProfilePage from './pages/profile/PublicProfilePage'
-import SearchPage from './pages/search/SearchPage'
-
-import PaymentSuccess from './pages/PaymentSuccess';
-import PaymentFailed from './pages/PaymentFailed';
-
-import SellerOrders from './pages/seller/dashboard/Orders';
-import AdminDashboard from './pages/admin/AdminDashboard';
-import VerifySellers from './pages/admin/VerifySellers';
-import ReviewVerifications from './pages/admin/ReviewVerifications';
-
-import PackagesManager from './pages/seller/services/PackagesManager';
-import LessonsManager from './pages/seller/courses/LessonsManager';
-
-// Seller Dashboard Pages
-import DashboardLayout from './pages/seller/dashboard/DashboardLayout'
-import Overview from './pages/seller/dashboard/Overview'
-
-import ProductsDashboard from './pages/seller/products/ProductsDashboard'
-import AddProduct from './pages/seller/products/AddProduct'
-import EditProduct from './pages/seller/products/EditProduct'
-import CoursesDashboard from './pages/seller/courses/CoursesDashboard'
-import AddCourse from './pages/seller/courses/AddCourse'
-import EditCourse from './pages/seller/courses/EditCourse'
-import ServicesDashboard from './pages/seller/services/ServicesDashboard'
-import AddService from './pages/seller/services/AddService'
-import EditService from './pages/seller/services/EditService'
-import DigitalDashboard from './pages/seller/digital/DigitalDashboard'
-import AddDigitalProduct from './pages/seller/digital/AddDigitalProduct'
-import EditDigitalProduct from './pages/seller/digital/EditDigitalProduct'
-import BookingsDashboard from './pages/seller/bookings/BookingsDashboard'
-import AddBooking from './pages/seller/bookings/AddBooking'
-import EditBooking from './pages/seller/bookings/EditBooking'
-import Settings from './pages/seller/dashboard/Settings'
-import Wallet from './pages/seller/dashboard/Wallet'
-import SellerOffers from './pages/seller/dashboard/Offers'
-import VerificationUpload from './pages/seller/dashboard/VerificationUpload'   
-
-// Footer Pages
-import SellerGuidelines from './pages/seller/SellerGuidelines'
-import PricingPage from './pages/PricingPage'
-import HelpCenter from './pages/HelpCenter'
-import ContactPage from './pages/ContactPage'
-import TermsPage from './pages/TermsPage'
-import PrivacyPage from './pages/PrivacyPage'
+const ChatPage = lazy(() => import('./pages/messages/ChatPage'))
+const MessagesInbox = lazy(() => import('./pages/messages/MessagesInbox'))
+const ProductsPage = lazy(() => import('./pages/marketplace/ProductsPage'))
+const ProductDetailsPage = lazy(() => import('./pages/marketplace/ProductDetailsPage'))
+const CoursesPage = lazy(() => import('./pages/marketplace/CoursesPage'))
+const CourseDetailsPage = lazy(() => import('./pages/marketplace/CourseDetailsPage'))
+const ServicesPage = lazy(() => import('./pages/marketplace/ServicesPage'))
+const ServiceDetailsPage = lazy(() => import('./pages/marketplace/ServiceDetailsPage'))
+const DigitalPage = lazy(() => import('./pages/marketplace/DigitalPage'))
+const DigitalDetailsPage = lazy(() => import('./pages/marketplace/DigitalDetailsPage'))
+const BookingsPage = lazy(() => import('./pages/marketplace/BookingsPage'))
+const BookingDetailsPage = lazy(() => import('./pages/marketplace/BookingDetailsPage'))
+const CartPage = lazy(() => import('./pages/buyer/CartPage'))
+const FavoritesPage = lazy(() => import('./pages/buyer/FavoritesPage'))
+const CheckoutPage = lazy(() => import('./pages/buyer/CheckoutPage'))
+const OrdersPage = lazy(() => import('./pages/buyer/OrdersPage'))
+const OrderDetailsPage = lazy(() => import('./pages/buyer/OrderDetailsPage'))
+const MyPurchasesPage = lazy(() => import('./pages/buyer/MyPurchasesPage'))
+const MyAppointmentsPage = lazy(() => import('./pages/buyer/MyAppointmentsPage'))
+const LoginPage = lazy(() => import('./pages/auth/LoginPage'))
+const RegisterPage = lazy(() => import('./pages/auth/RegisterPage'))
+const SellerTypePage = lazy(() => import('./pages/seller/SellerTypePage'))
+const ProfilePage = lazy(() => import('./pages/profile/ProfilePage'))
+const PublicProfilePage = lazy(() => import('./pages/profile/PublicProfilePage'))
+const SearchPage = lazy(() => import('./pages/search/SearchPage'))
+const PaymentSuccess = lazy(() => import('./pages/PaymentSuccess'))
+const PaymentFailed = lazy(() => import('./pages/PaymentFailed'))
+const SellerOrders = lazy(() => import('./pages/seller/dashboard/Orders'))
+const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'))
+const VerifySellers = lazy(() => import('./pages/admin/VerifySellers'))
+const ReviewVerifications = lazy(() => import('./pages/admin/ReviewVerifications'))
+const PackagesManager = lazy(() => import('./pages/seller/services/PackagesManager'))
+const LessonsManager = lazy(() => import('./pages/seller/courses/LessonsManager'))
+const DashboardLayout = lazy(() => import('./pages/seller/dashboard/DashboardLayout'))
+const Overview = lazy(() => import('./pages/seller/dashboard/Overview'))
+const ProductsDashboard = lazy(() => import('./pages/seller/products/ProductsDashboard'))
+const AddProduct = lazy(() => import('./pages/seller/products/AddProduct'))
+const EditProduct = lazy(() => import('./pages/seller/products/EditProduct'))
+const CoursesDashboard = lazy(() => import('./pages/seller/courses/CoursesDashboard'))
+const AddCourse = lazy(() => import('./pages/seller/courses/AddCourse'))
+const EditCourse = lazy(() => import('./pages/seller/courses/EditCourse'))
+const ServicesDashboard = lazy(() => import('./pages/seller/services/ServicesDashboard'))
+const AddService = lazy(() => import('./pages/seller/services/AddService'))
+const EditService = lazy(() => import('./pages/seller/services/EditService'))
+const DigitalDashboard = lazy(() => import('./pages/seller/digital/DigitalDashboard'))
+const AddDigitalProduct = lazy(() => import('./pages/seller/digital/AddDigitalProduct'))
+const EditDigitalProduct = lazy(() => import('./pages/seller/digital/EditDigitalProduct'))
+const BookingsDashboard = lazy(() => import('./pages/seller/bookings/BookingsDashboard'))
+const AddBooking = lazy(() => import('./pages/seller/bookings/AddBooking'))
+const EditBooking = lazy(() => import('./pages/seller/bookings/EditBooking'))
+const Settings = lazy(() => import('./pages/seller/dashboard/Settings'))
+const Wallet = lazy(() => import('./pages/seller/dashboard/Wallet'))
+const SellerOffers = lazy(() => import('./pages/seller/dashboard/Offers'))
+const VerificationUpload = lazy(() => import('./pages/seller/dashboard/VerificationUpload'))
+const SellerGuidelines = lazy(() => import('./pages/seller/SellerGuidelines'))
+const PricingPage = lazy(() => import('./pages/PricingPage'))
+const HelpCenter = lazy(() => import('./pages/HelpCenter'))
+const ContactPage = lazy(() => import('./pages/ContactPage'))
+const TermsPage = lazy(() => import('./pages/TermsPage'))
+const PrivacyPage = lazy(() => import('./pages/PrivacyPage'))
 
 // Context Providers
 import { AuthProvider } from './contexts/AuthContext'
@@ -87,6 +77,23 @@ import { FavoritesProvider } from './contexts/FavoritesContext'
 // Protected Route Component
 import ProtectedRoute from './components/common/ProtectedRoute'
 import PageTransition from './components/common/PageTransition'
+
+const PageLoadingFallback = () => (
+  <div
+    aria-busy="true"
+    aria-live="polite"
+    role="status"
+    style={{
+      alignItems: 'center',
+      display: 'flex',
+      justifyContent: 'center',
+      minHeight: '45vh',
+      padding: '2rem',
+    }}
+  >
+    <div style={{ color: '#216275', fontWeight: 600 }}>Loading page...</div>
+  </div>
+)
 
 function App() {
   return (
@@ -108,6 +115,7 @@ function AppContent() {
               <main className="app-main">
                 <AnimatePresence mode="wait" initial={false}>
                   <PageTransition key={location.pathname}>
+                    <Suspense fallback={<PageLoadingFallback />}>
                     <Routes location={location}>
                   {/* Public Routes */}
                   <Route path="/" element={<HomePage />} />
@@ -231,6 +239,7 @@ function AppContent() {
                     <Route path="verification" element={<VerificationUpload />} />
                   </Route>
                     </Routes>
+                    </Suspense>
                   </PageTransition>
                 </AnimatePresence>
               </main>

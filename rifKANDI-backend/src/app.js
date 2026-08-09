@@ -19,6 +19,7 @@ const crypto = require('crypto');
 const { pipeline } = require('node:stream/promises');
 const { securityHeaders, createRateLimiter } = require('./middleware/security');
 const errorHandler = require('./middleware/errorHandler');
+const requestObservability = require('./middleware/requestObservability');
 const {
   validateIdParams,
   validateCheckout,
@@ -60,6 +61,7 @@ const sessionService = require('./services/sessionService');
 const AuditService = require('./services/auditService');
 const Money = require('./services/moneyService');
 const FeatureFlags = require('./services/featureFlagService');
+const { snapshot: getObservabilitySnapshot } = require('./services/observabilityService');
 const createProductRoutes = require('./routes/productRoutes');
 const createCourseRoutes = require('./routes/courseRoutes');
 const createServiceRoutes = require('./routes/serviceRoutes');
@@ -80,11 +82,7 @@ const allowedOrigins = new Set(getAllowedOrigins());
 
 app.set('trust proxy', 1);
 app.disable('x-powered-by');
-app.use((req, res, next) => {
-  req.requestId = crypto.randomUUID();
-  res.setHeader('X-Request-ID', req.requestId);
-  next();
-});
+app.use(requestObservability);
 app.use(securityHeaders);
 
 const authRateLimit = createRateLimiter({
@@ -245,23 +243,13 @@ const checkDatabaseHealth = () => new Promise((resolve, reject) => {
   });
 });
 
-app.get('/health', async (req, res) => {
-  try {
-    await db.ready;
-    await checkDatabaseHealth();
-    return res.status(200).json({
-      status: 'ok',
-      service: 'rifkando-api',
-      timestamp: new Date().toISOString(),
-      requestId: req.requestId,
-    });
-  } catch (error) {
-    return res.status(503).json({
-      status: 'unavailable',
-      service: 'rifkando-api',
-      requestId: req.requestId,
-    });
-  }
+app.get('/health', (req, res) => {
+  return res.status(200).json({
+    status: 'ok',
+    service: 'rifkando-api',
+    timestamp: new Date().toISOString(),
+    requestId: req.requestId,
+  });
 });
 
 app.get('/ready', async (req, res) => {
@@ -272,6 +260,26 @@ app.get('/ready', async (req, res) => {
   } catch (error) {
     return res.status(503).json({ status: 'not_ready', requestId: req.requestId });
   }
+});
+
+const hasValidMetricsToken = (providedToken) => {
+  const configuredToken = Buffer.from(String(process.env.METRICS_TOKEN || ''));
+  const suppliedToken = Buffer.from(String(providedToken || ''));
+  if (!configuredToken.length || configuredToken.length !== suppliedToken.length) return false;
+  return crypto.timingSafeEqual(configuredToken, suppliedToken);
+};
+
+app.get('/metrics', (req, res) => {
+  if (!hasValidMetricsToken(req.get('X-Metrics-Token'))) {
+    return res.status(404).json({ error: 'Route not found', requestId: req.requestId });
+  }
+
+  res.setHeader('Cache-Control', 'no-store');
+  return res.status(200).json({
+    service: 'rifkando-api',
+    requestId: req.requestId,
+    ...getObservabilitySnapshot(),
+  });
 });
 
 
@@ -1341,9 +1349,13 @@ app.get('/api/cart', protect, (req, res) => {
       c.quantity,
       p.title,
       p.price,
-      p.image
+      p.image,
+      p.stock,
+      p.status,
+      u.name as seller_name
     FROM cart c
     JOIN products p ON c.product_id = p.id
+    JOIN users u ON p.seller_id = u.id
     WHERE c.user_id = ?
   `, [req.user.id], (err, rows) => {
     if (err) {
@@ -1369,16 +1381,28 @@ app.post('/api/cart', protect, validateCartItem, (req, res) => {
       return res.status(404).json({ error: 'Product not found' });
     }
     
-    db.run(`
-      INSERT INTO cart (user_id, product_id, quantity)
-      VALUES (?, ?, ?)
-      ON CONFLICT(user_id, product_id) DO UPDATE SET quantity = quantity + ?
-    `, [req.user.id, product_id, quantity, quantity], function(err) {
-      if (err) {
-        res.status(400).json({ error: err.message });
-      } else {
-        res.json({ success: true, message: 'Added to cart' });
+    if (product.status && product.status !== 'published') {
+      return res.status(400).json({ error: 'This product is not currently available.' });
+    }
+
+    db.get('SELECT quantity FROM cart WHERE user_id = ? AND product_id = ?', [req.user.id, product_id], (cartError, cartItem) => {
+      if (cartError) return res.status(500).json({ error: cartError.message });
+      const requestedQuantity = (cartItem?.quantity || 0) + quantity;
+      if (product.stock < requestedQuantity) {
+        return res.status(400).json({ error: `Only ${product.stock} item(s) are currently available.` });
       }
+
+      db.run(`
+        INSERT INTO cart (user_id, product_id, quantity)
+        VALUES (?, ?, ?)
+        ON CONFLICT(user_id, product_id) DO UPDATE SET quantity = quantity + ?
+      `, [req.user.id, product_id, quantity, quantity], function onCartUpsert(insertError) {
+        if (insertError) {
+          res.status(400).json({ error: insertError.message });
+        } else {
+          res.json({ success: true, message: 'Added to cart' });
+        }
+      });
     });
   });
 });
@@ -1449,17 +1473,28 @@ app.put('/api/cart/:productId', protect, validateIdParams('productId'), validate
     return res.status(400).json({ error: 'Quantity must be at least 1' });
   }
   
-  db.run(`
-    UPDATE cart SET quantity = ?
-    WHERE user_id = ? AND product_id = ?
-  `, [quantity, req.user.id, req.params.productId], function(err) {
-    if (err) {
-      res.status(400).json({ error: err.message });
-    } else if (this.changes === 0) {
-      res.status(404).json({ error: 'Item not found in cart' });
-    } else {
-      res.json({ success: true, message: 'Cart updated' });
+  db.get(`
+    SELECT p.stock, p.status
+    FROM cart c
+    JOIN products p ON p.id = c.product_id
+    WHERE c.user_id = ? AND c.product_id = ?
+  `, [req.user.id, req.params.productId], (lookupError, cartProduct) => {
+    if (lookupError) return res.status(500).json({ error: lookupError.message });
+    if (!cartProduct) return res.status(404).json({ error: 'Item not found in cart' });
+    if ((cartProduct.status && cartProduct.status !== 'published') || cartProduct.stock < quantity) {
+      return res.status(400).json({ error: `Only ${cartProduct.stock} item(s) are currently available.` });
     }
+
+    db.run(`
+      UPDATE cart SET quantity = ?
+      WHERE user_id = ? AND product_id = ?
+    `, [quantity, req.user.id, req.params.productId], function onCartUpdate(updateError) {
+      if (updateError) {
+        res.status(400).json({ error: updateError.message });
+      } else {
+        res.json({ success: true, message: 'Cart updated' });
+      }
+    });
   });
 });
 
@@ -2669,12 +2704,15 @@ app.get('/api/orders/:id/history', protect, requireOrderHistoryAccess, (req, res
 
 app.get('/api/seller/orders', protect, requireSeller, (req, res) => {
   db.all(`
-    SELECT DISTINCT o.*, u.name as buyer_name
+    SELECT o.*, u.name as buyer_name,
+      SUM(oi.quantity * oi.price) as seller_total,
+      SUM(oi.quantity) as seller_item_count
     FROM orders o
     JOIN order_items oi ON o.id = oi.order_id
     JOIN products p ON oi.product_id = p.id
     JOIN users u ON o.user_id = u.id
     WHERE p.seller_id = ?
+    GROUP BY o.id
     ORDER BY o.created_at DESC
   `, [req.user.id], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });

@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { 
-  HomeIcon, ChartBarIcon, ShoppingBagIcon, AcademicCapIcon, 
+  HomeIcon, ShoppingBagIcon, AcademicCapIcon,
   WrenchScrewdriverIcon, CurrencyDollarIcon, Cog6ToothIcon, 
   ArrowLeftOnRectangleIcon, ComputerDesktopIcon, CalendarIcon,
-  ChatBubbleLeftRightIcon, ShieldCheckIcon, Bars3Icon, XMarkIcon
+  ChatBubbleLeftRightIcon, ShieldCheckIcon, Bars3Icon, XMarkIcon, ClipboardDocumentListIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../../../contexts/AuthContext';
 import { getImageUrl } from '../../../utils/imageUtils';
@@ -60,13 +60,20 @@ const DashboardLayout = () => {
     return () => clearInterval(interval);
   }, []);
 
+  const sellerWorkspaceItems = {
+    product: { name: 'Products', icon: ShoppingBagIcon, path: 'products' },
+    course: { name: 'Courses', icon: AcademicCapIcon, path: 'courses' },
+    service: { name: 'Services', icon: WrenchScrewdriverIcon, path: 'services' },
+    digital: { name: 'Digital', icon: ComputerDesktopIcon, path: 'digital' },
+    booking: { name: 'Bookings', icon: CalendarIcon, path: 'bookings' },
+  };
+  const selectedWorkspaceItems = sellerWorkspaceItems[user?.sellerType]
+    ? [sellerWorkspaceItems[user.sellerType]]
+    : Object.values(sellerWorkspaceItems);
   const navItems = [
     { name: 'Overview', icon: HomeIcon, path: 'overview' },
-    { name: 'Products', icon: ShoppingBagIcon, path: 'products' },
-    { name: 'Courses', icon: AcademicCapIcon, path: 'courses' },
-    { name: 'Services', icon: WrenchScrewdriverIcon, path: 'services' },
-    { name: 'Digital', icon: ComputerDesktopIcon, path: 'digital' },
-    { name: 'Bookings', icon: CalendarIcon, path: 'bookings' },
+    ...selectedWorkspaceItems,
+    { name: 'Orders', icon: ClipboardDocumentListIcon, path: 'orders' },
     { name: 'Offers', icon: ChatBubbleLeftRightIcon, path: 'offers' },
     { name: 'Messages', icon: ChatBubbleLeftRightIcon, path: 'messages', unreadCount },
     { name: 'Wallet', icon: CurrencyDollarIcon, path: 'wallet' },

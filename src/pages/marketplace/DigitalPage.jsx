@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getDigitalProducts } from '../../services/api';
 import toast from 'react-hot-toast';
@@ -6,28 +6,35 @@ import MediaGallery from '../../components/MediaGallery';
 import { getImageUrl } from '../../utils/imageUtils';
 import MarketplaceImage from '../../components/common/MarketplaceImage';
 import VerifiedBadge from '../../components/common/VerifiedBadge';
+import LoadMoreButton from '../../components/common/LoadMoreButton';
 
 const DigitalPage = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [galleryProduct, setGalleryProduct] = useState(null);
+  const [pagination, setPagination] = useState({ page: 1, totalPages: 1 });
 
-  useEffect(() => {
-    fetchProducts();
-  }, []);
-
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async ({ page = 1, append = false } = {}) => {
     try {
-      setLoading(true);
-      const response = await getDigitalProducts();
-      setProducts(response.data.products || []);
+      if (append) setLoadingMore(true);
+
+      const response = await getDigitalProducts({ page, limit: 12 });
+      const nextProducts = response.data.products || [];
+      setProducts((currentProducts) => (append ? [...currentProducts, ...nextProducts] : nextProducts));
+      setPagination(response.data.pagination || { page: 1, totalPages: 1 });
     } catch (error) {
       console.error('Error fetching digital products:', error);
       toast.error('Failed to load digital products');
     } finally {
-      setLoading(false);
+      if (append) setLoadingMore(false);
+      else setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
 
   if (loading) {
     return (
@@ -106,6 +113,13 @@ const DigitalPage = () => {
             })
           )}
         </div>
+
+        <LoadMoreButton
+          hasMore={pagination.page < pagination.totalPages}
+          isLoading={loadingMore}
+          onLoadMore={() => fetchProducts({ page: pagination.page + 1, append: true })}
+          itemLabel="digital products"
+        />
       </div>
 
       {galleryProduct && (

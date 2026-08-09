@@ -27,19 +27,40 @@ const CheckoutPage = () => {
 
   const subtotal = getCartTotal()
   const shipping = subtotal > 500 ? 0 : 50
-  const total = subtotal + shipping   // No tax line – matches backend split logic
+  const total = subtotal + shipping
+  const requiredAddressFields = ['fullName', 'email', 'phone', 'address', 'city']
+  const formatAmount = (amount) => `${Number(amount || 0).toLocaleString()} MAD`
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value })
   }
 
+  const validateShippingInformation = () => {
+    const missingField = requiredAddressFields.some((field) => !String(formData[field] || '').trim())
+    if (missingField) {
+      toast.error('Please complete your delivery details before continuing')
+      return false
+    }
+    return true
+  }
+
+  const handleContinueToPayment = () => {
+    if (validateShippingInformation()) setStep(2)
+  }
+
   const handlePlaceOrder = async () => {
-    if (!formData.fullName || !formData.email || !formData.phone || !formData.address || !formData.city) {
-      toast.error('Please fill in all required fields')
+    if (!validateShippingInformation()) {
+      setStep(1)
+      return
+    }
+
+    if (!cart.length) {
+      navigate('/cart')
       return
     }
 
     setLoading(true)
+    let paymentRedirectStarted = false
     
     try {
       if (!checkoutRequestIdRef.current) {
@@ -71,44 +92,34 @@ const CheckoutPage = () => {
       }
 
       if (paymentMethod === 'cmi') {
-        // Create order first
         const orderResponse = await api.post('/orders', orderData, requestConfig)
-        
-        if (orderResponse.data.success) {
-          const order = orderResponse.data.order
-          
-          // Initiate CMI payment
-          const paymentResponse = await api.post('/payment/cmi/initiate', { orderId: order.id })
-          
-          if (paymentResponse.data.success) {
-            const formContainer = document.createElement('div')
-            formContainer.innerHTML = paymentResponse.data.htmlForm
-            document.body.appendChild(formContainer)
-            const form = formContainer.querySelector('form')
-            if (form) form.submit()
-          } else {
-            toast.error('Failed to initiate payment')
-            setLoading(false)
-          }
+        if (!orderResponse.data.success) throw new Error('Could not create your order')
+
+        const order = orderResponse.data.order
+        const paymentResponse = await api.post('/payment/cmi/initiate', { orderId: order.id })
+        if (!paymentResponse.data.success || !paymentResponse.data.htmlForm) {
+          throw new Error(paymentResponse.data?.error || 'Could not open the secure payment page')
         }
+
+        const formContainer = document.createElement('div')
+        formContainer.innerHTML = paymentResponse.data.htmlForm
+        document.body.appendChild(formContainer)
+        const form = formContainer.querySelector('form')
+        if (!form) throw new Error('Could not open the secure payment page')
+        paymentRedirectStarted = true
+        form.submit()
       } else {
-        // Cash on Delivery flow
         const response = await api.post('/orders', orderData, requestConfig)
-        
-        if (response.data.success) {
-          toast.success('Order placed. Thank you for shopping with rifKANDO!')
-          clearCart()
-          navigate('/orders')
-        }
+        if (!response.data.success) throw new Error('Could not place your order')
+        toast.success('Order placed. Thank you for shopping with rifKANDO!')
+        await clearCart()
+        navigate('/orders')
       }
     } catch (error) {
       console.error('Order failed:', error)
       toast.error(error.response?.data?.error || 'Failed to place order')
-      setLoading(false)
     } finally {
-      if (paymentMethod !== 'cmi') {
-        setLoading(false)
-      }
+      if (!paymentRedirectStarted) setLoading(false)
     }
   }
 
@@ -128,7 +139,13 @@ const CheckoutPage = () => {
   return (
     <div className="checkout-page">
       <div className="container">
-        <h1 className="checkout-title">Checkout</h1>
+        <div className="checkout-heading">
+          <div>
+            <p className="checkout-eyebrow">Secure checkout</p>
+            <h1 className="checkout-title">Complete your order</h1>
+          </div>
+          <p>Review delivery and payment details before placing your order.</p>
+        </div>
 
         {/* Progress Steps */}
         <div className="checkout-steps">
@@ -155,37 +172,37 @@ const CheckoutPage = () => {
                 <h2>Shipping Information</h2>
                 <div className="form-row">
                   <div className="form-field">
-                    <label>Full Name *</label>
-                    <input type="text" name="fullName" value={formData.fullName} onChange={handleChange} required />
+                    <label htmlFor="checkout-full-name">Full name *</label>
+                    <input id="checkout-full-name" autoComplete="name" type="text" name="fullName" value={formData.fullName} onChange={handleChange} required />
                   </div>
                   <div className="form-field">
-                    <label>Email *</label>
-                    <input type="email" name="email" value={formData.email} onChange={handleChange} required />
+                    <label htmlFor="checkout-email">Email *</label>
+                    <input id="checkout-email" autoComplete="email" type="email" name="email" value={formData.email} onChange={handleChange} required />
                   </div>
                 </div>
                 <div className="form-row">
                   <div className="form-field">
-                    <label>Phone *</label>
-                    <input type="tel" name="phone" value={formData.phone} onChange={handleChange} required />
+                    <label htmlFor="checkout-phone">Phone *</label>
+                    <input id="checkout-phone" autoComplete="tel" type="tel" name="phone" value={formData.phone} onChange={handleChange} required />
                   </div>
                   <div className="form-field">
-                    <label>City *</label>
-                    <input type="text" name="city" value={formData.city} onChange={handleChange} required />
+                    <label htmlFor="checkout-city">City *</label>
+                    <input id="checkout-city" autoComplete="address-level2" type="text" name="city" value={formData.city} onChange={handleChange} required />
                   </div>
                 </div>
                 <div className="form-field">
-                  <label>Address *</label>
-                  <input type="text" name="address" value={formData.address} onChange={handleChange} required />
+                  <label htmlFor="checkout-address">Address *</label>
+                  <input id="checkout-address" autoComplete="street-address" type="text" name="address" value={formData.address} onChange={handleChange} required />
                 </div>
                 <div className="form-field">
-                  <label>Postal Code</label>
-                  <input type="text" name="postalCode" value={formData.postalCode} onChange={handleChange} />
+                  <label htmlFor="checkout-postal-code">Postal code</label>
+                  <input id="checkout-postal-code" autoComplete="postal-code" type="text" name="postalCode" value={formData.postalCode} onChange={handleChange} />
                 </div>
                 <div className="form-field">
-                  <label>Order Notes (Optional)</label>
-                  <textarea rows="3" name="notes" value={formData.notes} onChange={handleChange} placeholder="Special delivery instructions..."></textarea>
+                  <label htmlFor="checkout-notes">Order notes (optional)</label>
+                  <textarea id="checkout-notes" rows="3" name="notes" value={formData.notes} onChange={handleChange} placeholder="Special delivery instructions..."></textarea>
                 </div>
-                <button type="button" onClick={() => setStep(2)} className="next-btn">Continue to Payment</button>
+                <button type="button" onClick={handleContinueToPayment} className="next-btn">Continue to payment</button>
               </div>
             )}
 
@@ -204,7 +221,7 @@ const CheckoutPage = () => {
                     <TruckIcon className="payment-icon" />
                     <div>
                       <strong>Cash on Delivery</strong>
-                      <p>Pay when you receive your order</p>
+                      <p>Pay when your order is delivered.</p>
                     </div>
                   </label>
 
@@ -219,13 +236,13 @@ const CheckoutPage = () => {
                     <CreditCardIcon className="payment-icon" />
                     <div>
                       <strong>Credit Card (Visa / MasterCard)</strong>
-                      <p>Secure payment via CMI</p>
+                      <p>You will continue to CMI's secure payment page.</p>
                     </div>
                   </label>
                 </div>
                 <div className="form-buttons">
                   <button type="button" onClick={() => setStep(1)} className="back-btn">Back</button>
-                  <button type="button" onClick={() => setStep(3)} className="next-btn">Review Order</button>
+                  <button type="button" onClick={() => setStep(3)} className="next-btn">Review order</button>
                 </div>
               </div>
             )}
@@ -250,11 +267,15 @@ const CheckoutPage = () => {
                 <div className="review-section">
                   <h3>Order Items</h3>
                   {cart.map(item => (
-                    <div key={item.id} className="review-item">
+                    <div key={`${item.type}-${item.id}`} className="review-item">
                       <span>{item.title} x {item.quantity}</span>
-                      <span>{item.price * item.quantity} MAD</span>
+                      <span>{formatAmount(item.price * item.quantity)}</span>
                     </div>
                   ))}
+                </div>
+                <div className="review-total">
+                  <span>Order total</span>
+                  <strong>{formatAmount(total)}</strong>
                 </div>
                 <div className="form-buttons">
                   <button type="button" onClick={() => setStep(2)} className="back-btn">Back</button>
@@ -264,7 +285,7 @@ const CheckoutPage = () => {
                     className="place-order-btn"
                     disabled={loading}
                   >
-                    {loading ? 'Processing...' : 'Place Order'}
+                    {loading ? 'Processing...' : paymentMethod === 'cmi' ? 'Continue to secure payment' : 'Place order'}
                   </button>
                 </div>
               </div>
@@ -275,19 +296,19 @@ const CheckoutPage = () => {
             <h3>Order Summary</h3>
             <div className="summary-row">
               <span>Subtotal</span>
-              <span>{subtotal} MAD</span>
+              <span>{formatAmount(subtotal)}</span>
             </div>
             <div className="summary-row">
               <span>Shipping</span>
-              <span>{shipping === 0 ? 'Free' : `${shipping} MAD`}</span>
+              <span>{shipping === 0 ? 'Free' : formatAmount(shipping)}</span>
             </div>
             <div className="summary-total">
               <span>Total</span>
-              <span>{total} MAD</span>
+              <span>{formatAmount(total)}</span>
             </div>
             <div className="secure-badge">
               <ShieldCheckIcon className="shield-icon" />
-              <span>Secure checkout</span>
+              <span>Payment and delivery details are confirmed before your order is created.</span>
             </div>
           </div>
         </div>
@@ -299,10 +320,14 @@ const CheckoutPage = () => {
           min-height: calc(100vh - 80px);
         }
         .checkout-title {
+          margin: 0;
           font-size: 2rem;
-          font-weight: bold;
-          margin-bottom: 2rem;
+          font-weight: 800;
+          letter-spacing: -0.04em;
         }
+        .checkout-heading { display: flex; align-items: end; justify-content: space-between; gap: 1rem; margin-bottom: 1.5rem; }
+        .checkout-heading > p { max-width: 26rem; margin: 0; color: #6b7280; font-size: 0.875rem; line-height: 1.5; text-align: right; }
+        .checkout-eyebrow { margin: 0 0 0.35rem; color: #216275; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
         .checkout-steps {
           display: flex;
           align-items: center;
@@ -348,6 +373,8 @@ const CheckoutPage = () => {
             grid-template-columns: 1fr;
           }
           .order-summary { position: static; }
+          .checkout-heading { align-items: flex-start; flex-direction: column; }
+          .checkout-heading > p { max-width: none; text-align: left; }
         }
         @media (max-width: 640px) {
           .checkout-page { padding: 1rem 0; }
@@ -361,7 +388,8 @@ const CheckoutPage = () => {
           background: white;
           border-radius: 1rem;
           padding: 1.5rem;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+          border: 1px solid #e5e7eb;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
         .checkout-form h2 {
           font-size: 1.25rem;
@@ -389,6 +417,7 @@ const CheckoutPage = () => {
           border-radius: 0.5rem;
           font-size: 0.875rem;
         }
+        .form-field input:focus, .form-field textarea:focus { outline: 3px solid rgba(135, 206, 235, 0.35); border-color: #87CEEB; }
         .payment-options {
           display: flex;
           flex-direction: column;
@@ -407,7 +436,8 @@ const CheckoutPage = () => {
         }
         .payment-option.active {
           border-color: #87CEEB;
-          background: rgba(135,206,235,0.05);
+          background: #f4fcff;
+          box-shadow: 0 0 0 3px rgba(135, 206, 235, 0.12);
         }
         .payment-icon {
           width: 1.5rem;
@@ -425,7 +455,8 @@ const CheckoutPage = () => {
           margin-top: 1.5rem;
         }
         .next-btn, .back-btn, .place-order-btn {
-          padding: 0.625rem 1.5rem;
+          min-height: 46px;
+          padding: 0.625rem 1.25rem;
           border-radius: 2rem;
           border: none;
           cursor: pointer;
@@ -434,7 +465,9 @@ const CheckoutPage = () => {
         .next-btn, .place-order-btn {
           background: #1a1a1a;
           color: white;
+          flex: 1;
         }
+        .next-btn:hover:not(:disabled), .place-order-btn:hover:not(:disabled) { background: #333; }
         .next-btn:disabled, .place-order-btn:disabled {
           opacity: 0.5;
           cursor: not-allowed;
@@ -443,6 +476,7 @@ const CheckoutPage = () => {
           background: #e5e7eb;
           color: #374151;
         }
+        .back-btn:hover { background: #d1d5db; }
         .review-section {
           margin-bottom: 1.5rem;
           padding-bottom: 1rem;
@@ -464,11 +498,14 @@ const CheckoutPage = () => {
           padding: 0.5rem 0;
           font-size: 0.875rem;
         }
+        .review-total { display: flex; justify-content: space-between; align-items: center; margin-top: 1rem; padding: 1rem; border-radius: 0.75rem; background: #f4fcff; color: #1f2937; }
+        .review-total strong { font-size: 1.1rem; }
         .order-summary {
           background: white;
           border-radius: 1rem;
           padding: 1.5rem;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+          border: 1px solid #e5e7eb;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.05);
           position: sticky;
           top: 100px;
         }
@@ -495,19 +532,24 @@ const CheckoutPage = () => {
         }
         .secure-badge {
           display: flex;
-          align-items: center;
-          justify-content: center;
+          align-items: flex-start;
+          justify-content: flex-start;
           gap: 0.5rem;
           margin-top: 1rem;
           padding-top: 1rem;
           border-top: 1px solid #e5e7eb;
           font-size: 0.75rem;
-          color: #6b7280;
+          color: #4b5563;
+          line-height: 1.45;
         }
         .shield-icon {
+          flex: 0 0 auto;
           width: 1rem;
           height: 1rem;
+          margin-top: 0.05rem;
+          color: #216275;
         }
+        .next-btn:focus-visible, .back-btn:focus-visible, .place-order-btn:focus-visible, .payment-option:focus-within { outline: 3px solid rgba(135, 206, 235, 0.6); outline-offset: 3px; }
       `}</style>
     </div>
   )

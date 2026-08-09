@@ -107,7 +107,7 @@ const SellerOrders = () => {
                       <span className="order-number">{order.order_number}</span>
                     </td>
                     <td className="customer-name">{order.buyer_name || 'Customer'}</td>
-                    <td className="order-total">{order.total} MAD</td>
+                    <td className="order-total">{Number(order.seller_total ?? order.total ?? 0).toLocaleString()} MAD</td>
                     <td className="payment-method">
                       <span className="payment-badge">{paymentMethodText}</span>
                     </td>

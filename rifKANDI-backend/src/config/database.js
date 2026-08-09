@@ -1,3 +1,8 @@
+const { getDatabaseEngine } = require('./postgresDatabase');
+
+if (getDatabaseEngine() === 'postgres') {
+  module.exports = require('./postgresDatabase').createPostgresDatabase();
+} else {
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
@@ -1057,5 +1062,7 @@ db.serialize(() => {
 
 db.ready = databaseReady;
 db.path = dbPath;
+db.dialect = 'sqlite';
 
 module.exports = db;
+}

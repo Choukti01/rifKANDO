@@ -16,6 +16,9 @@ jobs:
   frontend:
     name: Frontend build
     runs-on: ubuntu-latest
+    env:
+      VITE_API_URL: http://127.0.0.1:5000/api
+      VITE_GOOGLE_CLIENT_ID: rifkando-ci.apps.googleusercontent.com
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -30,6 +33,13 @@ jobs:
       - run: npm run test:e2e
       - run: npm run build
       - run: npm audit --omit=dev --audit-level=high
+      - name: Upload browser test diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-test-results
+          path: test-results/
+          if-no-files-found: ignore
 
   backend:
     name: Backend checks
@@ -45,16 +55,17 @@ jobs:
           cache: npm
           cache-dependency-path: rifKANDI-backend/package-lock.json
       - run: npm ci
-      - run: npm run check
-      - run: npm run test:environment
-      - run: npm run test:feature-flags
-      - run: npm run test:performance-schema
-      - run: npm run test:authorization
-      - run: npm run test:sessions
-      - run: npm run test:validation
-      - run: npm run test:financial
-      - run: npm run test:workflows
-      - run: npm run test:money-migration
-      - run: npm run test:audit
-      - run: npm run test:storage
-      - run: npm audit --omit=dev --audit-level=high
+      - run: npm test
+
+  security:
+    name: Repository and dependency security
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22.22.3
+      - run: npm run test:repository-hygiene
+      - run: npm audit --audit-level=high
+      - run: npm audit --audit-level=high
+        working-directory: rifKANDI-backend

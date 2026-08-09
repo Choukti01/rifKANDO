@@ -1,4 +1,5 @@
 const express = require('express');
+const { createPaginationMetadata, getPagination } = require('../utils/pagination');
 
 const createServiceRoutes = ({
   db,
@@ -51,28 +52,37 @@ router.post('/services', protect, requireSeller, validateServiceCreate, (req, re
 });
 
 router.get('/services', (req, res) => {
-  db.all(`
-    SELECT s.*, u.name as provider_name
-    FROM services s
-    JOIN users u ON s.provider_id = u.id
-    WHERE s.status = 'published'
-    ORDER BY s.created_at DESC
-  `, (err, rows) => {
-    if (err) {
-      res.status(500).json({ error: err.message });
-    } else {
-      if (!rows.length) return res.json({ success: true, services: [] });
+  const { page, limit, offset } = getPagination(req.query);
+
+  db.get("SELECT COUNT(*) AS total FROM services WHERE status = 'published'", (countError, countRow) => {
+    if (countError) return res.status(500).json({ error: countError.message });
+
+    const pagination = createPaginationMetadata(page, limit, countRow?.total || 0);
+    const sendServices = (services) => {
+      res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
+      return res.json({ success: true, services, pagination });
+    };
+
+    db.all(`
+      SELECT s.*, u.name as provider_name
+      FROM services s
+      JOIN users u ON s.provider_id = u.id
+      WHERE s.status = 'published'
+      ORDER BY s.created_at DESC
+      LIMIT ? OFFSET ?
+    `, [limit, offset], (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      if (!rows.length) return sendServices([]);
+
       let completed = 0;
       rows.forEach((service) => {
-        db.all(`SELECT * FROM service_media WHERE service_id = ? ORDER BY display_order, id`, [service.id], (err, media) => {
-          if (!err) service.media = media || [];
+        db.all(`SELECT * FROM service_media WHERE service_id = ? ORDER BY display_order, id`, [service.id], (mediaError, media) => {
+          if (!mediaError) service.media = media || [];
           completed++;
-          if (completed === rows.length) {
-            res.json({ success: true, services: rows });
-          }
+          if (completed === rows.length) sendServices(rows);
         });
       });
-    }
+    });
   });
 });
 

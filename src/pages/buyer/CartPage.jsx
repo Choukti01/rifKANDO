@@ -1,8 +1,8 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
-import { TrashIcon, PlusIcon, MinusIcon } from '@heroicons/react/24/outline'
+import { TrashIcon, PlusIcon, MinusIcon, ShoppingCartIcon, ArrowLeftIcon, ShieldCheckIcon } from '@heroicons/react/24/outline'
 import { useCart } from '../../contexts/CartContext'
-import { getImageUrl } from '../../utils/imageUtils'   // ✅ added
+import MarketplaceImage from '../../components/common/MarketplaceImage'
 
 const CartPage = () => {
   const { cart, removeFromCart, updateQuantity, getCartTotal, getCartCount, isEmpty } = useCart()
@@ -10,27 +10,19 @@ const CartPage = () => {
   const shipping = subtotal > 500 ? 0 : 50
   const total = subtotal + shipping
 
-  // ✅ Fixed: use getImageUrl instead of hardcoded localhost
   const getProductImage = (item) => {
     if (item.media && item.media.length > 0) {
-      const mediaUrl = item.media[0].media_url || item.media[0].url;
-      return getImageUrl(mediaUrl);
+      return item.media[0].media_url || item.media[0].url;
     }
-    if (item.image && item.image.startsWith('/uploads')) {
-      return getImageUrl(item.image);
-    }
-    // Fallback based on type/category
-    if (item.type === 'course') return '📚';
-    if (item.type === 'service') return '🔧';
-    if (item.type === 'digital') return '💾';
-    if (item.type === 'booking') return '📅';
-    return '📦';
+    return item.image || null;
   }
+
+  const formatAmount = (amount) => `${Number(amount || 0).toLocaleString()} MAD`
 
   if (isEmpty) {
     return (
       <div className="empty-cart">
-        <div className="empty-cart-icon">🛒</div>
+        <ShoppingCartIcon className="empty-cart-icon" aria-hidden="true" />
         <h2>Your cart is empty</h2>
         <p>Looks like you haven't added anything to your cart yet</p>
         <Link to="/products" className="btn btn-primary">Continue Shopping</Link>
@@ -41,7 +33,9 @@ const CartPage = () => {
             min-height: calc(100vh - 80px);
           }
           .empty-cart-icon {
-            font-size: 4rem;
+            width: 4rem;
+            height: 4rem;
+            color: #216275;
             margin-bottom: 1rem;
           }
           .empty-cart h2 {
@@ -60,67 +54,67 @@ const CartPage = () => {
   return (
     <div className="cart-page">
       <div className="container">
-        <h1 className="cart-title">Shopping Cart <span>({getCartCount()} items)</span></h1>
+        <div className="cart-heading">
+          <div>
+            <p className="cart-eyebrow">Your basket</p>
+            <h1 className="cart-title">Shopping cart <span>({getCartCount()} {getCartCount() === 1 ? 'item' : 'items'})</span></h1>
+          </div>
+          <p className="cart-heading-note">Review your items before checkout.</p>
+        </div>
 
         <div className="cart-grid">
           <div className="cart-items">
             {cart.map(item => {
               const imageSrc = getProductImage(item)
-              const isImageUrl = typeof imageSrc === 'string' && imageSrc.startsWith('http')
+              const atStockLimit = Number.isFinite(Number(item.stock)) && item.quantity >= Number(item.stock)
               return (
                 <div key={`${item.id}-${item.type}`} className="cart-item">
                   <div className="cart-item-image">
-                    {isImageUrl ? (
-                      <img 
-                        src={imageSrc} 
-                        alt={item.title}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '0.5rem' }}
-                      />
-                    ) : (
-                      <span style={{ fontSize: '2rem' }}>{imageSrc}</span>
-                    )}
+                    <MarketplaceImage source={imageSrc} alt={item.title} className="cart-item-media" />
                   </div>
                   <div className="cart-item-info">
                     <Link to={`/${item.type}/${item.id}`} className="cart-item-title">{item.title}</Link>
-                    <p className="cart-item-seller">{item.seller}</p>
-                    <div className="cart-item-price">{item.price} MAD</div>
+                    <p className="cart-item-seller">Sold by {item.seller || 'Seller'}</p>
+                    <div className="cart-item-price">{formatAmount(item.price)}</div>
                   </div>
-                  <div className="cart-item-quantity">
-                    <button onClick={() => updateQuantity(item.id, item.type, item.quantity - 1)}>
+                  <div className="cart-item-quantity" role="group" aria-label={`Quantity for ${item.title}`}>
+                    <button type="button" onClick={() => updateQuantity(item.id, item.type, item.quantity - 1)} disabled={item.quantity <= 1} aria-label={`Decrease quantity for ${item.title}`}>
                       <MinusIcon className="w-4 h-4" />
                     </button>
-                    <span>{item.quantity}</span>
-                    <button onClick={() => updateQuantity(item.id, item.type, item.quantity + 1)}>
+                    <span aria-live="polite">{item.quantity}</span>
+                    <button type="button" onClick={() => updateQuantity(item.id, item.type, item.quantity + 1)} disabled={atStockLimit} aria-label={`Increase quantity for ${item.title}`}>
                       <PlusIcon className="w-4 h-4" />
                     </button>
                   </div>
-                  <div className="cart-item-total">{item.price * item.quantity} MAD</div>
-                  <button onClick={() => removeFromCart(item.id, item.type)} className="cart-item-remove">
+                  <div className="cart-item-total"><span>Line total</span>{formatAmount(item.price * item.quantity)}</div>
+                  <button type="button" onClick={() => removeFromCart(item.id, item.type)} className="cart-item-remove" aria-label={`Remove ${item.title} from cart`}>
                     <TrashIcon className="w-5 h-5" />
                   </button>
                 </div>
               )
             })}
             <div className="cart-continue">
-              <Link to="/products">← Continue Shopping</Link>
+              <Link to="/products"><ArrowLeftIcon aria-hidden="true" />Continue shopping</Link>
             </div>
           </div>
 
           <div className="cart-summary">
-            <h3>Order Summary</h3>
+            <h3>Order summary</h3>
             <div className="summary-row">
               <span>Subtotal</span>
-              <span>{subtotal} MAD</span>
+              <span>{formatAmount(subtotal)}</span>
             </div>
             <div className="summary-row">
               <span>Shipping</span>
-              <span>{shipping === 0 ? 'Free' : `${shipping} MAD`}</span>
+              <span>{shipping === 0 ? 'Free' : formatAmount(shipping)}</span>
             </div>
             <div className="summary-total">
               <span>Total</span>
-              <span>{total} MAD</span>
+              <span>{formatAmount(total)}</span>
             </div>
-            <Link to="/checkout" className="btn btn-primary w-full mt-4">Proceed to Checkout</Link>
+            {shipping > 0 && <p className="shipping-note">Free delivery applies to orders over 500 MAD.</p>}
+            <Link to="/checkout" className="checkout-link">Continue to checkout</Link>
+            <p className="cart-secure-note"><ShieldCheckIcon aria-hidden="true" />Delivery and payment details are reviewed at checkout.</p>
           </div>
         </div>
       </div>
@@ -132,14 +126,18 @@ const CartPage = () => {
         }
         .cart-title {
           font-size: 1.75rem;
-          font-weight: bold;
-          margin-bottom: 2rem;
+          font-weight: 800;
+          letter-spacing: -0.035em;
+          margin: 0;
         }
         .cart-title span {
           font-size: 1rem;
           font-weight: normal;
           color: #6b7280;
         }
+        .cart-heading { display: flex; align-items: end; justify-content: space-between; gap: 1rem; margin-bottom: 1.75rem; }
+        .cart-eyebrow { margin-bottom: 0.35rem; color: #216275; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+        .cart-heading-note { color: #6b7280; font-size: 0.875rem; }
         .cart-grid {
           display: grid;
           grid-template-columns: 1fr 350px;
@@ -149,6 +147,7 @@ const CartPage = () => {
           .cart-grid {
             grid-template-columns: 1fr;
           }
+          .cart-heading { align-items: flex-start; flex-direction: column; margin-bottom: 1.25rem; }
         }
         .cart-items {
           background: white;
@@ -166,18 +165,16 @@ const CartPage = () => {
         }
         @media (max-width: 640px) {
           .cart-item {
-            grid-template-columns: 60px 1fr;
+            grid-template-columns: 60px 1fr auto;
             gap: 0.75rem;
           }
-          .cart-item-quantity,
-          .cart-item-total,
-          .cart-item-remove {
-            grid-column: span 2;
-            justify-content: space-between;
-          }
+          .cart-item-image { grid-row: span 2; }
+          .cart-item-quantity { grid-column: 2; justify-content: flex-start; }
+          .cart-item-total { grid-column: 1 / -1; }
+          .cart-item-remove { grid-column: 3; grid-row: 1; }
           .cart-summary { position: static; }
-          .cart-item-quantity button { width: 36px; height: 36px; }
-          .cart-item-remove { min-height: 44px; padding: 0 .5rem; }
+          .cart-item-quantity button { width: 40px; height: 40px; }
+          .cart-item-remove { min-width: 44px; min-height: 44px; }
         }
         .cart-item-image {
           width: 60px;
@@ -189,6 +186,7 @@ const CartPage = () => {
           justify-content: center;
           overflow: hidden;
         }
+        .cart-item-media { width: 100%; height: 100%; }
         .cart-item-title {
           font-weight: 600;
           color: #1a1a1a;
@@ -211,8 +209,8 @@ const CartPage = () => {
           gap: 0.5rem;
         }
         .cart-item-quantity button {
-          width: 28px;
-          height: 28px;
+          width: 32px;
+          height: 32px;
           border: 1px solid #e5e7eb;
           background: white;
           border-radius: 0.5rem;
@@ -221,27 +219,51 @@ const CartPage = () => {
           align-items: center;
           justify-content: center;
         }
+        .cart-item-quantity button:hover:not(:disabled) { background: #e8f7fc; border-color: #87CEEB; }
+        .cart-item-quantity button:disabled { opacity: 0.45; cursor: not-allowed; }
         .cart-item-quantity span {
           min-width: 24px;
           text-align: center;
         }
         .cart-item-total {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-end;
+          gap: 0.15rem;
+          font-weight: 800;
+        }
+        .cart-item-total span {
+          color: #6b7280;
+          font-size: 0.7rem;
           font-weight: 600;
+          text-transform: uppercase;
         }
         .cart-item-remove {
-          background: none;
-          border: none;
+          display: grid;
+          place-items: center;
+          width: 36px;
+          height: 36px;
+          background: #fff;
+          border: 1px solid #e5e7eb;
+          border-radius: 0.5rem;
           cursor: pointer;
           color: #ef4444;
         }
+        .cart-item-remove:hover { border-color: #ef4444; background: #fff5f5; }
         .cart-continue {
           padding: 1rem;
-          text-align: center;
+          border-top: 1px solid #e5e7eb;
         }
         .cart-continue a {
-          color: #87CEEB;
+          display: inline-flex;
+          align-items: center;
+          gap: 0.4rem;
+          color: #216275;
+          font-size: 0.875rem;
+          font-weight: 700;
           text-decoration: none;
         }
+        .cart-continue svg { width: 1rem; height: 1rem; }
         .cart-summary {
           background: white;
           border-radius: 1rem;
@@ -270,6 +292,12 @@ const CartPage = () => {
           font-weight: bold;
           font-size: 1.125rem;
         }
+        .shipping-note { margin: 0 0 1rem; color: #4b5563; font-size: 0.75rem; line-height: 1.5; }
+        .checkout-link { display: flex; min-height: 48px; align-items: center; justify-content: center; border-radius: 0.65rem; background: #1a1a1a; color: white; font-weight: 800; text-decoration: none; }
+        .checkout-link:hover { background: #333; }
+        .cart-secure-note { display: flex; align-items: flex-start; gap: 0.4rem; margin: 1rem 0 0; padding-top: 1rem; border-top: 1px solid #e5e7eb; color: #4b5563; font-size: 0.75rem; line-height: 1.45; }
+        .cart-secure-note svg { flex: 0 0 auto; width: 1rem; height: 1rem; color: #216275; }
+        .cart-item-quantity button:focus-visible, .cart-item-remove:focus-visible, .cart-continue a:focus-visible, .checkout-link:focus-visible { outline: 3px solid rgba(135, 206, 235, 0.6); outline-offset: 3px; }
       `}</style>
     </div>
   )
