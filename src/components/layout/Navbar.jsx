@@ -72,12 +72,13 @@ const Navbar = () => {
       <nav className={`navbar ${scrolled ? 'navbar-scrolled' : ''}`}>
         <div className="container">
           <div className="navbar-content">
-            {/* Logo and Brand */}
-            <Link to="/" className="brand-link">
-              <div className="logo-icon">
-                <img src="/logo.png" alt="rifKANDO" className="logo-img" />
-              </div>
-              <span className="brand-name">rif<span className="brand-accent">KANDO</span></span>
+            {/* Brand */}
+            <Link to="/" className="brand-link" aria-label="rifKANDO home">
+              <img
+                src="/assets/rifkando-navbar-lockup.png"
+                alt="rifKANDO"
+                className="brand-lockup-image"
+              />
             </Link>
 
             {/* Desktop Navigation */}
@@ -224,7 +225,6 @@ const Navbar = () => {
             --glass-bg-scrolled: rgba(10, 10, 10, 0.85);
             --glass-border: rgba(255, 255, 255, 0.08);
           }
-          .navbar .brand-name,
           .navbar .nav-link,
           .navbar .nav-icon {
             color: #e5e5e5;
@@ -279,41 +279,23 @@ const Navbar = () => {
         .brand-link {
           display: flex;
           align-items: center;
-          gap: 0.75rem;
           text-decoration: none;
           flex-shrink: 0;
+          position: relative;
+          width: 10.5rem;
+          height: 2.5rem;
+          overflow: hidden;
         }
 
-        .logo-icon {
-          width: 42px;
-          height: 42px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-
-
-
-
-
-
-        .logo-img {
-          width: 240%;
+        .brand-lockup-image {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          display: block;
+          width: 100%;
           max-width: none;
-          height: 240%;
-          object-fit: contain;
-        }
-
-        .brand-name {
-          font-size: 1.5rem;
-          font-weight: 700;
-          color: var(--color-black);
-          letter-spacing: -0.5px;
-          transition: color 0.2s;
-        }
-
-        .brand-accent {
-          color: var(--color-primary);
+          height: auto;
+          transform: translate(-50%, -50%);
         }
 
         .nav-links-desktop {
@@ -723,14 +705,6 @@ const Navbar = () => {
             -webkit-backdrop-filter: blur(22px) saturate(165%);
             box-shadow: 0 10px 28px rgba(15, 23, 42, 0.07);
           }
-          .navbar .brand-name {
-            color: #111827;
-            font-weight: 800;
-            letter-spacing: -0.055em;
-          }
-          .navbar .brand-accent {
-            color: var(--color-primary);
-          }
           .navbar .nav-icon,
           .navbar .mobile-menu-btn {
             color: #374151;
@@ -739,19 +713,8 @@ const Navbar = () => {
             gap: 0.5rem;
           }
           .brand-link {
-            gap: 0.45rem;
-            min-width: 0;
-          }
-          .logo-icon {
-            width: 34px;
-            height: 34px;
-          }
-          .logo-img {
-            width: 220%;
-            height: 220%;
-          }
-          .navbar .brand-name {
-            font-size: 1.2rem;
+            width: 8.25rem;
+            height: 2rem;
           }
           .nav-icons {
             gap: 0.2rem;
