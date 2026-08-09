@@ -19,8 +19,14 @@ services:
         value: staging
       - key: NODE_VERSION
         value: 22.22.3
+      - key: DATABASE_ENGINE
+        value: sqlite
       - key: DATABASE_PATH
         value: /var/data/rifkandi-staging.db
+      - key: DATABASE_URL
+        sync: false
+      - key: POSTGRES_SSL
+        value: true
       - key: DB_BACKUP_DIR
         value: /var/data/backups
       - key: DB_BACKUP_RETENTION_DAYS

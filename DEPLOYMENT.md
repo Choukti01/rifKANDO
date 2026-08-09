@@ -3,13 +3,25 @@
 ## Backend (Render)
 
 The included `render.yaml` provisions the API and mounts a persistent disk at
-`/var/data`. This is required because the application currently uses SQLite.
-Do not deploy without the disk: a database under `/tmp` is deleted on restart.
+`/var/data`. The current live setting is `DATABASE_ENGINE=sqlite`, so do not
+deploy without the disk: a database under `/tmp` is deleted on restart.
+
+The backend can now run against PostgreSQL, but changing `DATABASE_ENGINE` to
+`postgres` is a controlled cutover action, not a routine deploy setting. First
+apply the migrations, import a reviewed SQLite backup into staging, run the
+complete tests against staging PostgreSQL, and verify financial reconciliation.
+Only then set the backend-only `DATABASE_URL` and `DATABASE_ENGINE=postgres`.
+Do not expose `DATABASE_URL` to Netlify, browser code, Git, logs, or support
+tickets.
 
 In Render, provide values for every environment variable marked `sync: false`
 in `render.yaml`. Use the values in `rifKANDI-backend/.env.example` as the
 complete checklist. `NODE_ENV` must be `production` and `CLIENT_URL` must be
 the HTTPS URL of the deployed frontend.
+
+Set `METRICS_TOKEN` to a unique random secret before connecting monitoring.
+The monitoring service must send it as `X-Metrics-Token` when reading
+`/metrics`. Do not put this value in Netlify or any browser environment.
 
 ## Frontend
 

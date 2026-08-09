@@ -1,4 +1,5 @@
 const express = require('express');
+const { createPaginationMetadata, getPagination } = require('../utils/pagination');
 
 /**
  * Private digital product catalog, purchase history, and protected downloads.
@@ -87,28 +88,37 @@ router.post('/digital', protect, requireSeller, validateDigitalCreate, (req, res
 });
 
 router.get('/digital', (req, res) => {
-  db.all(`
-    SELECT d.*, u.name as seller_name, u.id as seller_id
-    FROM digital_products d
-    JOIN users u ON d.seller_id = u.id
-    WHERE d.status = 'published'
-    ORDER BY d.created_at DESC
-  `, (err, rows) => {
-    if (err) {
-      res.status(500).json({ error: err.message });
-    } else {
-      if (!rows.length) return res.json({ success: true, products: [] });
+  const { page, limit, offset } = getPagination(req.query);
+
+  db.get("SELECT COUNT(*) AS total FROM digital_products WHERE status = 'published'", (countError, countRow) => {
+    if (countError) return res.status(500).json({ error: countError.message });
+
+    const pagination = createPaginationMetadata(page, limit, countRow?.total || 0);
+    const sendProducts = (products) => {
+      res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
+      return res.json({ success: true, products, pagination });
+    };
+
+    db.all(`
+      SELECT d.*, u.name as seller_name, u.id as seller_id
+      FROM digital_products d
+      JOIN users u ON d.seller_id = u.id
+      WHERE d.status = 'published'
+      ORDER BY d.created_at DESC
+      LIMIT ? OFFSET ?
+    `, [limit, offset], (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      if (!rows.length) return sendProducts([]);
+
       let completed = 0;
       rows.forEach((product) => {
-        db.all(`SELECT * FROM digital_media WHERE digital_id = ? ORDER BY display_order, id`, [product.id], (err, media) => {
-          if (!err) product.media = media || [];
+        db.all(`SELECT * FROM digital_media WHERE digital_id = ? ORDER BY display_order, id`, [product.id], (mediaError, media) => {
+          if (!mediaError) product.media = media || [];
           completed++;
-          if (completed === rows.length) {
-            res.json({ success: true, products: rows.map(removePrivateDigitalFields) });
-          }
+          if (completed === rows.length) sendProducts(rows.map(removePrivateDigitalFields));
         });
       });
-    }
+    });
   });
 });
 

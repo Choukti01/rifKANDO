@@ -6,7 +6,6 @@ const REQUIRED_PRODUCTION_ENV = [
   'AUDIT_LOG_SECRET',
   'CLIENT_URL',
   'GOOGLE_CLIENT_ID',
-  'DATABASE_PATH',
 ];
 
 const APPLICATION_ENVIRONMENTS = new Set(['development', 'test', 'staging', 'production']);
@@ -69,6 +68,49 @@ const assertStrongDistinctSecrets = () => {
 };
 
 const isValidBucketName = (value) => /^[a-z0-9](?:[a-z0-9.-]{1,61})[a-z0-9]$/.test(value) && !value.includes('..');
+
+const getDatabaseEngine = () => {
+  const engine = String(process.env.DATABASE_ENGINE || 'sqlite').trim().toLowerCase();
+  if (!['sqlite', 'postgres'].includes(engine)) {
+    throw new Error('DATABASE_ENGINE must be either sqlite or postgres.');
+  }
+  return engine;
+};
+
+const validatePostgresUrl = () => {
+  if (!process.env.DATABASE_URL || !String(process.env.DATABASE_URL).trim()) {
+    throw new Error('DATABASE_URL is required when DATABASE_ENGINE=postgres.');
+  }
+
+  try {
+    const url = new URL(process.env.DATABASE_URL);
+    if (!['postgres:', 'postgresql:'].includes(url.protocol) || !url.hostname || url.hash) {
+      throw new Error('invalid PostgreSQL URL');
+    }
+  } catch (error) {
+    throw new Error('DATABASE_URL must be a valid PostgreSQL connection URL.');
+  }
+
+  if (process.env.POSTGRES_SSL && !['true', 'false'].includes(process.env.POSTGRES_SSL)) {
+    throw new Error('POSTGRES_SSL must be true or false when set.');
+  }
+};
+
+const validateDatabaseConfiguration = () => {
+  const engine = getDatabaseEngine();
+  if (engine === 'postgres') {
+    validatePostgresUrl();
+    return engine;
+  }
+
+  if (!process.env.DATABASE_PATH) {
+    throw new Error('DATABASE_PATH is required when DATABASE_ENGINE=sqlite.');
+  }
+  if (process.env.NODE_ENV === 'production' && !process.env.DATABASE_PATH.startsWith('/var/data/')) {
+    throw new Error('DATABASE_PATH must point to the mounted persistent disk in production.');
+  }
+  return engine;
+};
 
 const validateObjectStorage = () => {
   const driver = (process.env.OBJECT_STORAGE_DRIVER || 'local').toLowerCase();
@@ -153,9 +195,7 @@ const validateEnvironment = () => {
   normalizeSecureOrigin(process.env.CLIENT_URL, 'CLIENT_URL');
   getAllowedOrigins();
 
-  if (!process.env.DATABASE_PATH.startsWith('/var/data/')) {
-    throw new Error('DATABASE_PATH must point to the mounted persistent disk in production.');
-  }
+  validateDatabaseConfiguration();
   validateObjectStorage();
   const cmiVariables = ['CMI_STORE_KEY', 'CMI_CLIENT_ID', 'BACKEND_URL'];
   const configuredCmiVariables = cmiVariables.filter((name) => Boolean(process.env[name]));
@@ -169,6 +209,8 @@ module.exports = {
   getAllowedOrigins,
   getApplicationEnvironment,
   isDeploymentEnvironment,
+  getDatabaseEngine,
   validateEnvironment,
+  validateDatabaseConfiguration,
   validateObjectStorage,
 };

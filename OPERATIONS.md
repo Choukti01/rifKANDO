@@ -5,6 +5,7 @@
 Render must use the mounted disk and these canonical frontend settings:
 
 ```text
+DATABASE_ENGINE=sqlite
 DATABASE_PATH=/var/data/rifkandi.db
 DB_BACKUP_DIR=/var/data/backups
 DB_BACKUP_RETENTION_DAYS=14
@@ -18,6 +19,23 @@ ALLOWED_ORIGINS=https://www.rifkando.com,https://rifkando.com
 `CMI_CLIENT_ID`, and `BACKEND_URL` together, never independently. The server
 will refuse a production startup with a missing persistent database path,
 invalid origin, weak JWT secret, or partial CMI configuration.
+
+## Health and monitoring
+
+Use `GET /health` for a liveness probe. It confirms that the Node process can
+respond without depending on the database. Use `GET /ready` for a readiness
+probe. It verifies the database before a service receives traffic.
+
+Every response includes `X-Request-ID`. Keep this value when investigating a
+customer report or an error log. Request logs are structured JSON and include
+only request metadata, never request bodies, cookies, authorization headers,
+or payment details.
+
+`GET /metrics` is intentionally hidden unless the request contains the
+`X-Metrics-Token` header matching `METRICS_TOKEN`. Configure a unique 32+
+character `METRICS_TOKEN` in Render before connecting a monitoring service.
+Metrics responses use `Cache-Control: no-store` and contain aggregate request
+counts, durations, status classes, memory use, and uptime only.
 
 ## Files and object storage
 
@@ -62,7 +80,7 @@ GET /health
 GET /ready
 ```
 
-They return HTTP 200 only when the API can query SQLite. Every response carries
+They return HTTP 200 only when the API can query its configured database. Every response carries
 an `X-Request-ID`; use it to find the matching structured error entry in Render
 logs.
 
@@ -95,6 +113,11 @@ SQLite is safe for this single-instance Render service after WAL and a busy
 timeout are enabled. It is not appropriate for horizontal API scaling or
 multiple writers across instances. Before adding replicas, workers, or a second
 web service, migrate to managed Postgres and rehearse the cutover and rollback.
+The code supports a guarded runtime switch through `DATABASE_ENGINE=postgres`,
+but production must remain on `DATABASE_ENGINE=sqlite` until the PostgreSQL
+schema, data import, staging API tests, financial reconciliation, and rollback
+plan are all verified. The detailed sequence is in
+`rifKANDI-backend/POSTGRESQL_MIGRATION.md`.
 Node is pinned to `22.22.3` in the repository, CI, and Render blueprint; use
 that version locally before installing the native SQLite dependency.
 

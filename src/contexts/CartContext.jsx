@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import { useAuth } from './AuthContext';
@@ -18,27 +18,22 @@ export const CartProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const { isAuthenticated } = useAuth();
 
-  // Loading cart from backend when user is authenticated
-  useEffect(() => {
-    let isMounted = true;
-    
-    const loadData = async () => {
-      if (isAuthenticated) {
-        await loadCartFromBackend(isMounted);
-      } else {
-        loadCartFromLocal(isMounted);
+  // Loading cart from localStorage (fallback)
+  const loadCartFromLocal = useCallback((isMounted) => {
+    try {
+      const savedCart = localStorage.getItem('rifkandi_cart');
+      if (savedCart && isMounted) {
+        setCart(JSON.parse(savedCart));
       }
-    };
-    
-    loadData();
-    
-    return () => {
-      isMounted = false;
-    };
-  }, [isAuthenticated]);
+    } catch (error) {
+      console.error('Failed to load cart from localStorage:', error);
+    } finally {
+      if (isMounted) setLoading(false);
+    }
+  }, []);
 
   // Loading cart from backend API
-  const loadCartFromBackend = async (isMounted) => {
+  const loadCartFromBackend = useCallback(async (isMounted) => {
     try {
       setLoading(true);
       const response = await api.get('/cart');
@@ -52,6 +47,7 @@ export const CartProvider = ({ children }) => {
         quantity: item.quantity,
         type: 'product',
         seller: item.seller_name || 'Seller',
+        stock: Number.isFinite(Number(item.stock)) ? Number(item.stock) : null,
         addedAt: item.created_at
       }));
       
@@ -65,51 +61,66 @@ export const CartProvider = ({ children }) => {
     } finally {
       if (isMounted) setLoading(false);
     }
-  };
+  }, [loadCartFromLocal]);
 
-  // Loading cart from localStorage (fallback)
-  const loadCartFromLocal = (isMounted) => {
-    try {
-      const savedCart = localStorage.getItem('rifkandi_cart');
-      if (savedCart && isMounted) {
-        setCart(JSON.parse(savedCart));
+  // Load the authenticated cart when possible and fall back to the local basket.
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadData = async () => {
+      if (isAuthenticated) {
+        await loadCartFromBackend(isMounted);
+      } else {
+        loadCartFromLocal(isMounted);
       }
-    } catch (error) {
-      console.error('Failed to load cart from localStorage:', error);
-    } finally {
-      if (isMounted) setLoading(false);
-    }
-  };
+    };
+
+    loadData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isAuthenticated, loadCartFromBackend, loadCartFromLocal]);
 
   const addToCart = async (item, quantity = 1, type = 'product') => {
-    const newCart = [...cart];
-    const existingIndex = newCart.findIndex(i => i.id === item.id && i.type === type);
-    
-    if (existingIndex !== -1) {
-      newCart[existingIndex].quantity += quantity;
-      toast.success(`Updated ${item.title} quantity`);
-    } else {
-      newCart.push({ 
-        ...item, 
-        quantity, 
-        type,
-        addedAt: new Date().toISOString()
-      });
-      toast.success(`${item.title} is in your cart`);
+    const requestedQuantity = Number(quantity);
+    const existingItem = cart.find((cartItem) => cartItem.id === item.id && cartItem.type === type);
+    const availableStock = Number.isFinite(Number(item.stock)) ? Number(item.stock) : null;
+    const nextQuantity = (existingItem?.quantity || 0) + requestedQuantity;
+
+    if (!Number.isInteger(requestedQuantity) || requestedQuantity < 1) return false;
+    if (availableStock !== null && availableStock < 1) {
+      toast.error('This item is out of stock');
+      return false;
     }
-    
+    if (availableStock !== null && nextQuantity > availableStock) {
+      toast.error(`Only ${availableStock} item(s) are available`);
+      return false;
+    }
+
+    const previousCart = cart;
+    const newCart = existingItem
+      ? cart.map((cartItem) => cartItem.id === item.id && cartItem.type === type
+        ? { ...cartItem, quantity: nextQuantity, stock: availableStock ?? cartItem.stock }
+        : cartItem)
+      : [...cart, { ...item, quantity: requestedQuantity, type, stock: availableStock, addedAt: new Date().toISOString() }];
+
     setCart(newCart);
     localStorage.setItem('rifkandi_cart', JSON.stringify(newCart));
-    
-    // Sync to backend if authenticated (don't await to avoid blocking)
+
     if (isAuthenticated) {
-      api.post('/cart', {
-        product_id: item.id,
-        quantity: quantity
-      }).catch(error => {
+      try {
+        await api.post('/cart', { product_id: item.id, quantity: requestedQuantity });
+      } catch (error) {
         console.error('Failed to add to backend cart:', error);
-      });
+        setCart(previousCart);
+        localStorage.setItem('rifkandi_cart', JSON.stringify(previousCart));
+        toast.error(error.response?.data?.error || 'Could not update your cart');
+        return false;
+      }
     }
+    toast.success(existingItem ? `Updated ${item.title} quantity` : `${item.title} is in your cart`);
+    return true;
   };
 
   const removeFromCart = async (itemId, type) => {
@@ -128,10 +139,16 @@ export const CartProvider = ({ children }) => {
 
   const updateQuantity = async (itemId, type, quantity) => {
     if (quantity < 1) {
-      removeFromCart(itemId, type);
-      return;
+      return removeFromCart(itemId, type);
     }
-    
+    const currentItem = cart.find((item) => item.id === itemId && item.type === type);
+    if (!currentItem) return false;
+    if (Number.isFinite(Number(currentItem.stock)) && quantity > Number(currentItem.stock)) {
+      toast.error(`Only ${currentItem.stock} item(s) are available`);
+      return false;
+    }
+
+    const previousCart = cart;
     const newCart = cart.map(item =>
       item.id === itemId && item.type === type 
         ? { ...item, quantity } 
@@ -140,12 +157,18 @@ export const CartProvider = ({ children }) => {
     
     setCart(newCart);
     localStorage.setItem('rifkandi_cart', JSON.stringify(newCart));
-    
     if (isAuthenticated) {
-      api.put(`/cart/${itemId}`, { quantity }).catch(error => {
+      try {
+        await api.put(`/cart/${itemId}`, { quantity });
+      } catch (error) {
         console.error('Failed to update backend cart:', error);
-      });
+        setCart(previousCart);
+        localStorage.setItem('rifkandi_cart', JSON.stringify(previousCart));
+        toast.error(error.response?.data?.error || 'Could not update your cart');
+        return false;
+      }
     }
+    return true;
   };
 
   const clearCart = async () => {

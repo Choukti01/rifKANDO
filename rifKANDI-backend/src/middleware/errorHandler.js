@@ -1,4 +1,5 @@
 const AppError = require('../utils/AppError');
+const { log } = require('../services/observabilityService');
 
 const toOperationalError = (err) => {
   if (err.name === 'JsonWebTokenError') return new AppError('Invalid token. Please log in again.', 401);
@@ -12,8 +13,7 @@ module.exports = (err, req, res, next) => {
   const error = toOperationalError(err);
   const statusCode = error.statusCode || 500;
   const isOperational = Boolean(error.isOperational);
-  const log = {
-    level: statusCode >= 500 ? 'error' : 'warn',
+  const logFields = {
     event: 'request_failed',
     requestId: req.requestId,
     method: req.method,
@@ -23,8 +23,8 @@ module.exports = (err, req, res, next) => {
     errorCode: error.code,
     message: error.message,
   };
-  if (!isOperational) log.stack = error.stack;
-  console.error(JSON.stringify(log));
+  if (!isOperational) logFields.stack = error.stack;
+  log(statusCode >= 500 ? 'error' : 'warn', 'request_failed', logFields);
 
   if (res.headersSent) return next(error);
   if (process.env.NODE_ENV === 'development') {

@@ -17,8 +17,17 @@ services:
         value: production
       - key: NODE_VERSION
         value: 22.22.3
+      # Keep SQLite until the staged PostgreSQL cutover is explicitly approved.
+      - key: DATABASE_ENGINE
+        value: sqlite
       - key: DATABASE_PATH
         value: /var/data/rifkandi.db
+      # Provision this only for the PostgreSQL cutover. It has no effect while
+      # DATABASE_ENGINE remains sqlite.
+      - key: DATABASE_URL
+        sync: false
+      - key: POSTGRES_SSL
+        value: true
       - key: CLIENT_URL
         value: https://www.rifkando.com
       - key: ALLOWED_ORIGINS
@@ -55,6 +64,8 @@ services:
         generateValue: true
       - key: AUDIT_LOG_SECRET
         generateValue: true
+      - key: METRICS_TOKEN
+        sync: false
       - key: ACCESS_TOKEN_TTL_SECONDS
         value: 900
       - key: REFRESH_TOKEN_TTL_DAYS

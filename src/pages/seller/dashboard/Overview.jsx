@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ShoppingBagIcon, CurrencyDollarIcon, EyeIcon, ChartBarIcon, AcademicCapIcon, WrenchScrewdriverIcon, ComputerDesktopIcon, CalendarIcon } from '@heroicons/react/24/outline';
-import { getMyProducts, getMyCourses, getMyServices, getMyDigitalProducts, getMyBookings, getOrders } from '../../../services/api';
+import { ShoppingBagIcon, CurrencyDollarIcon, EyeIcon, AcademicCapIcon, WrenchScrewdriverIcon, ComputerDesktopIcon, CalendarIcon } from '@heroicons/react/24/outline';
+import { getMyProducts, getMyCourses, getMyServices, getMyDigitalProducts, getMyBookings } from '../../../services/api';
+import api from '../../../services/api';
 import { useAuth } from '../../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import EmptyState from '../../../components/common/EmptyState';
@@ -16,7 +17,7 @@ const Overview = () => {
     totalDigital: 0,
     totalBookings: 0,
     totalOrders: 0,
-    totalRevenue: 0,
+    totalOrderValue: 0,
     totalViews: 0
   });
   const [loading, setLoading] = useState(true);
@@ -37,7 +38,7 @@ const Overview = () => {
         getMyServices().catch(() => ({ data: { services: [] } })),
         getMyDigitalProducts().catch(() => ({ data: { products: [] } })),
         getMyBookings().catch(() => ({ data: { bookings: [] } })),
-        getOrders().catch(() => ({ data: { orders: [] } }))
+        api.get('/seller/orders').catch(() => ({ data: { orders: [] } }))
       ]);
 
       const products = productsRes.data.products || [];
@@ -47,7 +48,7 @@ const Overview = () => {
       const bookings = bookingsRes.data.bookings || [];
       const orders = ordersRes.data.orders || [];
 
-      const totalRevenue = orders.reduce((sum, order) => sum + (order.total || 0), 0);
+      const totalOrderValue = orders.reduce((sum, order) => sum + Number(order.seller_total ?? order.total ?? 0), 0);
       const totalViews = [...products, ...courses, ...services, ...digital, ...bookings].reduce((sum, item) => sum + (item.views || 0), 0);
 
       setStats({
@@ -57,7 +58,7 @@ const Overview = () => {
         totalDigital: digital.length,
         totalBookings: bookings.length,
         totalOrders: orders.length,
-        totalRevenue,
+        totalOrderValue,
         totalViews
       });
 
@@ -97,26 +98,25 @@ const Overview = () => {
   const mainStats = [];
   
   if (sellerType === 'product' || !sellerType) {
-    mainStats.push({ label: 'Products', value: stats.totalProducts, icon: ShoppingBagIcon, color: '#3b82f6' });
+    mainStats.push({ label: 'Products', value: stats.totalProducts, icon: ShoppingBagIcon, color: '#216275' });
   }
   if (sellerType === 'course' || !sellerType) {
-    mainStats.push({ label: 'Courses', value: stats.totalCourses, icon: AcademicCapIcon, color: '#10b981' });
+    mainStats.push({ label: 'Courses', value: stats.totalCourses, icon: AcademicCapIcon, color: '#216275' });
   }
   if (sellerType === 'service' || !sellerType) {
-    mainStats.push({ label: 'Services', value: stats.totalServices, icon: WrenchScrewdriverIcon, color: '#8b5cf6' });
+    mainStats.push({ label: 'Services', value: stats.totalServices, icon: WrenchScrewdriverIcon, color: '#216275' });
   }
   if (sellerType === 'digital' || !sellerType) {
-    mainStats.push({ label: 'Digital', value: stats.totalDigital, icon: ComputerDesktopIcon, color: '#f59e0b' });
+    mainStats.push({ label: 'Digital', value: stats.totalDigital, icon: ComputerDesktopIcon, color: '#216275' });
   }
   if (sellerType === 'booking' || !sellerType) {
-    mainStats.push({ label: 'Bookings', value: stats.totalBookings, icon: CalendarIcon, color: '#ef4444' });
+    mainStats.push({ label: 'Bookings', value: stats.totalBookings, icon: CalendarIcon, color: '#216275' });
   }
 
   const overviewStats = [
-    { label: 'Total Sales', value: `${stats.totalRevenue.toLocaleString()} MAD`, change: '+12%', icon: CurrencyDollarIcon, color: '#10b981' },
-    { label: 'Total Orders', value: stats.totalOrders, change: '+8%', icon: ShoppingBagIcon, color: '#3b82f6' },
-    { label: 'Total Views', value: stats.totalViews.toLocaleString(), change: '+23%', icon: EyeIcon, color: '#8b5cf6' },
-    { label: 'Conversion Rate', value: stats.totalOrders > 0 ? `${((stats.totalOrders / (stats.totalViews || 1)) * 100).toFixed(1)}%` : '0%', change: '+2%', icon: ChartBarIcon, color: '#f59e0b' },
+    { label: 'Order value', value: `${stats.totalOrderValue.toLocaleString()} MAD`, icon: CurrencyDollarIcon, color: '#216275' },
+    { label: 'Orders', value: stats.totalOrders, icon: ShoppingBagIcon, color: '#216275' },
+    { label: 'Listing views', value: stats.totalViews.toLocaleString(), icon: EyeIcon, color: '#216275' },
   ];
   const totalListings = stats.totalProducts + stats.totalCourses + stats.totalServices + stats.totalDigital + stats.totalBookings;
   const firstListingPaths = {
@@ -126,11 +126,18 @@ const Overview = () => {
     booking: '/seller/dashboard/bookings/add'
   };
   const firstListingPath = firstListingPaths[sellerType] || '/seller/dashboard/products/add';
+  const listingLabels = {
+    product: 'product',
+    course: 'course',
+    service: 'service',
+    digital: 'digital product',
+    booking: 'booking',
+  };
+  const primaryListingLabel = listingLabels[sellerType] || 'product';
   const checklist = [
     { label: 'Complete your profile', done: Boolean(user?.name && user?.phone && user?.city), to: '/seller/dashboard/settings' },
     { label: 'Verify your seller account', done: user?.is_verified_seller === 1, to: '/seller/dashboard/verification' },
     { label: 'Publish your first listing', done: totalListings > 0, to: firstListingPath },
-    { label: 'Set up payout details', done: false, to: '/seller/dashboard/wallet' }
   ];
   const completedSteps = checklist.filter((step) => step.done).length;
 
@@ -140,6 +147,9 @@ const Overview = () => {
       <div className="welcome-section">
         <h2>Welcome back, {user?.name?.split(' ')[0] || 'Seller'}!</h2>
         <p>{totalListings ? "Here's what's happening with your store today." : 'Almost there. Your shop is ready for its first listing.'}</p>
+        <Link to={firstListingPath} className="seller-primary-action">
+          {totalListings ? `Manage your ${primaryListingLabel}s` : `Create your first ${primaryListingLabel}`}
+        </Link>
       </div>
 
       {completedSteps < checklist.length && (
@@ -189,7 +199,6 @@ const Overview = () => {
                 <div className="stat-icon" style={{ background: `${stat.color}20`, color: stat.color }}>
                   <Icon className="w-5 h-5" />
                 </div>
-                <span className="stat-change">{stat.change}</span>
               </div>
               <div className="stat-value">{stat.value}</div>
               <div className="stat-label">{stat.label}</div>
@@ -201,11 +210,11 @@ const Overview = () => {
       {/* Recent Orders */}
       <div className="recent-orders-card">
         <div className="card-header">
-          <h3>Recent Orders</h3>
+          <h3>Recent sales</h3>
           <Link to="/seller/dashboard/orders" className="view-all">View All</Link>
         </div>
         {recentOrders.length === 0 ? (
-          <EmptyState title="No orders yet" description="Your first sale will appear here once a customer checks out." />
+          <EmptyState title="No sales yet" description="Your first sale will appear here once a customer checks out." />
         ) : (
           <div className="orders-table">
             <table>
@@ -223,7 +232,7 @@ const Overview = () => {
                   <tr key={order.id}>
                     <td>{order.order_number}</td>
                     <td>{order.customer_name || 'Customer'}</td>
-                    <td>{order.total} MAD</td>
+                    <td>{Number(order.seller_total ?? order.total ?? 0).toLocaleString()} MAD</td>
                     <td>
                       <span className="status-badge" style={{ background: `${getStatusColor(order.status)}20`, color: getStatusColor(order.status) }}>
                         {getStatusText(order.status)}
@@ -249,6 +258,22 @@ const Overview = () => {
         .welcome-section p {
           color: #6b7280;
         }
+        .seller-primary-action {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-height: 44px;
+          margin-top: 1rem;
+          padding: 0.65rem 1rem;
+          border-radius: 0.65rem;
+          background: #1a1a1a;
+          color: white;
+          font-size: 0.875rem;
+          font-weight: 700;
+          text-decoration: none;
+        }
+        .seller-primary-action:hover { background: #333; }
+        .seller-primary-action:focus-visible, .seller-checklist-step:focus-visible, .view-all:focus-visible { outline: 3px solid rgba(135, 206, 235, 0.6); outline-offset: 3px; }
         .seller-checklist {
           display: grid;
           grid-template-columns: minmax(0, 1fr) minmax(320px, 1.2fr);
@@ -293,11 +318,6 @@ const Overview = () => {
           display: flex;
           align-items: center;
           justify-content: center;
-        }
-        .stat-change {
-          font-size: 0.75rem;
-          color: #10b981;
-          font-weight: 500;
         }
         .stat-value {
           font-size: 1.75rem;

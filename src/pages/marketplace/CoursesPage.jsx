@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getCourses } from '../../services/api';
 import toast from 'react-hot-toast';
@@ -6,29 +6,35 @@ import MediaGallery from '../../components/MediaGallery';
 import { getImageUrl } from '../../utils/imageUtils';
 import MarketplaceImage from '../../components/common/MarketplaceImage';
 import VerifiedBadge from '../../components/common/VerifiedBadge';
+import LoadMoreButton from '../../components/common/LoadMoreButton';
 
 const CoursesPage = () => {
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [galleryCourse, setGalleryCourse] = useState(null);
+  const [pagination, setPagination] = useState({ page: 1, totalPages: 1 });
 
-  useEffect(() => {
-    fetchCourses();
-  }, []);
-
-  const fetchCourses = async () => {
+  const fetchCourses = useCallback(async ({ page = 1, append = false } = {}) => {
     try {
-      setLoading(true);
-      const response = await getCourses();
-      console.log('Courses response:', response.data); // Debug: check if media exists
-      setCourses(response.data.courses || []);
+      if (append) setLoadingMore(true);
+
+      const response = await getCourses({ page, limit: 12 });
+      const nextCourses = response.data.courses || [];
+      setCourses((currentCourses) => (append ? [...currentCourses, ...nextCourses] : nextCourses));
+      setPagination(response.data.pagination || { page: 1, totalPages: 1 });
     } catch (error) {
       console.error('Error fetching courses:', error);
       toast.error('Failed to load courses');
     } finally {
-      setLoading(false);
+      if (append) setLoadingMore(false);
+      else setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchCourses();
+  }, [fetchCourses]);
 
   if (loading) {
     return (
@@ -120,6 +126,13 @@ const CoursesPage = () => {
             })
           )}
         </div>
+
+        <LoadMoreButton
+          hasMore={pagination.page < pagination.totalPages}
+          isLoading={loadingMore}
+          onLoadMore={() => fetchCourses({ page: pagination.page + 1, append: true })}
+          itemLabel="courses"
+        />
       </div>
 
       {/* Gallery Modal */}
