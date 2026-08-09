@@ -63,21 +63,14 @@ const Footer = () => {
           <div className="footer-grid">
             <div className="footer-brand">
               <Link to="/" className="footer-logo" aria-label="rifKANDO home">
-                <span className="footer-logo-icon">
-                  <img src="/logo.png" alt="" className="footer-logo-img" />
-                </span>
-                <span className="footer-logo-name">
-                  rif<span className="footer-logo-accent">KANDO</span>
-                </span>
+                <img
+                  src="/assets/rifkando-navbar-lockup.png"
+                  alt="rifKANDO"
+                  className="footer-brand-lockup"
+                />
               </Link>
               <p className="footer-kicker">{t('footer.kicker')}</p>
               <p className="footer-description">{t('footer.description')}</p>
-              <div className="footer-promise" aria-label="What you can do on rifKANDO">
-                <span>{t('footer.shop')}</span>
-                <span>{t('footer.learn')}</span>
-                <span>{t('footer.hire')}</span>
-                <span>{t('footer.book')}</span>
-              </div>
               <div className="footer-social">
                 <a href="https://www.facebook.com/share/1JKtSWNcUQ/?mibextid=wwXIfr" target="_blank" rel="noopener noreferrer" className="footer-social-link" aria-label="Facebook">
                   <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -187,38 +180,24 @@ const Footer = () => {
         }
 
         .footer-logo {
-          display: inline-flex;
-          align-items: center;
-          gap: 0.75rem;
+          position: relative;
+          display: block;
+          width: 13.5rem;
+          height: 3.25rem;
+          overflow: hidden;
           margin-bottom: 1.25rem;
-          color: #f8fbfd;
           text-decoration: none;
         }
 
-        .footer-logo-icon {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          width: 42px;
-          height: 42px;
-        }
-
-        .footer-logo-img {
-          width: 240%;
+        .footer-brand-lockup {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          display: block;
+          width: 100%;
           max-width: none;
-          height: 240%;
-          object-fit: contain;
-        }
-
-        .footer-logo-name {
-          color: var(--color-black);
-          font-size: 1.5rem;
-          font-weight: 700;
-          letter-spacing: -0.045em;
-        }
-
-        .footer-logo-accent {
-          color: var(--color-primary);
+          height: auto;
+          transform: translate(-50%, -50%);
         }
 
         .footer-kicker {
@@ -235,24 +214,6 @@ const Footer = () => {
           color: rgba(26, 26, 26, 0.74);
           font-size: 0.9rem;
           line-height: 1.7;
-        }
-
-        .footer-promise {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 0.5rem;
-          margin: 1.3rem 0 1.45rem;
-        }
-
-        .footer-promise span {
-          padding: 0.38rem 0.65rem;
-          color: rgba(26, 26, 26, 0.8);
-          background: rgba(255, 255, 255, 0.52);
-          border: 1px solid rgba(95, 158, 160, 0.32);
-          border-radius: var(--radius-full);
-          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
-          font-size: 0.72rem;
-          font-weight: 600;
         }
 
         .footer-social {
