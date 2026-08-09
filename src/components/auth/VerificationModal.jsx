@@ -6,17 +6,16 @@ const VerificationModal = ({ email, onVerify, onClose, onResend }) => {
   const [code, setCode] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [timer, setTimer] = useState(60);
-  const [canResend, setCanResend] = useState(false);
+  const canResend = timer === 0;
 
   useEffect(() => {
-    if (timer > 0 && !canResend) {
-      const interval = setInterval(() => {
-        setTimer((prev) => prev - 1);
-      }, 1000);
-      return () => clearInterval(interval);
-    } else if (timer === 0) {
-      setCanResend(true);
-    }
+    if (timer === 0) return undefined;
+
+    const timeout = setTimeout(() => {
+      setTimer((previousTimer) => Math.max(0, previousTimer - 1));
+    }, 1000);
+
+    return () => clearTimeout(timeout);
   }, [timer]);
 
   const handleCodeChange = (index, value) => {
@@ -39,18 +38,23 @@ const VerificationModal = ({ email, onVerify, onClose, onResend }) => {
     }
     
     setLoading(true);
-    await onVerify(verificationCode);
-    setLoading(false);
+    try {
+      await onVerify(verificationCode);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleResend = async () => {
     if (!canResend) return;
     setLoading(true);
-    await onResend();
-    setTimer(60);
-    setCanResend(false);
-    setCode(['', '', '', '', '', '']);
-    setLoading(false);
+    try {
+      await onResend();
+      setTimer(60);
+      setCode(['', '', '', '', '', '']);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

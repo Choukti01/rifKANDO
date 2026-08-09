@@ -20,7 +20,36 @@ const ProductsDashboard = () => {
   });
 
   useEffect(() => {
-    fetchProducts();
+    let isCurrent = true;
+
+    const loadProducts = async () => {
+      try {
+        const response = await getMyProducts();
+        if (!isCurrent) return;
+
+        const productsData = response.data.products || [];
+        setProducts(productsData);
+        setStats({
+          totalProducts: productsData.length,
+          totalValue: productsData.reduce((sum, product) => sum + (product.price * product.stock), 0),
+          totalSold: productsData.reduce((sum, product) => sum + (product.sold || 0), 0),
+          lowStock: productsData.filter((product) => product.stock < 10 && product.stock > 0).length
+        });
+      } catch (error) {
+        if (isCurrent) {
+          console.error('Failed to fetch products:', error);
+          toast.error('Failed to load products');
+        }
+      } finally {
+        if (isCurrent) setLoading(false);
+      }
+    };
+
+    void loadProducts();
+
+    return () => {
+      isCurrent = false;
+    };
   }, []);
 
   const fetchProducts = async () => {

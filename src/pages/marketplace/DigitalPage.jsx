@@ -33,8 +33,31 @@ const DigitalPage = () => {
   }, []);
 
   useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
+    let isCurrent = true;
+
+    const loadInitialProducts = async () => {
+      try {
+        const response = await getDigitalProducts({ page: 1, limit: 12 });
+        if (!isCurrent) return;
+
+        setProducts(response.data.products || []);
+        setPagination(response.data.pagination || { page: 1, totalPages: 1 });
+      } catch (error) {
+        if (isCurrent) {
+          console.error('Error fetching digital products:', error);
+          toast.error('Failed to load digital products');
+        }
+      } finally {
+        if (isCurrent) setLoading(false);
+      }
+    };
+
+    void loadInitialProducts();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, []);
 
   if (loading) {
     return (

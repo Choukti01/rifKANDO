@@ -22,8 +22,32 @@ const PackagesManager = () => {
   });
 
   useEffect(() => {
-    fetchServiceAndPackages();
-  }, [id]);
+    let isCurrent = true;
+
+    const loadServiceAndPackages = async () => {
+      try {
+        const response = await api.get(`/services/${id}`);
+        if (!isCurrent) return;
+
+        setService(response.data.service);
+        setPackages(response.data.service.packages || []);
+      } catch (error) {
+        if (isCurrent) {
+          console.error('Error fetching service:', error);
+          toast.error('Failed to load service');
+          navigate('/seller/dashboard/services');
+        }
+      } finally {
+        if (isCurrent) setLoading(false);
+      }
+    };
+
+    void loadServiceAndPackages();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [id, navigate]);
 
   const fetchServiceAndPackages = async () => {
     try {

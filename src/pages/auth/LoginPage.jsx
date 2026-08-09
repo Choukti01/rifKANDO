@@ -2,7 +2,7 @@ import React, { useCallback, useState } from 'react';
 import { GoogleLogin } from '@react-oauth/google';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { useAuth } from '../../contexts/AuthContext';
+import useAuth from '../../hooks/useAuth';
 
 const LoginPage = () => {
   const navigate = useNavigate();

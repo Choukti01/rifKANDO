@@ -7,7 +7,24 @@ const DigitalRequests = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchRequests();
+    let isCurrent = true;
+
+    const loadRequests = async () => {
+      try {
+        const res = await api.get('/seller/digital-requests');
+        if (isCurrent) setRequests(res.data.requests || []);
+      } catch {
+        if (isCurrent) toast.error('Failed to load requests');
+      } finally {
+        if (isCurrent) setLoading(false);
+      }
+    };
+
+    void loadRequests();
+
+    return () => {
+      isCurrent = false;
+    };
   }, []);
 
   const fetchRequests = async () => {

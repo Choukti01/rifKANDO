@@ -19,7 +19,42 @@ const ServicesDashboard = () => {
   });
 
   useEffect(() => {
-    fetchServices();
+    let isCurrent = true;
+
+    const loadServices = async () => {
+      try {
+        const response = await getMyServices();
+        if (!isCurrent) return;
+
+        const servicesData = response.data.services || [];
+        const totalOrders = servicesData.reduce((sum, service) => sum + (service.orders_count || 0), 0);
+        const totalRevenue = servicesData.reduce((sum, service) => sum + ((service.price || 0) * (service.orders_count || 0)), 0);
+        const avgRating = servicesData.length > 0
+          ? servicesData.reduce((sum, service) => sum + (service.rating || 0), 0) / servicesData.length
+          : 0;
+
+        setServices(servicesData);
+        setStats({
+          totalServices: servicesData.length,
+          totalOrders,
+          totalRevenue,
+          avgRating: avgRating.toFixed(1)
+        });
+      } catch (error) {
+        if (isCurrent) {
+          console.error('Failed to fetch services:', error);
+          toast.error('Failed to load services');
+        }
+      } finally {
+        if (isCurrent) setLoading(false);
+      }
+    };
+
+    void loadServices();
+
+    return () => {
+      isCurrent = false;
+    };
   }, []);
 
   const fetchServices = async () => {

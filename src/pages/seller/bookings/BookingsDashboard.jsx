@@ -18,7 +18,42 @@ const BookingsDashboard = () => {
   });
 
   useEffect(() => {
-    fetchBookings();
+    let isCurrent = true;
+
+    const loadBookings = async () => {
+      try {
+        const response = await getMyBookings();
+        if (!isCurrent) return;
+
+        const bookingsData = response.data.bookings || [];
+        const totalAppointments = bookingsData.reduce((sum, booking) => sum + (booking.appointments_count || 0), 0);
+        const totalRevenue = bookingsData.reduce((sum, booking) => sum + ((booking.price || 0) * (booking.appointments_count || 0)), 0);
+        const avgRating = bookingsData.length > 0
+          ? bookingsData.reduce((sum, booking) => sum + (booking.rating || 0), 0) / bookingsData.length
+          : 0;
+
+        setBookings(bookingsData);
+        setStats({
+          totalBookings: bookingsData.length,
+          totalAppointments,
+          totalRevenue,
+          avgRating: avgRating.toFixed(1)
+        });
+      } catch (error) {
+        if (isCurrent) {
+          console.error('Failed to fetch bookings:', error);
+          toast.error('Failed to load bookings');
+        }
+      } finally {
+        if (isCurrent) setLoading(false);
+      }
+    };
+
+    void loadBookings();
+
+    return () => {
+      isCurrent = false;
+    };
   }, []);
 
   const fetchBookings = async () => {

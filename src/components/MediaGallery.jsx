@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon, XMarkIcon, PlayIcon } from '@heroicons/react/24/outline';
 import MarketplaceImage from './common/MarketplaceImage';
 import { getImageUrl } from '../utils/imageUtils';   // ✅ added
@@ -9,6 +9,18 @@ const MediaGallery = ({ media = [], onClose }) => {
   const touchStartX = useRef(0);
   const touchEndX = useRef(0);
 
+  const nextSlide = useCallback(() => {
+    if (media.length < 2) return;
+    setIsVideoPlaying(false);
+    setCurrentIndex((previousIndex) => (previousIndex + 1) % media.length);
+  }, [media.length]);
+
+  const prevSlide = useCallback(() => {
+    if (media.length < 2) return;
+    setIsVideoPlaying(false);
+    setCurrentIndex((previousIndex) => (previousIndex - 1 + media.length) % media.length);
+  }, [media.length]);
+
   useEffect(() => {
     const handleKey = (e) => {
       if (e.key === 'ArrowLeft') prevSlide();
@@ -17,10 +29,7 @@ const MediaGallery = ({ media = [], onClose }) => {
     };
     document.addEventListener('keydown', handleKey);
     return () => document.removeEventListener('keydown', handleKey);
-  }, [currentIndex]);
-
-  const nextSlide = () => setCurrentIndex((prev) => (prev + 1) % media.length);
-  const prevSlide = () => setCurrentIndex((prev) => (prev - 1 + media.length) % media.length);
+  }, [nextSlide, onClose, prevSlide]);
 
   const handleTouchStart = (e) => {
     touchStartX.current = e.touches[0].clientX;
@@ -72,7 +81,14 @@ const MediaGallery = ({ media = [], onClose }) => {
         <div className="counter">{currentIndex+1} / {media.length}</div>
         <div className="thumbnails">
           {media.map((item, idx) => (
-            <div key={idx} className={`thumb ${idx === currentIndex ? 'active' : ''}`} onClick={() => setCurrentIndex(idx)}>
+            <div
+              key={idx}
+              className={`thumb ${idx === currentIndex ? 'active' : ''}`}
+              onClick={() => {
+                setIsVideoPlaying(false);
+                setCurrentIndex(idx);
+              }}
+            >
               {item.type === 'video' ? 
                 <div className="video-thumb">🎬</div> : 
                 <MarketplaceImage source={item.url} alt="Gallery thumbnail" />

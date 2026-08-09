@@ -33,8 +33,31 @@ const ServicesPage = () => {
   }, []);
 
   useEffect(() => {
-    fetchServices();
-  }, [fetchServices]);
+    let isCurrent = true;
+
+    const loadInitialServices = async () => {
+      try {
+        const response = await getServices({ page: 1, limit: 12 });
+        if (!isCurrent) return;
+
+        setServices(response.data.services || []);
+        setPagination(response.data.pagination || { page: 1, totalPages: 1 });
+      } catch (error) {
+        if (isCurrent) {
+          console.error('Error fetching services:', error);
+          toast.error('Failed to load services');
+        }
+      } finally {
+        if (isCurrent) setLoading(false);
+      }
+    };
+
+    void loadInitialServices();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, []);
 
   if (loading) {
     return (

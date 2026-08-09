@@ -1,33 +1,14 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { getFavorites, addToFavorites, removeFromFavorites } from '../services/api';
-import { useAuth } from './AuthContext';
+import useAuth from '../hooks/useAuth';
 import toast from 'react-hot-toast';
+import FavoritesContext from './favoritesStore';
 
-const FavoritesContext = createContext();
-
-export const useFavorites = () => {
-  const context = useContext(FavoritesContext);
-  if (!context) {
-    throw new Error('useFavorites must be used within FavoritesProvider');
-  }
-  return context;
-};
-
-export const FavoritesProvider = ({ children }) => {
+const FavoritesState = ({ children, isAuthenticated }) => {
   const [favorites, setFavorites] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const { isAuthenticated } = useAuth();
+  const [loading, setLoading] = useState(isAuthenticated);
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      loadFavorites();
-    } else {
-      setFavorites([]);
-      setLoading(false);
-    }
-  }, [isAuthenticated]);
-
-  const loadFavorites = async () => {
+  const refreshFavorites = useCallback(async () => {
     try {
       setLoading(true);
       const response = await getFavorites();
@@ -37,9 +18,32 @@ export const FavoritesProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const addToFavoritesHandler = async (item, type) => {
+  useEffect(() => {
+    if (!isAuthenticated) return undefined;
+
+    let isCurrent = true;
+
+    const loadInitialFavorites = async () => {
+      try {
+        const response = await getFavorites();
+        if (isCurrent) setFavorites(response.data.favorites || []);
+      } catch (error) {
+        if (isCurrent) console.error('Failed to load favorites:', error);
+      } finally {
+        if (isCurrent) setLoading(false);
+      }
+    };
+
+    void loadInitialFavorites();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [isAuthenticated]);
+
+  const addToFavoritesHandler = useCallback(async (item, type) => {
     if (!isAuthenticated) {
       toast.error('Please login to add to favorites');
       return false;
@@ -47,7 +51,7 @@ export const FavoritesProvider = ({ children }) => {
 
     try {
       await addToFavorites(item.id, type);
-      await loadFavorites();
+      await refreshFavorites();
       toast.success(`${item.title} saved to favorites`);
       return true;
     } catch (error) {
@@ -58,9 +62,9 @@ export const FavoritesProvider = ({ children }) => {
       }
       return false;
     }
-  };
+  }, [isAuthenticated, refreshFavorites]);
 
-  const removeFromFavoritesHandler = async (itemId, type) => {
+  const removeFromFavoritesHandler = useCallback(async (itemId, type) => {
     if (!isAuthenticated) {
       return false;
     }
@@ -74,13 +78,13 @@ export const FavoritesProvider = ({ children }) => {
       toast.error('Failed to remove from favorites');
       return false;
     }
-  };
+  }, [isAuthenticated]);
 
-  const isFavorite = (itemId, type) => {
-    return favorites.some(fav => fav.item_id === itemId && fav.type === type);
-  };
+  const isFavorite = useCallback((itemId, type) => (
+    favorites.some((favorite) => favorite.item_id === itemId && favorite.type === type)
+  ), [favorites]);
 
-  const value = {
+  const value = useMemo(() => ({
     favorites,
     loading,
     addToFavorites: addToFavoritesHandler,
@@ -88,11 +92,21 @@ export const FavoritesProvider = ({ children }) => {
     isFavorite,
     favoritesCount: favorites.length,
     isEmpty: favorites.length === 0
-  };
+  }), [favorites, loading, addToFavoritesHandler, removeFromFavoritesHandler, isFavorite]);
 
   return (
     <FavoritesContext.Provider value={value}>
       {children}
     </FavoritesContext.Provider>
+  );
+};
+
+export const FavoritesProvider = ({ children }) => {
+  const { isAuthenticated } = useAuth();
+
+  return (
+    <FavoritesState key={isAuthenticated ? 'authenticated' : 'anonymous'} isAuthenticated={isAuthenticated}>
+      {children}
+    </FavoritesState>
   );
 };

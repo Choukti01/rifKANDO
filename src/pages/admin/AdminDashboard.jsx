@@ -13,23 +13,31 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    let isCurrent = true;
 
-  const fetchData = async () => {
-    try {
-      const [statsRes, ordersRes] = await Promise.all([
-        api.get('/admin/stats'),
-        api.get('/admin/recent-orders')
-      ]);
-      setStats(statsRes.data.stats || {});
-      setRecentOrders(ordersRes.data.orders || []);
-    } catch (error) {
-      console.error('Failed to load admin data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    const loadData = async () => {
+      try {
+        const [statsRes, ordersRes] = await Promise.all([
+          api.get('/admin/stats'),
+          api.get('/admin/recent-orders')
+        ]);
+        if (!isCurrent) return;
+
+        setStats(statsRes.data.stats || {});
+        setRecentOrders(ordersRes.data.orders || []);
+      } catch (error) {
+        if (isCurrent) console.error('Failed to load admin data:', error);
+      } finally {
+        if (isCurrent) setLoading(false);
+      }
+    };
+
+    void loadData();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, []);
 
   if (loading) return <div className="text-center py-16"><div className="spinner"></div><p>Loading dashboard...</p></div>;
 

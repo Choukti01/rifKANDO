@@ -11,23 +11,31 @@ const PublicProfilePage = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchProfile();
-  }, [userId]);
+    let isCurrent = true;
 
-  const fetchProfile = async () => {
-    try {
-      const [userRes, productsRes] = await Promise.all([
-        api.get(`/users/${userId}`),
-        api.get(`/users/${userId}/products`)
-      ]);
-      setUser(userRes.data.user);
-      setProducts(productsRes.data.products || []);
-    } catch (error) {
-      console.error('Error fetching profile:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    const loadProfile = async () => {
+      try {
+        const [userRes, productsRes] = await Promise.all([
+          api.get(`/users/${userId}`),
+          api.get(`/users/${userId}/products`)
+        ]);
+        if (!isCurrent) return;
+
+        setUser(userRes.data.user);
+        setProducts(productsRes.data.products || []);
+      } catch (error) {
+        if (isCurrent) console.error('Error fetching profile:', error);
+      } finally {
+        if (isCurrent) setLoading(false);
+      }
+    };
+
+    void loadProfile();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [userId]);
 
   if (loading) return <div className="text-center py-16"><div className="spinner"></div><p>Loading profile...</p></div>;
   if (!user) return <div className="text-center py-16">User not found</div>;

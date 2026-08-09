@@ -21,53 +21,24 @@ const HomePage = () => {
   });
 
   useEffect(() => {
-    fetchHomeData();
-  }, []);
+    let isCurrent = true;
 
-  const fetchHomeData = async () => {
-    try {
-      setLoading(true);
-      
-      let products = [];
-      let courses = [];
-      let services = [];
-      let digital = [];
-      let bookings = [];
-      
-      try {
-        const productsRes = await getProducts();
-        products = productsRes.data.products || [];
-      } catch (e) {
-        console.log('Products error:', e);
-      }
-      
-      try {
-        const coursesRes = await getCourses();
-        courses = coursesRes.data.courses || [];
-      } catch (e) {
-        console.log('Courses error:', e);
-      }
-      
-      try {
-        const servicesRes = await getServices();
-        services = servicesRes.data.services || [];
-      } catch (e) {
-        console.log('Services error:', e);
-      }
-      
-      try {
-        const digitalRes = await getDigitalProducts();
-        digital = digitalRes.data.products || [];
-      } catch (e) {
-        console.log('Digital error:', e);
-      }
-      
-      try {
-        const bookingsRes = await getBookings();
-        bookings = bookingsRes.data.bookings || [];
-      } catch (e) {
-        console.log('Bookings error:', e);
-      }
+    const loadHomeData = async () => {
+      const [productsResult, coursesResult, servicesResult, digitalResult, bookingsResult] = await Promise.allSettled([
+        getProducts(),
+        getCourses(),
+        getServices(),
+        getDigitalProducts(),
+        getBookings()
+      ]);
+
+      if (!isCurrent) return;
+
+      const products = productsResult.status === 'fulfilled' ? productsResult.value.data.products || [] : [];
+      const courses = coursesResult.status === 'fulfilled' ? coursesResult.value.data.courses || [] : [];
+      const services = servicesResult.status === 'fulfilled' ? servicesResult.value.data.services || [] : [];
+      const digital = digitalResult.status === 'fulfilled' ? digitalResult.value.data.products || [] : [];
+      const bookings = bookingsResult.status === 'fulfilled' ? bookingsResult.value.data.bookings || [] : [];
 
       setStats({
         productsCount: products.length,
@@ -77,21 +48,22 @@ const HomePage = () => {
         bookingsCount: bookings.length
       });
 
-      const allItems = [
+      setFeaturedItems([
         ...products.slice(0, 2).map(item => ({ ...item, type: 'product' })),
         ...courses.slice(0, 2).map(item => ({ ...item, type: 'course' })),
         ...services.slice(0, 2).map(item => ({ ...item, type: 'service' })),
         ...digital.slice(0, 2).map(item => ({ ...item, type: 'digital' })),
         ...bookings.slice(0, 2).map(item => ({ ...item, type: 'booking' }))
-      ].slice(0, 8);
-
-      setFeaturedItems(allItems);
-    } catch (error) {
-      console.error('Error fetching home data:', error);
-    } finally {
+      ].slice(0, 8));
       setLoading(false);
-    }
-  };
+    };
+
+    void loadHomeData();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, []);
 
   const categories = [
     { name: t('nav.products'), icon: ShoppingBagIcon, path: '/products', color: '#3B82F6', count: stats.productsCount },

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import api from '../../services/api';
-import { useAuth } from '../../contexts/AuthContext';
+import useAuth from '../../hooks/useAuth';
 import toast from 'react-hot-toast';
 import VerifiedBadge from '../../components/common/VerifiedBadge';
 
@@ -18,34 +18,44 @@ const ChatPage = () => {
   const productId = location.state?.product_id || null;
 
   useEffect(() => {
-    fetchUser();
-    fetchMessages();
-    const interval = setInterval(fetchMessages, 3000);
-    return () => clearInterval(interval);
-  }, [userId, productId]);
+    let isCurrent = true;
+    const params = { other_user_id: userId, ...(productId ? { product_id: productId } : {}) };
 
-  const fetchUser = async () => {
-    try {
-      const response = await api.get(`/users/${userId}`);
-      setOtherUser(response.data.user);
-    } catch (error) {
-      console.error('Error fetching user:', error);
-    }
-  };
+    const loadUser = async () => {
+      try {
+        const response = await api.get(`/users/${userId}`);
+        if (isCurrent) setOtherUser(response.data.user);
+      } catch (error) {
+        if (isCurrent) console.error('Error fetching user:', error);
+      }
+    };
 
-  const fetchMessages = async () => {
-    try {
-      const params = { other_user_id: userId };
-      if (productId) params.product_id = productId;
-      const response = await api.get('/messages/conversation', { params });
-      setMessages(response.data.messages || []);
-      scrollToBottom();
-    } catch (error) {
-      console.error('Error fetching messages:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    const loadMessages = async () => {
+      try {
+        const response = await api.get('/messages/conversation', { params });
+        if (isCurrent) setMessages(response.data.messages || []);
+      } catch (error) {
+        if (isCurrent) console.error('Error fetching messages:', error);
+      } finally {
+        if (isCurrent) setLoading(false);
+      }
+    };
+
+    void loadUser();
+    void loadMessages();
+    const interval = setInterval(() => {
+      void loadMessages();
+    }, 3000);
+
+    return () => {
+      isCurrent = false;
+      clearInterval(interval);
+    };
+  }, [productId, userId]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
   const sendMessage = async () => {
     if (!newMessage.trim()) return;
@@ -57,17 +67,15 @@ const ChatPage = () => {
         message: newMessage.trim()
       });
       setNewMessage('');
-      fetchMessages();
+      const params = { other_user_id: userId, ...(productId ? { product_id: productId } : {}) };
+      const response = await api.get('/messages/conversation', { params });
+      setMessages(response.data.messages || []);
     } catch (error) {
       console.error('Error sending message:', error);
       toast.error('Failed to send message');
     } finally {
       setSending(false);
     }
-  };
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
   const formatTime = (dateStr) => {

@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useCart } from '../../contexts/CartContext';
-import { useAuth } from '../../contexts/AuthContext';
+import useCart from '../../hooks/useCart';
+import useAuth from '../../hooks/useAuth';
 import toast from 'react-hot-toast';
 import MediaGallery from '../../components/MediaGallery';
 import api from '../../services/api';
@@ -33,35 +33,49 @@ const ProductsPage = () => {
 
   const categories = ['electronics', 'fashion', 'handicrafts', 'books', 'home'];
 
-  useEffect(() => {
-    fetchProducts();
-  }, [searchTerm, selectedCategory, minPrice, maxPrice, sortBy, currentPage, activeCondition, verifiedOnly]);
+  const fetchProducts = useCallback(async () => {
+    const params = new URLSearchParams();
+    if (searchTerm) params.append('search', searchTerm);
+    if (selectedCategory) params.append('category', selectedCategory);
+    if (minPrice) params.append('minPrice', minPrice);
+    if (maxPrice) params.append('maxPrice', maxPrice);
+    if (sortBy) params.append('sortBy', sortBy);
+    params.append('page', currentPage);
+    params.append('limit', 20);
+    params.append('condition', activeCondition);
+    if (verifiedOnly) params.append('verified', 'true');
 
-  const fetchProducts = async () => {
-    try {
-      setLoading(true);
-      const params = new URLSearchParams();
-      if (searchTerm) params.append('search', searchTerm);
-      if (selectedCategory) params.append('category', selectedCategory);
-      if (minPrice) params.append('minPrice', minPrice);
-      if (maxPrice) params.append('maxPrice', maxPrice);
-      if (sortBy) params.append('sortBy', sortBy);
-      params.append('page', currentPage);
-      params.append('limit', 20);
-      params.append('condition', activeCondition);
-      if (verifiedOnly) params.append('verified', 'true');
-      
-      const response = await api.get(`/products?${params.toString()}`);
-      setProducts(response.data.products || []);
-      setTotalPages(response.data.pagination?.totalPages || 1);
-      setTotalProducts(response.data.pagination?.total || 0);
-    } catch (error) {
-      console.error('Error fetching products:', error);
-      toast.error('Failed to load products');
-    } finally {
-      setLoading(false);
-    }
-  };
+    const response = await api.get(`/products?${params.toString()}`);
+    return response.data;
+  }, [activeCondition, currentPage, maxPrice, minPrice, searchTerm, selectedCategory, sortBy, verifiedOnly]);
+
+  useEffect(() => {
+    let isCurrent = true;
+
+    const loadProducts = async () => {
+      try {
+        const data = await fetchProducts();
+        if (!isCurrent) return;
+
+        setProducts(data.products || []);
+        setTotalPages(data.pagination?.totalPages || 1);
+        setTotalProducts(data.pagination?.total || 0);
+      } catch (error) {
+        if (!isCurrent) return;
+
+        console.error('Error fetching products:', error);
+        toast.error('Failed to load products');
+      } finally {
+        if (isCurrent) setLoading(false);
+      }
+    };
+
+    void loadProducts();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [fetchProducts]);
 
   const handleAddToCart = (product) => {
     if (!isAuthenticated) { toast.error('Please login'); return; }
@@ -73,11 +87,11 @@ const ProductsPage = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const conditionLabels = {
-    new: 'New',
-    used_as_new: 'Used as New',
-    joutiya: 'Joutiya (Haggle)'
-  };
+const conditionLabels = {
+  new: 'New',
+  used_as_new: 'Used as New',
+  joutiya: 'Joutiya (Haggle)'
+};
 
   const hasActiveFilters = Boolean(searchTerm || selectedCategory || minPrice || maxPrice || verifiedOnly);
   const activeFilterCount = [searchTerm, selectedCategory, minPrice, maxPrice, verifiedOnly].filter(Boolean).length;
@@ -116,9 +130,9 @@ const ProductsPage = () => {
         </div>
 
         <div className="filters-bar">
-          <form className="search-form" onSubmit={applySearch}>
-            <input type="search" placeholder="Search products..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} className="search-input" aria-label="Search products" />
-            <button type="submit" className="search-btn">Search</button>
+          <form className="product-search-form" onSubmit={applySearch}>
+            <input type="search" placeholder="Search products..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} className="product-search-input" aria-label="Search products" />
+            <button type="submit" className="product-search-btn">Search</button>
           </form>
           <div className="filter-toolbar">
             <button type="button" className="filters-toggle" onClick={() => setShowMobileFilters((isOpen) => !isOpen)} aria-controls="product-filter-fields" aria-expanded={showMobileFilters}>
@@ -242,9 +256,12 @@ const ProductsPage = () => {
         .condition-tabs .tab-btn.active { background: #87CEEB; color: #1a1a1a; }
         .condition-tabs .tab-btn:hover:not(.active) { background: #f3f4f6; }
         .filters-bar { background: white; border-radius: 1rem; padding: 1rem; margin-bottom: 2rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .search-form { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
-        .search-input { flex: 1; padding: 0.75rem; border: 1px solid #e5e7eb; border-radius: 0.5rem; font-size: 0.875rem; }
-        .search-btn { padding: 0.75rem 1.5rem; background: #1a1a1a; color: white; border: none; border-radius: 0.5rem; cursor: pointer; }
+        .products-page .product-search-form { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+        .products-page .product-search-input { flex: 1; min-height: 44px; padding: 0.75rem; border: 1px solid #e5e7eb; border-radius: 0.5rem; font-size: 0.875rem; }
+        .products-page .product-search-input:focus { outline: none; border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(135, 206, 235, 0.16); }
+        .products-page .product-search-btn { min-height: 44px; padding: 0.75rem 1.5rem; background: #1a1a1a; color: white; border: none; border-radius: 0.5rem; cursor: pointer; }
+        .products-page .product-search-btn:hover { background: #333; }
+        .products-page .product-search-btn:focus-visible { outline: 3px solid rgba(135, 206, 235, 0.55); outline-offset: 2px; }
         .filter-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 1rem; }
         .filters-toggle { display: none; min-height: 44px; padding: 0.5rem 1rem; background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 0.5rem; color: #1a1a1a; font-weight: 600; cursor: pointer; }
         .clear-filters-btn { min-height: 36px; padding: 0.4rem 0.75rem; background: none; border: none; color: #4b5563; font-weight: 600; cursor: pointer; }

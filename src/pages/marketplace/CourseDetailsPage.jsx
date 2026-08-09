@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { StarIcon, UserGroupIcon, ClockIcon, AcademicCapIcon, CheckBadgeIcon, PlayIcon } from '@heroicons/react/24/outline';
 import { getCourse, enrollCourse } from '../../services/api';
-import { useAuth } from '../../contexts/AuthContext';
+import useAuth from '../../hooks/useAuth';
 import toast from 'react-hot-toast';
 import MediaGallery from '../../components/MediaGallery';
 import MarketplaceImage from '../../components/common/MarketplaceImage';
@@ -18,13 +18,8 @@ const CourseDetailsPage = () => {
   const [showGallery, setShowGallery] = useState(false);
   const { isAuthenticated } = useAuth();
 
-  useEffect(() => {
-    fetchCourse();
-  }, [id]);
-
   const fetchCourse = async () => {
     try {
-      setLoading(true);
       const response = await getCourse(id);
       setCourse(response.data.course);
     } catch (error) {
@@ -34,6 +29,30 @@ const CourseDetailsPage = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    let isCurrent = true;
+
+    const loadCourse = async () => {
+      try {
+        const response = await getCourse(id);
+        if (isCurrent) setCourse(response.data.course);
+      } catch (error) {
+        if (isCurrent) {
+          console.error('Error fetching course:', error);
+          toast.error('Failed to load course');
+        }
+      } finally {
+        if (isCurrent) setLoading(false);
+      }
+    };
+
+    void loadCourse();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [id]);
 
   const handleEnroll = async () => {
     if (!isAuthenticated) {

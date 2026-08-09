@@ -1,31 +1,21 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../../contexts/AuthContext';
+import React, { useState } from 'react';
+import useAuth from '../../../hooks/useAuth';
 import api from '../../../services/api';
 import toast from 'react-hot-toast';
 import ProfilePictureUpload from '../../../components/ProfilePictureUpload';
 
+const getSettingsFormData = (user) => ({
+  name: user?.name || '',
+  phone: user?.phone || '',
+  bio: user?.bio || '',
+  city: user?.city || '',
+  country: user?.country || 'Morocco'
+});
+
 const Settings = () => {
   const { user, updateUser } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    name: '',
-    phone: '',
-    bio: '',
-    city: '',
-    country: ''
-  });
-
-  useEffect(() => {
-    if (user) {
-      setFormData({
-        name: user.name || '',
-        phone: user.phone || '',
-        bio: user.bio || '',
-        city: user.city || '',
-        country: user.country || 'Morocco'
-      });
-    }
-  }, [user]);
+  const [formData, setFormData] = useState(() => getSettingsFormData(user));
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });

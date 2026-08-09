@@ -49,8 +49,31 @@ const BookingsPage = () => {
   }, []);
 
   useEffect(() => {
-    fetchBookings();
-  }, [fetchBookings]);
+    let isCurrent = true;
+
+    const loadInitialBookings = async () => {
+      try {
+        const response = await getBookings({ page: 1, limit: 12 });
+        if (!isCurrent) return;
+
+        setBookings(response.data.bookings || []);
+        setPagination(response.data.pagination || { page: 1, totalPages: 1 });
+      } catch (error) {
+        if (isCurrent) {
+          console.error('Error fetching bookings:', error);
+          toast.error('Failed to load bookings');
+        }
+      } finally {
+        if (isCurrent) setLoading(false);
+      }
+    };
+
+    void loadInitialBookings();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, []);
 
   const handleCategoryChange = (category) => {
     if (category === selectedCategory) return;

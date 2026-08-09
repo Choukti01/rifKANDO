@@ -7,19 +7,25 @@ const MyPurchasesPage = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchPurchases();
-  }, []);
+    let isCurrent = true;
 
-  const fetchPurchases = async () => {
-    try {
-      const response = await api.get('/my-purchases');
-      setPurchases(response.data.purchases || []);
-    } catch {
-      toast.error('Failed to load purchases');
-    } finally {
-      setLoading(false);
-    }
-  };
+    const loadPurchases = async () => {
+      try {
+        const response = await api.get('/my-purchases');
+        if (isCurrent) setPurchases(response.data.purchases || []);
+      } catch {
+        if (isCurrent) toast.error('Failed to load purchases');
+      } finally {
+        if (isCurrent) setLoading(false);
+      }
+    };
+
+    void loadPurchases();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, []);
 
   const downloadFile = async (productId) => {
     try {

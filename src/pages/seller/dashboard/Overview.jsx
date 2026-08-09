@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { ShoppingBagIcon, CurrencyDollarIcon, EyeIcon, AcademicCapIcon, WrenchScrewdriverIcon, ComputerDesktopIcon, CalendarIcon } from '@heroicons/react/24/outline';
 import { getMyProducts, getMyCourses, getMyServices, getMyDigitalProducts, getMyBookings } from '../../../services/api';
 import api from '../../../services/api';
-import { useAuth } from '../../../contexts/AuthContext';
+import useAuth from '../../../hooks/useAuth';
 import toast from 'react-hot-toast';
 import EmptyState from '../../../components/common/EmptyState';
 import LoadingSkeleton from '../../../components/common/LoadingSkeleton';
@@ -24,53 +24,58 @@ const Overview = () => {
   const [recentOrders, setRecentOrders] = useState([]);
 
   useEffect(() => {
-    fetchDashboardData();
+    let isCurrent = true;
+
+    const loadDashboardData = async () => {
+      try {
+        const [productsRes, coursesRes, servicesRes, digitalRes, bookingsRes, ordersRes] = await Promise.all([
+          getMyProducts().catch(() => ({ data: { products: [] } })),
+          getMyCourses().catch(() => ({ data: { courses: [] } })),
+          getMyServices().catch(() => ({ data: { services: [] } })),
+          getMyDigitalProducts().catch(() => ({ data: { products: [] } })),
+          getMyBookings().catch(() => ({ data: { bookings: [] } })),
+          api.get('/seller/orders').catch(() => ({ data: { orders: [] } }))
+        ]);
+
+        if (!isCurrent) return;
+
+        const products = productsRes.data.products || [];
+        const courses = coursesRes.data.courses || [];
+        const services = servicesRes.data.services || [];
+        const digital = digitalRes.data.products || [];
+        const bookings = bookingsRes.data.bookings || [];
+        const orders = ordersRes.data.orders || [];
+        const totalOrderValue = orders.reduce((sum, order) => sum + Number(order.seller_total ?? order.total ?? 0), 0);
+        const totalViews = [...products, ...courses, ...services, ...digital, ...bookings]
+          .reduce((sum, item) => sum + (item.views || 0), 0);
+
+        setStats({
+          totalProducts: products.length,
+          totalCourses: courses.length,
+          totalServices: services.length,
+          totalDigital: digital.length,
+          totalBookings: bookings.length,
+          totalOrders: orders.length,
+          totalOrderValue,
+          totalViews
+        });
+        setRecentOrders(orders.slice(0, 5));
+      } catch (error) {
+        if (isCurrent) {
+          console.error('Failed to fetch dashboard data:', error);
+          toast.error('Failed to load dashboard data');
+        }
+      } finally {
+        if (isCurrent) setLoading(false);
+      }
+    };
+
+    void loadDashboardData();
+
+    return () => {
+      isCurrent = false;
+    };
   }, []);
-
-  const fetchDashboardData = async () => {
-    try {
-      setLoading(true);
-      
-      // Fetch all data in parallel
-      const [productsRes, coursesRes, servicesRes, digitalRes, bookingsRes, ordersRes] = await Promise.all([
-        getMyProducts().catch(() => ({ data: { products: [] } })),
-        getMyCourses().catch(() => ({ data: { courses: [] } })),
-        getMyServices().catch(() => ({ data: { services: [] } })),
-        getMyDigitalProducts().catch(() => ({ data: { products: [] } })),
-        getMyBookings().catch(() => ({ data: { bookings: [] } })),
-        api.get('/seller/orders').catch(() => ({ data: { orders: [] } }))
-      ]);
-
-      const products = productsRes.data.products || [];
-      const courses = coursesRes.data.courses || [];
-      const services = servicesRes.data.services || [];
-      const digital = digitalRes.data.products || [];
-      const bookings = bookingsRes.data.bookings || [];
-      const orders = ordersRes.data.orders || [];
-
-      const totalOrderValue = orders.reduce((sum, order) => sum + Number(order.seller_total ?? order.total ?? 0), 0);
-      const totalViews = [...products, ...courses, ...services, ...digital, ...bookings].reduce((sum, item) => sum + (item.views || 0), 0);
-
-      setStats({
-        totalProducts: products.length,
-        totalCourses: courses.length,
-        totalServices: services.length,
-        totalDigital: digital.length,
-        totalBookings: bookings.length,
-        totalOrders: orders.length,
-        totalOrderValue,
-        totalViews
-      });
-
-      // Get recent orders (last 5)
-      setRecentOrders(orders.slice(0, 5));
-    } catch (error) {
-      console.error('Failed to fetch dashboard data:', error);
-      toast.error('Failed to load dashboard data');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const getStatusColor = (status) => {
     const colors = {

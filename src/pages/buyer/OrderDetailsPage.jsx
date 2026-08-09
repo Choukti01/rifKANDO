@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../../services/api';
-import { useAuth } from '../../contexts/AuthContext';
+import useAuth from '../../hooks/useAuth';
 import toast from 'react-hot-toast';
 import { 
   TruckIcon, 
@@ -23,16 +23,34 @@ const OrderDetailsPage = () => {
   const { isAuthenticated } = useAuth();
 
   useEffect(() => {
-    if (isAuthenticated) {
-      fetchOrder();
-    }
+    if (!isAuthenticated) return undefined;
+
+    let isCurrent = true;
+
+    const loadOrder = async () => {
+      try {
+        const response = await api.get(`/orders/${id}`);
+        if (isCurrent) setOrder(response.data.order);
+      } catch (error) {
+        if (isCurrent) {
+          console.error('Failed to fetch order:', error);
+          toast.error('Failed to load order details');
+        }
+      } finally {
+        if (isCurrent) setLoading(false);
+      }
+    };
+
+    void loadOrder();
+
+    return () => {
+      isCurrent = false;
+    };
   }, [id, isAuthenticated]);
 
   const fetchOrder = async () => {
     try {
-      setLoading(true);
       const response = await api.get(`/orders/${id}`);
-      console.log('Order data:', response.data.order);
       setOrder(response.data.order);
     } catch (error) {
       console.error('Failed to fetch order:', error);
@@ -50,7 +68,7 @@ const OrderDetailsPage = () => {
     try {
       await api.post(`/orders/${order.id}/cancel`);
       toast.success('Order cancelled successfully');
-      fetchOrder(); // refresh order details
+      await fetchOrder();
     } catch (error) {
       console.error('Cancel error:', error);
       toast.error(error.response?.data?.error || 'Failed to cancel order');

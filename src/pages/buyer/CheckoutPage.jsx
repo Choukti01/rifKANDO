@@ -1,8 +1,8 @@
 import React, { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ShieldCheckIcon, TruckIcon, CreditCardIcon } from '@heroicons/react/24/outline'
-import { useCart } from '../../contexts/CartContext'
-import { useAuth } from '../../contexts/AuthContext'
+import useCart from '../../hooks/useCart'
+import useAuth from '../../hooks/useAuth'
 import api from '../../services/api'
 import toast from 'react-hot-toast'
 

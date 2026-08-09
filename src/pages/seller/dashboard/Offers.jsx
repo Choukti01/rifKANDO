@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import api from '../../../services/api';
-import { useAuth } from '../../../contexts/AuthContext';
+import useAuth from '../../../hooks/useAuth';
 import toast from 'react-hot-toast';
 
 const Offers = () => {
@@ -16,7 +16,27 @@ const Offers = () => {
   const { user } = useAuth();
 
   useEffect(() => {
-    fetchOffers();
+    let isCurrent = true;
+
+    const loadOffers = async () => {
+      try {
+        const response = await api.get('/seller/offers');
+        if (isCurrent) setOffers(response.data.offers || []);
+      } catch (error) {
+        if (isCurrent) {
+          console.error('Error fetching offers:', error);
+          toast.error('Failed to load offers');
+        }
+      } finally {
+        if (isCurrent) setLoading(false);
+      }
+    };
+
+    void loadOffers();
+
+    return () => {
+      isCurrent = false;
+    };
   }, []);
 
   const fetchOffers = async () => {

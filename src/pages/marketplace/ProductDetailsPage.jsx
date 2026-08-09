@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { StarIcon, HeartIcon, TruckIcon, ShieldCheckIcon, ArrowPathIcon, XMarkIcon } from '@heroicons/react/24/outline';
-import { useCart } from '../../contexts/CartContext';
-import { useFavorites } from '../../contexts/FavoritesContext';
-import { useAuth } from '../../contexts/AuthContext';
+import useCart from '../../hooks/useCart';
+import useFavorites from '../../hooks/useFavorites';
+import useAuth from '../../hooks/useAuth';
 import { getProduct } from '../../services/api';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
@@ -18,7 +18,6 @@ const ProductDetailsPage = () => {
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
   const [activeTab, setActiveTab] = useState('description');
-  const [isFav, setIsFav] = useState(false);
   const [showGallery, setShowGallery] = useState(false);
   const [activeMediaId, setActiveMediaId] = useState(null);
   
@@ -40,72 +39,74 @@ const ProductDetailsPage = () => {
   const { addToFavorites, removeFromFavorites, isFavorite } = useFavorites();
   const { isAuthenticated, user } = useAuth();
 
-  useEffect(() => {
-    fetchProduct();
-    fetchReviews();
-    if (isAuthenticated) {
-      checkPurchaseStatus();
-      checkReviewStatus();
-    }
-  }, [id, isAuthenticated]);
+  const fetchProduct = useCallback(async () => {
+    const response = await getProduct(id);
+    return response.data.product;
+  }, [id]);
+
+  const fetchReviews = useCallback(async () => {
+    const response = await api.get(`/products/${id}/reviews`);
+    return response.data.reviews || [];
+  }, [id]);
+
+  const checkPurchaseStatus = useCallback(async () => {
+    const response = await api.get(`/orders`);
+    const orders = response.data.orders || [];
+    return orders.some(order =>
+      order.status === 'delivered' &&
+      order.items?.some(item => item.product_id === parseInt(id, 10))
+    );
+  }, [id]);
 
   useEffect(() => {
-    if (product && isAuthenticated) {
-      setIsFav(isFavorite(product.id, 'product'));
-    }
-  }, [product, isAuthenticated, isFavorite]);
+    let isCurrent = true;
 
-  const fetchProduct = async () => {
-    try {
-      setLoading(true);
-      const response = await getProduct(id);
-      const nextProduct = response.data.product;
-      setProduct(nextProduct);
-      setActiveMediaId((currentMediaId) => {
-        if (nextProduct.media?.some((media) => media.id === currentMediaId)) return currentMediaId;
-        return (nextProduct.media?.find((media) => media.is_primary) || nextProduct.media?.[0])?.id || null;
-      });
-      setQuantity(1);
-    } catch (error) {
-      console.error('Error fetching product:', error);
-      toast.error('Failed to load product');
-    } finally {
+    const loadProductDetails = async () => {
+      const [productResult, reviewsResult, purchaseResult] = await Promise.allSettled([
+        fetchProduct(),
+        fetchReviews(),
+        isAuthenticated ? checkPurchaseStatus() : Promise.resolve(false)
+      ]);
+
+      if (!isCurrent) return;
+
+      if (productResult.status === 'fulfilled') {
+        const nextProduct = productResult.value;
+        setProduct(nextProduct);
+        setActiveMediaId((currentMediaId) => {
+          if (nextProduct.media?.some((media) => media.id === currentMediaId)) return currentMediaId;
+          return (nextProduct.media?.find((media) => media.is_primary) || nextProduct.media?.[0])?.id || null;
+        });
+        setQuantity(1);
+      } else {
+        console.error('Error fetching product:', productResult.reason);
+        toast.error('Failed to load product');
+      }
+
+      if (reviewsResult.status === 'fulfilled') {
+        const nextReviews = reviewsResult.value;
+        setReviews(nextReviews);
+        setHasReviewed(isAuthenticated && nextReviews.some((review) => review.user_id === user?.id));
+      } else {
+        console.error('Error fetching reviews:', reviewsResult.reason);
+      }
+
+      if (purchaseResult.status === 'fulfilled') {
+        setHasPurchased(purchaseResult.value);
+      } else {
+        console.error('Error checking purchase status:', purchaseResult.reason);
+        setHasPurchased(false);
+      }
+
       setLoading(false);
-    }
-  };
+    };
 
-  const fetchReviews = async () => {
-    try {
-      const response = await api.get(`/products/${id}/reviews`);
-      setReviews(response.data.reviews || []);
-    } catch (error) {
-      console.error('Error fetching reviews:', error);
-    }
-  };
+    void loadProductDetails();
 
-  const checkPurchaseStatus = async () => {
-    try {
-      const response = await api.get(`/orders`);
-      const orders = response.data.orders || [];
-      const purchased = orders.some(order => 
-        order.status === 'delivered' && 
-        order.items?.some(item => item.product_id === parseInt(id))
-      );
-      setHasPurchased(purchased);
-    } catch (error) {
-      console.error('Error checking purchase status:', error);
-    }
-  };
-
-  const checkReviewStatus = async () => {
-    try {
-      const response = await api.get(`/products/${id}/reviews`);
-      const existing = response.data.reviews?.some(r => r.user_id === user?.id);
-      setHasReviewed(existing);
-    } catch (error) {
-      console.error('Error checking review status:', error);
-    }
-  };
+    return () => {
+      isCurrent = false;
+    };
+  }, [checkPurchaseStatus, fetchProduct, fetchReviews, isAuthenticated, user?.id]);
 
   const submitReview = async () => {
     if (!reviewRating) {
@@ -121,9 +122,11 @@ const ProductDetailsPage = () => {
       toast.success('Review submitted successfully!');
       setReviewRating(0);
       setReviewComment('');
-      fetchReviews();
+      const nextReviews = await fetchReviews();
+      setReviews(nextReviews);
       setHasReviewed(true);
-      fetchProduct();
+      const nextProduct = await fetchProduct();
+      setProduct(nextProduct);
     } catch (error) {
       console.error('Error submitting review:', error);
       toast.error(error.response?.data?.error || 'Failed to submit review');
@@ -180,12 +183,10 @@ const ProductDetailsPage = () => {
       toast.error('Please login to add to favorites');
       return;
     }
-    if (isFav) {
-      const success = await removeFromFavorites(product.id, 'product');
-      if (success) setIsFav(false);
+    if (isFavorite(product.id, 'product')) {
+      await removeFromFavorites(product.id, 'product');
     } else {
-      const success = await addToFavorites(product, 'product');
-      if (success) setIsFav(true);
+      await addToFavorites(product, 'product');
     }
   };
 
@@ -201,6 +202,7 @@ const ProductDetailsPage = () => {
   const categoryLabel = product.category ? product.category.charAt(0).toUpperCase() + product.category.slice(1) : null;
   const canOpenGallery = media.length > 0 && primaryMedia?.media_type !== 'video';
   const conditionLabel = product.condition === 'used_as_new' ? 'Used as New' : product.condition === 'joutiya' ? 'Joutiya (Haggle)' : 'New';
+  const isFav = isAuthenticated && isFavorite(product.id, 'product');
 
   return (
     <div className="product-details">

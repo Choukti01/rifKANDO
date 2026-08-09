@@ -12,7 +12,30 @@ const Wallet = () => {
   const [bankDetails, setBankDetails] = useState({ bank: '', account_name: '', account_number: '', rib: '' });
 
   useEffect(() => {
-    fetchWalletData();
+    let isCurrent = true;
+
+    const loadWalletData = async () => {
+      try {
+        const [walletRes, transRes] = await Promise.all([
+          api.get('/wallet/balance'),
+          api.get('/wallet/transactions')
+        ]);
+        if (!isCurrent) return;
+
+        setWallet(walletRes.data.wallet);
+        setTransactions(transRes.data.transactions || []);
+      } catch {
+        if (isCurrent) toast.error('Failed to load wallet data');
+      } finally {
+        if (isCurrent) setLoading(false);
+      }
+    };
+
+    void loadWalletData();
+
+    return () => {
+      isCurrent = false;
+    };
   }, []);
 
   const fetchWalletData = async () => {

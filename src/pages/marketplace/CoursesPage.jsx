@@ -33,8 +33,31 @@ const CoursesPage = () => {
   }, []);
 
   useEffect(() => {
-    fetchCourses();
-  }, [fetchCourses]);
+    let isCurrent = true;
+
+    const loadInitialCourses = async () => {
+      try {
+        const response = await getCourses({ page: 1, limit: 12 });
+        if (!isCurrent) return;
+
+        setCourses(response.data.courses || []);
+        setPagination(response.data.pagination || { page: 1, totalPages: 1 });
+      } catch (error) {
+        if (isCurrent) {
+          console.error('Error fetching courses:', error);
+          toast.error('Failed to load courses');
+        }
+      } finally {
+        if (isCurrent) setLoading(false);
+      }
+    };
+
+    void loadInitialCourses();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, []);
 
   if (loading) {
     return (

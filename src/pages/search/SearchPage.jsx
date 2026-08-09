@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { MagnifyingGlassIcon, FunnelIcon, XMarkIcon, StarIcon } from '@heroicons/react/24/outline';
 import { getProducts, getCourses, getServices, getDigitalProducts, getBookings } from '../../services/api';
@@ -9,16 +9,18 @@ const SearchPage = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const query = searchParams.get('q') || '';
-  const [searchQuery, setSearchQuery] = useState(query);
+  const searchInputRef = useRef(null);
   const [showFilters, setShowFilters] = useState(false);
   const [filterType, setFilterType] = useState('all');
   const [sortBy, setSortBy] = useState('relevance');
-  const [loading, setLoading] = useState(false);
   const [results, setResults] = useState([]);
+  const [completedSearchKey, setCompletedSearchKey] = useState('');
+  const searchKey = JSON.stringify({ query, filterType, sortBy });
+  const loading = Boolean(query) && completedSearchKey !== searchKey;
+  const visibleResults = query ? results : [];
 
   // Fetch all data from all categories
-  const fetchAllData = async () => {
-    setLoading(true);
+  const fetchAllData = useCallback(async () => {
     try {
       const [productsRes, coursesRes, servicesRes, digitalRes, bookingsRes] = await Promise.all([
         getProducts(),
@@ -42,52 +44,51 @@ const SearchPage = () => {
       toast.error('Failed to load search results');
       return [];
     }
-  };
+  }, []);
 
   useEffect(() => {
-    if (query) {
-      performSearch();
-    } else {
-      setResults([]);
-      setLoading(false);
-    }
-  }, [query, filterType, sortBy]);
+    if (!query) return undefined;
 
-  useEffect(() => {
-    setSearchQuery(query);
-  }, [query]);
+    let isCurrent = true;
 
-  const performSearch = async () => {
-    setLoading(true);
-    const allData = await fetchAllData();
-    
-    let filtered = allData.filter(item => 
-      item.searchTitle.toLowerCase().includes(query.toLowerCase()) ||
-      (item.description && item.description.toLowerCase().includes(query.toLowerCase()))
-    );
+    const performSearch = async () => {
+      const allData = await fetchAllData();
 
-    // Apply type filter
-    if (filterType !== 'all') {
-      filtered = filtered.filter(item => item.type === filterType);
-    }
+      let filtered = allData.filter(item =>
+        item.searchTitle.toLowerCase().includes(query.toLowerCase()) ||
+        (item.description && item.description.toLowerCase().includes(query.toLowerCase()))
+      );
 
-    // Apply sorting
-    if (sortBy === 'price-low') {
-      filtered.sort((a, b) => (a.price || 0) - (b.price || 0));
-    } else if (sortBy === 'price-high') {
-      filtered.sort((a, b) => (b.price || 0) - (a.price || 0));
-    } else if (sortBy === 'rating') {
-      filtered.sort((a, b) => (b.rating || 0) - (a.rating || 0));
-    }
+      if (filterType !== 'all') {
+        filtered = filtered.filter(item => item.type === filterType);
+      }
 
-    setResults(filtered);
-    setLoading(false);
-  };
+      if (sortBy === 'price-low') {
+        filtered.sort((a, b) => (a.price || 0) - (b.price || 0));
+      } else if (sortBy === 'price-high') {
+        filtered.sort((a, b) => (b.price || 0) - (a.price || 0));
+      } else if (sortBy === 'rating') {
+        filtered.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+      }
+
+      if (!isCurrent) return;
+
+      setResults(filtered);
+      setCompletedSearchKey(searchKey);
+    };
+
+    void performSearch();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [fetchAllData, filterType, query, searchKey, sortBy]);
 
   const handleSearch = (e) => {
     e.preventDefault();
-    if (searchQuery.trim()) {
-      navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+    const nextQuery = searchInputRef.current?.value.trim();
+    if (nextQuery) {
+      navigate(`/search?q=${encodeURIComponent(nextQuery)}`);
     }
   };
 
@@ -149,8 +150,8 @@ const SearchPage = () => {
                 <input
                   type="text"
                   placeholder="Search products, courses, services..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  ref={searchInputRef}
+                  defaultValue={query}
                 />
                 <button type="button" onClick={() => setShowFilters(!showFilters)} className="filter-toggle" aria-label="Toggle search filters" aria-controls="search-filters" aria-expanded={showFilters}>
                   <FunnelIcon className="w-5 h-5" />
@@ -178,8 +179,8 @@ const SearchPage = () => {
               <input
                 type="text"
                 placeholder="Search products, courses, services..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                ref={searchInputRef}
+                defaultValue={query}
               />
               <button type="submit" className="search-submit">Search</button>
               <button type="button" onClick={() => setShowFilters(!showFilters)} className="filter-toggle" aria-label="Toggle search filters" aria-controls="search-filters" aria-expanded={showFilters}>
@@ -241,11 +242,11 @@ const SearchPage = () => {
 
         {/* Results Count */}
         <div className="results-header" aria-live="polite">
-          <p>Found <strong>{results.length}</strong> results for "{query}"</p>
+          <p>Found <strong>{visibleResults.length}</strong> results for "{query}"</p>
         </div>
 
         {/* Results Grid */}
-        {results.length === 0 ? (
+        {visibleResults.length === 0 ? (
           <div className="no-results">
             <div className="no-results-icon">🔍</div>
             <h3>No results found</h3>
@@ -262,7 +263,7 @@ const SearchPage = () => {
           </div>
         ) : (
           <div className="results-grid">
-            {results.map(result => (
+            {visibleResults.map(result => (
               <Link key={`${result.type}-${result.id}`} to={getDetailUrl(result)} className="result-card">
                 <div className="result-image">
                   {getPrimaryMedia(result) ? (
