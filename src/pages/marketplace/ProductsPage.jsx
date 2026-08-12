@@ -5,7 +5,6 @@ import useAuth from '../../hooks/useAuth';
 import toast from 'react-hot-toast';
 import MediaGallery from '../../components/MediaGallery';
 import api from '../../services/api';
-import VerifiedBadge from '../../components/common/VerifiedBadge';
 import { getImageUrl } from '../../utils/imageUtils';
 import EmptyState from '../../components/common/EmptyState';
 import LoadingSkeleton from '../../components/common/LoadingSkeleton';
@@ -214,7 +213,6 @@ const conditionLabels = {
                 <Link to={`/product/${product.id}`}><h3>{product.title}</h3></Link>
                 <p>
                   by <Link to={`/profile/${product.seller_id}`} className="seller-link">{product.seller_name || 'Unknown Seller'}</Link>
-                  {product.seller_verified === 1 && <VerifiedBadge size="small" />}
                 </p>
                 <div className="product-rating">⭐ {product.rating || 0} ({product.reviews_count || 0} reviews)</div>
                 <div className="product-price">

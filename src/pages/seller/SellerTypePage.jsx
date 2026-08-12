@@ -73,17 +73,17 @@ const SellerTypePage = () => {
         </div>
       </div>
       <style>{`
-        .seller-type-page { padding: 4rem 0; min-height: calc(100vh - 80px); background: linear-gradient(180deg, #f8fcfd 0%, #f9fafb 35%); }
+        .seller-type-page { padding: 4rem 0; min-height: calc(100vh - 80px); background: linear-gradient(180deg, var(--color-brand-soft) 0%, #f9fafb 35%); }
         .seller-type-header { max-width: 700px; text-align: center; margin: 0 auto 2.5rem; }
-        .seller-type-eyebrow { margin-bottom: 0.5rem; color: #216275; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+        .seller-type-eyebrow { margin-bottom: 0.5rem; color: var(--color-brand-ink); font-size: 0.75rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
         .seller-type-header h1 { margin-bottom: 0.75rem; font-size: clamp(1.9rem, 4vw, 2.6rem); letter-spacing: -0.04em; }
         .seller-type-header > p:last-child { color: #4b5563; line-height: 1.6; }
         .seller-type-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; max-width: 1080px; margin: 0 auto; }
         .seller-type-card { display: flex; width: 100%; min-height: 214px; padding: 1.25rem; gap: 1rem; text-align: left; background: white; border: 1px solid #e5e7eb; border-radius: 1rem; color: #111827; cursor: pointer; transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04); }
-        .seller-type-card:hover { transform: translateY(-3px); border-color: #87CEEB; box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08); }
-        .seller-type-card:focus-visible, .continue-btn:focus-visible { outline: 3px solid rgba(135, 206, 235, 0.6); outline-offset: 3px; }
-        .seller-type-card.selected { border-color: #87CEEB; background: #f4fcff; box-shadow: 0 0 0 3px rgba(135, 206, 235, 0.18); }
-        .seller-type-icon { flex: 0 0 auto; width: 48px; height: 48px; border-radius: 0.85rem; display: grid; place-items: center; background: #e8f7fc; color: #216275; }
+        .seller-type-card:hover { transform: translateY(-3px); border-color: var(--color-brand-blue); box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08); }
+        .seller-type-card:focus-visible, .continue-btn:focus-visible { outline: 3px solid rgba(99, 184, 243, 0.55); outline-offset: 3px; }
+        .seller-type-card.selected { border-color: var(--color-brand-blue); background: var(--color-brand-soft); box-shadow: 0 0 0 3px rgba(99, 184, 243, 0.2); }
+        .seller-type-icon { flex: 0 0 auto; width: 48px; height: 48px; border-radius: 0.85rem; display: grid; place-items: center; background: var(--color-brand-soft); color: var(--color-brand-ink); }
         .seller-type-icon svg { width: 1.5rem; height: 1.5rem; }
         .seller-type-copy { display: block; min-width: 0; }
         .seller-type-title-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.5rem; }
@@ -91,8 +91,8 @@ const SellerTypePage = () => {
         .seller-type-description { display: block; min-height: 3.1rem; color: #4b5563; font-size: 0.875rem; line-height: 1.5; }
         .seller-type-features { display: grid; gap: 0.35rem; margin-top: 0.85rem; color: #374151; font-size: 0.8rem; }
         .seller-type-features span { display: inline-flex; align-items: center; gap: 0.4rem; }
-        .seller-type-features svg { width: 0.9rem; height: 0.9rem; color: #216275; }
-        .seller-type-badge { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.22rem 0.45rem; background: #87CEEB; border-radius: 999px; color: #111827; font-size: 0.7rem; font-weight: 800; white-space: nowrap; }
+        .seller-type-features svg { width: 0.9rem; height: 0.9rem; color: var(--color-brand-ink); }
+        .seller-type-badge { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.22rem 0.45rem; background: var(--color-brand-blue); border-radius: 999px; color: var(--color-brand-ink); font-size: 0.7rem; font-weight: 800; white-space: nowrap; }
         .seller-type-badge svg { width: 0.75rem; height: 0.75rem; }
         .seller-type-action { display: grid; justify-items: center; gap: 0.85rem; margin-top: 2rem; }
         .seller-type-action p { color: #4b5563; font-size: 0.875rem; }

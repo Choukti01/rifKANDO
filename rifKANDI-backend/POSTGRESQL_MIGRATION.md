@@ -13,7 +13,7 @@ This repository now has a checksum-protected PostgreSQL schema migration. It is 
 
 ## What the first migration provides
 
-`migrations/postgres/001_initial_schema.sql` creates the current 49-table PostgreSQL baseline, including session security, payment idempotency, financial minor-unit fields, query indexes, and immutable audit-log triggers. `schema_migrations` records the SHA-256 checksum of each applied migration. A database transaction plus PostgreSQL advisory lock prevents two deploys from applying the same migration at once.
+`migrations/postgres/001_initial_schema.sql` creates the 49-table PostgreSQL baseline, including session security, payment idempotency, financial minor-unit fields, query indexes, and immutable audit-log triggers. Follow-up migration `002_seller_withdrawal_eligibility.sql` records the seller start date used for the 14-day withdrawal hold. Migration `003_remove_seller_verification.sql` removes the retired seller identity-verification tables and resets the former badge field. Migration `004_phone_otp_authentication.sql` adds short-lived hashed phone-login challenges and a unique phone identity. `schema_migrations` records the SHA-256 checksum of each applied migration. A database transaction plus PostgreSQL advisory lock prevents two deploys from applying the same migration at once.
 
 The former `src/config/initDb.js` shortcut is intentionally retired. It created only a small, outdated subset of the schema and must never be used for a deployment.
 
@@ -52,7 +52,7 @@ DATABASE_ENGINE=sqlite     # current production setting
 DATABASE_ENGINE=postgres   # only after the cutover checks below
 ```
 
-SQLite remains the default when the variable is absent. PostgreSQL startup refuses to serve traffic unless `DATABASE_URL` is present, the checksum-verified schema migrations have been applied, and all 49 expected tables exist. The adapter keeps existing route handlers compatible while converting SQLite placeholders and time expressions to PostgreSQL syntax. Financial operations use a serializable PostgreSQL transaction, retry serialization conflicts, and lock the wallet, escrow, withdrawal, refund, and stock rows they change.
+SQLite remains the default when the variable is absent. PostgreSQL startup refuses to serve traffic unless `DATABASE_URL` is present, the checksum-verified schema migrations have been applied, and all expected tables exist. The adapter keeps existing route handlers compatible while converting SQLite placeholders and time expressions to PostgreSQL syntax. Financial operations use a serializable PostgreSQL transaction, retry serialization conflicts, and lock the wallet, escrow, withdrawal, refund, and stock rows they change.
 
 Before changing the engine in staging, confirm all of the following:
 

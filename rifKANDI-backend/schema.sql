@@ -14,10 +14,8 @@ CREATE TABLE IF NOT EXISTS users (
   profilePicture TEXT DEFAULT '',
   is_verified BOOLEAN DEFAULT 0,
   verification_token TEXT,
-  is_verified_seller BOOLEAN DEFAULT 0,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
-
 -- Products table
 CREATE TABLE IF NOT EXISTS products (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -37,7 +35,6 @@ CREATE TABLE IF NOT EXISTS products (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (seller_id) REFERENCES users(id)
 );
-
 -- product_media
 CREATE TABLE IF NOT EXISTS product_media (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -568,18 +565,3 @@ CREATE TABLE IF NOT EXISTS product_offers (
   FOREIGN KEY (seller_id) REFERENCES users(id)
 );
 
--- verification_documents
-CREATE TABLE IF NOT EXISTS verification_documents (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  user_id INTEGER NOT NULL UNIQUE,
-  document_url TEXT NOT NULL,
-  document_type TEXT CHECK(document_type IN ('national_id', 'passport', 'business_license')),
-  status TEXT DEFAULT 'pending',
-  admin_notes TEXT,
-  reviewed_by INTEGER,
-  reviewed_at DATETIME,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-  FOREIGN KEY (reviewed_by) REFERENCES users(id)
-);

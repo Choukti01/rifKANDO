@@ -5,7 +5,6 @@ import toast from 'react-hot-toast';
 import MediaGallery from '../../components/MediaGallery';
 import { getImageUrl } from '../../utils/imageUtils';
 import MarketplaceImage from '../../components/common/MarketplaceImage';
-import VerifiedBadge from '../../components/common/VerifiedBadge';
 import LoadMoreButton from '../../components/common/LoadMoreButton';
 
 const ServicesPage = () => {
@@ -120,7 +119,6 @@ const ServicesPage = () => {
                     by <Link to={`/profile/${service.provider_id}`} className="provider-link">
                       {service.provider_name || 'Unknown Provider'}
                     </Link>
-                    {service.provider_verified === 1 && <VerifiedBadge size="small" />}
                   </p>
                   <div className="service-meta">
                     <span>⭐ {service.rating || 0}</span>

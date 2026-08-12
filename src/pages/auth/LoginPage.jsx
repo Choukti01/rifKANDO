@@ -7,19 +7,26 @@ import useAuth from '../../hooks/useAuth';
 const LoginPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, googleLogin, verifyGoogleRegistration, resendGoogleVerification } = useAuth();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const { googleLogin, requestPhoneLoginCode, verifyPhoneLogin } = useAuth();
+  const [phone, setPhone] = useState('');
+  const [code, setCode] = useState('');
+  const [pending, setPending] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [pendingCredential, setPendingCredential] = useState(null);
-  const [verificationCode, setVerificationCode] = useState('');
   const requestedPath = new URLSearchParams(location.search).get('next');
   const redirectAfterAuth = requestedPath?.startsWith('/') && !requestedPath.startsWith('//') ? requestedPath : '/';
 
-  const handleLogin = async (event) => {
+  const requestCode = async (event) => {
     event.preventDefault();
     setSubmitting(true);
-    const result = await login(email, password);
+    const result = await requestPhoneLoginCode(phone);
+    setSubmitting(false);
+    if (result.success) setPending(true);
+  };
+
+  const verifyCode = async (event) => {
+    event.preventDefault();
+    setSubmitting(true);
+    const result = await verifyPhoneLogin({ phone, code });
     setSubmitting(false);
     if (result.success) navigate(redirectAfterAuth, { replace: true });
   };
@@ -27,40 +34,47 @@ const LoginPage = () => {
   const handleGoogleSuccess = useCallback(async (credentialResponse) => {
     const result = await googleLogin(credentialResponse.credential);
     if (result.success) navigate(redirectAfterAuth, { replace: true });
-    if (result.verificationRequired) setPendingCredential(credentialResponse.credential);
   }, [googleLogin, navigate, redirectAfterAuth]);
 
-  const handleGoogleVerification = async (event) => {
-    event.preventDefault();
-    setSubmitting(true);
-    const result = await verifyGoogleRegistration(pendingCredential, verificationCode);
-    setSubmitting(false);
-    if (result.success) navigate(redirectAfterAuth, { replace: true });
-  };
-
   return (
-    <main className="auth-page"><section className="auth-card">
-      <h1>Welcome back</h1><p>Sign in to your rifKANDO account.</p>
-      {pendingCredential ? (
-        <form onSubmit={handleGoogleVerification}>
-          <label>Code sent to your Google email<input autoComplete="one-time-code" inputMode="numeric" maxLength={6} onChange={(event) => setVerificationCode(event.target.value.replace(/\D/g, ''))} required value={verificationCode} /></label>
-          <button disabled={submitting || verificationCode.length !== 6} type="submit">Verify and continue</button>
-          <button className="link-button" onClick={() => resendGoogleVerification(pendingCredential)} type="button">Resend code</button>
-        </form>
-      ) : <>
-        <form onSubmit={handleLogin}>
-          <label>Email<input autoComplete="email" onChange={(event) => setEmail(event.target.value)} required type="email" value={email} /></label>
-          <label>Password<input autoComplete="current-password" minLength={8} onChange={(event) => setPassword(event.target.value)} required type="password" value={password} /></label>
-          <button disabled={submitting} type="submit">{submitting ? 'Signing in…' : 'Sign in'}</button>
-        </form>
-        <div className="divider">or</div>
-        <div className="google"><GoogleLogin onError={() => toast.error('Google sign-in was cancelled or failed')} onSuccess={handleGoogleSuccess} theme="outline" width="320" /></div>
-        <p className="switch">New here? <Link to={`/register${location.search}`}>Create an account</Link></p>
-      </>}
-    </section><style>{styles}</style></main>
+    <main className="auth-page">
+      <section className="auth-card" aria-labelledby="login-title">
+        <span className="auth-eyebrow">rifKANDO account</span>
+        <h1 id="login-title">{pending ? 'Enter your SMS code' : 'Welcome back'}</h1>
+        <p>{pending ? 'Use the six-digit code sent to your phone.' : 'Sign in securely with your phone number or Google account.'}</p>
+
+        {pending ? (
+          <form onSubmit={verifyCode}>
+            <label>
+              SMS code
+              <input autoComplete="one-time-code" inputMode="numeric" maxLength={6} onChange={(event) => setCode(event.target.value.replace(/\D/g, ''))} required value={code} />
+            </label>
+            <button disabled={submitting || code.length !== 6} type="submit">{submitting ? 'Signing in...' : 'Sign in'}</button>
+            <button className="text-button" disabled={submitting} onClick={requestCode} type="button">Send a new code</button>
+            <button className="text-button" disabled={submitting} onClick={() => { setCode(''); setPending(false); }} type="button">Use a different phone number</button>
+          </form>
+        ) : (
+          <>
+            <form onSubmit={requestCode}>
+              <label>
+                Mobile number
+                <input autoComplete="tel" inputMode="tel" onChange={(event) => setPhone(event.target.value)} placeholder="+212 6 12 34 56 78" required type="tel" value={phone} />
+              </label>
+              <small>Use your country code. Moroccan mobile numbers can also start with 0.</small>
+              <button disabled={submitting} type="submit">{submitting ? 'Sending SMS...' : 'Continue with phone'}</button>
+            </form>
+            <div className="divider"><span>or</span></div>
+            <div className="google"><GoogleLogin onError={() => toast.error('Google sign-in was cancelled or failed.')} onSuccess={handleGoogleSuccess} theme="outline" width="320" /></div>
+          </>
+        )}
+
+        {!pending && <p className="switch">New to rifKANDO? <Link to={`/register${location.search}`}>Create an account</Link></p>}
+      </section>
+      <style>{styles}</style>
+    </main>
   );
 };
 
-const styles = `.auth-page{min-height:70vh;display:grid;place-items:center;padding:3rem 1rem}.auth-card{width:min(100%,420px);padding:2.5rem;border-radius:16px;background:#fff;box-shadow:0 12px 32px rgba(0,0,0,.1)}.auth-card h1{margin:0 0 .5rem}.auth-card p{color:#6b7280}.auth-card form{display:grid;gap:1rem;margin-top:1.5rem}.auth-card label{display:grid;gap:.4rem;font-weight:600}.auth-card input{border:1px solid #d1d5db;border-radius:8px;padding:.75rem;font:inherit}.auth-card button{border:0;border-radius:8px;background:#111827;color:#fff;cursor:pointer;padding:.8rem;font:inherit}.auth-card button:disabled{opacity:.6}.divider{color:#6b7280;margin:1.5rem 0;text-align:center}.google{display:flex;justify-content:center}.switch{text-align:center}.link-button{background:none!important;color:#2563eb!important;padding:0!important}`;
+const styles = `.auth-page{min-height:70vh;display:grid;place-items:center;padding:3rem 1rem}.auth-card{width:min(100%,440px);padding:clamp(1.5rem,5vw,2.5rem);border:1px solid #d8eaf6;border-radius:20px;background:#fff;box-shadow:0 18px 48px rgba(10,27,53,.1)}.auth-eyebrow{display:block;color:var(--color-brand-blue,#63B8F3);font-size:.76rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.auth-card h1{color:var(--color-brand-ink,#0A1B35);margin:.45rem 0 .5rem}.auth-card p{color:#536273;line-height:1.55}.auth-card form{display:grid;gap:1rem;margin-top:1.5rem}.auth-card label{display:grid;gap:.45rem;color:var(--color-brand-ink,#0A1B35);font-weight:700}.auth-card input{border:1px solid #b9d9eb;border-radius:10px;padding:.8rem;font:inherit}.auth-card input:focus{border-color:var(--color-brand-blue,#63B8F3);box-shadow:0 0 0 3px rgba(99,184,243,.18);outline:0}.auth-card small{color:#64748b;line-height:1.45}.auth-card button{border:0;border-radius:10px;background:var(--color-brand-blue,#63B8F3);color:var(--color-brand-ink,#0A1B35);cursor:pointer;font:inherit;font-weight:800;padding:.85rem 1rem}.auth-card button:disabled{cursor:not-allowed;opacity:.6}.text-button{background:transparent!important;color:var(--color-brand-ink,#0A1B35)!important;padding:.2rem!important;text-decoration:underline}.divider{align-items:center;color:#788797;display:flex;gap:1rem;margin:1.5rem 0}.divider:before,.divider:after{background:#d8e4ea;content:'';height:1px;flex:1}.google{display:flex;justify-content:center}.switch{margin:1.5rem 0 0;text-align:center}.switch a{color:#216275;font-weight:800}`;
 
 export default LoginPage;

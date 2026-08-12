@@ -64,6 +64,20 @@ services:
         generateValue: true
       - key: AUDIT_LOG_SECRET
         generateValue: true
+      # Phone authentication uses real Twilio delivery only. Set the Twilio
+      # values in Render after provisioning the sender or messaging service.
+      - key: PHONE_OTP_SECRET
+        generateValue: true
+      - key: SMS_PROVIDER
+        value: twilio
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_MESSAGING_SERVICE_SID
+        sync: false
+      - key: TWILIO_FROM_NUMBER
+        sync: false
       - key: METRICS_TOKEN
         sync: false
       - key: ACCESS_TOKEN_TTL_SECONDS

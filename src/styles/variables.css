@@ -1,9 +1,12 @@
 :root {
-  /* Colors - RifKANDI Theme */
-  --color-primary: #87CEEB;
-  --color-primary-light: #B0E0E6;
-  --color-primary-dark: #5F9EA0;
-  --color-black: #1A1A1A;
+  /* Colors - rifKANDO Theme */
+  --color-primary: #63B8F3;
+  --color-primary-light: #DDF3FF;
+  --color-primary-dark: #0A1B35;
+  --color-brand-blue: #63B8F3;
+  --color-brand-soft: #EAF7FF;
+  --color-brand-ink: #0A1B35;
+  --color-black: #0A1B35;
   --color-black-light: #2C2C2C;
   --color-white: #FFFFFF;
   --color-gray-50: #F9FAFB;

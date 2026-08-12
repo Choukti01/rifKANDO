@@ -4,7 +4,7 @@ class EmailService {
   static async sendWelcomeEmail(userEmail, userName) {
     return await sendEmail({
       to: userEmail,
-      subject: 'Welcome to rifKANDI! 🎉',
+      subject: 'Welcome to rifKANDO! 🎉',
       html: getWelcomeTemplate(userName)
     });
   }
@@ -20,7 +20,7 @@ class EmailService {
   static async sendPasswordResetEmail(userEmail, resetUrl, code) {
     return await sendEmail({
       to: userEmail,
-      subject: 'Reset Your rifKANDI Password',
+      subject: 'Reset Your rifKANDO Password',
       html: getPasswordResetTemplate(resetUrl, code)
     });
   }

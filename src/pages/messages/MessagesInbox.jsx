@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
-import VerifiedBadge from '../../components/common/VerifiedBadge';
 import EmptyState from '../../components/common/EmptyState';
 import LoadingSkeleton from '../../components/common/LoadingSkeleton';
 
@@ -84,7 +83,6 @@ const MessagesInbox = () => {
               <div className="conversation-info">
                 <div className="conversation-name">
                   {conv.other_user_name}
-                  {conv.other_user_verified === 1 && <VerifiedBadge size="small" />}
                 </div>
                 <div className="conversation-last-message">{conv.last_message}</div>
               </div>

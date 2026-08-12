@@ -15,7 +15,6 @@ types.setTypeParser(1700, (value) => Number(value));
 
 const SQLITE_BOOLEAN_COLUMNS = new Set([
   'is_verified',
-  'is_verified_seller',
   'used',
   'is_primary',
   'is_preview',

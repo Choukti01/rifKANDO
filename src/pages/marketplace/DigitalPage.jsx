@@ -5,7 +5,6 @@ import toast from 'react-hot-toast';
 import MediaGallery from '../../components/MediaGallery';
 import { getImageUrl } from '../../utils/imageUtils';
 import MarketplaceImage from '../../components/common/MarketplaceImage';
-import VerifiedBadge from '../../components/common/VerifiedBadge';
 import LoadMoreButton from '../../components/common/LoadMoreButton';
 
 const DigitalPage = () => {
@@ -120,7 +119,6 @@ const DigitalPage = () => {
                     by <Link to={`/profile/${product.seller_id}`} className="seller-link">
                       {product.seller_name || 'Unknown Seller'}
                     </Link>
-                    {product.seller_verified === 1 && <VerifiedBadge size="small" />}
                   </p>
                   <div className="digital-meta">
                     <span>⭐ {product.rating || 0}</span>

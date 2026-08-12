@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { MagnifyingGlassIcon, ShoppingBagIcon, HeartIcon, UserIcon, Bars3Icon, XMarkIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
+import { MagnifyingGlassIcon, UserIcon, Bars3Icon, XMarkIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import useAuth from '../../hooks/useAuth';
 import LanguageSwitcher from '../LanguageSwitcher';
 import { useTranslation } from 'react-i18next';
@@ -66,6 +66,9 @@ const Navbar = () => {
     { name: t('nav.digital'), path: '/digital' },
     { name: t('nav.bookings'), path: '/bookings' },
   ];
+  const isSeller = user?.role === 'seller';
+  const accountPath = isSeller ? '/seller/dashboard' : '/profile';
+  const accountLabel = isSeller ? 'Seller dashboard' : t('common.profile');
 
   return (
     <>
@@ -106,8 +109,6 @@ const Navbar = () => {
 
             {/* Icons */}
             <div className="nav-icons">
-              <Link to="/favorites" className="nav-icon nav-icon-secondary" aria-label={t('nav.favorites')} title={t('nav.favorites')}><HeartIcon className="icon" /></Link>
-              <Link to="/cart" className="nav-icon" aria-label="Cart" title="Cart"><ShoppingBagIcon className="icon" /></Link>
               {/* Language Switcher (now only EN/AR) */}
               <div className="desktop-language-switcher"><LanguageSwitcher /></div>
 
@@ -126,10 +127,13 @@ const Navbar = () => {
                           <p className="dropdown-name">{user?.name}</p>
                           <p className="dropdown-email">{user?.email}</p>
                         </div>
-                        <Link to="/seller/dashboard" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>{t('common.profile')}</Link>
+                        <Link to={accountPath} className="dropdown-item" onClick={() => setIsProfileOpen(false)}>{accountLabel}</Link>
                         <Link to="/orders" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>My Orders</Link>
-                        <Link to="/favorites" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>{t('nav.favorites')}</Link>
-                        <Link to="/choose-seller-type" className="dropdown-item seller-link" onClick={() => setIsProfileOpen(false)}>Become a Seller</Link>
+                        {!isSeller && <>
+                          <Link to="/favorites" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>Saved items</Link>
+                          <Link to="/cart" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>Cart</Link>
+                          <Link to="/choose-seller-type" className="dropdown-item seller-link" onClick={() => setIsProfileOpen(false)}>Become a Seller</Link>
+                        </>}
                         <button onClick={handleLogout} className="dropdown-item logout-btn">{t('common.logout')}</button>
                       </>
                     ) : (
@@ -168,15 +172,18 @@ const Navbar = () => {
               </Link>
             ))}
             <div className="mobile-menu-divider"></div>
-            <Link to="/favorites" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>{t('nav.favorites')}</Link>
             {/* Language Switcher in mobile menu */}
             <div className="mobile-lang-section">
               <LanguageSwitcher />
             </div>
             {isAuthenticated ? (
               <>
-                <Link to="/profile" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>{t('common.profile')}</Link>
+                <Link to={accountPath} className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>{accountLabel}</Link>
                 <Link to="/orders" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>My Orders</Link>
+                {!isSeller && <>
+                  <Link to="/favorites" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>Saved items</Link>
+                  <Link to="/cart" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>Cart</Link>
+                </>}
                 <button onClick={handleLogout} className="mobile-nav-link logout-mobile">{t('common.logout')}</button>
               </>
             ) : (
@@ -729,7 +736,6 @@ const Navbar = () => {
             justify-content: center;
             border-radius: 0.75rem;
           }
-          .nav-icon-secondary,
           .desktop-language-switcher,
           .desktop-profile-dropdown {
             display: none;

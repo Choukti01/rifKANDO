@@ -23,6 +23,23 @@ Set `METRICS_TOKEN` to a unique random secret before connecting monitoring.
 The monitoring service must send it as `X-Metrics-Token` when reading
 `/metrics`. Do not put this value in Netlify or any browser environment.
 
+## Deferred activation checklist
+
+These changes are implemented locally but must wait until the Render service
+and frontend hosting are active again:
+
+- Restore the Render backend, configure the SMS variables below, and redeploy.
+- In a Twilio account, create and verify a Messaging Service, then set
+  `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and
+  `TWILIO_MESSAGING_SERVICE_SID` in Render. Render generates
+  `PHONE_OTP_SECRET`; do not reuse it as any other secret.
+- Redeploy the frontend on Netlify after the backend is healthy, with
+  `VITE_API_URL` pointing to the restored HTTPS API.
+- Add the production frontend origins to the Google OAuth client and perform a
+  real phone-code registration and sign-in smoke test.
+- Complete the staged PostgreSQL cutover only after the Render service is
+  restored and a real staging database is available.
+
 ## Frontend
 
 Set these build-time values in the frontend host:
@@ -53,12 +70,12 @@ CMI is in test mode when `APP_ENV=staging`; configure separate test credentials
 only if CMI provides them. Otherwise leave all three CMI settings absent in
 staging. Do not route live CMI callbacks to staging.
 
-## Google registration verification
+## Authentication
 
-New Google sign-ups are activated only after the user enters a six-digit code
-sent to the verified Google email address. Configure `RESEND_API_KEY` and an
-`EMAIL_FROM` address from a domain verified in Resend. Google OAuth verifies
-the Google identity but does not send application email codes itself.
+Google sign-up and sign-in use the verified email returned by Google. Phone
+sign-up and sign-in use a six-digit SMS code delivered by Twilio. The backend
+never exposes SMS-provider credentials to the browser and refuses phone
+authentication until its SMS configuration is complete.
 
 ## Google OAuth
 

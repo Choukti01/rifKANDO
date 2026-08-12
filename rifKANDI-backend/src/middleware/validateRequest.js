@@ -501,7 +501,6 @@ const validateProductQuery = validate((req) => {
       minRating: query.minRating === undefined || query.minRating === '' ? undefined : money(Number(query.minRating), 'query.minRating', { min: 0, max: 5 }),
       sortBy: query.sortBy === undefined || query.sortBy === '' ? 'newest' : enumValue(query.sortBy, 'query.sortBy', ['newest', 'price_asc', 'price_desc', 'rating']),
       condition: query.condition === undefined || query.condition === '' ? '' : enumValue(query.condition, 'query.condition', ['new', 'used', 'joutiya']),
-      verified: query.verified === 'true',
     },
   };
 });

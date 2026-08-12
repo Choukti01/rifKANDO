@@ -2,7 +2,7 @@ import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
 
-const ProtectedRoute = ({ children, requiredRole }) => {
+const ProtectedRoute = ({ children, requiredRole, requiredRoles }) => {
   const { isAuthenticated, user, loading } = useAuth();
   const location = useLocation();
 
@@ -20,7 +20,11 @@ const ProtectedRoute = ({ children, requiredRole }) => {
     return <Navigate to={`/login?next=${encodeURIComponent(next)}`} replace />;
   }
 
-  if (requiredRole && user?.role !== requiredRole && !user?.roles?.includes(requiredRole)) {
+  const roles = Array.isArray(requiredRoles) && requiredRoles.length > 0
+    ? requiredRoles
+    : (requiredRole ? [requiredRole] : []);
+  const userRoles = new Set([user?.role, ...(Array.isArray(user?.roles) ? user.roles : [])].filter(Boolean));
+  if (roles.length > 0 && !roles.some((role) => userRoles.has(role))) {
     return <Navigate to="/" replace />;
   }
 

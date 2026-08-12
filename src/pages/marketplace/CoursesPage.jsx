@@ -5,7 +5,6 @@ import toast from 'react-hot-toast';
 import MediaGallery from '../../components/MediaGallery';
 import { getImageUrl } from '../../utils/imageUtils';
 import MarketplaceImage from '../../components/common/MarketplaceImage';
-import VerifiedBadge from '../../components/common/VerifiedBadge';
 import LoadMoreButton from '../../components/common/LoadMoreButton';
 
 const CoursesPage = () => {
@@ -131,7 +130,6 @@ const CoursesPage = () => {
                     by <Link to={`/profile/${course.instructor_id}`} className="instructor-link">
                       {course.instructor_name || 'Unknown Instructor'}
                     </Link>
-                    {course.instructor_verified === 1 && <VerifiedBadge size="small" />}
                   </p>
                   
                   <div className="course-meta">

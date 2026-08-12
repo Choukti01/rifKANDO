@@ -97,8 +97,7 @@ const run = async () => {
   const passwordHash = await bcrypt.hash(seedPassword, 12);
   const testUsers = [
     ['Session Test User', 'session-test@example.test', 'buyer'],
-    ['Finance Test User', 'finance-test@example.test', 'finance'],
-    ['Reviewer Test User', 'reviewer-test@example.test', 'verification_reviewer'],
+      ['Finance Test User', 'finance-test@example.test', 'finance'],
     ['Admin Test User', 'admin-test@example.test', 'admin'],
     ['Super Admin Test User', 'super-admin-test@example.test', 'super_admin'],
   ];
@@ -180,7 +179,6 @@ const run = async () => {
 
     const buyer = await login(port, 'session-test@example.test', sessionPassword);
     const finance = await login(port, 'finance-test@example.test', seedPassword);
-    const reviewer = await login(port, 'reviewer-test@example.test', seedPassword);
     const admin = await login(port, 'admin-test@example.test', seedPassword);
     const superAdmin = await login(port, 'super-admin-test@example.test', seedPassword);
 
@@ -189,30 +187,20 @@ const run = async () => {
 
     const financeWithdrawals = await request(port, '/api/admin/withdrawals', { jar: finance.jar });
     assert.equal(financeWithdrawals.status, 200, 'finance operators must access withdrawal operations');
-    const financeDeniedVerification = await request(port, '/api/admin/pending-verifications', { jar: finance.jar });
-    assert.equal(financeDeniedVerification.status, 403, 'finance operators must not access KYC review data');
-
-    const reviewerVerifications = await request(port, '/api/admin/pending-verifications', { jar: reviewer.jar });
-    assert.equal(reviewerVerifications.status, 200, 'verification reviewers must access KYC review data');
-    const reviewerDeniedFinance = await request(port, '/api/admin/withdrawals', { jar: reviewer.jar });
-    assert.equal(reviewerDeniedFinance.status, 403, 'verification reviewers must not access finance operations');
 
     const adminFinance = await request(port, '/api/admin/withdrawals', { jar: admin.jar });
     assert.equal(adminFinance.status, 200, 'existing administrators retain finance access');
-    const adminVerification = await request(port, '/api/admin/pending-verifications', { jar: admin.jar });
-    assert.equal(adminVerification.status, 200, 'existing administrators retain verification access');
 
     const superAdminFinance = await request(port, '/api/admin/withdrawals', { jar: superAdmin.jar });
     assert.equal(superAdminFinance.status, 200, 'super administrators must access finance operations');
-    const superAdminVerification = await request(port, '/api/admin/pending-verifications', { jar: superAdmin.jar });
-    assert.equal(superAdminVerification.status, 200, 'super administrators must access verification operations');
+    const removedVerificationEndpoint = await request(port, '/api/admin/pending-verifications', { jar: superAdmin.jar });
+    assert.equal(removedVerificationEndpoint.status, 404, 'the retired seller verification endpoint must not be registered');
     const adminAuditLogs = await request(port, '/api/admin/audit-logs', { jar: admin.jar });
     assert.equal(adminAuditLogs.status, 403, 'only super administrators may inspect the audit trail');
     const auditLogs = await readJson(await request(port, '/api/admin/audit-logs', { jar: superAdmin.jar }));
     assert.equal(auditLogs.response.status, 200, 'super administrators must be able to inspect the audit trail');
     assert.equal(auditLogs.body.integrity.valid, true, 'audit trail integrity must validate before it is shown');
     assert.equal(auditLogs.body.entries.some((entry) => entry.action === 'finance.withdrawals_viewed'), true);
-    assert.equal(auditLogs.body.entries.some((entry) => entry.action === 'verification.pending_list_viewed'), true);
     assert.equal(auditLogs.body.entries.some((entry) => Object.hasOwn(entry, 'user_agent_hash')), false, 'audit review responses must not expose browser fingerprints');
   } finally {
     await stopServer(server);

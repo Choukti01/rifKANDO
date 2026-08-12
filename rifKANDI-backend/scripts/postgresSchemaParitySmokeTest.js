@@ -12,6 +12,7 @@ process.env.DATABASE_ENGINE = 'sqlite';
 
 const db = require('../src/config/database');
 const { EXPECTED_POSTGRES_TABLES } = require('../src/database/postgresSchemaContract');
+const { loadPostgresMigrations } = require('../src/database/postgresMigrationRunner');
 
 function all(database, sql) {
   return new Promise((resolve, reject) => {
@@ -31,7 +32,7 @@ function extractPostgresColumns(sql, table) {
   assert.ok(match, `Missing PostgreSQL table definition for ${table}`);
 
   const ignored = new Set(['FOREIGN', 'UNIQUE', 'CHECK', 'CONSTRAINT', 'PRIMARY']);
-  return new Set(match[1]
+  const columns = new Set(match[1]
     .split('\n')
     .map((line) => line.trim().replace(/,$/, ''))
     .filter(Boolean)
@@ -42,15 +43,22 @@ function extractPostgresColumns(sql, table) {
       return ignored.has(column.toUpperCase()) ? null : column;
     })
     .filter(Boolean));
+
+  const alterColumnPattern = new RegExp(
+    `ALTER TABLE\\s+${table}\\s+ADD COLUMN(?: IF NOT EXISTS)?\\s+(?:"([A-Za-z_][A-Za-z0-9_]*)"|([A-Za-z_][A-Za-z0-9_]*))`,
+    'gi'
+  );
+  for (const alterMatch of sql.matchAll(alterColumnPattern)) {
+    columns.add(alterMatch[1] || alterMatch[2]);
+  }
+  return columns;
 }
 
 async function main() {
   try {
     await db.ready;
-    const migrationSql = fs.readFileSync(
-      path.join(__dirname, '../migrations/postgres/001_initial_schema.sql'),
-      'utf8'
-    );
+    const migrations = await loadPostgresMigrations();
+    const migrationSql = migrations.map((migration) => migration.sql).join('\n\n');
 
     for (const table of EXPECTED_POSTGRES_TABLES) {
       const sqliteColumns = await all(db, `PRAGMA table_info("${table}")`);

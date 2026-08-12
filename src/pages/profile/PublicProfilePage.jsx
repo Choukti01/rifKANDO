@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../../services/api';
-import VerifiedBadge from '../../components/common/VerifiedBadge';
 import { getImageUrl } from '../../utils/imageUtils';
 
 const PublicProfilePage = () => {
@@ -53,7 +52,6 @@ const PublicProfilePage = () => {
         <div className="profile-info">
           <h1>
             {user.name}
-            {user.is_verified_seller === 1 && <VerifiedBadge size="medium" />}
           </h1>
           <p className="profile-bio">{user.bio || 'No bio yet'}</p>
           <p className="profile-location">{user.city}, {user.country}</p>
