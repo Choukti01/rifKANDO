@@ -54,6 +54,13 @@ const Wallet = () => {
   };
 
   const handleWithdraw = async () => {
+    if (wallet?.withdrawalEligibility?.eligible === false) {
+      const availableAt = wallet.withdrawalEligibility.availableAt
+        ? new Date(wallet.withdrawalEligibility.availableAt).toLocaleDateString()
+        : `after ${wallet.withdrawalEligibility.holdDays} days`;
+      toast.error(`New seller withdrawals are available ${availableAt}`);
+      return;
+    }
     if (!withdrawAmount || withdrawAmount < 100) {
       toast.error('Minimum withdrawal is 100 MAD');
       return;
@@ -85,6 +92,12 @@ const Wallet = () => {
 
   if (loading) return <div className="text-center py-16"><div className="spinner"></div><p>Loading wallet...</p></div>;
 
+  const withdrawalEligibility = wallet?.withdrawalEligibility;
+  const withdrawalAvailableAt = withdrawalEligibility?.availableAt
+    ? new Date(withdrawalEligibility.availableAt).toLocaleDateString()
+    : null;
+  const withdrawalsOnHold = withdrawalEligibility?.eligible === false;
+
   return (
     <div className="wallet-page">
       <h2>My Wallet</h2>
@@ -93,9 +106,14 @@ const Wallet = () => {
         <div className="stat-card">
           <div className="stat-label">Available Balance</div>
           <div className="stat-value">{wallet?.available_balance?.toLocaleString()} MAD</div>
-          <button onClick={() => setShowWithdrawModal(true)} className="withdraw-btn" disabled={wallet?.available_balance < 100}>
+          <button onClick={() => setShowWithdrawModal(true)} className="withdraw-btn" disabled={wallet?.available_balance < 100 || withdrawalsOnHold}>
             Withdraw
           </button>
+          {withdrawalsOnHold && (
+            <p className="withdrawal-hold-message">
+              New seller withdrawals are available {withdrawalAvailableAt || `after ${withdrawalEligibility.holdDays} days`}.
+            </p>
+          )}
         </div>
         <div className="stat-card">
           <div className="stat-label">In Escrow</div>
@@ -179,6 +197,7 @@ const Wallet = () => {
         .stat-value { font-size: 1.75rem; font-weight: bold; margin-bottom: 1rem; }
         .withdraw-btn { background: #1a1a1a; color: white; padding: 0.5rem 1rem; border: none; border-radius: 2rem; cursor: pointer; font-size: 0.875rem; }
         .withdraw-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .withdrawal-hold-message { margin: 0.75rem 0 0; color: #6b7280; font-size: 0.75rem; line-height: 1.4; }
         .transactions-card { background: white; border-radius: 1rem; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         .transactions-card h3 { font-size: 1rem; margin-bottom: 1rem; }
         .transactions-list { display: flex; flex-direction: column; gap: 0.75rem; }

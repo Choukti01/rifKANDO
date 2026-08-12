@@ -9,7 +9,6 @@ import api from '../../services/api';
 import toast from 'react-hot-toast';
 import MediaGallery from '../../components/MediaGallery';
 import MarketplaceImage from '../../components/common/MarketplaceImage';
-import VerifiedBadge from '../../components/common/VerifiedBadge';
 import { getImageUrl } from '../../utils/imageUtils';
 
 const ProductDetailsPage = () => {
@@ -272,8 +271,6 @@ const ProductDetailsPage = () => {
               </div>
               <div className="product-seller">
                 Sold by <Link to={`/profile/${product.seller_id}`} className="seller-link">{product.seller_name || 'Unknown Seller'}</Link>
-                {product.seller_verified === 1 && <VerifiedBadge size="small" />}
-                {product.seller_verified === 1 && <span className="verified-seller-copy">Verified seller</span>}
               </div>
             </div>
             <div className="product-purchase-panel">

@@ -4,9 +4,12 @@ import {
   HomeIcon, ShoppingBagIcon, AcademicCapIcon,
   WrenchScrewdriverIcon, CurrencyDollarIcon, Cog6ToothIcon, 
   ArrowLeftOnRectangleIcon, ComputerDesktopIcon, CalendarIcon,
-  ChatBubbleLeftRightIcon, ShieldCheckIcon, Bars3Icon, XMarkIcon, ClipboardDocumentListIcon
+  ChatBubbleLeftRightIcon, Bars3Icon, XMarkIcon, ClipboardDocumentListIcon,
+  HeartIcon, ShoppingCartIcon, TagIcon
 } from '@heroicons/react/24/outline';
 import useAuth from '../../../hooks/useAuth';
+import useCart from '../../../hooks/useCart';
+import useFavorites from '../../../hooks/useFavorites';
 import { getImageUrl } from '../../../utils/imageUtils';
 import api from '../../../services/api';
 
@@ -17,6 +20,8 @@ const DashboardLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
+  const { cartCount } = useCart();
+  const { favoritesCount } = useFavorites();
 
   useEffect(() => {
     if (!isMobileMenuOpen) return undefined;
@@ -69,11 +74,13 @@ const DashboardLayout = () => {
     { name: 'Overview', icon: HomeIcon, path: 'overview' },
     ...selectedWorkspaceItems,
     { name: 'Orders', icon: ClipboardDocumentListIcon, path: 'orders' },
-    { name: 'Offers', icon: ChatBubbleLeftRightIcon, path: 'offers' },
+    { name: 'Offers', icon: TagIcon, path: 'offers' },
     { name: 'Messages', icon: ChatBubbleLeftRightIcon, path: 'messages', unreadCount },
     { name: 'Wallet', icon: CurrencyDollarIcon, path: 'wallet' },
-    { name: 'Verification', icon: ShieldCheckIcon, path: 'verification' },
     { name: 'Settings', icon: Cog6ToothIcon, path: 'settings' },
+    { type: 'section', name: 'Buying' },
+    { name: 'Saved items', icon: HeartIcon, path: 'favorites', count: favoritesCount },
+    { name: 'Cart', icon: ShoppingCartIcon, path: 'cart', count: cartCount },
   ];
   const activeSection = navItems.find(({ path }) =>
     location.pathname.startsWith(`/seller/dashboard/${path}`)
@@ -145,6 +152,9 @@ const DashboardLayout = () => {
 
         <nav className="sidebar-nav">
           {navItems.map(item => {
+            if (item.type === 'section') {
+              return <p key={item.name} className="sidebar-section-label">{item.name}</p>;
+            }
             const Icon = item.icon;
             return (
               <NavLink
@@ -156,6 +166,7 @@ const DashboardLayout = () => {
                 <Icon className="sidebar-nav-icon" />
                 {isSidebarOpen && <span>{item.name}</span>}
                 {item.unreadCount > 0 && <span className="sidebar-unread-badge">{item.unreadCount}</span>}
+                {item.count > 0 && <span className="sidebar-unread-badge">{item.count}</span>}
               </NavLink>
             );
           })}
@@ -431,6 +442,15 @@ const DashboardLayout = () => {
           background: #87CEEB;
           color: #1a1a1a;
         }
+        .sidebar-section-label {
+          margin: 1rem 0 0.35rem;
+          padding: 0 0.75rem;
+          color: #6b7280;
+          font-size: 0.65rem;
+          font-weight: 800;
+          letter-spacing: 0.09em;
+          text-transform: uppercase;
+        }
         .sidebar-unread-badge {
           margin-left: auto;
           min-width: 1.25rem;
@@ -472,6 +492,9 @@ const DashboardLayout = () => {
         .dashboard-sidebar.closed .sidebar-nav-link,
         .dashboard-sidebar.closed .sidebar-logout {
           justify-content: center;
+        }
+        .dashboard-sidebar.closed .sidebar-section-label {
+          display: none;
         }
         .dashboard-sidebar.closed .sidebar-unread-badge {
           display: none;

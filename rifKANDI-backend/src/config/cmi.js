@@ -1,4 +1,4 @@
-// CMI Payment Gateway Configuration for rifKANDI
+// CMI Payment Gateway Configuration for rifKANDO
 // Based on official cmi-payment-nodejs package [citation:1][citation:6]
 
 module.exports = {

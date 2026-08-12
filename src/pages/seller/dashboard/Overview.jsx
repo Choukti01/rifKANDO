@@ -141,7 +141,6 @@ const Overview = () => {
   const primaryListingLabel = listingLabels[sellerType] || 'product';
   const checklist = [
     { label: 'Complete your profile', done: Boolean(user?.name && user?.phone && user?.city), to: '/seller/dashboard/settings' },
-    { label: 'Verify your seller account', done: user?.is_verified_seller === 1, to: '/seller/dashboard/verification' },
     { label: 'Publish your first listing', done: totalListings > 0, to: firstListingPath },
   ];
   const completedSteps = checklist.filter((step) => step.done).length;

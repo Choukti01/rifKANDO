@@ -4,8 +4,10 @@ const REQUIRED_PRODUCTION_ENV = [
   'JWT_SECRET',
   'SESSION_SECRET',
   'AUDIT_LOG_SECRET',
+  'PHONE_OTP_SECRET',
   'CLIENT_URL',
   'GOOGLE_CLIENT_ID',
+  'SMS_PROVIDER',
 ];
 
 const APPLICATION_ENVIRONMENTS = new Set(['development', 'test', 'staging', 'production']);
@@ -54,16 +56,17 @@ const normalizeSecureOrigin = (value, variableName) => {
 };
 
 const assertStrongDistinctSecrets = () => {
-  const secrets = ['JWT_SECRET', 'SESSION_SECRET', 'AUDIT_LOG_SECRET'].map((name) => process.env[name]);
+  const secretNames = ['JWT_SECRET', 'SESSION_SECRET', 'AUDIT_LOG_SECRET', 'PHONE_OTP_SECRET'];
+  const secrets = secretNames.map((name) => process.env[name]);
   for (const [index, secret] of secrets.entries()) {
-    const name = ['JWT_SECRET', 'SESSION_SECRET', 'AUDIT_LOG_SECRET'][index];
+    const name = secretNames[index];
     if (secret.length < 32) throw new Error(`${name} must be at least 32 characters in production.`);
     if (/(replace-with|change[-_ ]?me|your[-_ ]|example|default[-_ ]?secret)/i.test(secret)) {
       throw new Error(`${name} must not use a placeholder value in staging or production.`);
     }
   }
   if (new Set(secrets).size !== secrets.length) {
-    throw new Error('JWT_SECRET, SESSION_SECRET, and AUDIT_LOG_SECRET must be different values.');
+    throw new Error('JWT_SECRET, SESSION_SECRET, AUDIT_LOG_SECRET, and PHONE_OTP_SECRET must be different values.');
   }
 };
 
@@ -160,6 +163,17 @@ const validateObjectStorage = () => {
   }
 };
 
+const validateSmsConfiguration = () => {
+  if (String(process.env.SMS_PROVIDER || '').toLowerCase() !== 'twilio') {
+    throw new Error('SMS_PROVIDER must be twilio for phone authentication.');
+  }
+  const required = ['TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN'];
+  const missing = required.filter((name) => !String(process.env[name] || '').trim());
+  if (missing.length > 0 || (!String(process.env.TWILIO_MESSAGING_SERVICE_SID || '').trim() && !String(process.env.TWILIO_FROM_NUMBER || '').trim())) {
+    throw new Error('Twilio SMS configuration is incomplete. Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and either TWILIO_MESSAGING_SERVICE_SID or TWILIO_FROM_NUMBER.');
+  }
+};
+
 const getAllowedOrigins = () => {
   const deployed = isDeploymentEnvironment();
   const defaults = deployed
@@ -197,6 +211,7 @@ const validateEnvironment = () => {
 
   validateDatabaseConfiguration();
   validateObjectStorage();
+  validateSmsConfiguration();
   const cmiVariables = ['CMI_STORE_KEY', 'CMI_CLIENT_ID', 'BACKEND_URL'];
   const configuredCmiVariables = cmiVariables.filter((name) => Boolean(process.env[name]));
   if (configuredCmiVariables.length > 0 && configuredCmiVariables.length !== cmiVariables.length) {
@@ -213,4 +228,5 @@ module.exports = {
   validateEnvironment,
   validateDatabaseConfiguration,
   validateObjectStorage,
+  validateSmsConfiguration,
 };

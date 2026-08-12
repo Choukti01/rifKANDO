@@ -1,5 +1,10 @@
 const db = require('../config/database');
 const Money = require('./moneyService');
+const {
+  calculateCommissionMinor,
+  getWithdrawalEligibility,
+  WITHDRAWAL_HOLD_DAYS,
+} = require('./commissionPolicyService');
 
 const WALLET_ACCOUNTS = new Set([
   'available_balance',
@@ -14,7 +19,6 @@ const WALLET_ACCOUNT_MINOR_COLUMNS = Object.freeze({
 });
 const DELIVERY_FEE_MINOR = 5000;
 const FREE_DELIVERY_THRESHOLD_MINOR = 50000;
-const PLATFORM_COMMISSION_PERCENT = 10;
 
 class WalletService {
   // SQLite uses one shared connection in this application. Serialising financial
@@ -281,7 +285,18 @@ class WalletService {
   }
 
   static async getWallet(userId) {
-    return this.withFinancialTransaction(async (tx) => this.presentWallet(await this.ensureWalletTx(tx, userId)));
+    return this.withFinancialTransaction(async (tx) => {
+      const safeUserId = this.positiveInteger(userId, 'User ID');
+      const wallet = await this.ensureWalletTx(tx, safeUserId);
+      const seller = await tx.get('SELECT role, seller_started_at FROM users WHERE id = ?', [safeUserId]);
+      const withdrawalEligibility = seller?.role === 'seller'
+        ? getWithdrawalEligibility(seller.seller_started_at)
+        : { eligible: false, availableAt: null, holdDays: WITHDRAWAL_HOLD_DAYS };
+      return {
+        ...this.presentWallet(wallet),
+        withdrawalEligibility,
+      };
+    });
   }
 
   static async getTransactions(userId, limit = 50) {
@@ -567,6 +582,21 @@ class WalletService {
       );
       if (existing) return { success: true, alreadyProcessed: true, requestId: existing.id };
 
+      const seller = await tx.get(
+        this.lockForUpdate('SELECT role, seller_started_at FROM users WHERE id = ?'),
+        [safeUserId]
+      );
+      if (!seller || seller.role !== 'seller') {
+        throw new Error('Only sellers can request withdrawals.');
+      }
+      const withdrawalEligibility = getWithdrawalEligibility(seller.seller_started_at);
+      if (!withdrawalEligibility.eligible) {
+        const availableAt = withdrawalEligibility.availableAt
+          ? new Date(withdrawalEligibility.availableAt).toISOString().slice(0, 10)
+          : 'after your seller account is activated';
+        throw new Error(`New sellers can request withdrawals after ${withdrawalEligibility.holdDays} days (${availableAt}).`);
+      }
+
       const operationKey = `withdrawal-request:${safeKey}`;
       const operation = await this.createOperationTx(tx, {
         operationKey,
@@ -828,7 +858,7 @@ class WalletService {
       let sellerNetTotal = 0;
       for (const [sellerId, group] of sellerGroups) {
         const grossAmount = this.minor(group.grossAmount);
-        const commission = Math.round(grossAmount * PLATFORM_COMMISSION_PERCENT / 100);
+        const commission = calculateCommissionMinor('product', grossAmount);
         const sellerAmount = this.minor(grossAmount - commission, { allowZero: true });
         sellerNetTotal = this.minor(sellerNetTotal + sellerAmount, { allowZero: true });
         await tx.run(

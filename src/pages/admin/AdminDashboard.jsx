@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import api from '../../services/api';
 
 
@@ -55,16 +54,6 @@ const AdminDashboard = () => {
         <div className="stat-card"><div className="stat-label">Pending Withdrawals</div><div className="stat-value">{stats.pendingWithdrawals || 0}</div></div>
       </div>
 
-      {/* Admin Actions Cards */}
-      <div className="admin-actions">
-        <Link to="/admin/verify-sellers" className="action-card">
-          <div className="action-icon">✓</div>
-          <h3>Verify Sellers</h3>
-          <p>Review and approve seller verification requests</p>
-        </Link>
-        {/* We can add more action cards here later */}
-      </div>
-
       {/* Recent Orders Table */}
       <div className="recent-orders">
         <h3>Recent Orders</h3>
@@ -84,14 +73,6 @@ const AdminDashboard = () => {
             ))}
           </tbody>
         </table>
-
-
-        <Link to="/admin/review-verifications" className="action-card">
-        <div className="action-icon">🪪</div>
-        <h3>Review Verifications</h3>
-        <p>Approve or reject seller ID uploads</p>
-        </Link>
-
 
       </div>
 

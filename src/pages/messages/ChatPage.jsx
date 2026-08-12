@@ -3,7 +3,6 @@ import { useParams, useLocation } from 'react-router-dom';
 import api from '../../services/api';
 import useAuth from '../../hooks/useAuth';
 import toast from 'react-hot-toast';
-import VerifiedBadge from '../../components/common/VerifiedBadge';
 
 const ChatPage = () => {
   const { userId } = useParams();
@@ -91,7 +90,6 @@ const ChatPage = () => {
       <div className="chat-header">
         <h2>
           Chat with {otherUser?.name || 'User'}
-          {otherUser?.is_verified_seller === 1 && <VerifiedBadge size="small" />}
         </h2>
         {productId && <small>Regarding product ID: {productId}</small>}
       </div>

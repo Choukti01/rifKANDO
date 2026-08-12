@@ -5,9 +5,10 @@ const {
 } = require('../src/config/validateEnv');
 
 const trackedNames = [
-  'NODE_ENV', 'APP_ENV', 'JWT_SECRET', 'SESSION_SECRET', 'AUDIT_LOG_SECRET',
+  'NODE_ENV', 'APP_ENV', 'JWT_SECRET', 'SESSION_SECRET', 'AUDIT_LOG_SECRET', 'PHONE_OTP_SECRET',
   'CLIENT_URL', 'ALLOWED_ORIGINS', 'GOOGLE_CLIENT_ID', 'DATABASE_ENGINE', 'DATABASE_PATH', 'DATABASE_URL', 'POSTGRES_SSL',
   'OBJECT_STORAGE_DRIVER', 'UPLOADS_DIR', 'CMI_STORE_KEY', 'CMI_CLIENT_ID', 'BACKEND_URL',
+  'SMS_PROVIDER', 'TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN', 'TWILIO_MESSAGING_SERVICE_SID', 'TWILIO_FROM_NUMBER',
   'FEATURE_FLAGS',
 ];
 
@@ -34,6 +35,7 @@ const deploymentEnvironment = (overrides = {}) => ({
   JWT_SECRET: 'a'.repeat(48),
   SESSION_SECRET: 'b'.repeat(48),
   AUDIT_LOG_SECRET: 'c'.repeat(48),
+  PHONE_OTP_SECRET: 'd'.repeat(48),
   CLIENT_URL: 'https://staging.rifkando.example',
   ALLOWED_ORIGINS: 'https://staging.rifkando.example',
   GOOGLE_CLIENT_ID: 'staging-client.apps.googleusercontent.com',
@@ -47,6 +49,11 @@ const deploymentEnvironment = (overrides = {}) => ({
   CMI_CLIENT_ID: undefined,
   BACKEND_URL: undefined,
   FEATURE_FLAGS: undefined,
+  SMS_PROVIDER: 'twilio',
+  TWILIO_ACCOUNT_SID: 'ACtestaccount',
+  TWILIO_AUTH_TOKEN: 'test-auth-token',
+  TWILIO_MESSAGING_SERVICE_SID: 'MGtestservice',
+  TWILIO_FROM_NUMBER: undefined,
   ...overrides,
 });
 
@@ -61,6 +68,10 @@ withEnvironment(deploymentEnvironment({ NODE_ENV: 'development' }), () => {
 
 withEnvironment(deploymentEnvironment({ SESSION_SECRET: 'a'.repeat(48) }), () => {
   assert.throws(validateEnvironment, /must be different values/);
+});
+
+withEnvironment(deploymentEnvironment({ SMS_PROVIDER: undefined }), () => {
+  assert.throws(validateEnvironment, /SMS_PROVIDER/);
 });
 
 withEnvironment(deploymentEnvironment({ CLIENT_URL: 'http://staging.rifkando.example' }), () => {

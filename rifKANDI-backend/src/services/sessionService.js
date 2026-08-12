@@ -57,10 +57,12 @@ const readCookies = (request) => Object.fromEntries(
     })
 );
 
+const isPhoneIdentityEmail = (email) => String(email || '').endsWith('@phone.rifkando.invalid');
+
 const publicUser = (user) => ({
   id: user.id,
   name: user.name,
-  email: user.email,
+  email: isPhoneIdentityEmail(user.email) ? null : user.email,
   phone: user.phone,
   role: user.role,
   sellerType: user.seller_type,
@@ -68,7 +70,6 @@ const publicUser = (user) => ({
   city: user.city,
   country: user.country,
   profilePicture: user.profilePicture,
-  is_verified_seller: user.is_verified_seller || 0,
 });
 
 const issueAccessToken = (userId, sessionId) => jwt.sign(
@@ -119,7 +120,7 @@ const loadActiveSession = async (sessionId, userId) => {
       s.id AS session_id, s.user_id AS session_user_id, s.csrf_token_hash,
       s.expires_at, s.revoked_at,
       u.id, u.name, u.email, u.password, u.phone, u.role, u.seller_type,
-      u.bio, u.city, u.country, u.profilePicture, u.is_verified_seller
+      u.bio, u.city, u.country, u.profilePicture
     FROM auth_sessions s
     JOIN users u ON u.id = s.user_id
     WHERE s.id = ? AND s.user_id = ?

@@ -16,6 +16,7 @@ const {
 const SQLITE_IMPORT_ORDER = Object.freeze([
   'users',
   'pending_registrations',
+  'phone_verification_challenges',
   'google_verifications',
   'email_verifications',
   'password_resets',
@@ -53,7 +54,6 @@ const SQLITE_IMPORT_ORDER = Object.freeze([
   'booking_slots',
   'appointments',
   'messages',
-  'verification_documents',
   'wallets',
   'escrow_transactions',
   'withdrawal_requests',
@@ -68,11 +68,11 @@ const SQLITE_IMPORT_ORDER = Object.freeze([
 const TABLES_WITHOUT_NUMERIC_ID = new Set([
   'google_verifications',
   'pending_registrations',
+  'phone_verification_challenges',
 ]);
 
 const BOOLEAN_COLUMNS = new Set([
   'users.is_verified',
-  'users.is_verified_seller',
   'password_resets.used',
   'product_media.is_primary',
   'course_media.is_primary',
@@ -88,6 +88,7 @@ const BOOLEAN_COLUMNS = new Set([
 const TIMESTAMPTZ_COLUMNS = new Set([
   'users.created_at',
   'pending_registrations.expires_at', 'pending_registrations.created_at',
+  'phone_verification_challenges.expires_at', 'phone_verification_challenges.window_started_at', 'phone_verification_challenges.created_at',
   'google_verifications.expires_at', 'google_verifications.created_at',
   'email_verifications.expires_at', 'email_verifications.created_at',
   'password_resets.expires_at', 'password_resets.created_at',
@@ -102,7 +103,7 @@ const TIMESTAMPTZ_COLUMNS = new Set([
   'services.created_at', 'service_media.created_at', 'service_orders.delivered_at', 'service_orders.completed_at', 'service_orders.created_at',
   'digital_products.created_at', 'digital_media.created_at', 'digital_files.created_at', 'digital_purchases.last_downloaded_at', 'digital_purchases.created_at', 'digital_requests.created_at',
   'bookings.created_at', 'booking_media.created_at', 'booking_slots.created_at', 'appointments.created_at',
-  'messages.created_at', 'verification_documents.reviewed_at', 'verification_documents.created_at', 'verification_documents.updated_at',
+  'messages.created_at',
   'wallets.created_at', 'wallets.updated_at', 'escrow_transactions.release_date', 'escrow_transactions.created_at', 'escrow_transactions.updated_at',
   'withdrawal_requests.processed_at', 'withdrawal_requests.created_at', 'wallet_transactions.created_at', 'wallet_ledger_entries.created_at',
   'financial_operations.created_at', 'audit_logs.occurred_at', 'email_logs.created_at', 'product_offers.created_at', 'product_offers.updated_at',

@@ -41,7 +41,7 @@ db.serialize(() => {
   db.run('PRAGMA foreign_keys = ON');
   db.run('PRAGMA journal_mode = WAL');
   db.run('PRAGMA synchronous = NORMAL');
-  // Users table (with is_verified_seller column included directly)
+  // Users table
   db.run(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -51,12 +51,12 @@ db.serialize(() => {
       phone TEXT,
       role TEXT DEFAULT 'buyer',
       seller_type TEXT,
+      seller_started_at DATETIME,
       bio TEXT,
       city TEXT,
       country TEXT DEFAULT 'Morocco',
       profilePicture TEXT DEFAULT '',
       is_verified BOOLEAN DEFAULT 0,
-      is_verified_seller BOOLEAN DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
@@ -67,6 +67,22 @@ db.serialize(() => {
     } else if (!err) {
       console.log('✅ Added profilePicture column to users table');
     }
+  });
+
+  db.run('ALTER TABLE users ADD COLUMN seller_started_at DATETIME', (err) => {
+    if (err && !err.message.includes('duplicate column name')) {
+      console.log('Note: seller_started_at column might already exist');
+    } else if (!err) {
+      console.log('Seller withdrawal eligibility column added to users table');
+    }
+  });
+
+  db.run(`
+    UPDATE users
+    SET seller_started_at = created_at
+    WHERE role = 'seller' AND seller_started_at IS NULL
+  `, (err) => {
+    if (err) console.error('Error backfilling seller_started_at:', err.message);
   });
 
   // Products table (with condition column)
@@ -256,6 +272,28 @@ db.serialize(() => {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
+
+  // Phone codes are hashed, expire quickly, and are retained only long enough
+  // to defend against repeated guesses and SMS abuse.
+  db.run(`
+    CREATE TABLE IF NOT EXISTS phone_verification_challenges (
+      phone TEXT PRIMARY KEY,
+      purpose TEXT NOT NULL CHECK (purpose IN ('register', 'login')),
+      code_hash TEXT NOT NULL,
+      expires_at DATETIME NOT NULL,
+      attempts INTEGER NOT NULL DEFAULT 0,
+      send_count INTEGER NOT NULL DEFAULT 1,
+      window_started_at DATETIME NOT NULL,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `, (err) => { if (err) console.error('Error creating phone verification challenges:', err.message); });
+  db.run(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_users_phone_unique
+    ON users(phone)
+    WHERE phone IS NOT NULL AND phone <> ''
+  `, (err) => {
+    if (err) console.error('Error creating unique user phone index:', err.message);
+  });
 
   // Password resets table
   db.run(`
@@ -451,6 +489,7 @@ db.serialize(() => {
   db.run('ALTER TABLE digital_products ADD COLUMN file_name TEXT', (err) => {
     if (err && !err.message.includes('duplicate column name')) console.error('Error adding digital file name:', err.message);
   });
+
   db.run('ALTER TABLE digital_products ADD COLUMN file_content_type TEXT', (err) => {
     if (err && !err.message.includes('duplicate column name')) console.error('Error adding digital file content type:', err.message);
   });
@@ -860,24 +899,6 @@ db.serialize(() => {
     if (err && !err.message.includes('duplicate column name')) console.error('Error adding withdrawal request key:', err.message);
   });
 
-  // The current verification record is private and may only be downloaded by
-  // an administrator through the authenticated document endpoint.
-  db.run(`
-    CREATE TABLE IF NOT EXISTS verification_documents (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL UNIQUE,
-      document_url TEXT NOT NULL,
-      document_type TEXT NOT NULL CHECK (document_type IN ('national_id', 'passport')),
-      status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
-      admin_notes TEXT,
-      reviewed_by INTEGER,
-      reviewed_at DATETIME,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-      FOREIGN KEY (reviewed_by) REFERENCES users(id) ON DELETE SET NULL
-    )
-  `, (err) => { if (err) console.error('Error creating verification_documents:', err); });
   db.run('ALTER TABLE withdrawal_requests ADD COLUMN provider_reference TEXT', (err) => {
     if (err && !err.message.includes('duplicate column name')) console.error('Error adding withdrawal provider reference:', err.message);
   });

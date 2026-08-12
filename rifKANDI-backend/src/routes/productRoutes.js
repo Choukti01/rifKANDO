@@ -49,7 +49,6 @@ const createProductRoutes = ({
     const minRating = req.query.minRating ? parseFloat(req.query.minRating) : null;
     const sortBy = req.query.sortBy || 'newest';
     const condition = req.query.condition || '';
-    const verifiedOnly = req.query.verified === 'true';
     let whereClause = 'p.status = "published"';
     const params = [];
 
@@ -77,7 +76,6 @@ const createProductRoutes = ({
       whereClause += ' AND p.rating >= ?';
       params.push(minRating);
     }
-    if (verifiedOnly) whereClause += ' AND u.is_verified_seller = 1';
 
     const orderBy = {
       price_asc: 'ORDER BY p.price_minor ASC',
@@ -95,7 +93,7 @@ const createProductRoutes = ({
         const total = countResult.total;
         const totalPages = Math.ceil(total / limit);
         db.all(
-          `SELECT p.*, u.name as seller_name, u.id as seller_id, u.is_verified_seller as seller_verified
+          `SELECT p.*, u.name as seller_name, u.id as seller_id
            FROM products p
            JOIN users u ON p.seller_id = u.id
            WHERE ${whereClause}
@@ -117,7 +115,7 @@ const createProductRoutes = ({
 
   router.get('/products/:id', validateIdParams('id'), (req, res) => {
     db.get(
-      `SELECT p.*, u.name as seller_name, u.id as seller_id, u.is_verified_seller as seller_verified
+      `SELECT p.*, u.name as seller_name, u.id as seller_id
        FROM products p
        JOIN users u ON p.seller_id = u.id
        WHERE p.id = ?`,
@@ -246,7 +244,7 @@ const createProductRoutes = ({
 
   router.get('/my-products', protect, requireSeller, (req, res) => {
     db.all(
-      `SELECT p.*, u.name as seller_name, u.is_verified_seller as seller_verified
+      `SELECT p.*, u.name as seller_name
        FROM products p
        JOIN users u ON p.seller_id = u.id
        WHERE p.seller_id = ?`,

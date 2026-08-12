@@ -1,420 +1,200 @@
-import React, { useState, useEffect } from 'react';
-import { getOrders, getMyProducts, getMyCourses, getMyServices, getMyDigitalProducts, getMyBookings } from '../../../services/api';
+import React, { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
+import api from '../../../services/api';
+import { COMMISSION_RATES, WITHDRAWAL_HOLD_DAYS } from '../../../config/commissionPolicy';
+
+const COMMISSION_CATEGORIES = [
+  { key: 'product', label: 'Physical products' },
+  { key: 'course', label: 'Courses' },
+  { key: 'service', label: 'Services' },
+  { key: 'digital', label: 'Digital products' },
+  { key: 'booking', label: 'Bookings' },
+];
+
+const formatCurrency = (amount) => `${new Intl.NumberFormat('en-US', {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+}).format(Number(amount || 0))} MAD`;
+
+const formatDate = (value) => {
+  if (!value) return 'Not available';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? 'Not available' : date.toLocaleDateString();
+};
+
+const transactionLabel = (type) => ({
+  sale: 'Sale',
+  withdrawal: 'Withdrawal',
+  withdrawal_reversal: 'Withdrawal reversal',
+  refund: 'Refund',
+  purchase: 'Purchase',
+}[type] || 'Wallet activity');
 
 const Earnings = () => {
   const [loading, setLoading] = useState(true);
-  const [earnings, setEarnings] = useState({
-    totalEarnings: 0,
-    availableBalance: 0,
-    pendingBalance: 0,
-    thisMonthEarnings: 0,
-    lastMonthEarnings: 0
-  });
+  const [wallet, setWallet] = useState(null);
   const [transactions, setTransactions] = useState([]);
-  const [salesByCategory, setSalesByCategory] = useState({
-    products: 0,
-    courses: 0,
-    services: 0,
-    digital: 0,
-    bookings: 0
-  });
 
   useEffect(() => {
-    fetchEarningsData();
-  }, []);
+    let isCurrent = true;
 
-  const fetchEarningsData = async () => {
-    try {
-      setLoading(true);
-      
-      // Fetch all orders
-      const ordersRes = await getOrders();
-      const orders = ordersRes.data.orders || [];
-      
-      // Fetch seller's items to know which orders belong to them
-      const [productsRes, coursesRes, servicesRes, digitalRes, bookingsRes] = await Promise.all([
-        getMyProducts().catch(() => ({ data: { products: [] } })),
-        getMyCourses().catch(() => ({ data: { courses: [] } })),
-        getMyServices().catch(() => ({ data: { services: [] } })),
-        getMyDigitalProducts().catch(() => ({ data: { products: [] } })),
-        getMyBookings().catch(() => ({ data: { bookings: [] } }))
-      ]);
-      
-      const myProductIds = new Set((productsRes.data.products || []).map(p => p.id));
-      const myCourseIds = new Set((coursesRes.data.courses || []).map(c => c.id));
-      const myServiceIds = new Set((servicesRes.data.services || []).map(s => s.id));
-      const myDigitalIds = new Set((digitalRes.data.products || []).map(d => d.id));
-      const myBookingIds = new Set((bookingsRes.data.bookings || []).map(b => b.id));
-      
-      // Calculate earnings from orders
-      let totalEarnings = 0;
-      let thisMonthEarnings = 0;
-      let lastMonthEarnings = 0;
-      const now = new Date();
-      const thisMonth = now.getMonth();
-      const thisYear = now.getFullYear();
-      const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      
-      const transactionList = [];
-      let productSales = 0;
-      let courseSales = 0;
-      let serviceSales = 0;
-      let digitalSales = 0;
-      let bookingSales = 0;
-      
-      for (const order of orders) {
-        // Check if order contains any of seller's items
-        let orderBelongsToSeller = false;
-        
-        // For now, we'll assume commission is 10% of order total
-        // In a real app, you'd calculate based on actual items
-        const commission = order.total * 0.1;
-        const sellerEarnings = order.total * 0.9;
-        
-        // Determine category based on order items (simplified)
-        // In real app, you'd check actual items
-        if (myProductIds.size > 0) {
-          productSales += sellerEarnings;
-          orderBelongsToSeller = true;
+    const loadEarnings = async () => {
+      try {
+        const [walletResponse, transactionsResponse] = await Promise.all([
+          api.get('/wallet/balance'),
+          api.get('/wallet/transactions'),
+        ]);
+        if (!isCurrent) return;
+
+        setWallet(walletResponse.data.wallet || null);
+        setTransactions(transactionsResponse.data.transactions || []);
+      } catch (error) {
+        if (isCurrent) {
+          console.error('Failed to load earnings:', error);
+          toast.error('Failed to load earnings');
         }
-        if (myCourseIds.size > 0) {
-          courseSales += sellerEarnings;
-          orderBelongsToSeller = true;
-        }
-        if (myServiceIds.size > 0) {
-          serviceSales += sellerEarnings;
-          orderBelongsToSeller = true;
-        }
-        if (myDigitalIds.size > 0) {
-          digitalSales += sellerEarnings;
-          orderBelongsToSeller = true;
-        }
-        if (myBookingIds.size > 0) {
-          bookingSales += sellerEarnings;
-          orderBelongsToSeller = true;
-        }
-        
-        if (orderBelongsToSeller) {
-          totalEarnings += sellerEarnings;
-          
-          const orderDate = new Date(order.created_at);
-          if (orderDate.getMonth() === thisMonth && orderDate.getFullYear() === thisYear) {
-            thisMonthEarnings += sellerEarnings;
-          }
-          if (orderDate >= lastMonthDate && orderDate < new Date(thisYear, thisMonth, 1)) {
-            lastMonthEarnings += sellerEarnings;
-          }
-          
-          transactionList.push({
-            id: order.id,
-            orderNumber: order.order_number,
-            amount: sellerEarnings,
-            commission: commission,
-            date: order.created_at,
-            status: order.status || 'completed',
-            type: 'sale'
-          });
-        }
+      } finally {
+        if (isCurrent) setLoading(false);
       }
-      
-      setSalesByCategory({
-        products: productSales,
-        courses: courseSales,
-        services: serviceSales,
-        digital: digitalSales,
-        bookings: bookingSales
-      });
-      
-      setEarnings({
-        totalEarnings,
-        availableBalance: totalEarnings * 0.7, // 70% available, 30% pending
-        pendingBalance: totalEarnings * 0.3,
-        thisMonthEarnings,
-        lastMonthEarnings
-      });
-      
-      setTransactions(transactionList);
-      
-    } catch (error) {
-      console.error('Failed to fetch earnings:', error);
-      toast.error('Failed to load earnings data');
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US').format(amount) + ' MAD';
-  };
+    void loadEarnings();
 
-  const getStatusColor = (status) => {
-    switch(status) {
-      case 'completed': return '#10b981';
-      case 'pending': return '#f59e0b';
-      case 'cancelled': return '#ef4444';
-      default: return '#6b7280';
-    }
-  };
+    return () => {
+      isCurrent = false;
+    };
+  }, []);
 
   if (loading) {
     return (
       <div className="text-center py-16">
-        <div className="spinner"></div>
+        <div className="spinner" />
         <p>Loading earnings...</p>
       </div>
     );
   }
 
+  const withdrawalEligibility = wallet?.withdrawalEligibility;
+  const withdrawalsOnHold = withdrawalEligibility?.eligible === false;
+
   return (
-    <div>
-      {/* Earnings Summary Cards */}
+    <div className="earnings-page">
       <div className="earnings-summary">
         <div className="summary-card">
-          <div className="summary-label">Total Earnings</div>
-          <div className="summary-value">{formatCurrency(earnings.totalEarnings)}</div>
-          <div className="summary-change">Lifetime earnings</div>
+          <div className="summary-label">Total earned</div>
+          <div className="summary-value">{formatCurrency(wallet?.total_earned)}</div>
+          <div className="summary-hint">Lifetime seller credits</div>
         </div>
         <div className="summary-card">
-          <div className="summary-label">Available Balance</div>
-          <div className="summary-value">{formatCurrency(earnings.availableBalance)}</div>
-          <button className="withdraw-btn">Withdraw</button>
+          <div className="summary-label">Available balance</div>
+          <div className="summary-value">{formatCurrency(wallet?.available_balance)}</div>
+          <div className="summary-hint">Ready to withdraw when eligible</div>
         </div>
         <div className="summary-card">
-          <div className="summary-label">Pending Balance</div>
-          <div className="summary-value">{formatCurrency(earnings.pendingBalance)}</div>
-          <div className="summary-hint">Will be available in 14 days</div>
+          <div className="summary-label">In escrow</div>
+          <div className="summary-value">{formatCurrency(wallet?.escrow_balance)}</div>
+          <div className="summary-hint">Awaiting delivery confirmation</div>
         </div>
         <div className="summary-card">
-          <div className="summary-label">This Month</div>
-          <div className="summary-value">{formatCurrency(earnings.thisMonthEarnings)}</div>
-          <div className={`summary-change ${earnings.thisMonthEarnings > earnings.lastMonthEarnings ? 'positive' : 'negative'}`}>
-            {earnings.lastMonthEarnings > 0 ? `${((earnings.thisMonthEarnings - earnings.lastMonthEarnings) / earnings.lastMonthEarnings * 100).toFixed(1)}% vs last month` : 'First month'}
-          </div>
+          <div className="summary-label">Pending withdrawal</div>
+          <div className="summary-value">{formatCurrency(wallet?.pending_withdrawal)}</div>
+          <div className="summary-hint">Being processed</div>
         </div>
       </div>
 
-      {/* Sales by Category */}
-      <div className="category-sales">
-        <h3>Sales by Category</h3>
-        <div className="category-grid">
-          <div className="category-item">
-            <div className="category-icon">📦</div>
-            <div className="category-info">
-              <span className="category-name">Products</span>
-              <span className="category-amount">{formatCurrency(salesByCategory.products)}</span>
-            </div>
-          </div>
-          <div className="category-item">
-            <div className="category-icon">📚</div>
-            <div className="category-info">
-              <span className="category-name">Courses</span>
-              <span className="category-amount">{formatCurrency(salesByCategory.courses)}</span>
-            </div>
-          </div>
-          <div className="category-item">
-            <div className="category-icon">🛠️</div>
-            <div className="category-info">
-              <span className="category-name">Services</span>
-              <span className="category-amount">{formatCurrency(salesByCategory.services)}</span>
-            </div>
-          </div>
-          <div className="category-item">
-            <div className="category-icon">💻</div>
-            <div className="category-info">
-              <span className="category-name">Digital</span>
-              <span className="category-amount">{formatCurrency(salesByCategory.digital)}</span>
-            </div>
-          </div>
-          <div className="category-item">
-            <div className="category-icon">📅</div>
-            <div className="category-info">
-              <span className="category-name">Bookings</span>
-              <span className="category-amount">{formatCurrency(salesByCategory.bookings)}</span>
-            </div>
-          </div>
+      {withdrawalsOnHold && (
+        <div className="withdrawal-notice" role="status">
+          New sellers can request a withdrawal after {WITHDRAWAL_HOLD_DAYS} days. Your wallet becomes available on{' '}
+          <strong>{formatDate(withdrawalEligibility.availableAt)}</strong>.
         </div>
-      </div>
+      )}
 
-      {/* Transaction History */}
-      <div className="transactions-card">
-        <h3>Transaction History</h3>
+      <section className="commission-card" aria-labelledby="commission-title">
+        <div>
+          <h3 id="commission-title">rifKANDO commission by category</h3>
+          <p>The applicable commission is recorded before seller funds enter the wallet.</p>
+        </div>
+        <div className="commission-grid">
+          {COMMISSION_CATEGORIES.map(({ key, label }) => (
+            <div className="commission-item" key={key}>
+              <span>{label}</span>
+              <strong>{COMMISSION_RATES[key]}%</strong>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="transactions-card" aria-labelledby="transaction-title">
+        <h3 id="transaction-title">Wallet activity</h3>
         {transactions.length === 0 ? (
           <div className="empty-transactions">
-            <p>No transactions yet</p>
+            <p>No wallet activity yet.</p>
           </div>
         ) : (
           <div className="transactions-table">
-            <div className="table-header">
+            <div className="table-header" aria-hidden="true">
               <span>Date</span>
-              <span>Order ID</span>
+              <span>Description</span>
               <span>Type</span>
               <span>Amount</span>
-              <span>Commission</span>
-              <span>Status</span>
             </div>
-            {transactions.map(tx => (
-              <div key={tx.id} className="table-row">
-                <span>{new Date(tx.date).toLocaleDateString()}</span>
-                <span className="order-id">{tx.orderNumber}</span>
-                <span className="transaction-type">{tx.type}</span>
-                <span className="amount">{formatCurrency(tx.amount)}</span>
-                <span className="commission">{formatCurrency(tx.commission)}</span>
-                <span className="status" style={{ color: getStatusColor(tx.status) }}>
-                  {tx.status}
+            {transactions.map((transaction) => (
+              <div className="table-row" key={transaction.id}>
+                <span data-label="Date">{formatDate(transaction.created_at)}</span>
+                <span data-label="Description" className="transaction-description">
+                  {transaction.description || 'Wallet activity'}
+                </span>
+                <span data-label="Type" className="transaction-type">{transactionLabel(transaction.type)}</span>
+                <span
+                  data-label="Amount"
+                  className={`amount ${Number(transaction.amount) >= 0 ? 'positive' : 'negative'}`}
+                >
+                  {Number(transaction.amount) > 0 ? '+' : ''}{formatCurrency(transaction.amount)}
                 </span>
               </div>
             ))}
           </div>
         )}
-      </div>
+      </section>
 
       <style>{`
-        .earnings-summary {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-          gap: 1.5rem;
-          margin-bottom: 2rem;
-        }
-        .summary-card {
-          background: white;
-          border-radius: 1rem;
-          padding: 1.5rem;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-          text-align: center;
-        }
-        .summary-label {
-          font-size: 0.875rem;
-          color: #6b7280;
-          margin-bottom: 0.5rem;
-        }
-        .summary-value {
-          font-size: 1.75rem;
-          font-weight: bold;
-          margin-bottom: 0.5rem;
-        }
-        .summary-change {
-          font-size: 0.75rem;
-          color: #6b7280;
-        }
-        .summary-change.positive {
-          color: #10b981;
-        }
-        .summary-change.negative {
-          color: #ef4444;
-        }
-        .summary-hint {
-          font-size: 0.7rem;
-          color: #9ca3af;
-          margin-top: 0.5rem;
-        }
-        .withdraw-btn {
-          margin-top: 0.75rem;
-          padding: 0.5rem 1rem;
-          background: #1a1a1a;
-          color: white;
-          border: none;
-          border-radius: 2rem;
-          font-size: 0.75rem;
-          cursor: pointer;
-        }
-        .category-sales {
-          background: white;
-          border-radius: 1rem;
-          padding: 1.5rem;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-          margin-bottom: 2rem;
-        }
-        .category-sales h3 {
-          font-size: 1rem;
-          margin-bottom: 1rem;
-        }
-        .category-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-          gap: 1rem;
-        }
-        .category-item {
-          display: flex;
-          align-items: center;
-          gap: 1rem;
-          padding: 0.75rem;
-          background: #f9fafb;
-          border-radius: 0.75rem;
-        }
-        .category-icon {
-          font-size: 2rem;
-        }
-        .category-info {
-          display: flex;
-          flex-direction: column;
-        }
-        .category-name {
-          font-size: 0.75rem;
-          color: #6b7280;
-        }
-        .category-amount {
-          font-weight: 600;
-          font-size: 1rem;
-        }
-        .transactions-card {
-          background: white;
-          border-radius: 1rem;
-          padding: 1.5rem;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-        .transactions-card h3 {
-          font-size: 1rem;
-          margin-bottom: 1rem;
-        }
-        .empty-transactions {
-          text-align: center;
-          padding: 2rem;
-          color: #6b7280;
-        }
-        .transactions-table {
-          overflow-x: auto;
-        }
-        .table-header, .table-row {
-          display: grid;
-          grid-template-columns: 100px 1fr 80px 120px 120px 100px;
-          gap: 1rem;
-          padding: 0.75rem;
-          align-items: center;
-        }
-        .table-header {
-          font-weight: 600;
-          font-size: 0.75rem;
-          text-transform: uppercase;
-          color: #6b7280;
-          border-bottom: 1px solid #e5e7eb;
-        }
-        .table-row {
-          border-bottom: 1px solid #f3f4f6;
-          font-size: 0.875rem;
-        }
-        .order-id {
-          font-family: monospace;
-          font-size: 0.8rem;
-        }
-        .transaction-type {
-          text-transform: capitalize;
-        }
-        .amount {
-          font-weight: 600;
-        }
-        .commission {
-          color: #6b7280;
-        }
-        .status {
-          text-transform: capitalize;
-          font-weight: 500;
-        }
-        @media (max-width: 768px) {
-          .table-header, .table-row {
-            grid-template-columns: 80px 1fr 70px 100px 100px 80px;
-            font-size: 0.75rem;
-          }
+        .earnings-page { max-width: 1200px; margin: 0 auto; }
+        .earnings-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; margin-bottom: 1.25rem; }
+        .summary-card, .commission-card, .transactions-card { background: #fff; border: 1px solid #e7edf5; border-radius: 1rem; box-shadow: 0 1px 3px rgba(15, 23, 42, .06); }
+        .summary-card { padding: 1.35rem; }
+        .summary-label { color: #64748b; font-size: .82rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+        .summary-value { color: #0f172a; font-size: 1.6rem; font-weight: 750; margin: .55rem 0 .35rem; }
+        .summary-hint { color: #64748b; font-size: .78rem; line-height: 1.4; }
+        .withdrawal-notice { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: .8rem; color: #1e3a5f; margin-bottom: 1.25rem; padding: .9rem 1rem; }
+        .commission-card { display: grid; gap: 1.25rem; margin-bottom: 1.25rem; padding: 1.35rem; }
+        .commission-card h3, .transactions-card h3 { color: #0f172a; font-size: 1.05rem; margin: 0 0 .35rem; }
+        .commission-card p { color: #64748b; font-size: .9rem; margin: 0; }
+        .commission-grid { display: grid; gap: .75rem; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); }
+        .commission-item { align-items: center; background: #f8fafc; border: 1px solid #e7edf5; border-radius: .75rem; display: flex; justify-content: space-between; padding: .8rem; }
+        .commission-item span { color: #475569; font-size: .82rem; }
+        .commission-item strong { color: #1172ba; font-size: 1rem; }
+        .transactions-card { padding: 1.35rem; }
+        .transactions-table { overflow-x: auto; }
+        .table-header, .table-row { align-items: center; display: grid; gap: 1rem; grid-template-columns: 110px minmax(220px, 1fr) 130px 120px; min-width: 650px; padding: .85rem .25rem; }
+        .table-header { border-bottom: 1px solid #e7edf5; color: #64748b; font-size: .72rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+        .table-row { border-bottom: 1px solid #f1f5f9; color: #334155; font-size: .87rem; }
+        .table-row:last-child { border-bottom: 0; }
+        .transaction-description { overflow-wrap: anywhere; }
+        .transaction-type { color: #475569; text-transform: capitalize; }
+        .amount { font-weight: 700; text-align: right; }
+        .amount.positive { color: #15803d; }
+        .amount.negative { color: #b91c1c; }
+        .empty-transactions { color: #64748b; padding: 2rem 1rem; text-align: center; }
+        @media (max-width: 640px) {
+          .summary-value { font-size: 1.4rem; }
+          .commission-card, .transactions-card { padding: 1rem; }
+          .table-header { display: none; }
+          .transactions-table { overflow: visible; }
+          .table-row { display: grid; gap: .55rem; grid-template-columns: 1fr auto; min-width: 0; padding: 1rem 0; }
+          .table-row span { display: flex; justify-content: space-between; gap: 1rem; }
+          .table-row span::before { color: #64748b; content: attr(data-label); font-size: .72rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+          .transaction-description { grid-column: 1 / -1; }
+          .amount { text-align: left; }
         }
       `}</style>
     </div>

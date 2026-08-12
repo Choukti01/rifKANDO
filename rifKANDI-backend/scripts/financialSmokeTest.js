@@ -29,7 +29,7 @@ const createUsersAndProduct = async (title, price) => WalletService.withFinancia
     [`${title} buyer`, `${title.replaceAll(' ', '-')}@buyer.test`, 'x']
   );
   const seller = await tx.run(
-    "INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, 'seller')",
+    "INSERT INTO users (name, email, password, role, seller_started_at) VALUES (?, ?, ?, 'seller', datetime('now', '-15 days'))",
     [`${title} seller`, `${title.replaceAll(' ', '-')}@seller.test`, 'x']
   );
   const product = await tx.run(
@@ -89,6 +89,12 @@ const run = async () => {
     "UPDATE orders SET status = 'shipped' WHERE id = ?", [orderResult.order.id]
   ));
   await WalletService.releaseOrderEscrowsAfterDelivery(orderResult.order.id, walletFlow.sellerId);
+  const productEscrow = await WalletService.get(
+    'SELECT commission_minor, seller_amount_minor FROM escrow_transactions WHERE order_id = ?',
+    [orderResult.order.id]
+  );
+  assert.equal(productEscrow.commission_minor, 1500, 'physical products must use the 7.5% commission rate');
+  assert.equal(productEscrow.seller_amount_minor, 18500);
   const withdrawal = await WalletService.requestWithdrawal(
     walletFlow.sellerId,
     100,
@@ -106,8 +112,8 @@ const run = async () => {
   const sellerWallet = await WalletService.getWallet(walletFlow.sellerId);
   assert.equal(buyerWallet.available_balance, 750);
   assert.equal(buyerWallet.available_balance_minor, 75000);
-  assert.equal(sellerWallet.available_balance, 80);
-  assert.equal(sellerWallet.available_balance_minor, 8000);
+  assert.equal(sellerWallet.available_balance, 85);
+  assert.equal(sellerWallet.available_balance_minor, 8500);
   assert.equal(sellerWallet.escrow_balance, 0);
   assert.equal(sellerWallet.pending_withdrawal, 0);
 
@@ -153,8 +159,27 @@ const run = async () => {
   );
   assert.equal(persistedCmiOrder.payment_status, 'paid');
   assert.equal(persistedCmiOrder.status, 'processing');
-  assert.equal(cmiSellerWallet.escrow_balance, 180);
-  assert.equal(cmiSellerWallet.escrow_balance_minor, 18000);
+  assert.equal(cmiSellerWallet.escrow_balance, 185);
+  assert.equal(cmiSellerWallet.escrow_balance_minor, 18500);
+
+  const newSeller = await WalletService.withFinancialTransaction((tx) => tx.run(
+    "INSERT INTO users (name, email, password, role, seller_started_at) VALUES (?, ?, ?, 'seller', CURRENT_TIMESTAMP)",
+    ['New seller', 'new-seller@test.local', 'x']
+  ));
+  await WalletService.addFunds(
+    newSeller.lastID, 200, 'test_seed', 1, 'New seller funding', 'test-seed-credit:new-seller:1001'
+  );
+  await assert.rejects(
+    WalletService.requestWithdrawal(
+      newSeller.lastID,
+      100,
+      'bank_transfer',
+      { bank: 'Test Bank', account_name: 'New Seller', account_number: '999' },
+      'test-wallet-withdrawal-new-seller:1001'
+    ),
+    /New sellers can request withdrawals after 14 days/,
+    'new sellers must not bypass the 14-day withdrawal hold'
+  );
 
   const refundFlow = await createUsersAndProduct('Refund product', 200);
   await WalletService.addFunds(

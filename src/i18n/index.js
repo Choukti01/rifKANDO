@@ -20,6 +20,42 @@ resources.ar.translation.home.headlineLead = 'اشترِ. تعلّم. اطلب �
 resources.ar.translation.home.headlineAccent = 'تقدّم.';
 resources.ar.translation.home.valueStatement = 'منتجات موثوقة، ودورات عملية، ومحترفون موثوقون، وأدوات رقمية، وحجوزات، نربط المغرب بالعالم.';
 
+Object.assign(resources.en.translation.footer, {
+  sellers: 'Sell with rifKANDO',
+  support: 'Support & Legal',
+  startSelling: 'Become a Seller',
+  sellerGuidelines: 'Seller Guide',
+  pricing: 'Fees & Pricing',
+  helpCenter: 'Help Center',
+  contactUs: 'Contact Support',
+  terms: 'Terms of Service',
+  privacy: 'Privacy Policy',
+});
+
+Object.assign(resources.fr.translation.footer, {
+  sellers: 'Vendre avec rifKANDO',
+  support: 'Assistance et informations juridiques',
+  startSelling: 'Devenir vendeur',
+  sellerGuidelines: 'Guide du vendeur',
+  pricing: 'Frais et tarifs',
+  helpCenter: "Centre d'aide",
+  contactUs: "Contacter l'assistance",
+  terms: "Conditions d'utilisation",
+  privacy: 'Politique de confidentialit\u00e9',
+});
+
+Object.assign(resources.ar.translation.footer, {
+  sellers: '\u0627\u0644\u0628\u064a\u0639 \u0645\u0639 rifKANDO',
+  support: '\u0627\u0644\u062f\u0639\u0645 \u0648\u0627\u0644\u0634\u0624\u0648\u0646 \u0627\u0644\u0642\u0627\u0646\u0648\u0646\u064a\u0629',
+  startSelling: '\u0643\u0646 \u0628\u0627\u0626\u0639\u064b\u0627',
+  sellerGuidelines: '\u062f\u0644\u064a\u0644 \u0627\u0644\u0628\u0627\u0626\u0639',
+  pricing: '\u0627\u0644\u0631\u0633\u0648\u0645 \u0648\u0627\u0644\u0623\u0633\u0639\u0627\u0631',
+  helpCenter: '\u0645\u0631\u0643\u0632 \u0627\u0644\u0645\u0633\u0627\u0639\u062f\u0629',
+  contactUs: '\u062a\u0648\u0627\u0635\u0644 \u0645\u0639 \u0627\u0644\u062f\u0639\u0645',
+  terms: '\u0634\u0631\u0648\u0637 \u0627\u0644\u062e\u062f\u0645\u0629',
+  privacy: '\u0633\u064a\u0627\u0633\u0629 \u0627\u0644\u062e\u0635\u0648\u0635\u064a\u0629',
+});
+
 const supportedLanguages = ['en', 'fr', 'ar'];
 const savedLanguage = localStorage.getItem('rifkando_language');
 const initialLanguage = supportedLanguages.includes(savedLanguage) ? savedLanguage : 'en';

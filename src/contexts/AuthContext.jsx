@@ -97,6 +97,48 @@ export const AuthProvider = ({ children }) => {
     }
   }, [completeAuthentication]);
 
+  const requestPhoneRegistrationCode = useCallback(async ({ name, phone }) => {
+    try {
+      const response = await api.post('/auth/phone/register/request-code', { name, phone });
+      toast.success(response.data.message || 'An SMS code was sent to your phone.');
+      return { success: true };
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'Could not send the SMS code.');
+      return { success: false };
+    }
+  }, []);
+
+  const verifyPhoneRegistration = useCallback(async ({ name, phone, code }) => {
+    try {
+      const response = await api.post('/auth/phone/register/verify', { name, phone, code });
+      return completeAuthentication(response, 'Welcome to rifKANDO!');
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'The SMS code could not be verified.');
+      return { success: false };
+    }
+  }, [completeAuthentication]);
+
+  const requestPhoneLoginCode = useCallback(async (phone) => {
+    try {
+      const response = await api.post('/auth/phone/login/request-code', { phone });
+      toast.success(response.data.message || 'If an account exists, an SMS code was sent.');
+      return { success: true };
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'Could not send the SMS code.');
+      return { success: false };
+    }
+  }, []);
+
+  const verifyPhoneLogin = useCallback(async ({ phone, code }) => {
+    try {
+      const response = await api.post('/auth/phone/login/verify', { phone, code });
+      return completeAuthentication(response, 'Welcome back to rifKANDO!');
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'The SMS code could not be verified.');
+      return { success: false };
+    }
+  }, [completeAuthentication]);
+
   const googleLogin = useCallback(async (credential) => {
     try {
       const response = await api.post('/auth/google', { credential });
@@ -178,6 +220,10 @@ export const AuthProvider = ({ children }) => {
     login,
     register,
     verifyEmail,
+    requestPhoneRegistrationCode,
+    verifyPhoneRegistration,
+    requestPhoneLoginCode,
+    verifyPhoneLogin,
     googleLogin,
     verifyGoogleRegistration,
     resendGoogleVerification,
@@ -185,7 +231,7 @@ export const AuthProvider = ({ children }) => {
     logoutAllDevices,
     updateUser,
     updateSellerType,
-  }), [user, loading, login, register, verifyEmail, googleLogin, verifyGoogleRegistration, resendGoogleVerification, logout, logoutAllDevices, updateUser, updateSellerType]);
+  }), [user, loading, login, register, verifyEmail, requestPhoneRegistrationCode, verifyPhoneRegistration, requestPhoneLoginCode, verifyPhoneLogin, googleLogin, verifyGoogleRegistration, resendGoogleVerification, logout, logoutAllDevices, updateUser, updateSellerType]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

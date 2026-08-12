@@ -37,8 +37,6 @@ const PaymentSuccess = lazy(() => import('./pages/PaymentSuccess'))
 const PaymentFailed = lazy(() => import('./pages/PaymentFailed'))
 const SellerOrders = lazy(() => import('./pages/seller/dashboard/Orders'))
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'))
-const VerifySellers = lazy(() => import('./pages/admin/VerifySellers'))
-const ReviewVerifications = lazy(() => import('./pages/admin/ReviewVerifications'))
 const PackagesManager = lazy(() => import('./pages/seller/services/PackagesManager'))
 const LessonsManager = lazy(() => import('./pages/seller/courses/LessonsManager'))
 const DashboardLayout = lazy(() => import('./pages/seller/dashboard/DashboardLayout'))
@@ -61,7 +59,6 @@ const EditBooking = lazy(() => import('./pages/seller/bookings/EditBooking'))
 const Settings = lazy(() => import('./pages/seller/dashboard/Settings'))
 const Wallet = lazy(() => import('./pages/seller/dashboard/Wallet'))
 const SellerOffers = lazy(() => import('./pages/seller/dashboard/Offers'))
-const VerificationUpload = lazy(() => import('./pages/seller/dashboard/VerificationUpload'))
 const SellerGuidelines = lazy(() => import('./pages/seller/SellerGuidelines'))
 const PricingPage = lazy(() => import('./pages/PricingPage'))
 const HelpCenter = lazy(() => import('./pages/HelpCenter'))
@@ -132,14 +129,10 @@ function AppContent() {
                   <Route path="/search" element={<SearchPage />} />
 
                   <Route path="/admin" element={
-                    <ProtectedRoute requiredRole="admin">
+                    <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
                       <AdminDashboard />
                     </ProtectedRoute>
-                  }>
-                    <Route path="verify-sellers" element={<VerifySellers />} />
-                    <Route path="review-verifications" element={<ReviewVerifications />} />
-                  </Route>
-
+                  } />
                   <Route path="/payment/success" element={<PaymentSuccess />} />
                   <Route path="/payment/failed" element={<PaymentFailed />} />
 
@@ -236,7 +229,8 @@ function AppContent() {
                     <Route path="offers" element={<SellerOffers />} />
                     <Route path="messages" element={<MessagesInbox />} />
                     <Route path="messages/:userId" element={<ChatPage />} />
-                    <Route path="verification" element={<VerificationUpload />} />
+                    <Route path="favorites" element={<FavoritesPage />} />
+                    <Route path="cart" element={<CartPage />} />
                   </Route>
                     </Routes>
                     </Suspense>

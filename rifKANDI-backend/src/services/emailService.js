@@ -14,7 +14,7 @@ class EmailService {
   static async sendEmail(to, subject, html, type = 'general') {
     try {
       const info = await transporter.sendMail({
-        from: `"rifKANDI" <${process.env.EMAIL_USER}>`,
+        from: `"rifKANDO" <${process.env.EMAIL_USER}>`,
         to,
         subject,
         html
@@ -44,7 +44,7 @@ class EmailService {
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background: #87CEEB; padding: 20px; text-align: center;">
-          <h1 style="color: #1a1a1a; margin: 0;">rifKANDI</h1>
+          <h1 style="color: #1a1a1a; margin: 0;">rifKANDO</h1>
         </div>
         <div style="padding: 20px;">
           <h2>Order Confirmed! ✅</h2>
@@ -65,7 +65,7 @@ class EmailService {
           <a href="${process.env.CLIENT_URL}/orders/${order.id}" style="background: #1a1a1a; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin-top: 20px;">View Order →</a>
         </div>
         <div style="background: #f3f4f6; padding: 10px; text-align: center; font-size: 12px;">
-          <p>rifKANDI – Your Moroccan Marketplace</p>
+          <p>rifKANDO, from Morocco to the world</p>
         </div>
       </div>
     `;
@@ -84,7 +84,7 @@ class EmailService {
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background: #87CEEB; padding: 20px; text-align: center;">
-          <h1 style="color: #1a1a1a; margin: 0;">rifKANDI</h1>
+          <h1 style="color: #1a1a1a; margin: 0;">rifKANDO</h1>
         </div>
         <div style="padding: 20px;">
           <h2>Order Status Update 🔄</h2>
@@ -94,7 +94,7 @@ class EmailService {
           <a href="${process.env.CLIENT_URL}/orders/${order.id}" style="background: #1a1a1a; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin-top: 20px;">Track Order →</a>
         </div>
         <div style="background: #f3f4f6; padding: 10px; text-align: center; font-size: 12px;">
-          <p>rifKANDI – Your Moroccan Marketplace</p>
+          <p>rifKANDO, from Morocco to the world</p>
         </div>
       </div>
     `;

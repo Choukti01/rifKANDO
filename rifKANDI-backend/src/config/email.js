@@ -16,7 +16,7 @@ const sendEmail = async ({ to, subject, html }) => {
   try {
     const transporter = createTransporter();
     const info = await transporter.sendMail({
-      from: `"rifKANDI" <${process.env.GMAIL_USER}>`,
+      from: `"rifKANDO" <${process.env.GMAIL_USER}>`,
       to,
       subject,
       html
@@ -34,16 +34,16 @@ const sendEmail = async ({ to, subject, html }) => {
 const getWelcomeTemplate = (name) => `
   <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
     <div style="background: #87CEEB; padding: 20px; text-align: center;">
-      <h1 style="color: #1a1a1a; margin: 0;">rifKANDI</h1>
+      <h1 style="color: #1a1a1a; margin: 0;">rifKANDO</h1>
     </div>
     <div style="padding: 20px; background: white;">
       <h2>Welcome ${name}! 🎉</h2>
-      <p>Thank you for joining rifKANDI – Morocco's premier marketplace.</p>
+      <p>Thank you for joining rifKANDO, a marketplace from Morocco to the world.</p>
       <p>Start exploring thousands of products, courses, services, and more.</p>
       <a href="${process.env.CLIENT_URL}/products" style="background: #1a1a1a; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">Shop Now →</a>
     </div>
     <div style="background: #f3f4f6; padding: 10px; text-align: center; font-size: 12px;">
-      <p>rifKANDI – Your Moroccan Marketplace</p>
+      <p>rifKANDO, from Morocco to the world</p>
     </div>
   </div>
 `;
@@ -80,7 +80,7 @@ const getOrderConfirmationTemplate = (orderNumber, items, total, shippingAddress
       <a href="${process.env.CLIENT_URL}/orders/${orderNumber}" style="background: #1a1a1a; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">View Order →</a>
     </div>
     <div style="background: #f3f4f6; padding: 10px; text-align: center; font-size: 12px;">
-      <p>rifKANDI – Your Moroccan Marketplace</p>
+      <p>rifKANDO, from Morocco to the world</p>
     </div>
   </div>
 `;
@@ -99,7 +99,7 @@ const getPasswordResetTemplate = (resetUrl, code) => `
       <p>If you didn't request this, please ignore this email.</p>
     </div>
     <div style="background: #f3f4f6; padding: 10px; text-align: center; font-size: 12px;">
-      <p>rifKANDI – Your Moroccan Marketplace</p>
+      <p>rifKANDO, from Morocco to the world</p>
     </div>
   </div>
 `;

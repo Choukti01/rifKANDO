@@ -7,14 +7,12 @@ const ROLES = Object.freeze({
   SELLER: 'seller',
   SUPPORT: 'support',
   FINANCE: 'finance',
-  VERIFICATION_REVIEWER: 'verification_reviewer',
   ADMIN: 'admin',
   SUPER_ADMIN: 'super_admin',
 });
 
 const ADMIN_ROLES = Object.freeze([ROLES.ADMIN, ROLES.SUPER_ADMIN]);
 const FINANCE_ROLES = Object.freeze([ROLES.FINANCE, ...ADMIN_ROLES]);
-const VERIFICATION_REVIEWER_ROLES = Object.freeze([ROLES.VERIFICATION_REVIEWER, ...ADMIN_ROLES]);
 
 const hasAnyRole = (user, roles) => Boolean(user && roles.includes(user.role));
 const isAdmin = (user) => hasAnyRole(user, ADMIN_ROLES);
@@ -72,5 +70,4 @@ module.exports = {
   ROLES,
   ADMIN_ROLES,
   FINANCE_ROLES,
-  VERIFICATION_REVIEWER_ROLES,
 };

@@ -9,7 +9,6 @@ const {
   ROLES,
   ADMIN_ROLES,
   FINANCE_ROLES,
-  VERIFICATION_REVIEWER_ROLES,
 } = require('./middleware/auth');
 const path = require('path');
 const fs = require('fs');
@@ -62,6 +61,17 @@ const AuditService = require('./services/auditService');
 const Money = require('./services/moneyService');
 const FeatureFlags = require('./services/featureFlagService');
 const { snapshot: getObservabilitySnapshot } = require('./services/observabilityService');
+const {
+  OTP_MAX_ATTEMPTS,
+  OTP_MAX_SENDS_PER_HOUR,
+  OTP_TTL_MS,
+  PhoneAuthError,
+  generateCode: generatePhoneCode,
+  hashCode: hashPhoneCode,
+  normalizePhoneNumber,
+  sendVerificationCode: sendPhoneVerificationCode,
+  timingSafeCodeMatch,
+} = require('./services/phoneAuthService');
 const createProductRoutes = require('./routes/productRoutes');
 const createCourseRoutes = require('./routes/courseRoutes');
 const createServiceRoutes = require('./routes/serviceRoutes');
@@ -76,7 +86,6 @@ const app = express();
 const requireSeller = authorize(ROLES.SELLER);
 const requireAdmin = authorize(...ADMIN_ROLES);
 const requireFinance = authorize(...FINANCE_ROLES);
-const requireVerificationReviewer = authorize(...VERIFICATION_REVIEWER_ROLES);
 const requireFeature = FeatureFlags.requireFeature;
 const allowedOrigins = new Set(getAllowedOrigins());
 
@@ -89,6 +98,12 @@ const authRateLimit = createRateLimiter({
   windowMs: 15 * 60 * 1000,
   max: 20,
   message: 'Too many authentication attempts. Please try again later.'
+});
+
+const phoneCodeRateLimit = createRateLimiter({
+  windowMs: 60 * 60 * 1000,
+  max: 8,
+  message: 'Too many SMS code requests. Please try again later.'
 });
 
 const googleVerificationExpiryMs = 10 * 60 * 1000;
@@ -491,6 +506,156 @@ const hasTrustedBrowserOrigin = (req) => {
   return !origin || allowedOrigins.has(origin);
 };
 
+const getRow = (sql, parameters = []) => new Promise((resolve, reject) => {
+  db.get(sql, parameters, (error, row) => (error ? reject(error) : resolve(row)));
+});
+
+const runStatement = (sql, parameters = []) => new Promise((resolve, reject) => {
+  db.run(sql, parameters, function onRun(error) {
+    if (error) reject(error);
+    else resolve({ changes: this.changes || 0, lastID: this.lastID });
+  });
+});
+
+const isPhoneIdentityEmail = (email) => String(email || '').endsWith('@phone.rifkando.invalid');
+
+async function issuePhoneChallenge(phone, purpose) {
+  const current = await getRow('SELECT * FROM phone_verification_challenges WHERE phone = ?', [phone]);
+  const now = Date.now();
+  const currentWindow = current?.window_started_at ? new Date(current.window_started_at).getTime() : 0;
+  const inWindow = Number.isFinite(currentWindow) && now - currentWindow < 60 * 60 * 1000;
+  const sendCount = inWindow ? Number(current?.send_count || 0) : 0;
+  if (sendCount >= OTP_MAX_SENDS_PER_HOUR) {
+    throw new PhoneAuthError('Too many SMS code requests. Please try again later.', 429);
+  }
+
+  const code = generatePhoneCode();
+  const expiresAt = new Date(now + OTP_TTL_MS).toISOString();
+  const windowStartedAt = inWindow ? current.window_started_at : new Date(now).toISOString();
+  await runStatement(`
+    INSERT INTO phone_verification_challenges (phone, purpose, code_hash, expires_at, attempts, send_count, window_started_at)
+    VALUES (?, ?, ?, ?, 0, ?, ?)
+    ON CONFLICT(phone) DO UPDATE SET
+      purpose = excluded.purpose,
+      code_hash = excluded.code_hash,
+      expires_at = excluded.expires_at,
+      attempts = 0,
+      send_count = excluded.send_count,
+      window_started_at = excluded.window_started_at,
+      created_at = CURRENT_TIMESTAMP
+  `, [phone, purpose, hashPhoneCode(phone, code), expiresAt, sendCount + 1, windowStartedAt]);
+
+  try {
+    await sendPhoneVerificationCode(phone, code);
+  } catch (error) {
+    await runStatement('DELETE FROM phone_verification_challenges WHERE phone = ? AND code_hash = ?', [phone, hashPhoneCode(phone, code)]).catch(() => undefined);
+    throw error;
+  }
+}
+
+async function consumePhoneChallenge(phone, purpose, code) {
+  if (!/^\d{6}$/.test(code || '')) {
+    throw new PhoneAuthError('Enter the six-digit SMS code.');
+  }
+  const challenge = await getRow('SELECT * FROM phone_verification_challenges WHERE phone = ?', [phone]);
+  if (!challenge || challenge.purpose !== purpose || new Date(challenge.expires_at).getTime() <= Date.now()) {
+    throw new PhoneAuthError('The SMS code is invalid or expired.');
+  }
+  if (Number(challenge.attempts) >= OTP_MAX_ATTEMPTS) {
+    throw new PhoneAuthError('Too many incorrect codes. Request a new code.', 429);
+  }
+  if (!timingSafeCodeMatch(phone, code, challenge.code_hash)) {
+    await runStatement('UPDATE phone_verification_challenges SET attempts = attempts + 1 WHERE phone = ?', [phone]);
+    throw new PhoneAuthError('The SMS code is invalid or expired.');
+  }
+
+  const consumed = await runStatement(
+    'DELETE FROM phone_verification_challenges WHERE phone = ? AND purpose = ? AND code_hash = ?',
+    [phone, purpose, challenge.code_hash]
+  );
+  if (consumed.changes !== 1) {
+    throw new PhoneAuthError('The SMS code has already been used. Request a new code.', 409);
+  }
+}
+
+function respondPhoneAuthError(res, error) {
+  if (error instanceof PhoneAuthError) {
+    return res.status(error.statusCode).json({ error: error.message });
+  }
+  console.error('Phone authentication failed:', error.message);
+  return res.status(500).json({ error: 'Phone authentication is temporarily unavailable.' });
+}
+
+app.post('/api/auth/phone/register/request-code', authRateLimit, phoneCodeRateLimit, async (req, res) => {
+  try {
+    const name = String(req.body?.name || '').trim();
+    const phone = normalizePhoneNumber(req.body?.phone);
+    if (name.length < 2 || name.length > 120) {
+      throw new PhoneAuthError('Enter your full name.');
+    }
+    const existingUser = await getRow('SELECT id FROM users WHERE phone = ?', [phone]);
+    if (existingUser) return res.status(409).json({ error: 'An account already exists for this phone number. Please sign in.' });
+
+    await issuePhoneChallenge(phone, 'register');
+    return res.status(202).json({ success: true, verificationRequired: true, message: 'An SMS code was sent to your phone.' });
+  } catch (error) {
+    return respondPhoneAuthError(res, error);
+  }
+});
+
+app.post('/api/auth/phone/register/verify', authRateLimit, async (req, res) => {
+  try {
+    const name = String(req.body?.name || '').trim();
+    const phone = normalizePhoneNumber(req.body?.phone);
+    if (name.length < 2 || name.length > 120) throw new PhoneAuthError('Enter your full name.');
+    await consumePhoneChallenge(phone, 'register', req.body?.code);
+
+    const existingUser = await getRow('SELECT id FROM users WHERE phone = ?', [phone]);
+    if (existingUser) return res.status(409).json({ error: 'An account already exists for this phone number. Please sign in.' });
+
+    const bcrypt = require('bcryptjs');
+    const passwordHash = await bcrypt.hash(crypto.randomBytes(32).toString('base64url'), 12);
+    const internalEmail = `phone-${phone.slice(1)}@phone.rifkando.invalid`;
+    const created = await runStatement(
+      'INSERT INTO users (name, email, password, phone, is_verified) VALUES (?, ?, ?, ?, 1)',
+      [name, internalEmail, passwordHash, phone]
+    );
+    const user = await getUserById(created.lastID);
+    return res.status(201).json(await createAuthenticatedResponse(req, res, user));
+  } catch (error) {
+    return respondPhoneAuthError(res, error);
+  }
+});
+
+app.post('/api/auth/phone/login/request-code', authRateLimit, phoneCodeRateLimit, async (req, res) => {
+  try {
+    const phone = normalizePhoneNumber(req.body?.phone);
+    const user = await getRow('SELECT id FROM users WHERE phone = ?', [phone]);
+    if (!user) return res.status(202).json({ success: true, message: 'If an account exists for this phone number, an SMS code has been sent.' });
+
+    await issuePhoneChallenge(phone, 'login');
+    return res.status(202).json({ success: true, verificationRequired: true, message: 'An SMS code was sent to your phone.' });
+  } catch (error) {
+    return respondPhoneAuthError(res, error);
+  }
+});
+
+app.post('/api/auth/phone/login/verify', authRateLimit, async (req, res) => {
+  try {
+    const phone = normalizePhoneNumber(req.body?.phone);
+    const user = await getRow('SELECT * FROM users WHERE phone = ?', [phone]);
+    if (!user) throw new PhoneAuthError('The SMS code is invalid or expired.');
+    await consumePhoneChallenge(phone, 'login', req.body?.code);
+    const response = await createAuthenticatedResponse(req, res, user);
+    if (!isPhoneIdentityEmail(user.email)) {
+      sendLoginNotificationEmail(user.email, user.name).catch((emailError) => console.error('Login notification email failed:', emailError.message));
+    }
+    return res.json(response);
+  } catch (error) {
+    return respondPhoneAuthError(res, error);
+  }
+});
+
 app.post('/api/auth/register', authRateLimit, async (req, res) => {
   const name = req.body.name?.trim();
   const email = req.body.email?.trim().toLowerCase();
@@ -769,7 +934,7 @@ app.post('/api/users/upload-profile-picture',
         );
       }
 
-      db.get('SELECT id, name, email, phone, bio, city, country, role, seller_type, profilePicture, is_verified_seller, created_at FROM users WHERE id = ?',
+      db.get('SELECT id, name, email, phone, bio, city, country, role, seller_type, profilePicture, created_at FROM users WHERE id = ?',
         [req.user.id],
         (error, user) => {
           if (error) return res.status(500).json({ error: 'Failed to load the updated profile.' });
@@ -811,7 +976,7 @@ app.delete('/api/users/profile-picture', protect, async (req, res) => {
         }
         
         // Get updated user
-        db.get('SELECT id, name, email, phone, bio, city, country, role, seller_type, profilePicture, is_verified_seller, created_at FROM users WHERE id = ?', 
+        db.get('SELECT id, name, email, phone, bio, city, country, role, seller_type, profilePicture, created_at FROM users WHERE id = ?',
           [req.user.id], 
           (err, user) => {
             if (err) {
@@ -1164,49 +1329,21 @@ app.post('/api/auth/reset-password', authRateLimit, async (req, res) => {
 app.post('/api/auth/google', authRateLimit, async (req, res) => {
   try {
     const payload = await verifyGoogleCredential(req.body.credential);
-    const { sub, email, name, picture } = payload;
-    
-    db.get('SELECT * FROM users WHERE email = ?', [email], async (err, user) => {
-      if (err) {
-        return res.status(500).json({ error: 'Could not find the Google user' });
-      }
+    const { email, name, picture } = payload;
+    const existingRecord = await getRow('SELECT id FROM users WHERE email = ?', [email]);
+    if (existingRecord) {
+      const existingUser = await getUserById(existingRecord.id);
+      return res.json(await createAuthenticatedResponse(req, res, existingUser));
+    }
 
-      if (user?.is_verified) {
-        return res.json(await createAuthenticatedResponse(req, res, user));
-      }
-
-      const sendCode = async () => {
-        try {
-          await sendGoogleVerificationCode({ email, googleSub: sub });
-          res.status(202).json({
-            success: true,
-            verificationRequired: true,
-            message: 'A verification code was sent to your Google email address.'
-          });
-        } catch (error) {
-          console.error('Google verification email failed:', error.message);
-          res.status(503).json({ error: 'Unable to send the verification email. Please try again later.' });
-        }
-      };
-
-      if (user) {
-        return sendCode();
-      }
-
-      const bcrypt = require('bcryptjs');
-      const randomPassword = crypto.randomBytes(32).toString('base64url');
-      const hashedPassword = await bcrypt.hash(randomPassword, 12);
-
-      db.run(`
-        INSERT INTO users (name, email, password, is_verified, profilePicture)
-        VALUES (?, ?, ?, 0, ?)
-      `, [name || email, email, hashedPassword, picture || ''], (insertError) => {
-        if (insertError) {
-          return res.status(400).json({ error: insertError.message });
-        }
-        sendCode();
-      });
-    });
+    const bcrypt = require('bcryptjs');
+    const passwordHash = await bcrypt.hash(crypto.randomBytes(32).toString('base64url'), 12);
+    const created = await runStatement(
+      'INSERT INTO users (name, email, password, is_verified, profilePicture) VALUES (?, ?, ?, 1, ?)',
+      [name || email, email, passwordHash, picture || '']
+    );
+    const user = await getUserById(created.lastID);
+    return res.status(201).json(await createAuthenticatedResponse(req, res, user));
   } catch (error) {
     const audienceMismatch = /audience|recipient|client.?id/i.test(error.message || '');
     console.error('Google token verification failed:', error.message);
@@ -1219,67 +1356,8 @@ app.post('/api/auth/google', authRateLimit, async (req, res) => {
   }
 });
 
-app.post('/api/auth/google/verify', authRateLimit, async (req, res) => {
-  const { code } = req.body;
-
-  if (!/^\d{6}$/.test(code || '')) {
-    return res.status(400).json({ error: 'Enter the six-digit verification code.' });
-  }
-
-  try {
-    const { sub, email } = await verifyGoogleCredential(req.body.credential);
-    db.get('SELECT * FROM google_verifications WHERE email = ?', [email], (error, verification) => {
-      if (error) return res.status(500).json({ error: 'Could not verify the registration code.' });
-      if (!verification || verification.google_sub !== sub || new Date(verification.expires_at) <= new Date()) {
-        return res.status(400).json({ error: 'Verification code is invalid or expired.' });
-      }
-      if (verification.attempts >= googleVerificationMaxAttempts) {
-        return res.status(429).json({ error: 'Too many incorrect codes. Request a new code.' });
-      }
-
-      const expectedHash = Buffer.from(verification.code_hash, 'hex');
-      const providedHash = Buffer.from(hashGoogleVerificationCode(code), 'hex');
-      if (!crypto.timingSafeEqual(expectedHash, providedHash)) {
-        db.run('UPDATE google_verifications SET attempts = attempts + 1 WHERE email = ?', [email]);
-        return res.status(400).json({ error: 'Verification code is invalid or expired.' });
-      }
-
-      db.run('UPDATE users SET is_verified = 1 WHERE email = ?', [email], (updateError) => {
-        if (updateError) return res.status(500).json({ error: 'Could not activate the account.' });
-        db.get('SELECT * FROM users WHERE email = ?', [email], async (userError, user) => {
-          if (userError || !user) return res.status(500).json({ error: 'Could not load the account.' });
-          db.run('DELETE FROM google_verifications WHERE email = ?', [email]);
-          try {
-            res.json(await createAuthenticatedResponse(req, res, user));
-          } catch (sessionError) {
-            res.status(500).json({ error: 'Could not establish a secure session.' });
-          }
-        });
-      });
-    });
-  } catch (error) {
-    console.error('Google registration verification failed:', error.message);
-    res.status(error.statusCode || 401).json({ error: error.message || 'Google credential is invalid or has expired.' });
-  }
-});
-
-app.post('/api/auth/google/resend-verification', authRateLimit, async (req, res) => {
-  try {
-    const { sub, email } = await verifyGoogleCredential(req.body.credential);
-    db.get('SELECT id, is_verified FROM users WHERE email = ?', [email], async (error, user) => {
-      if (error) return res.status(500).json({ error: 'Could not find the Google user.' });
-      if (!user || user.is_verified) return res.status(400).json({ error: 'No pending Google registration was found.' });
-      try {
-        await sendGoogleVerificationCode({ email, googleSub: sub });
-        res.json({ success: true, message: 'A new verification code was sent.' });
-      } catch (sendError) {
-        console.error('Google verification resend failed:', sendError.message);
-        res.status(503).json({ error: 'Unable to send the verification email. Please try again later.' });
-      }
-    });
-  } catch (error) {
-    res.status(error.statusCode || 401).json({ error: error.message || 'Google credential is invalid or has expired.' });
-  }
+app.all(['/api/auth/google/verify', '/api/auth/google/resend-verification'], (_req, res) => {
+  res.status(410).json({ error: 'Google accounts are verified directly by Google. Sign in again to continue.' });
 });
 
 app.use('/api', createProductRoutes({
@@ -1655,14 +1733,14 @@ app.post('/api/orders', protect, async (req, res) => {
                     await WalletService.deductFunds(buyerId, total, 'purchase', orderId, `Order #${orderNumber}`);
                   }
                   
-                  const commission = total * 0.05;
+                  const commission = total * 0.075;
                   for (const [sellerId, sellerItems] of sellerItemsMap) {
                     const sellerTotal = sellerItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
                     await WalletService.createEscrow(orderId, buyerId, sellerId, sellerTotal, commission);
                   }
                   
                   const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-                  const platformCommissionRate = 0.10;
+                  const platformCommissionRate = 0.075;
                   const platformCommission = subtotal * platformCommissionRate;
 
                   let gatewayFee = 0;
@@ -1691,7 +1769,7 @@ app.post('/api/orders', protect, async (req, res) => {
                   }
 
                   if (paymentMethod === 'wallet') {
-                    const platformCommissionRate = 0.10;
+                    const platformCommissionRate = 0.075;
                     for (const [sellerId, sellerItems] of sellerItemsMap) {
                       const sellerTotal = sellerItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
                       const sellerEarns = sellerTotal - (sellerTotal * platformCommissionRate);
@@ -1855,7 +1933,7 @@ app.patch('/api/users/update-me', protect, validateProfileUpdate, (req, res) => 
       console.error('Update error:', err);
       res.status(400).json({ error: err.message });
     } else {
-      db.get('SELECT id, name, email, phone, bio, city, country, role, seller_type, profilePicture, is_verified_seller, created_at FROM users WHERE id = ?', [req.user.id], (err, user) => {
+      db.get('SELECT id, name, email, phone, bio, city, country, role, seller_type, profilePicture, created_at FROM users WHERE id = ?', [req.user.id], (err, user) => {
         if (err) {
           res.status(500).json({ error: err.message });
         } else {
@@ -1920,17 +1998,21 @@ app.patch('/api/users/update-seller-type', protect, validateSellerType, (req, re
   if (!valid.includes(sellerType)) {
     return res.status(400).json({ error: 'Invalid seller type' });
   }
-  db.run('UPDATE users SET seller_type = ?, role = "seller" WHERE id = ?', [sellerType, req.user.id], function(err) {
-    if (err) return res.status(500).json({ error: err.message });
-    db.get('SELECT id, name, email, phone, bio, city, country, role, seller_type, profilePicture, is_verified_seller, created_at FROM users WHERE id = ?', [req.user.id], (err, user) => {
+  db.run(
+    'UPDATE users SET seller_type = ?, role = "seller", seller_started_at = COALESCE(seller_started_at, CURRENT_TIMESTAMP) WHERE id = ?',
+    [sellerType, req.user.id],
+    function(err) {
       if (err) return res.status(500).json({ error: err.message });
-      res.json({ success: true, data: { user } });
-    });
-  });
+      db.get('SELECT id, name, email, phone, bio, city, country, role, seller_type, profilePicture, created_at FROM users WHERE id = ?', [req.user.id], (err, user) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true, data: { user } });
+      });
+    }
+  );
 });
 
 app.get('/api/users/:id', (req, res) => {
-  db.get('SELECT id, name, email, phone, bio, city, country, seller_type, profilePicture, is_verified_seller, created_at FROM users WHERE id = ?', [req.params.id], (err, user) => {
+  db.get('SELECT id, name, email, phone, bio, city, country, seller_type, profilePicture, created_at FROM users WHERE id = ?', [req.params.id], (err, user) => {
     if (err) return res.status(500).json({ error: err.message });
     if (!user) return res.status(404).json({ error: 'User not found' });
     res.json({ success: true, user });
@@ -2299,7 +2381,6 @@ app.get('/api/messages/conversations', protect, (req, res) => {
         u.id as other_user_id,
         u.name as other_user_name,
         u.profilePicture as other_user_avatar,
-        u.is_verified_seller as other_user_verified,
         (
           SELECT message FROM messages 
           WHERE ((sender_id = ? AND receiver_id = u.id) OR (sender_id = u.id AND receiver_id = ?))
@@ -2919,50 +3000,6 @@ app.get('/api/admin/recent-orders', protect, requireAdmin, async (req, res) => {
   });
 });
 
-// ==================== SELLER VERIFICATION ADMIN ENDPOINTS ====================
-app.get('/api/admin/unverified-sellers', protect, requireVerificationReviewer, async (req, res) => {
-  try {
-    await AuditService.recordFromRequest(req, {
-      action: 'verification.unverified_sellers_viewed',
-      resourceType: 'seller_verification',
-    });
-  } catch (error) {
-    return res.status(500).json({ error: 'Unable to record this privileged action.', requestId: req.requestId });
-  }
-  db.all(`
-    SELECT id, name, email, phone, seller_type, created_at
-    FROM users
-    WHERE role = 'seller' AND (is_verified_seller = 0 OR is_verified_seller IS NULL)
-    ORDER BY created_at ASC
-  `, (err, rows) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json({ success: true, sellers: rows });
-  });
-});
-
-app.put('/api/admin/verify-seller/:userId', protect, requireVerificationReviewer, validateIdParams('userId'), (req, res) => {
-  const { userId } = req.params;
-  const { verified } = req.body;
-  if (typeof verified !== 'boolean') {
-    return res.status(400).json({ error: 'verified must be boolean' });
-  }
-  
-  db.run('UPDATE users SET is_verified_seller = ? WHERE id = ?', [verified ? 1 : 0, userId], async function onSellerVerificationUpdate(err) {
-    if (err) return res.status(500).json({ error: err.message });
-    try {
-      await AuditService.recordFromRequest(req, {
-        action: 'seller.verification_changed',
-        resourceType: 'user',
-        resourceId: userId,
-        metadata: { verified },
-      });
-    } catch (auditError) {
-      return res.status(500).json({ error: 'Seller verification was updated but its audit record could not be written. Contact support with the request ID.', requestId: req.requestId });
-    }
-    res.json({ success: true, message: `Seller verification set to ${verified}` });
-  });
-});
-
 app.get('/api/admin/audit-logs', protect, authorize(ROLES.SUPER_ADMIN), async (req, res) => {
   try {
     await AuditService.recordFromRequest(req, {
@@ -3306,188 +3343,14 @@ app.patch('/api/seller/offers/:offerId/respond', protect, requireSeller, validat
 
 
 
-// Configure multer for document uploads (accept images and PDFs)
-const documentUpload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024, files: 1, fields: 10, fieldSize: 64 * 1024 },
-  fileFilter: (req, file, cb) => {
-    const allowedTypes = /jpeg|jpg|png|gif|webp|pdf/;
-    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = allowedTypes.test(file.mimetype);
-    if (mimetype && extname) cb(null, true);
-    else cb(new Error('Only images and PDF files are allowed'));
-  }
-});
-
-const validateVerificationDocument = async (req, res, next) => {
-  if (!req.file) return res.status(400).json({ error: 'No file uploaded.' });
-  if (!['national_id', 'passport'].includes(req.body.document_type)) {
-    return res.status(400).json({ error: 'document_type must be national_id or passport.' });
-  }
-
-  try {
-    if (req.file.mimetype === 'application/pdf') {
-      if (req.file.buffer.subarray(0, 5).toString('ascii') !== '%PDF-') throw new Error('Invalid PDF document.');
-      req.verificationDocument = { extension: 'pdf', contentType: 'application/pdf' };
-    } else {
-      const metadata = await sharp(req.file.buffer, { failOn: 'error' }).metadata();
-      if (!['jpeg', 'png', 'webp', 'gif'].includes(metadata.format)) throw new Error('Invalid image document.');
-      const imageTypes = {
-        jpeg: { extension: 'jpg', contentType: 'image/jpeg' },
-        png: { extension: 'png', contentType: 'image/png' },
-        webp: { extension: 'webp', contentType: 'image/webp' },
-        gif: { extension: 'gif', contentType: 'image/gif' },
-      };
-      req.verificationDocument = imageTypes[metadata.format];
-    }
-    return next();
-  } catch (error) {
-    return res.status(400).json({ error: 'Verification document content is invalid.' });
-  }
-};
-
-app.post('/api/seller/upload-verification', protect, requireSeller, documentUpload.single('document'), validateVerificationDocument, async (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-  let key;
-  try {
-    key = storageService.createKey('private', 'verification', req.verificationDocument.extension);
-    await storageService.put(key, req.file.buffer, {
-      contentType: req.verificationDocument.contentType,
-      cacheControl: 'private, no-store',
-    });
-    const documentUrl = storageService.reference(key);
-    await new Promise((resolve, reject) => db.run(
-      `INSERT INTO verification_documents (user_id, document_url, document_type, status)
-       VALUES (?, ?, ?, 'pending')
-       ON CONFLICT(user_id) DO UPDATE SET
-         document_url = excluded.document_url,
-         document_type = excluded.document_type,
-         status = 'pending',
-         updated_at = CURRENT_TIMESTAMP`,
-      [req.user.id, documentUrl, req.body.document_type],
-      (error) => (error ? reject(error) : resolve())
-    ));
-    await AuditService.recordFromRequest(req, {
-      action: 'verification.submitted',
-      resourceType: 'seller_verification',
-      resourceId: req.user.id,
-      metadata: { type: req.body.document_type },
-    });
-    return res.json({ success: true, message: 'Verification document uploaded. Awaiting admin review.' });
-  } catch (error) {
-    if (key) storageService.delete(key).catch(() => {});
-    console.error(JSON.stringify({ level: 'error', event: 'verification_document_upload_failed', error: error.message }));
-    return res.status(500).json({ error: 'Failed to store verification document.' });
-  }
-});
 
 
 
 
 
 
-
-app.get('/api/seller/verification-status', protect, requireSeller, (req, res) => {
-  db.get('SELECT status, document_type, created_at, updated_at FROM verification_documents WHERE user_id = ?', [req.user.id], (err, doc) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json({ success: true, verification: doc || null });
-  });
-});
-
-
-
-
-
-app.get('/api/admin/pending-verifications', protect, requireVerificationReviewer, async (req, res) => {
-  try {
-    await AuditService.recordFromRequest(req, {
-      action: 'verification.pending_list_viewed',
-      resourceType: 'seller_verification',
-    });
-  } catch (error) {
-    return res.status(500).json({ error: 'Unable to record this privileged action.', requestId: req.requestId });
-  }
-  db.all(`
-    SELECT v.id, v.user_id, v.document_type, v.status, v.created_at, v.updated_at,
-           u.name as user_name, u.email as user_email, u.seller_type
-    FROM verification_documents v
-    JOIN users u ON v.user_id = u.id
-    WHERE v.status = 'pending'
-    ORDER BY v.created_at ASC
-  `, (err, rows) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json({ success: true, verifications: rows });
-  });
-});
-
-app.get('/api/admin/verification-documents/:docId/file', protect, requireVerificationReviewer, validateIdParams('docId'), (req, res) => {
-
-  db.get('SELECT document_url, document_type FROM verification_documents WHERE id = ?', [req.params.docId], async (error, document) => {
-    if (error) return res.status(500).json({ error: 'Unable to retrieve the verification document.' });
-    if (!document?.document_url) return res.status(404).json({ error: 'Verification document not found.' });
-
-    let documentKey;
-    try {
-      documentKey = storageService.keyFromReference(document.document_url, 'private');
-    } catch (_) {
-      return res.status(404).json({ error: 'Verification document not found.' });
-    }
-    if (documentKey) {
-      try {
-        await AuditService.recordFromRequest(req, {
-          action: 'verification.document_accessed',
-          resourceType: 'verification_document',
-          resourceId: req.params.docId,
-        });
-      } catch (auditError) {
-        return res.status(500).json({ error: 'Unable to record this privileged action.', requestId: req.requestId });
-      }
-      try {
-        const extension = path.extname(documentKey).toLowerCase();
-        const contentTypes = { '.pdf': 'application/pdf', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp', '.gif': 'image/gif' };
-        res.setHeader('Cache-Control', 'private, no-store');
-        res.setHeader('X-Content-Type-Options', 'nosniff');
-        res.setHeader('Content-Security-Policy', 'sandbox');
-        res.setHeader('Content-Type', contentTypes[extension] || 'application/octet-stream');
-        res.setHeader('Content-Disposition', `attachment; filename="verification-${req.params.docId}${extension}"`);
-        await pipeline(await storageService.getPrivateStream(documentKey), res);
-      } catch (streamError) {
-        console.error(JSON.stringify({ level: 'error', event: 'verification_document_download_failed', error: streamError.message }));
-        if (!res.headersSent) return res.status(404).json({ error: 'Verification document not found.' });
-      }
-      return;
-    }
-
-    const filename = path.basename(document.document_url);
-    const verificationDir = path.join(__dirname, 'uploads', 'verification');
-    const documentPath = path.join(verificationDir, filename);
-    if (!documentPath.startsWith(verificationDir + path.sep) || !fs.existsSync(documentPath)) {
-      return res.status(404).json({ error: 'Verification document not found.' });
-    }
-
-    res.setHeader('Cache-Control', 'private, no-store');
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('Content-Security-Policy', 'sandbox');
-    res.setHeader('Content-Disposition', 'attachment');
-    try {
-      await AuditService.recordFromRequest(req, {
-        action: 'verification.document_accessed',
-        resourceType: 'verification_document',
-        resourceId: req.params.docId,
-      });
-    } catch (auditError) {
-      return res.status(500).json({ error: 'Unable to record this privileged action.', requestId: req.requestId });
-    }
-    return res.sendFile(documentPath);
-  });
-});
-
-
-
-
-
-
-
+/* Retired seller verification handler. Kept disabled until its final source deletion. */
+/*
 app.patch('/api/admin/verify-document/:docId', protect, requireVerificationReviewer, validateIdParams('docId'), (req, res) => {
   const { docId } = req.params;
   const { action, admin_notes } = req.body; // action: 'approve' or 'reject'
@@ -3529,6 +3392,8 @@ app.patch('/api/admin/verify-document/:docId', protect, requireVerificationRevie
 
 
 
+
+*/
 
 // ==================== 404 HANDLER ====================
 app.use((req, res) => {
