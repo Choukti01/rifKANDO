@@ -145,8 +145,13 @@ export const createBooking = (bookingData) => api.post('/bookings', bookingData)
 export const updateBooking = (id, bookingData) => api.put(`/bookings/${id}`, bookingData);
 export const deleteBooking = (id) => api.delete(`/bookings/${id}`);
 export const getMyBookings = () => api.get('/my-bookings');
+export const getBookingAvailability = (id, date) => api.get(`/bookings/${id}/availability`, { params: { date } });
 export const bookAppointment = (id, appointmentData) => api.post(`/bookings/${id}/book`, appointmentData);
 export const getMyAppointments = () => api.get('/my-appointments');
+export const getProviderAppointments = () => api.get('/provider-appointments');
+export const cancelAppointment = (id, reason = '') => api.post(`/appointments/${id}/cancel`, { reason });
+export const rescheduleAppointment = (id, appointmentData) => api.post(`/appointments/${id}/reschedule`, appointmentData);
+export const updateProviderAppointment = (id, action, reason = '') => api.post(`/appointments/${id}/action`, { action, reason });
 
 // ==================== CART APIs ====================
 export const getCart = () => api.get('/cart');

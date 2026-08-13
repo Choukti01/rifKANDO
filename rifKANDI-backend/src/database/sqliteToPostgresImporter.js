@@ -52,6 +52,8 @@ const SQLITE_IMPORT_ORDER = Object.freeze([
   'bookings',
   'booking_media',
   'booking_slots',
+  'booking_availability_windows',
+  'booking_date_overrides',
   'appointments',
   'messages',
   'wallets',
@@ -82,6 +84,7 @@ const BOOLEAN_COLUMNS = new Set([
   'digital_media.is_primary',
   'booking_media.is_primary',
   'booking_slots.is_available',
+  'booking_date_overrides.is_available',
   'messages.is_read',
 ]);
 
@@ -102,7 +105,8 @@ const TIMESTAMPTZ_COLUMNS = new Set([
   'lesson_progress.created_at', 'lesson_progress.updated_at',
   'services.created_at', 'service_media.created_at', 'service_orders.delivered_at', 'service_orders.completed_at', 'service_orders.created_at',
   'digital_products.created_at', 'digital_media.created_at', 'digital_files.created_at', 'digital_purchases.last_downloaded_at', 'digital_purchases.created_at', 'digital_requests.created_at',
-  'bookings.created_at', 'booking_media.created_at', 'booking_slots.created_at', 'appointments.created_at',
+  'bookings.created_at', 'booking_media.created_at', 'booking_slots.created_at', 'booking_availability_windows.created_at', 'booking_date_overrides.created_at',
+  'appointments.starts_at', 'appointments.ends_at', 'appointments.cancelled_at', 'appointments.confirmed_at', 'appointments.completed_at', 'appointments.updated_at', 'appointments.created_at',
   'messages.created_at',
   'wallets.created_at', 'wallets.updated_at', 'escrow_transactions.release_date', 'escrow_transactions.created_at', 'escrow_transactions.updated_at',
   'withdrawal_requests.processed_at', 'withdrawal_requests.created_at', 'wallet_transactions.created_at', 'wallet_ledger_entries.created_at',

@@ -101,12 +101,6 @@ const Footer = () => {
 
           <div className="footer-bottom">
             <p>&copy; {currentYear} rifKANDO. {t('common.allRightsReserved')}</p>
-            <button type="button" className="footer-top-link" onClick={scrollToTop}>
-              {t('common.backToTop')}
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                <path d="m18 15-6-6-6 6" />
-              </svg>
-            </button>
           </div>
         </div>
       </footer>
@@ -314,7 +308,7 @@ const Footer = () => {
         .footer-bottom {
           display: flex;
           align-items: center;
-          justify-content: space-between;
+          justify-content: center;
           gap: 1rem;
           padding-top: 1.35rem;
           border-top: 1px solid rgba(26, 26, 26, 0.16);
@@ -325,36 +319,12 @@ const Footer = () => {
         .footer-bottom p {
           margin: 0;
           color: inherit;
-        }
-
-        .footer-top-link {
-          display: inline-flex;
-          align-items: center;
-          gap: 0.35rem;
-          padding: 0.3rem 0;
-          color: var(--color-black);
-          background: transparent;
-          border: 0;
-          cursor: pointer;
-          font: inherit;
-          font-weight: 600;
-          transition: color 180ms ease, transform 180ms ease;
-        }
-
-        .footer-top-link svg {
-          width: 1rem;
-          height: 1rem;
-        }
-
-        .footer-top-link:hover {
-          color: var(--color-black);
-          transform: translateY(-2px);
+          text-align: center;
         }
 
         .footer-social-link:focus-visible,
         .footer-link:focus-visible,
         .footer-logo:focus-visible,
-        .footer-top-link:focus-visible,
         .back-to-top-btn:focus-visible {
           outline: 2px solid var(--color-primary);
           outline-offset: 4px;
@@ -424,13 +394,7 @@ const Footer = () => {
           }
 
           .footer-bottom {
-            flex-direction: column;
-            align-items: flex-start;
             gap: 0.75rem;
-          }
-
-          .footer-top-link {
-            min-height: 2.75rem;
           }
 
           .footer-social-link {
@@ -444,7 +408,6 @@ const Footer = () => {
           .footer-social-link,
           .footer-link,
           .footer-link::after,
-          .footer-top-link,
           .back-to-top-btn {
             transition: none;
           }
