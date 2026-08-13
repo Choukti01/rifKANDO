@@ -30,7 +30,7 @@ const DigitalDashboard = () => {
 
         const productsData = response.data.products || [];
         const totalDownloads = productsData.reduce((sum, product) => sum + (product.downloads || 0), 0);
-        const totalRevenue = productsData.reduce((sum, product) => sum + ((product.price || 0) * (product.downloads || 0)), 0);
+        const totalRevenue = productsData.reduce((sum, product) => sum + ((product.price || 0) * (product.sales_count || 0)), 0);
         const avgRating = productsData.length > 0
           ? productsData.reduce((sum, product) => sum + (product.rating || 0), 0) / productsData.length
           : 0;
@@ -67,7 +67,7 @@ const DigitalDashboard = () => {
       setProducts(productsData);
       
       const totalDownloads = productsData.reduce((sum, p) => sum + (p.downloads || 0), 0);
-      const totalRevenue = productsData.reduce((sum, p) => sum + ((p.price || 0) * (p.downloads || 0)), 0);
+      const totalRevenue = productsData.reduce((sum, p) => sum + ((p.price || 0) * (p.sales_count || 0)), 0);
       const avgRating = productsData.length > 0 
         ? productsData.reduce((sum, p) => sum + (p.rating || 0), 0) / productsData.length 
         : 0;
@@ -139,7 +139,7 @@ const DigitalDashboard = () => {
           <div className="stats-grid">
             <div className="stat-card"><div className="stat-label">Total Products</div><div className="stat-value">{stats.totalProducts}</div><div className="stat-change">{stats.totalProducts > 0 ? '+ recently' : 'Add your first product'}</div></div>
             <div className="stat-card"><div className="stat-label">Total Downloads</div><div className="stat-value">{stats.totalDownloads}</div><div className="stat-change">Customer downloads</div></div>
-            <div className="stat-card"><div className="stat-label">Total Revenue</div><div className="stat-value">{stats.totalRevenue.toLocaleString()} MAD</div><div className="stat-change">From digital sales</div></div>
+            <div className="stat-card"><div className="stat-label">Access Granted Value</div><div className="stat-value">{stats.totalRevenue.toLocaleString()} MAD</div><div className="stat-change">Based on granted digital access</div></div>
             <div className="stat-card"><div className="stat-label">Average Rating</div><div className="stat-value">{stats.avgRating} ★</div><div className="stat-change">Customer satisfaction</div></div>
           </div>
 
@@ -168,6 +168,7 @@ const DigitalDashboard = () => {
                           <h4>{product.title}</h4>
                           <div className="product-stats">
                             <span><ArrowDownTrayIcon className="stat-icon" />{product.downloads || 0} downloads</span>
+                            <span>{product.sales_count || 0} access grants</span>
                             <span><ChartBarIcon className="stat-icon" />{product.rating || 0} ★</span>
                             <span>{product.price} MAD</span>
                           </div>

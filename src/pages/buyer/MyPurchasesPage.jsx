@@ -1,100 +1,49 @@
-import React, { useState, useEffect } from 'react';
-import api from '../../services/api';
+import React, { useEffect, useState } from 'react';
+import { ArrowDownTrayIcon, DocumentIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
+import MarketplaceImage from '../../components/common/MarketplaceImage';
+import { downloadDigitalProduct, getMyPurchases } from '../../services/api';
+import { downloadBlobResponse } from '../../utils/downloadFile';
 
 const MyPurchasesPage = () => {
   const [purchases, setPurchases] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [downloadingId, setDownloadingId] = useState(null);
 
   useEffect(() => {
-    let isCurrent = true;
-
-    const loadPurchases = async () => {
+    let active = true;
+    const load = async () => {
       try {
-        const response = await api.get('/my-purchases');
-        if (isCurrent) setPurchases(response.data.purchases || []);
-      } catch {
-        if (isCurrent) toast.error('Failed to load purchases');
+        const response = await getMyPurchases();
+        if (active) setPurchases(response.data.purchases || []);
+      } catch (error) {
+        if (active) toast.error(error.response?.data?.error || 'Unable to load your purchases.');
       } finally {
-        if (isCurrent) setLoading(false);
+        if (active) setLoading(false);
       }
     };
-
-    void loadPurchases();
-
-    return () => {
-      isCurrent = false;
-    };
+    void load();
+    return () => { active = false; };
   }, []);
 
-  const downloadFile = async (productId) => {
+  const download = async (purchase) => {
+    setDownloadingId(purchase.id);
     try {
-      const response = await api.get(`/digital/${productId}/download`, {
-        responseType: 'blob'
-      });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      // Extract filename from Content-Disposition header if possible, otherwise use default
-      const contentDisposition = response.headers['content-disposition'];
-      let filename = 'download';
-      if (contentDisposition) {
-        const match = contentDisposition.match(/filename="?(.+)"?/);
-        if (match) filename = match[1];
-      }
-      link.setAttribute('download', filename);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
+      const response = await downloadDigitalProduct(purchase.product_id);
+      downloadBlobResponse(response, purchase.file_name || purchase.title || 'rifKANDO-download');
+      setPurchases((current) => current.map((item) => item.id === purchase.id ? { ...item, download_count: Number(item.download_count || 0) + 1, last_downloaded_at: new Date().toISOString() } : item));
     } catch (error) {
-      toast.error(error.response?.data?.error || 'Failed to download');
+      toast.error(error.response?.data?.error || 'Unable to download this file.');
+    } finally {
+      setDownloadingId(null);
     }
   };
 
-  if (loading) return <div className="text-center py-16"><div className="spinner"></div><p>Loading purchases...</p></div>;
-
+  if (loading) return <div className="text-center py-16"><div className="spinner" /><p>Loading purchases...</p></div>;
   return (
-    <div className="my-purchases">
-      <div className="container">
-        <h1>My Digital Purchases</h1>
-        {purchases.length === 0 ? (
-          <p>You haven't purchased any digital products yet.</p>
-        ) : (
-          <div className="purchases-grid">
-            {purchases.map(purchase => (
-              <div key={purchase.id} className="purchase-card">
-                <div className="purchase-image">
-                  {purchase.image ? (
-                    <img src={`http://localhost:5000${purchase.image}`} alt={purchase.title} />
-                  ) : (
-                    <span>💻</span>
-                  )}
-                </div>
-                <div className="purchase-info">
-                  <h3>{purchase.title}</h3>
-                  <p>Purchased on: {new Date(purchase.created_at).toLocaleDateString()}</p>
-                  <button onClick={() => downloadFile(purchase.product_id)} className="download-btn">
-                    Download Now
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-      <style>{`
-        .my-purchases { padding: 2rem 0; }
-        .purchases-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem; margin-top: 2rem; }
-        .purchase-card { background: white; border-radius: 1rem; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; padding: 1rem; gap: 1rem; }
-        .purchase-image { width: 80px; height: 80px; background: #f3f4f6; border-radius: 0.5rem; display: flex; align-items: center; justify-content: center; font-size: 2rem; }
-        .purchase-image img { width: 100%; height: 100%; object-fit: cover; border-radius: 0.5rem; }
-        .purchase-info h3 { font-size: 1rem; margin-bottom: 0.5rem; }
-        .purchase-info p { font-size: 0.75rem; color: #6b7280; margin-bottom: 1rem; }
-        .download-btn { background: #87CEEB; color: #1a1a1a; border: none; padding: 0.5rem 1rem; border-radius: 2rem; cursor: pointer; font-size: 0.75rem; }
-        .download-btn:hover { background: #6bb5d4; }
-      `}</style>
-    </div>
+    <main className="my-digital-purchases"><div className="container"><header><p>Digital library</p><h1>My downloads</h1><span>Every file is delivered as a private attachment from your rifKANDO account.</span></header>{purchases.length === 0 ? <div className="digital-library-empty"><DocumentIcon /><h2>Your digital library is empty</h2><p>Products with granted access will appear here.</p></div> : <div className="digital-library-grid">{purchases.map((purchase) => { const isLimited = Number(purchase.download_limit) > 0; const exhausted = isLimited && Number(purchase.download_count) >= Number(purchase.download_limit); return <article key={purchase.id} className="digital-library-card"><div className="digital-library-image">{purchase.image ? <MarketplaceImage source={purchase.image} alt={purchase.title} /> : <span>💻</span>}</div><div className="digital-library-copy"><h2>{purchase.title}</h2><p>{purchase.file_name || 'Private digital file'}{purchase.file_size ? ` · ${purchase.file_size}` : ''}</p><small>Granted {new Date(purchase.granted_at || purchase.created_at).toLocaleDateString()}</small>{isLimited && <small>{purchase.download_count || 0} of {purchase.download_limit} downloads used</small>}{purchase.last_downloaded_at && <small>Last downloaded {new Date(purchase.last_downloaded_at).toLocaleDateString()}</small>}</div><button type="button" className="digital-library-download" disabled={downloadingId === purchase.id || exhausted} onClick={() => download(purchase)}><ArrowDownTrayIcon /> {exhausted ? 'Download limit reached' : downloadingId === purchase.id ? 'Preparing...' : 'Download'}</button></article>; })}</div>}</div><style>{`
+      .my-digital-purchases { min-height: calc(100vh - 80px); padding: 32px 0 52px; color: #19353e; }.my-digital-purchases header { margin-bottom: 23px; }.my-digital-purchases header p { margin: 0 0 7px; color: #216275; font-size: .76rem; font-weight: 850; letter-spacing: .11em; text-transform: uppercase; }.my-digital-purchases header h1 { margin: 0; font-size: clamp(1.8rem, 4vw, 2.5rem); letter-spacing: -.04em; }.my-digital-purchases header span { display: block; margin-top: 7px; color: #63777e; line-height: 1.55; }.digital-library-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(285px, 1fr)); gap: 15px; }.digital-library-card { display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 14px; padding: 14px; border: 1px solid #dce8eb; border-radius: 16px; background: #fff; box-shadow: 0 7px 22px rgba(20, 59, 68, .045); }.digital-library-image { width: 74px; height: 74px; display: grid; place-items: center; overflow: hidden; border-radius: 11px; background: #eff7f8; font-size: 2rem; }.digital-library-image img { width: 100%; height: 100%; object-fit: cover; }.digital-library-copy { min-width: 0; display: grid; align-content: start; gap: 3px; }.digital-library-copy h2 { margin: 0; overflow-wrap: anywhere; font-size: .96rem; }.digital-library-copy p { margin: 2px 0 3px; color: #4d656d; font-size: .8rem; overflow-wrap: anywhere; }.digital-library-copy small { color: #71848a; font-size: .72rem; }.digital-library-download { grid-column: 1 / -1; min-height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; border: 1px solid #216275; border-radius: 10px; background: #fff; color: #216275; font: inherit; font-size: .84rem; font-weight: 800; cursor: pointer; }.digital-library-download:hover:not(:disabled) { background: #216275; color: #fff; }.digital-library-download:disabled { opacity: .55; cursor: not-allowed; }.digital-library-download svg { width: 17px; height: 17px; }.digital-library-empty { display: grid; justify-items: center; padding: 55px 18px; border: 1px dashed #b7d0d6; border-radius: 16px; color: #647a81; text-align: center; }.digital-library-empty svg { width: 42px; height: 42px; color: #216275; }.digital-library-empty h2 { margin: 13px 0 5px; font-size: 1.1rem; color: #294951; }.digital-library-empty p { margin: 0; font-size: .88rem; }@media (max-width: 500px) { .my-digital-purchases { padding-top: 22px; } }
+    `}</style></main>
   );
 };
 

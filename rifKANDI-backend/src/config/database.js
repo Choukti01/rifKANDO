@@ -477,6 +477,8 @@ db.serialize(() => {
       file_name TEXT,
       file_content_type TEXT,
       file_size TEXT,
+      file_size_bytes INTEGER,
+      file_sha256 TEXT,
       download_limit INTEGER DEFAULT 0,
       downloads INTEGER DEFAULT 0,
       rating REAL DEFAULT 0,
@@ -492,6 +494,12 @@ db.serialize(() => {
 
   db.run('ALTER TABLE digital_products ADD COLUMN file_content_type TEXT', (err) => {
     if (err && !err.message.includes('duplicate column name')) console.error('Error adding digital file content type:', err.message);
+  });
+  db.run('ALTER TABLE digital_products ADD COLUMN file_size_bytes INTEGER', (err) => {
+    if (err && !err.message.includes('duplicate column name')) console.error('Error adding digital file byte size:', err.message);
+  });
+  db.run('ALTER TABLE digital_products ADD COLUMN file_sha256 TEXT', (err) => {
+    if (err && !err.message.includes('duplicate column name')) console.error('Error adding digital file checksum:', err.message);
   });
 
   // Digital Media table
@@ -522,6 +530,12 @@ db.serialize(() => {
       download_limit INTEGER DEFAULT 0,
       download_count INTEGER NOT NULL DEFAULT 0,
       last_downloaded_at DATETIME,
+      download_file_name TEXT,
+      download_file_content_type TEXT,
+      download_file_size TEXT,
+      download_file_size_bytes INTEGER,
+      download_file_sha256 TEXT,
+      granted_at DATETIME,
       status TEXT DEFAULT 'completed',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (product_id) REFERENCES digital_products(id),
@@ -535,6 +549,18 @@ db.serialize(() => {
   db.run('ALTER TABLE digital_purchases ADD COLUMN last_downloaded_at DATETIME', (err) => {
     if (err && !err.message.includes('duplicate column name')) console.error('Error adding digital download timestamp:', err.message);
   });
+  for (const [column, type] of [
+    ['download_file_name', 'TEXT'],
+    ['download_file_content_type', 'TEXT'],
+    ['download_file_size', 'TEXT'],
+    ['download_file_size_bytes', 'INTEGER'],
+    ['download_file_sha256', 'TEXT'],
+    ['granted_at', 'DATETIME'],
+  ]) {
+    db.run(`ALTER TABLE digital_purchases ADD COLUMN ${column} ${type}`, (err) => {
+      if (err && !err.message.includes('duplicate column name')) console.error(`Error adding digital purchase ${column}:`, err.message);
+    });
+  }
 
   // Digital Files table
   db.run(`
@@ -559,11 +585,24 @@ db.serialize(() => {
       buyer_phone TEXT,
       buyer_email TEXT,
       status TEXT DEFAULT 'pending',
+      buyer_message TEXT,
+      decision_reason TEXT,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (digital_id) REFERENCES digital_products(id) ON DELETE CASCADE,
       FOREIGN KEY (buyer_id) REFERENCES users(id)
     )
   `, (err) => { if (err) console.error('Error creating digital_requests:', err); else console.log('✅ digital_requests table ready'); });
+
+  for (const [column, type] of [
+    ['buyer_message', 'TEXT'],
+    ['decision_reason', 'TEXT'],
+    ['updated_at', 'DATETIME'],
+  ]) {
+    db.run(`ALTER TABLE digital_requests ADD COLUMN ${column} ${type}`, (err) => {
+      if (err && !err.message.includes('duplicate column name')) console.error(`Error adding digital request ${column}:`, err.message);
+    });
+  }
 
   // Messages table for chat
   db.run(`
@@ -1100,6 +1139,7 @@ db.serialize(() => {
     ['idx_orders_buyer_created', 'orders(user_id, created_at DESC)'],
     ['idx_digital_purchases_buyer_created', 'digital_purchases(buyer_id, created_at DESC)'],
     ['idx_digital_purchases_product_buyer', 'digital_purchases(product_id, buyer_id, id DESC)'],
+    ['idx_digital_requests_product_buyer_status', 'digital_requests(digital_id, buyer_id, status, id DESC)'],
     ['idx_appointments_client_date', 'appointments(client_id, appointment_date DESC)'],
     ['idx_appointments_provider_date', 'appointments(provider_id, appointment_date DESC)'],
     ['idx_appointments_provider_schedule', 'appointments(provider_id, appointment_date, appointment_time, status)'],

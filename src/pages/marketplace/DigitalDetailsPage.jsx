@@ -1,259 +1,101 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
-import { StarIcon, ArrowDownTrayIcon, ShieldCheckIcon, DocumentIcon, CheckCircleIcon, EnvelopeIcon, PhoneIcon, PaperAirplaneIcon } from '@heroicons/react/24/outline';
-import { getDigitalProduct } from '../../services/api';
-import api from '../../services/api';
-import useAuth from '../../hooks/useAuth';
+import React, { useEffect, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { ArrowDownTrayIcon, CheckCircleIcon, DocumentIcon, ShieldCheckIcon, StarIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 import MediaGallery from '../../components/MediaGallery';
 import MarketplaceImage from '../../components/common/MarketplaceImage';
+import useAuth from '../../hooks/useAuth';
+import { downloadDigitalProduct, getDigitalDownloadAccess, getDigitalProduct, requestDigitalAccess } from '../../services/api';
 import { getImageUrl } from '../../utils/imageUtils';
+import { downloadBlobResponse } from '../../utils/downloadFile';
 
 const DigitalDetailsPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [showGallery, setShowGallery] = useState(false);
   const [canDownload, setCanDownload] = useState(false);
-  const [showRequestForm, setShowRequestForm] = useState(false);
-  const [requestFormData, setRequestFormData] = useState({ phone: '', email: '' });
-  const [submitting, setSubmitting] = useState(false);
-  const { isAuthenticated } = useAuth();
+  const [requesting, setRequesting] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const [showGallery, setShowGallery] = useState(false);
 
   useEffect(() => {
-    let isCurrent = true;
-
-    const loadProduct = async () => {
-      const [productResult, downloadResult] = await Promise.allSettled([
+    let active = true;
+    const load = async () => {
+      const [productResult, accessResult] = await Promise.allSettled([
         getDigitalProduct(id),
-        isAuthenticated ? api.get(`/digital/${id}/can-download`) : Promise.resolve(null)
+        isAuthenticated ? getDigitalDownloadAccess(id) : Promise.resolve(null),
       ]);
-
-      if (!isCurrent) return;
-
-      if (productResult.status === 'fulfilled') {
-        setProduct(productResult.value.data.product);
-      } else {
-        toast.error('Failed to load product');
-      }
-
-      if (downloadResult.status === 'fulfilled') {
-        setCanDownload(Boolean(downloadResult.value?.data.canDownload));
-      } else {
-        console.error('Error checking download status:', downloadResult.reason);
-        setCanDownload(false);
-      }
-
+      if (!active) return;
+      if (productResult.status === 'fulfilled') setProduct(productResult.value.data.product);
+      else toast.error('Unable to load this digital product.');
+      if (accessResult.status === 'fulfilled') setCanDownload(Boolean(accessResult.value?.data?.canDownload));
       setLoading(false);
     };
-
-    void loadProduct();
-
-    return () => {
-      isCurrent = false;
-    };
+    void load();
+    return () => { active = false; };
   }, [id, isAuthenticated]);
 
-  const handleRequestSubmit = async (e) => {
-    e.preventDefault();
-    if (!requestFormData.phone && !requestFormData.email) {
-      toast.error('Please provide at least phone or email');
-      return;
-    }
-    setSubmitting(true);
+  const requestAccess = async () => {
+    setRequesting(true);
     try {
-      const res = await api.post(`/digital/${id}/request`, {
-        phone: requestFormData.phone,
-        email: requestFormData.email
-      });
-      if (res.data.success) {
-        toast.success('Request sent! The seller will contact you soon.');
-        setShowRequestForm(false);
-        setRequestFormData({ phone: '', email: '' });
-      }
+      await requestDigitalAccess(id);
+      toast.success('Access request sent. You will see the download here when it is granted.');
     } catch (error) {
-      toast.error(error.response?.data?.error || 'Failed to send request');
+      toast.error(error.response?.data?.error || 'Unable to send your access request.');
     } finally {
-      setSubmitting(false);
+      setRequesting(false);
     }
   };
 
-  const handleDownload = () => {
-    window.open(`/api/digital/${id}/download`, '_blank');
+  const download = async () => {
+    setDownloading(true);
+    try {
+      const response = await downloadDigitalProduct(id);
+      downloadBlobResponse(response, `${product.title || 'rifKANDO-download'}`);
+      setCanDownload(true);
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'Unable to download this file.');
+    } finally {
+      setDownloading(false);
+    }
   };
 
-  if (loading) return <div className="container text-center py-16"><div className="spinner"></div><p>Loading product...</p></div>;
-  if (!product) return <div className="container text-center py-16"><p>Product not found</p><Link to="/digital" className="btn btn-primary">Back</Link></div>;
+  if (loading) return <div className="container text-center py-16"><div className="spinner" /><p>Loading digital product...</p></div>;
+  if (!product) return <div className="container text-center py-16"><p>Product not found.</p><Link to="/digital" className="btn btn-primary">Browse digital products</Link></div>;
 
-  const primaryMedia = product.media?.find(m => m.is_primary) || product.media?.[0];
-
+  const primaryMedia = product.media?.find((media) => media.is_primary) || product.media?.[0];
   return (
-    <div className="digital-details">
+    <main className="digital-details-page">
       <div className="container">
-        <div className="digital-grid">
-          <div className="digital-main">
+        <div className="digital-details-layout">
+          <section className="digital-product-content">
+            <span className="digital-category-pill">{product.category || 'Digital product'}</span>
             <h1>{product.title}</h1>
-            <div className="digital-meta">
-              <div className="product-rating"><StarIcon className="star-icon" /><span>{product.rating || 0}</span><span className="review-count">({product.reviews_count || 0} reviews)</span></div>
-              <div className="product-downloads"><span>📥 {product.downloads || 0} downloads</span></div>
+            <div className="digital-product-meta"><span><StarIcon /> {product.rating || 0} <small>({product.reviews_count || 0} reviews)</small></span><span>{product.downloads || 0} completed downloads</span></div>
+            <div className="digital-seller-card"><div className="digital-seller-avatar">{product.seller_name?.charAt(0) || 'S'}</div><div><p>Created by</p><Link to={`/profile/${product.seller_id}`}>{product.seller_name || 'rifKANDO seller'}</Link></div></div>
+            <section className="digital-copy-section"><h2>About this product</h2><p>{product.description}</p></section>
+            <section className="digital-copy-section"><h2>Delivery details</h2><ul className="digital-delivery-list"><li><DocumentIcon /> Digital file{product.file_size ? ` · ${product.file_size}` : ''}</li><li><ShieldCheckIcon /> Private attachment delivery. File links are never public.</li><li><CheckCircleIcon /> Your granted version stays available even if the seller updates this listing.</li></ul></section>
+          </section>
+          <aside className="digital-purchase-panel">
+            <div className="digital-preview" onClick={() => product.media?.length && setShowGallery(true)} role={product.media?.length ? 'button' : undefined} tabIndex={product.media?.length ? 0 : undefined}>
+              {primaryMedia ? (primaryMedia.media_type === 'video' ? <video src={getImageUrl(primaryMedia.media_url)} aria-label={`${product.title} preview`} /> : <MarketplaceImage source={primaryMedia.media_url} alt={product.title} />) : <span>{product.image || '💻'}</span>}
+              {product.media?.length > 1 && <b>{product.media.length} previews</b>}
             </div>
-
-            <div className="seller-info">
-              <div className="seller-avatar">{product.seller_name?.charAt(0) || 'S'}</div>
-              <div>
-                <h3>
-                  <Link to={`/profile/${product.seller_id}`} className="seller-link">
-                    {product.seller_name}
-                  </Link>
-                </h3>
-                <p>Seller</p>
-              </div>
-            </div>
-
-            <div className="product-description">
-              <h3>Description</h3>
-              <p>{product.description}</p>
-            </div>
-
-            <div className="product-details-info">
-              <h3>Product Details</h3>
-              <ul>
-                <li><DocumentIcon className="detail-icon" /> File Type: {product.file_type || 'Digital download'}</li>
-                <li><ArrowDownTrayIcon className="detail-icon" /> File Size: {product.file_size || 'Not specified'}</li>
-                <li><ShieldCheckIcon className="detail-icon" /> Secure instant download after seller confirmation</li>
-              </ul>
-            </div>
-          </div>
-
-          <div className="digital-sidebar">
-            <div className="sidebar-card">
-              <div className="product-image-large" onClick={() => product.media?.length && setShowGallery(true)}>
-                {primaryMedia ? (
-                  primaryMedia.media_type === 'video' ? (
-                   <video src={getImageUrl(primaryMedia.media_url)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />                  ) : (
-                    <MarketplaceImage source={primaryMedia.media_url} alt={product.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />                  )
-                ) : (
-                  <span style={{ fontSize: '3rem' }}>{product.image || '💻'}</span>
-                )}
-                {product.media?.length > 1 && <div className="gallery-badge">{product.media.length} items</div>}
-              </div>
-              <div className="product-price-section">
-                <span className="current-price">{product.price} MAD</span>
-                {product.old_price && <span className="old-price">{product.old_price} MAD</span>}
-              </div>
-
-              {!isAuthenticated ? (
-                <button className="purchase-btn" onClick={() => navigate('/login')}>Login to Request</button>
-              ) : canDownload ? (
-                <button className="download-btn" onClick={handleDownload}>
-                  <ArrowDownTrayIcon className="w-4 h-4" /> Download Now
-                </button>
-              ) : (
-                <>
-                  <button className="request-btn" onClick={() => setShowRequestForm(true)}>
-                    <EnvelopeIcon className="w-4 h-4" /> Contact Seller & Get File
-                  </button>
-                  <div className="info-text">* After contacting and paying the seller, you will receive download access here.</div>
-                </>
-              )}
-
-              {/* Animated Request Form Modal */}
-              {showRequestForm && (
-                <div className="modal-overlay" onClick={() => setShowRequestForm(false)}>
-                  <div className="modal-container" onClick={(e) => e.stopPropagation()}>
-                    <h3>Contact Seller</h3>
-                    <p>Leave your contact info. The seller will reach out to finalize payment and deliver the file.</p>
-                    <form onSubmit={handleRequestSubmit}>
-                      <div className="form-group">
-                        <label><PhoneIcon className="inline-icon" /> Phone Number</label>
-                        <input
-                          type="tel"
-                          placeholder="e.g., 06XXXXXXXX"
-                          value={requestFormData.phone}
-                          onChange={(e) => setRequestFormData({...requestFormData, phone: e.target.value})}
-                          className="form-input"
-                        />
-                      </div>
-                      <div className="form-group">
-                        <label><EnvelopeIcon className="inline-icon" /> Email Address</label>
-                        <input
-                          type="email"
-                          placeholder="your@email.com"
-                          value={requestFormData.email}
-                          onChange={(e) => setRequestFormData({...requestFormData, email: e.target.value})}
-                          className="form-input"
-                        />
-                      </div>
-                      <div className="modal-actions">
-                        <button type="button" onClick={() => setShowRequestForm(false)} className="cancel-btn">Cancel</button>
-                        <button type="submit" disabled={submitting} className="submit-btn">
-                          {submitting ? 'Sending...' : <><PaperAirplaneIcon className="w-4 h-4" /> Send Request</>}
-                        </button>
-                      </div>
-                    </form>
-                  </div>
-                </div>
-              )}
-
-              <div className="guarantee">
-                <ShieldCheckIcon className="guarantee-icon" />
-                <span>Your contact info is shared only with the seller for transaction purposes.</span>
-              </div>
-            </div>
-          </div>
+            <div className="digital-price"><strong>{product.price} MAD</strong>{product.old_price && <del>{product.old_price} MAD</del>}</div>
+            {!isAuthenticated && <button className="digital-primary-action" onClick={() => navigate('/login')}>Log in to request access</button>}
+            {isAuthenticated && canDownload && <button className="digital-primary-action" onClick={download} disabled={downloading}><ArrowDownTrayIcon /> {downloading ? 'Preparing download...' : 'Download your file'}</button>}
+            {isAuthenticated && !canDownload && <button className="digital-primary-action" onClick={requestAccess} disabled={requesting}>{requesting ? 'Sending request...' : 'Request secure access'}</button>}
+            <p className="digital-panel-note">Access requests use your rifKANDO account. We do not ask you to share your phone number or email with the seller.</p>
+          </aside>
         </div>
       </div>
-      {showGallery && (
-        <MediaGallery
-           media={product.media.map(m => ({ url: getImageUrl(m.media_url), type: m.media_type }))}          onClose={() => setShowGallery(false)}
-        />
-      )}
+      {showGallery && <MediaGallery media={product.media.map((item) => ({ url: getImageUrl(item.media_url), type: item.media_type }))} onClose={() => setShowGallery(false)} />}
       <style>{`
-        .digital-details { padding: 2rem 0; min-height: calc(100vh - 80px); }
-        .digital-grid { display: grid; grid-template-columns: 1fr 350px; gap: 2rem; }
-        @media (max-width: 768px) { .digital-grid { grid-template-columns: 1fr; } }
-        .digital-main h1 { font-size: 1.75rem; margin-bottom: 1rem; }
-        .digital-meta { display: flex; gap: 1.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
-        .product-rating, .product-downloads { display: flex; align-items: center; gap: 0.25rem; font-size: 0.875rem; color: #6b7280; }
-        .star-icon { width: 1rem; height: 1rem; color: #f59e0b; fill: #f59e0b; }
-        .seller-info { display: flex; align-items: center; gap: 1rem; padding: 1rem; background: #f9fafb; border-radius: 1rem; margin-bottom: 2rem; }
-        .seller-avatar { width: 3rem; height: 3rem; background: #87CEEB; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.25rem; }
-        .seller-link { color: #1a1a1a; text-decoration: none; }
-        .seller-link:hover { color: #87CEEB; text-decoration: underline; }
-        .product-description { margin-bottom: 2rem; }
-        .product-details-info ul { list-style: none; padding: 0; }
-        .product-details-info li { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; font-size: 0.875rem; color: #4b5563; }
-        .detail-icon { width: 1rem; height: 1rem; color: #87CEEB; }
-        .sidebar-card { background: white; border-radius: 1rem; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); position: sticky; top: 100px; }
-        .product-image-large { height: 150px; background: #f3f4f6; border-radius: 0.75rem; display: flex; align-items: center; justify-content: center; overflow: hidden; margin-bottom: 1rem; cursor: pointer; position: relative; }
-        .gallery-badge { position: absolute; bottom: 0.5rem; right: 0.5rem; background: rgba(0,0,0,0.6); color: white; padding: 0.25rem 0.5rem; border-radius: 0.5rem; font-size: 0.7rem; }
-        .product-price-section { margin-bottom: 1rem; }
-        .current-price { font-size: 1.5rem; font-weight: bold; }
-        .old-price { font-size: 0.875rem; color: #9ca3af; text-decoration: line-through; margin-left: 0.5rem; }
-        .request-btn, .purchase-btn, .download-btn { width: 100%; padding: 0.75rem; border: none; border-radius: 2rem; cursor: pointer; font-weight: 600; margin-bottom: 1rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
-        .request-btn { background: #87CEEB; color: #1a1a1a; }
-        .purchase-btn { background: #1a1a1a; color: white; }
-        .download-btn { background: #10b981; color: white; }
-        .info-text { font-size: 0.7rem; color: #6b7280; text-align: center; margin-top: -0.5rem; margin-bottom: 1rem; }
-        .guarantee { display: flex; align-items: center; gap: 0.5rem; font-size: 0.7rem; color: #6b7280; text-align: center; justify-content: center; margin-top: 1rem; }
-        .guarantee-icon { width: 1rem; height: 1rem; }
-        /* Modal styles */
-        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; animation: fadeIn 0.2s ease-out; }
-        .modal-container { background: white; border-radius: 1rem; padding: 2rem; max-width: 400px; width: 90%; animation: slideUp 0.3s ease-out; }
-        .modal-container h3 { margin-bottom: 0.5rem; }
-        .modal-container p { font-size: 0.875rem; color: #6b7280; margin-bottom: 1rem; }
-        .form-group { margin-bottom: 1rem; }
-        .form-group label { display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.25rem; }
-        .inline-icon { width: 1rem; height: 1rem; }
-        .form-input { width: 100%; padding: 0.75rem; border: 1px solid #e5e7eb; border-radius: 0.5rem; font-size: 0.875rem; }
-        .modal-actions { display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1rem; }
-        .cancel-btn { padding: 0.5rem 1rem; background: #f3f4f6; border: none; border-radius: 0.5rem; cursor: pointer; }
-        .submit-btn { padding: 0.5rem 1rem; background: #1a1a1a; color: white; border: none; border-radius: 0.5rem; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .digital-details-page { min-height: calc(100vh - 80px); padding: 34px 0 54px; color: #18323a; }.digital-details-layout { display: grid; grid-template-columns: minmax(0, 1fr) 360px; align-items: start; gap: 42px; }.digital-category-pill { display: inline-flex; border-radius: 999px; padding: 6px 10px; background: #e7f4f7; color: #216275; font-size: .76rem; font-weight: 800; text-transform: capitalize; }.digital-product-content h1 { max-width: 820px; margin: 12px 0; font-size: clamp(1.9rem, 4vw, 3.2rem); line-height: 1.1; letter-spacing: -.045em; }.digital-product-meta { display: flex; gap: 16px; flex-wrap: wrap; color: #60737a; font-size: .85rem; }.digital-product-meta span { display: inline-flex; align-items: center; gap: 5px; }.digital-product-meta svg { width: 17px; height: 17px; color: #216275; }.digital-seller-card { display: flex; align-items: center; gap: 11px; margin: 25px 0 30px; padding: 13px; border: 1px solid #dde8eb; border-radius: 14px; max-width: 430px; }.digital-seller-avatar { width: 39px; height: 39px; display: grid; place-items: center; border-radius: 50%; background: #216275; color: #fff; font-weight: 800; }.digital-seller-card p { margin: 0 0 1px; color: #6c7d82; font-size: .72rem; }.digital-seller-card a { color: #193c46; font-weight: 750; text-decoration: none; }.digital-seller-card a:hover { color: #216275; }.digital-copy-section { max-width: 800px; margin-top: 27px; }.digital-copy-section h2 { font-size: 1.1rem; margin: 0 0 9px; }.digital-copy-section p { margin: 0; white-space: pre-line; color: #485f66; line-height: 1.7; }.digital-delivery-list { display: grid; gap: 11px; padding: 0; margin: 0; list-style: none; color: #465f66; line-height: 1.5; }.digital-delivery-list li { display: flex; gap: 9px; align-items: flex-start; }.digital-delivery-list svg { width: 20px; height: 20px; flex: 0 0 auto; color: #216275; }.digital-purchase-panel { position: sticky; top: 96px; padding: 15px; border: 1px solid #dce8eb; border-radius: 18px; background: #fff; box-shadow: 0 15px 38px rgba(17, 60, 71, .1); }.digital-preview { height: 190px; display: grid; place-items: center; overflow: hidden; border-radius: 12px; background: #f1f7f8; cursor: pointer; position: relative; }.digital-preview img, .digital-preview video { width: 100%; height: 100%; object-fit: cover; }.digital-preview > span { font-size: 4rem; }.digital-preview b { position: absolute; right: 9px; bottom: 9px; padding: 5px 8px; border-radius: 999px; background: rgba(10, 31, 38, .72); color: #fff; font-size: .7rem; }.digital-price { display: flex; align-items: baseline; gap: 9px; padding: 18px 2px 15px; }.digital-price strong { font-size: 1.65rem; letter-spacing: -.03em; }.digital-price del { color: #849399; font-size: .87rem; }.digital-primary-action { width: 100%; display: inline-flex; justify-content: center; align-items: center; gap: 8px; min-height: 46px; border: 1px solid #216275; border-radius: 11px; background: #216275; color: #fff; font: inherit; font-weight: 800; cursor: pointer; transition: background .2s, transform .2s; }.digital-primary-action:hover:not(:disabled) { background: #194f5f; transform: translateY(-1px); }.digital-primary-action:disabled { opacity: .65; cursor: wait; }.digital-primary-action svg { width: 18px; height: 18px; }.digital-panel-note { margin: 12px 3px 1px; color: #61747a; font-size: .76rem; line-height: 1.45; }@media (max-width: 820px) { .digital-details-page { padding-top: 21px; }.digital-details-layout { grid-template-columns: 1fr; gap: 25px; }.digital-purchase-panel { position: static; }.digital-preview { height: 220px; } }
       `}</style>
-    </div>
+    </main>
   );
 };
 

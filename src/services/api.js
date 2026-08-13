@@ -137,6 +137,16 @@ export const deleteDigitalProduct = (id) => api.delete(`/digital/${id}`);
 export const getMyDigitalProducts = () => api.get('/my-digital');
 export const purchaseDigitalProduct = (id) => api.post(`/digital/${id}/purchase`);
 export const getMyPurchases = () => api.get('/my-purchases');
+export const getDigitalProductForManagement = (id) => api.get(`/digital/${id}/manage`);
+export const uploadDigitalFile = (formData, onUploadProgress) => api.post('/upload-digital-file', formData, {
+  headers: { 'Content-Type': 'multipart/form-data' },
+  onUploadProgress,
+});
+export const requestDigitalAccess = (id, message = '') => api.post(`/digital/${id}/request`, { message });
+export const getDigitalAccessRequests = () => api.get('/seller/digital-requests');
+export const decideDigitalAccessRequest = (id, action, reason = '') => api.post(`/seller/digital-requests/${id}/decision`, { action, reason });
+export const getDigitalDownloadAccess = (id) => api.get(`/digital/${id}/can-download`);
+export const downloadDigitalProduct = (id) => api.get(`/digital/${id}/download`, { responseType: 'blob' });
 
 // ==================== BOOKING APIs ====================
 export const getBookings = (params) => api.get('/bookings', { params });

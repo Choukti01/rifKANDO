@@ -52,6 +52,8 @@ const {
   validateAppointmentProviderAction,
   validateDigitalCreate,
   validateDigitalUpdate,
+  validateDigitalAccessRequest,
+  validateDigitalAccessDecision,
   validateLessonCreate,
   validateLessonUpdate,
   validateLessonProgress,
@@ -62,6 +64,7 @@ const {
 const { getAllowedOrigins } = require('./config/validateEnv');
 const { sendVerificationEmail, sendWelcomeEmail, sendLoginNotificationEmail } = require('./utils/sendEmail');
 const storageService = require('./services/storageService');
+const { createUploadReceipt, fileSha256 } = require('./services/digitalFileService');
 const sessionService = require('./services/sessionService');
 const AuditService = require('./services/auditService');
 const Money = require('./services/moneyService');
@@ -1097,12 +1100,25 @@ app.post('/api/upload-digital-file', protect, requireSeller, (req, res, next) =>
     const file = await inspectPrivateDigitalFile(req.file);
     key = storageService.createKey('private', `digital-files-user-${req.user.id}`, file.extension);
     await storageService.put(key, req.file.buffer, { contentType: file.contentType, cacheControl: 'private, no-store' });
+    const fileName = path.basename(req.file.originalname).replace(/[^a-zA-Z0-9._-]/g, '_') || `download.${file.extension}`;
+    const sha256 = fileSha256(req.file.buffer);
+    const upload = createUploadReceipt({
+      key,
+      sellerId: req.user.id,
+      fileName,
+      fileSize: req.file.size,
+      contentType: file.contentType,
+      sha256,
+    });
     return res.status(201).json({
       success: true,
       storageReference: storageService.reference(key),
-      fileName: path.basename(req.file.originalname).replace(/[^a-zA-Z0-9._-]/g, '_') || `download.${file.extension}`,
+      fileName,
       fileSize: req.file.size,
       contentType: file.contentType,
+      sha256,
+      uploadReceipt: upload.receipt,
+      uploadReceiptExpiresAt: upload.expiresAt,
     });
   } catch (error) {
     if (key) storageService.delete(key).catch(() => {});
@@ -1408,12 +1424,15 @@ app.use('/api', createDigitalRoutes({
   validateIdParams,
   validateDigitalCreate,
   validateDigitalUpdate,
+  validateDigitalAccessRequest,
+  validateDigitalAccessDecision,
   requireFeature,
   storageService,
   path,
   getDatabaseRow,
   runDatabaseStatement,
   streamPrivateAttachment,
+  auditService: AuditService,
 }));
 
 app.use('/api', createBookingRoutes({
@@ -2048,103 +2067,25 @@ app.get('/api/users/:id/products', (req, res) => {
   });
 });
 
-// ==================== DIGITAL REQUESTS (Buyer Contact Seller) ====================
-app.post('/api/digital/:id/request', protect, (req, res) => {
-  const { phone, email } = req.body;
-  const digitalId = req.params.id;
-  const buyerId = req.user.id;
-  db.run(
-    'INSERT INTO digital_requests (digital_id, buyer_id, buyer_phone, buyer_email, status) VALUES (?, ?, ?, ?, ?)',
-    [digitalId, buyerId, phone, email, 'pending'],
-    function(err) {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json({ success: true, message: 'Request sent. Seller will contact you soon.' });
-    }
-  );
-});
-
-app.get('/api/seller/digital-requests', protect, requireSeller, (req, res) => {
-  db.all(`
-    SELECT dr.*, d.title as product_title, u.name as buyer_name, u.email as buyer_email
-    FROM digital_requests dr
-    JOIN digital_products d ON dr.digital_id = d.id
-    JOIN users u ON dr.buyer_id = u.id
-    WHERE d.seller_id = ?
-    ORDER BY dr.created_at DESC
-  `, [req.user.id], (err, rows) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json({ success: true, requests: rows });
-  });
-});
-
-app.patch('/api/seller/digital-requests/:id/complete', protect, requireSeller, async (req, res) => {
-  try {
-    const request = await getDatabaseRow(`
-      SELECT dr.id, dr.digital_id, dr.buyer_id, d.seller_id, d.price, d.file_url, d.file_type, d.download_limit
-      FROM digital_requests dr
-      JOIN digital_products d ON d.id = dr.digital_id
-      WHERE dr.id = ? AND d.seller_id = ?
-    `, [req.params.id, req.user.id]);
-    if (!request) return res.status(404).json({ error: 'Digital request not found.' });
-    if (!privateDigitalKeyForSeller(request.file_url, request.seller_id)) {
-      return res.status(409).json({ error: 'The product file must be migrated to private storage before access can be granted.' });
-    }
-
-    await runDatabaseStatement('UPDATE digital_requests SET status = ? WHERE id = ?', ['completed', request.id]);
-    const existingPurchase = await getDatabaseRow(
-      'SELECT id FROM digital_purchases WHERE product_id = ? AND buyer_id = ? ORDER BY id DESC LIMIT 1',
-      [request.digital_id, request.buyer_id]
-    );
-    if (!existingPurchase) {
-      await runDatabaseStatement(`
-        INSERT INTO digital_purchases (order_number, product_id, buyer_id, seller_id, price, download_url, file_type, download_limit)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `, [
-        `DIG-${Date.now()}-${request.id}`,
-        request.digital_id,
-        request.buyer_id,
-        request.seller_id,
-        request.price,
-        request.file_url,
-        request.file_type,
-        request.download_limit,
-      ]);
-      await runDatabaseStatement('UPDATE digital_products SET downloads = downloads + 1 WHERE id = ?', [request.digital_id]);
-    }
-    return res.json({ success: true, message: 'Access granted. The buyer can now download the private file.' });
-  } catch (error) {
-    console.error(JSON.stringify({ level: 'error', event: 'digital_access_grant_failed', error: error.message }));
-    return res.status(500).json({ error: 'Unable to grant download access.' });
-  }
-});
-
-app.get('/api/digital/:id/can-download', protect, (req, res) => {
-  const digitalId = req.params.id;
-  const buyerId = req.user.id;
-  db.get('SELECT id FROM digital_purchases WHERE product_id = ? AND buyer_id = ? ORDER BY id DESC LIMIT 1', [digitalId, buyerId], (err, row) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json({ success: true, canDownload: !!row });
-  });
-});
-
 app.patch('/api/:type/:id/status', protect, requireSeller, (req, res) => {
   const { type, id } = req.params;
   const { status } = req.body;
-  const validTypes = ['products', 'courses', 'services', 'digital', 'bookings'];
+  const resources = {
+    products: { table: 'products', ownerField: 'seller_id' },
+    courses: { table: 'courses', ownerField: 'instructor_id' },
+    services: { table: 'services', ownerField: 'provider_id' },
+    digital: { table: 'digital_products', ownerField: 'seller_id' },
+    bookings: { table: 'bookings', ownerField: 'provider_id' },
+  };
   const validStatus = ['published', 'ended'];
-  if (!validTypes.includes(type) || !validStatus.includes(status)) {
+  const resource = resources[type];
+  if (!resource || !validStatus.includes(status)) {
     return res.status(400).json({ error: 'Invalid type or status' });
   }
-  let ownerField = '';
-  if (type === 'products') ownerField = 'seller_id';
-  else if (type === 'courses') ownerField = 'instructor_id';
-  else if (type === 'services') ownerField = 'provider_id';
-  else if (type === 'digital') ownerField = 'seller_id';
-  else if (type === 'bookings') ownerField = 'provider_id';
-  db.get(`SELECT ${ownerField} FROM ${type} WHERE id = ?`, [id], (err, item) => {
+  db.get(`SELECT ${resource.ownerField} FROM ${resource.table} WHERE id = ?`, [id], (err, item) => {
     if (err || !item) return res.status(404).json({ error: `${type.slice(0,-1)} not found` });
-    if (item[ownerField] !== req.user.id) return res.status(403).json({ error: 'Not authorized' });
-    db.run(`UPDATE ${type} SET status = ? WHERE id = ?`, [status, id], (err) => {
+    if (item[resource.ownerField] !== req.user.id) return res.status(403).json({ error: 'Not authorized' });
+    db.run(`UPDATE ${resource.table} SET status = ? WHERE id = ?`, [status, id], (err) => {
       if (err) return res.status(500).json({ error: err.message });
       res.json({ success: true, message: `Status updated to ${status}` });
     });
