@@ -435,17 +435,20 @@ const bookingUnavailableDates = (value) => {
 
 const digitalPayload = (body, partial) => catalogPayload(body, {
   partial,
-  allowed: ['file_type', 'file_url', 'file_name', 'file_content_type', 'file_size', 'download_limit', 'image'],
+  allowed: ['file_type', 'file_url', 'upload_receipt', 'download_limit', 'image'],
   fields: (value, required) => {
     const fileUrl = value.file_url === undefined ? undefined : text(value.file_url, 'file_url', { required: true, max: 1_024 });
     if (fileUrl && !storageService.keyFromReference(fileUrl, 'private')) fail('file_url', 'must reference an uploaded private file.');
     if (required && !fileUrl) fail('file_url', 'is required.');
+    const uploadReceipt = value.upload_receipt === undefined
+      ? undefined
+      : text(value.upload_receipt, 'upload_receipt', { required: true, min: 32, max: 4_096, pattern: /^[A-Za-z0-9._-]+$/ });
+    if (fileUrl && !uploadReceipt) fail('upload_receipt', 'is required when adding or replacing a file.');
+    if (uploadReceipt && !fileUrl) fail('file_url', 'is required when providing an upload receipt.');
     return {
-      file_type: value.file_type === undefined ? undefined : enumValue(value.file_type, 'file_type', ['file', 'url']),
+      file_type: value.file_type === undefined ? undefined : enumValue(value.file_type, 'file_type', ['file']),
       file_url: fileUrl,
-      file_name: value.file_name === undefined ? undefined : text(value.file_name, 'file_name', { max: 255 }),
-      file_content_type: value.file_content_type === undefined ? undefined : text(value.file_content_type, 'file_content_type', { max: 128 }),
-      file_size: value.file_size === undefined ? undefined : text(String(value.file_size), 'file_size', { max: 64 }),
+      upload_receipt: uploadReceipt,
       download_limit: optionalInteger(value.download_limit, 'download_limit', { min: 0, max: 10_000 }),
       image: value.image === undefined ? (required ? '' : undefined) : text(value.image, 'image', { max: 64 }),
     };
@@ -510,6 +513,21 @@ const validateAppointmentProviderAction = validate((req) => {
 });
 const validateDigitalCreate = validate((req) => ({ body: digitalPayload(req.body, false) }));
 const validateDigitalUpdate = validate((req) => ({ body: digitalPayload(req.body, true) }));
+const validateDigitalAccessRequest = validate((req) => {
+  const body = object(req.body);
+  onlyKeys(body, ['message']);
+  return { body: { message: optionalText(body.message, 'message', 1_000) } };
+});
+const validateDigitalAccessDecision = validate((req) => {
+  const body = object(req.body);
+  onlyKeys(body, ['action', 'reason']);
+  return {
+    body: {
+      action: enumValue(body.action, 'action', ['grant', 'decline']),
+      reason: optionalText(body.reason, 'reason', 1_000),
+    },
+  };
+});
 
 const lessonPayload = (body, partial) => {
   object(body);
@@ -668,6 +686,8 @@ module.exports = {
   validateAppointmentProviderAction,
   validateDigitalCreate,
   validateDigitalUpdate,
+  validateDigitalAccessRequest,
+  validateDigitalAccessDecision,
   validateLessonCreate,
   validateLessonUpdate,
   validateLessonProgress,

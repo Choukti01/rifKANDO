@@ -104,7 +104,7 @@ const TIMESTAMPTZ_COLUMNS = new Set([
   'courses.created_at', 'course_media.created_at', 'course_lessons.created_at', 'enrollments.completed_at', 'enrollments.created_at',
   'lesson_progress.created_at', 'lesson_progress.updated_at',
   'services.created_at', 'service_media.created_at', 'service_orders.delivered_at', 'service_orders.completed_at', 'service_orders.created_at',
-  'digital_products.created_at', 'digital_media.created_at', 'digital_files.created_at', 'digital_purchases.last_downloaded_at', 'digital_purchases.created_at', 'digital_requests.created_at',
+  'digital_products.created_at', 'digital_media.created_at', 'digital_files.created_at', 'digital_purchases.last_downloaded_at', 'digital_purchases.granted_at', 'digital_purchases.created_at', 'digital_requests.created_at', 'digital_requests.updated_at',
   'bookings.created_at', 'booking_media.created_at', 'booking_slots.created_at', 'booking_availability_windows.created_at', 'booking_date_overrides.created_at',
   'appointments.starts_at', 'appointments.ends_at', 'appointments.cancelled_at', 'appointments.confirmed_at', 'appointments.completed_at', 'appointments.updated_at', 'appointments.created_at',
   'messages.created_at',

@@ -1,183 +1,122 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../../../services/api';
 import toast from 'react-hot-toast';
 import MediaUploader from '../../../components/MediaUploader';
+import DigitalFileUploader from '../../../components/digital/DigitalFileUploader';
+import { createDigitalProduct } from '../../../services/api';
+
+const emptyProduct = {
+  title: '', description: '', price: '', old_price: '', category: 'ebooks', download_limit: '0', image: '💻',
+};
 
 const AddDigitalProduct = () => {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState(emptyProduct);
   const [media, setMedia] = useState([]);
-  const [uploadingFile, setUploadingFile] = useState(false);
-  const [uploadedFile, setUploadedFile] = useState(null);
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    price: '',
-    old_price: '',
-    category: 'ebooks',
-    file_size: '',
-    download_limit: '',
-    image: ''
-  });
+  const [deliveryFile, setDeliveryFile] = useState(null);
+  const [saving, setSaving] = useState(false);
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+  const change = (event) => setFormData((current) => ({ ...current, [event.target.name]: event.target.value }));
 
-  const handleFileUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const formDataFile = new FormData();
-    formDataFile.append('file', file);
-
-    setUploadingFile(true);
-    try {
-      const response = await api.post('/upload-digital-file', formDataFile, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      if (response.data.success) {
-        setUploadedFile({
-          storageReference: response.data.storageReference,
-          name: response.data.fileName,
-          size: response.data.fileSize,
-          contentType: response.data.contentType
-        });
-        toast.success('File uploaded successfully');
-      }
-    } catch {
-      toast.error('Failed to upload file');
-    } finally {
-      setUploadingFile(false);
-    }
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!uploadedFile) {
-      toast.error('Please upload a digital file');
+  const submit = async (event) => {
+    event.preventDefault();
+    if (!deliveryFile) {
+      toast.error('Upload the delivery file before publishing.');
       return;
     }
-    setLoading(true);
+    setSaving(true);
     try {
-      const productData = {
+      await createDigitalProduct({
         ...formData,
-        price: parseFloat(formData.price),
-        old_price: formData.old_price ? parseFloat(formData.old_price) : null,
-        download_limit: parseInt(formData.download_limit) || 0,
-        file_url: uploadedFile.storageReference,
-        file_name: uploadedFile.name,
-        file_content_type: uploadedFile.contentType,
+        price: Number(formData.price),
+        old_price: formData.old_price ? Number(formData.old_price) : null,
+        download_limit: Number.parseInt(formData.download_limit, 10) || 0,
         file_type: 'file',
-        media: media.map((m, idx) => ({ ...m, order: idx, isPrimary: idx === 0 }))
-      };
-      
-      await api.post('/digital', productData);
-      
-      toast.success('Digital product created successfully!');
+        file_url: deliveryFile.storageReference,
+        upload_receipt: deliveryFile.uploadReceipt,
+        media,
+      });
+      toast.success('Digital product published.');
       navigate('/seller/dashboard/digital');
     } catch (error) {
-      console.error('Error creating digital product:', error);
-      toast.error(error.response?.data?.error || 'Failed to create digital product');
+      toast.error(error.response?.data?.error || 'Unable to publish this digital product.');
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
   return (
-    <div className="add-digital">
-      <h2>Add Digital Product</h2>
-      <form onSubmit={handleSubmit} className="digital-form">
-        <div className="form-group">
-          <label>Product Title *</label>
-          <input type="text" name="title" value={formData.title} onChange={handleChange} className="form-input" required />
-        </div>
-
-        <div className="form-group">
-          <label>Description *</label>
-          <textarea name="description" value={formData.description} onChange={handleChange} className="form-input" rows="4" required />
-        </div>
-
-        <div className="form-row">
-          <div className="form-group">
-            <label>Price (MAD) *</label>
-            <input type="number" name="price" value={formData.price} onChange={handleChange} className="form-input" required />
+    <main className="digital-editor-shell">
+      <header className="digital-editor-heading">
+        <p className="digital-eyebrow">Digital catalogue</p>
+        <h1>Create a digital product</h1>
+        <p>Give customers a clear listing, then deliver the exact private file they were granted.</p>
+      </header>
+      <form className="digital-editor-form" onSubmit={submit}>
+        <section className="digital-editor-section">
+          <h2>Listing details</h2>
+          <div className="digital-field"><label htmlFor="digital-title">Title <span>*</span></label><input id="digital-title" name="title" value={formData.title} onChange={change} minLength="2" maxLength="160" required /></div>
+          <div className="digital-field"><label htmlFor="digital-description">What does the customer receive? <span>*</span></label><textarea id="digital-description" name="description" value={formData.description} onChange={change} minLength="10" maxLength="5000" rows="6" required /></div>
+          <div className="digital-fields-grid">
+            <div className="digital-field"><label htmlFor="digital-category">Category <span>*</span></label><select id="digital-category" name="category" value={formData.category} onChange={change}><option value="ebooks">E-books</option><option value="software">Software</option><option value="templates">Templates</option><option value="music">Music & audio</option><option value="graphics">Graphics & design</option><option value="other">Other</option></select></div>
+            <div className="digital-field"><label htmlFor="digital-icon">Listing icon</label><input id="digital-icon" name="image" value={formData.image} onChange={change} maxLength="64" /></div>
           </div>
-          <div className="form-group">
-            <label>Original Price (Optional)</label>
-            <input type="number" name="old_price" value={formData.old_price} onChange={handleChange} className="form-input" />
-          </div>
-        </div>
+        </section>
 
-        <div className="form-row">
-          <div className="form-group">
-            <label>Category *</label>
-            <select name="category" value={formData.category} onChange={handleChange} className="form-input" required>
-              <option value="ebooks">E-books</option>
-              <option value="software">Software</option>
-              <option value="templates">Templates</option>
-              <option value="music">Music & Audio</option>
-              <option value="graphics">Graphics & Design</option>
-              <option value="graphics">Others</option>
-
-            </select>
+        <section className="digital-editor-section">
+          <h2>Price and access</h2>
+          <div className="digital-fields-grid">
+            <div className="digital-field"><label htmlFor="digital-price">Price (MAD) <span>*</span></label><input id="digital-price" name="price" type="number" min="0.01" step="0.01" value={formData.price} onChange={change} required /></div>
+            <div className="digital-field"><label htmlFor="digital-old-price">Previous price (optional)</label><input id="digital-old-price" name="old_price" type="number" min="0.01" step="0.01" value={formData.old_price} onChange={change} /></div>
+            <div className="digital-field"><label htmlFor="digital-download-limit">Download limit</label><input id="digital-download-limit" name="download_limit" type="number" min="0" max="10000" step="1" value={formData.download_limit} onChange={change} /><small>Use 0 for unlimited downloads.</small></div>
           </div>
-          <div className="form-group">
-            <label>File Size (e.g., "5 MB")</label>
-            <input type="text" name="file_size" value={formData.file_size} onChange={handleChange} className="form-input" placeholder="5 MB" />
-          </div>
-        </div>
+        </section>
 
-        <div className="form-row">
-          <div className="form-group">
-            <label>Download Limit</label>
-            <input type="number" name="download_limit" value={formData.download_limit} onChange={handleChange} className="form-input" placeholder="0 = unlimited" />
-          </div>
-          <div className="form-group">
-            <label>Icon (optional)</label>
-            <input type="text" name="image" value={formData.image} onChange={handleChange} className="form-input" placeholder="" />
-          </div>
-        </div>
+        <section className="digital-editor-section">
+          <h2>Private delivery file <span>*</span></h2>
+          <DigitalFileUploader value={deliveryFile} onChange={setDeliveryFile} />
+        </section>
 
-        {/* Digital File Upload (replaces external URL) */}
-        <div className="form-group">
-          <label>Upload Digital File * (PDF, ZIP, MP3, EPUB, etc.)</label>
-          <input type="file" onChange={handleFileUpload} accept=".pdf,.zip,.mp3,.mp4,.epub,.mobi,.jpg,.png" className="form-input" />
-          {uploadingFile && <p>Uploading...</p>}
-          {uploadedFile && (
-            <div className="uploaded-file">
-              ✅ {uploadedFile.name} ({(uploadedFile.size / (1024*1024)).toFixed(2)} MB)
-            </div>
-          )}
-        </div>
-
-        {/* Images/Videos Gallery */}
-        <div className="form-group">
-          <label>Product Images & Videos (max 10)</label>
+        <section className="digital-editor-section">
+          <h2>Listing previews</h2>
+          <p className="digital-section-copy">Add up to 10 public preview images. These are separate from the private delivery file.</p>
           <MediaUploader onMediaUploaded={setMedia} maxFiles={10} />
-        </div>
+        </section>
 
-        <div className="form-actions">
-          <button type="submit" className="btn btn-primary" disabled={loading || uploadingFile}>{loading ? 'Creating...' : 'Publish Digital Product'}</button>
-          <button type="button" onClick={() => navigate('/seller/dashboard/digital')} className="btn btn-outline">Cancel</button>
+        <div className="digital-editor-actions">
+          <button type="button" className="digital-button secondary" onClick={() => navigate('/seller/dashboard/digital')}>Cancel</button>
+          <button type="submit" className="digital-button primary" disabled={saving || !deliveryFile}>{saving ? 'Publishing...' : 'Publish product'}</button>
         </div>
       </form>
-
       <style>{`
-        .add-digital { max-width: 800px; margin: 0 auto; }
-        .add-digital h2 { font-size: 1.25rem; margin-bottom: 1.5rem; }
-        .digital-form { background: white; border-radius: 1rem; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-        .form-group { margin-bottom: 1rem; }
-        .form-group label { display: block; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem; }
-        .form-input { width: 100%; padding: 0.75rem; border: 1px solid #e5e7eb; border-radius: 0.5rem; font-size: 0.875rem; }
-        .uploaded-file { margin-top: 0.5rem; padding: 0.5rem; background: #d1fae5; border-radius: 0.5rem; font-size: 0.875rem; color: #065f46; }
-        .form-actions { display: flex; gap: 1rem; margin-top: 1.5rem; }
-        .btn-primary { background: #1a1a1a; color: white; padding: 0.625rem 1.25rem; border: none; border-radius: 0.5rem; cursor: pointer; }
-        .btn-outline { background: transparent; border: 1px solid #e5e7eb; padding: 0.625rem 1.25rem; border-radius: 0.5rem; cursor: pointer; }
+        .digital-editor-shell { max-width: 900px; margin: 0 auto; padding: 8px 0 28px; color: #172b32; }
+        .digital-editor-heading { margin: 0 0 24px; }
+        .digital-eyebrow { margin: 0 0 7px; color: #216275; font-size: .78rem; font-weight: 800; letter-spacing: .11em; text-transform: uppercase; }
+        .digital-editor-heading h1 { margin: 0; font-size: clamp(1.55rem, 3vw, 2rem); letter-spacing: -.03em; }
+        .digital-editor-heading p:not(.digital-eyebrow) { max-width: 650px; margin: 8px 0 0; color: #5e7077; line-height: 1.6; }
+        .digital-editor-form { display: grid; gap: 16px; }
+        .digital-editor-section { padding: 22px; border: 1px solid #deeaed; border-radius: 16px; background: #fff; box-shadow: 0 6px 22px rgba(20, 59, 68, .045); }
+        .digital-editor-section h2 { margin: 0 0 16px; font-size: 1.05rem; }
+        .digital-editor-section h2 span, .digital-field label span { color: #216275; }
+        .digital-section-copy { margin: -7px 0 15px; color: #657980; font-size: .85rem; line-height: 1.5; }
+        .digital-fields-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px; }
+        .digital-field { display: grid; gap: 7px; margin-bottom: 15px; }
+        .digital-field:last-child { margin-bottom: 0; }
+        .digital-field label { color: #294249; font-size: .85rem; font-weight: 700; }
+        .digital-field input, .digital-field textarea, .digital-field select { width: 100%; min-width: 0; border: 1px solid #c9d9dd; border-radius: 10px; padding: 11px 12px; color: #18363e; background: #fff; font: inherit; outline: none; transition: border-color .2s, box-shadow .2s; }
+        .digital-field textarea { resize: vertical; }
+        .digital-field input:focus, .digital-field textarea:focus, .digital-field select:focus { border-color: #216275; box-shadow: 0 0 0 3px rgba(33, 98, 117, .12); }
+        .digital-field small { color: #63777d; font-size: .76rem; }
+        .digital-editor-actions { display: flex; justify-content: flex-end; gap: 10px; padding-top: 4px; }
+        .digital-button { border-radius: 10px; padding: 11px 16px; font-weight: 750; cursor: pointer; transition: transform .2s, background .2s; }
+        .digital-button:hover:not(:disabled) { transform: translateY(-1px); }
+        .digital-button:disabled { cursor: not-allowed; opacity: .55; }
+        .digital-button.primary { border: 1px solid #216275; background: #216275; color: #fff; }
+        .digital-button.primary:hover:not(:disabled) { background: #194d5c; }
+        .digital-button.secondary { border: 1px solid #c6d6da; background: #fff; color: #29464f; }
+        @media (max-width: 620px) { .digital-editor-shell { padding-bottom: 20px; } .digital-editor-section { padding: 17px; } .digital-fields-grid { grid-template-columns: 1fr; gap: 0; } .digital-editor-actions { justify-content: stretch; } .digital-button { flex: 1; } }
       `}</style>
-    </div>
+    </main>
   );
 };
 
