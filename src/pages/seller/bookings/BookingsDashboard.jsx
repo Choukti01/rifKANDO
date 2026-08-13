@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { PlusIcon, EyeIcon, PencilIcon, TrashIcon, XMarkIcon, CalendarIcon } from '@heroicons/react/24/outline';
-import { getMyBookings, deleteBooking } from '../../../services/api';
+import { getMyBookings, deleteBooking, getProviderAppointments, updateProviderAppointment } from '../../../services/api';
 import api from '../../../services/api';
 import toast from 'react-hot-toast';
+import MarketplaceImage from '../../../components/common/MarketplaceImage';
 
 const BookingsDashboard = () => {
   const [bookings, setBookings] = useState([]);
+  const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -22,7 +24,7 @@ const BookingsDashboard = () => {
 
     const loadBookings = async () => {
       try {
-        const response = await getMyBookings();
+        const [response, appointmentResponse] = await Promise.all([getMyBookings(), getProviderAppointments()]);
         if (!isCurrent) return;
 
         const bookingsData = response.data.bookings || [];
@@ -33,6 +35,7 @@ const BookingsDashboard = () => {
           : 0;
 
         setBookings(bookingsData);
+        setAppointments(appointmentResponse.data.appointments || []);
         setStats({
           totalBookings: bookingsData.length,
           totalAppointments,
@@ -59,9 +62,10 @@ const BookingsDashboard = () => {
   const fetchBookings = async () => {
     try {
       setLoading(true);
-      const response = await getMyBookings();
+      const [response, appointmentResponse] = await Promise.all([getMyBookings(), getProviderAppointments()]);
       const bookingsData = response.data.bookings || [];
       setBookings(bookingsData);
+      setAppointments(appointmentResponse.data.appointments || []);
       
       const totalAppointments = bookingsData.reduce((sum, b) => sum + (b.appointments_count || 0), 0);
       const totalRevenue = bookingsData.reduce((sum, b) => sum + ((b.price || 0) * (b.appointments_count || 0)), 0);
@@ -111,6 +115,19 @@ const BookingsDashboard = () => {
     navigate('/seller/dashboard/bookings/add');
   };
 
+  const handleAppointmentAction = async (appointmentId, action) => {
+    const labels = { confirm: 'confirm', decline: 'decline', complete: 'mark as completed', no_show: 'mark as no-show', cancel: 'cancel' };
+    const results = { confirm: 'Appointment confirmed.', decline: 'Appointment declined.', complete: 'Appointment marked as completed.', no_show: 'Appointment marked as no-show.', cancel: 'Appointment cancelled.' };
+    if (!window.confirm(`Do you want to ${labels[action]} this appointment?`)) return;
+    try {
+      await updateProviderAppointment(appointmentId, action);
+      toast.success(results[action]);
+      fetchBookings();
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'Unable to update appointment');
+    }
+  };
+
   if (loading) {
     return (
       <div className="text-center py-16">
@@ -146,7 +163,7 @@ const BookingsDashboard = () => {
                   <div className="booking-info">
                     <div className="booking-image-placeholder">
                       {primaryImage ? (
-                        <img src={`http://localhost:5000${primaryImage.media_url}`} alt={booking.title} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '0.5rem' }} />
+                        <MarketplaceImage source={primaryImage.media_url} alt={booking.title} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '0.5rem' }} />
                       ) : (
                         booking.image || ''
                       )}
@@ -183,6 +200,16 @@ const BookingsDashboard = () => {
           </div>
         )}
       </div>
+
+      <section className="provider-appointments-card">
+        <div className="card-header"><div><h3>Appointment schedule</h3><p>Confirm requests and keep clients informed.</p></div></div>
+        {appointments.length === 0 ? <div className="provider-empty">No appointments yet. Your live schedule will appear here.</div> : <div className="provider-appointments-list">
+          {appointments.map((appointment) => <article className="provider-appointment" key={appointment.id}>
+            <div><h4>{appointment.title}</h4><p>{appointment.client_name} · {appointment.appointment_date} at {appointment.appointment_time} ({appointment.provider_timezone || 'Africa/Casablanca'})</p><small>{appointment.location_type === 'in_person' ? appointment.location || 'In person' : 'Online'} · {appointment.guest_count || 1} participant{Number(appointment.guest_count) === 1 ? '' : 's'}</small></div>
+            <div className="provider-appointment-actions"><span className={`appointment-state ${appointment.status}`}>{appointment.status.replace('_', ' ')}</span>{appointment.status === 'pending' && <><button onClick={() => handleAppointmentAction(appointment.id, 'confirm')}>Confirm</button><button className="quiet" onClick={() => handleAppointmentAction(appointment.id, 'decline')}>Decline</button></>}{appointment.status === 'confirmed' && <><button onClick={() => handleAppointmentAction(appointment.id, 'complete')}>Complete</button><button className="quiet" onClick={() => handleAppointmentAction(appointment.id, 'no_show')}>No show</button><button className="quiet" onClick={() => handleAppointmentAction(appointment.id, 'cancel')}>Cancel</button></>}</div>
+          </article>)}
+        </div>}
+      </section>
 
       <style>{`
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
@@ -335,6 +362,11 @@ const BookingsDashboard = () => {
 
         .btn-sm { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; font-size: 0.875rem; background: #1a1a1a; color: white; border: none; border-radius: 0.5rem; cursor: pointer; }
         .btn-primary { background: #1a1a1a; color: white; }
+        .provider-appointments-card { margin-top: 2rem; background: white; border-radius: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow: hidden; }
+        .card-header p { margin: .25rem 0 0; color: #64748b; font-size: .8rem; }
+        .provider-empty { padding: 1.5rem; color: #64748b; font-size: .9rem; }
+        .provider-appointment { display:flex; justify-content:space-between; gap:1rem; padding:1rem 1.25rem; border-top:1px solid #e5e7eb; }
+        .provider-appointment h4 { margin:0 0 .35rem; color:#15363f; }.provider-appointment p,.provider-appointment small{margin:0;color:#64748b;font-size:.8rem}.provider-appointment small{display:block;margin-top:.35rem}.provider-appointment-actions{display:flex;align-items:center;flex-wrap:wrap;justify-content:flex-end;gap:.45rem}.provider-appointment-actions button{border:0;border-radius:.45rem;background:#216275;color:#fff;padding:.45rem .65rem;font-size:.75rem;cursor:pointer}.provider-appointment-actions button.quiet{background:#edf4f5;color:#216275}.appointment-state{text-transform:capitalize;font-size:.75rem;font-weight:700;border-radius:999px;padding:.3rem .55rem;background:#eaf0f2;color:#537078}.appointment-state.pending{background:#fff4d9;color:#935b00}.appointment-state.confirmed{background:#dff5ea;color:#13704d}.appointment-state.cancelled,.appointment-state.declined,.appointment-state.no_show{background:#fbe6e6;color:#a23838}@media(max-width:680px){.provider-appointment{display:block}.provider-appointment-actions{justify-content:flex-start;margin-top:.75rem}}
       `}</style>
     </div>
   );

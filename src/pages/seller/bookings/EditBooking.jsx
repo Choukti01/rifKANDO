@@ -3,6 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import api from '../../../services/api';
 import toast from 'react-hot-toast';
 import MediaUploader from '../../../components/MediaUploader';
+import BookingScheduleFields from '../../../components/bookings/BookingScheduleFields';
+import { DEFAULT_BOOKING_SCHEDULE, bookingSchedulePayload, normalizeBookingSchedule } from '../../../components/bookings/bookingSchedule';
 
 const EditBooking = () => {
   const { id } = useParams();
@@ -10,6 +12,7 @@ const EditBooking = () => {
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
   const [media, setMedia] = useState([]);
+  const [schedule, setSchedule] = useState(DEFAULT_BOOKING_SCHEDULE);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -44,6 +47,17 @@ const EditBooking = () => {
           max_participants: booking.max_participants || '1',
           image: booking.image || ''
         });
+        setSchedule(normalizeBookingSchedule({
+          timezone: booking.timezone,
+          confirmation_mode: booking.confirmation_mode,
+          buffer_minutes: booking.buffer_minutes,
+          minimum_notice_minutes: booking.minimum_notice_minutes,
+          booking_window_days: booking.booking_window_days,
+          max_bookings_per_day: booking.max_bookings_per_day,
+          cancellation_notice_hours: booking.cancellation_notice_hours,
+          availability: booking.availability,
+          unavailable_dates: booking.unavailable_dates,
+        }));
         setMedia(booking.media?.map(m => ({ url: m.media_url, type: m.media_type })) || []);
       } catch (error) {
         if (isCurrent) {
@@ -77,6 +91,7 @@ const EditBooking = () => {
         old_price: formData.old_price ? parseFloat(formData.old_price) : null,
         duration: parseInt(formData.duration),
         max_participants: parseInt(formData.max_participants),
+        ...bookingSchedulePayload(schedule),
         media: media.map((m, idx) => ({ ...m, order: idx, isPrimary: idx === 0 }))
       };
       
@@ -134,6 +149,7 @@ const EditBooking = () => {
               <option value="training">Training</option>
               <option value="classes">Classes</option>
               <option value="events">Events</option>
+              <option value="other">Other</option>
             </select>
           </div>
           <div className="form-group">
@@ -168,6 +184,8 @@ const EditBooking = () => {
             <input type="text" name="image" value={formData.image} onChange={handleChange} className="form-input" placeholder="📅" />
           </div>
         </div>
+
+        <BookingScheduleFields value={schedule} onChange={setSchedule} />
 
         <div className="form-group">
           <label>Service Images & Videos (max 10)</label>

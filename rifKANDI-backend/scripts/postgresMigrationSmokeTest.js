@@ -32,6 +32,12 @@ async function main() {
   assert.match(phoneAuthenticationMigration.sql, /CREATE TABLE phone_verification_challenges/i);
   assert.match(phoneAuthenticationMigration.sql, /CREATE UNIQUE INDEX idx_users_phone_unique/i);
 
+  const bookingProtocolMigration = migrations.find((migration) => migration.version === '005');
+  assert.ok(bookingProtocolMigration, 'Professional booking protocol must be versioned as migration 005.');
+  assert.match(bookingProtocolMigration.sql, /CREATE TABLE booking_availability_windows/i);
+  assert.match(bookingProtocolMigration.sql, /CREATE TABLE booking_date_overrides/i);
+  assert.match(bookingProtocolMigration.sql, /ADD COLUMN IF NOT EXISTS idempotency_key TEXT/i);
+
   const baselineSql = migrations[0].sql;
   const allMigrationSql = migrations.map((migration) => migration.sql).join('\n');
   for (const table of EXPECTED_POSTGRES_TABLES) {
@@ -66,11 +72,13 @@ async function main() {
   assert.match(output, /002  seller_withdrawal_eligibility/);
   assert.match(output, /003  remove_seller_verification/);
   assert.match(output, /004  phone_otp_authentication/);
+  assert.match(output, /005  professional_booking_protocol/);
 
   assert.ok(fs.existsSync(path.join(__dirname, '../migrations/postgres/001_initial_schema.sql')));
   assert.ok(fs.existsSync(path.join(__dirname, '../migrations/postgres/002_seller_withdrawal_eligibility.sql')));
   assert.ok(fs.existsSync(path.join(__dirname, '../migrations/postgres/003_remove_seller_verification.sql')));
   assert.ok(fs.existsSync(path.join(__dirname, '../migrations/postgres/004_phone_otp_authentication.sql')));
+  assert.ok(fs.existsSync(path.join(__dirname, '../migrations/postgres/005_professional_booking_protocol.sql')));
   console.log('PostgreSQL migration smoke test passed.');
 }
 

@@ -341,18 +341,97 @@ const servicePayload = (body, partial) => catalogPayload(body, {
 
 const bookingPayload = (body, partial) => catalogPayload(body, {
   partial,
-  allowed: ['duration', 'location_type', 'location', 'max_participants', 'available_days', 'image'],
-  fields: (value, required) => ({
-    duration: value.duration === undefined ? (required ? 60 : undefined) : integer(value.duration, 'duration', { min: 5, max: 1_440 }),
-    location_type: value.location_type === undefined
+  allowed: [
+    'duration', 'location_type', 'location', 'max_participants', 'available_days', 'image',
+    'timezone', 'availability', 'unavailable_dates', 'buffer_minutes', 'minimum_notice_minutes',
+    'booking_window_days', 'max_bookings_per_day', 'cancellation_notice_hours', 'confirmation_mode',
+  ],
+  fields: (value, required) => {
+    const locationType = value.location_type === undefined
       ? (required ? 'online' : undefined)
-      : enumValue(value.location_type, 'location_type', ['online', 'in_person']),
-    location: value.location === undefined ? (required ? '' : undefined) : text(value.location, 'location', { max: 300 }),
-    max_participants: value.max_participants === undefined ? (required ? 1 : undefined) : integer(value.max_participants, 'max_participants', { min: 1, max: 10_000 }),
-    available_days: jsonTextList(value.available_days, 'available_days', { maxItems: 31, itemMax: 20 }) || (required ? '[]' : undefined),
-    image: value.image === undefined ? (required ? '' : undefined) : text(value.image, 'image', { max: 64 }),
-  }),
+      : enumValue(value.location_type, 'location_type', ['online', 'in_person']);
+    const location = value.location === undefined
+      ? (required ? '' : undefined)
+      : text(value.location, 'location', { max: 300 });
+    if (locationType === 'in_person' && required && (!location || location.length < 4)) {
+      fail('location', 'is required for an in-person booking.');
+    }
+    return {
+      duration: value.duration === undefined ? (required ? 60 : undefined) : integer(value.duration, 'duration', { min: 5, max: 1_440 }),
+      location_type: locationType,
+      location,
+      max_participants: value.max_participants === undefined ? (required ? 1 : undefined) : integer(value.max_participants, 'max_participants', { min: 1, max: 10_000 }),
+      available_days: jsonTextList(value.available_days, 'available_days', { maxItems: 31, itemMax: 20 }) || (required ? '[]' : undefined),
+      image: value.image === undefined ? (required ? '' : undefined) : text(value.image, 'image', { max: 64 }),
+      timezone: value.timezone === undefined ? (required ? 'Africa/Casablanca' : undefined) : bookingTimeZone(value.timezone),
+      availability: value.availability === undefined ? (required ? defaultBookingAvailability() : undefined) : bookingAvailability(value.availability),
+      unavailable_dates: value.unavailable_dates === undefined ? (required ? [] : undefined) : bookingUnavailableDates(value.unavailable_dates),
+      buffer_minutes: value.buffer_minutes === undefined ? (required ? 0 : undefined) : integer(value.buffer_minutes, 'buffer_minutes', { min: 0, max: 240 }),
+      minimum_notice_minutes: value.minimum_notice_minutes === undefined ? (required ? 60 : undefined) : integer(value.minimum_notice_minutes, 'minimum_notice_minutes', { min: 0, max: 43_200 }),
+      booking_window_days: value.booking_window_days === undefined ? (required ? 60 : undefined) : integer(value.booking_window_days, 'booking_window_days', { min: 1, max: 365 }),
+      max_bookings_per_day: value.max_bookings_per_day === undefined
+        ? (required ? null : undefined)
+        : (value.max_bookings_per_day === null ? null : integer(value.max_bookings_per_day, 'max_bookings_per_day', { min: 1, max: 10_000 })),
+      cancellation_notice_hours: value.cancellation_notice_hours === undefined ? (required ? 24 : undefined) : integer(value.cancellation_notice_hours, 'cancellation_notice_hours', { min: 0, max: 720 }),
+      confirmation_mode: value.confirmation_mode === undefined ? (required ? 'instant' : undefined) : enumValue(value.confirmation_mode, 'confirmation_mode', ['instant', 'request']),
+    };
+  },
 });
+
+const bookingTimeZone = (value) => {
+  const timeZone = text(value, 'timezone', { required: true, max: 64 });
+  try {
+    new Intl.DateTimeFormat('en', { timeZone }).format();
+  } catch (_) {
+    fail('timezone', 'must be a valid IANA time zone.');
+  }
+  return timeZone;
+};
+
+const bookingClockTime = (value, field) => text(value, field, { required: true, pattern: /^([01]\d|2[0-3]):[0-5]\d$/ });
+
+const bookingDate = (value, field) => {
+  const date = text(value, field, { required: true, pattern: /^\d{4}-\d{2}-\d{2}$/ });
+  const parsed = new Date(`${date}T00:00:00.000Z`);
+  if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date) fail(field, 'must be a valid date.');
+  return date;
+};
+
+const defaultBookingAvailability = () => [1, 2, 3, 4, 5].map((weekday) => ({ weekday, start_time: '09:00', end_time: '17:00' }));
+
+const bookingAvailability = (value) => {
+  if (!Array.isArray(value) || value.length < 1 || value.length > 28) {
+    fail('availability', 'must contain between 1 and 28 weekly availability windows.');
+  }
+  const windows = value.map((window, index) => {
+    object(window, `availability.${index}`);
+    onlyKeys(window, ['weekday', 'start_time', 'end_time'], `availability.${index}`);
+    const startTime = bookingClockTime(window.start_time, `availability.${index}.start_time`);
+    const endTime = bookingClockTime(window.end_time, `availability.${index}.end_time`);
+    if (endTime <= startTime) fail(`availability.${index}.end_time`, 'must be after start_time.');
+    return {
+      weekday: integer(window.weekday, `availability.${index}.weekday`, { min: 0, max: 6 }),
+      start_time: startTime,
+      end_time: endTime,
+    };
+  });
+  const ordered = [...windows].sort((a, b) => a.weekday - b.weekday || a.start_time.localeCompare(b.start_time));
+  for (let index = 1; index < ordered.length; index += 1) {
+    const previous = ordered[index - 1];
+    const current = ordered[index];
+    if (previous.weekday === current.weekday && previous.end_time > current.start_time) {
+      fail('availability', 'weekly availability windows cannot overlap.');
+    }
+  }
+  return ordered;
+};
+
+const bookingUnavailableDates = (value) => {
+  if (!Array.isArray(value) || value.length > 90) fail('unavailable_dates', 'must contain at most 90 blocked dates.');
+  const dates = value.map((date, index) => bookingDate(date, `unavailable_dates.${index}`));
+  if (new Set(dates).size !== dates.length) fail('unavailable_dates', 'must not contain duplicate dates.');
+  return dates.sort();
+};
 
 const digitalPayload = (body, partial) => catalogPayload(body, {
   partial,
@@ -379,6 +458,56 @@ const validateServiceCreate = validate((req) => ({ body: servicePayload(req.body
 const validateServiceUpdate = validate((req) => ({ body: servicePayload(req.body, true) }));
 const validateBookingCreate = validate((req) => ({ body: bookingPayload(req.body, false) }));
 const validateBookingUpdate = validate((req) => ({ body: bookingPayload(req.body, true) }));
+const validateBookingStatus = validate((req) => {
+  const body = object(req.body);
+  onlyKeys(body, ['status']);
+  return { body: { status: enumValue(body.status, 'status', ['published', 'paused', 'ended']) } };
+});
+const validateBookingAvailabilityQuery = validate((req) => {
+  const query = req.query || {};
+  onlyKeys(query, ['date']);
+  return { query: { date: bookingDate(query.date, 'query.date') } };
+});
+const validateAppointmentCreate = validate((req) => {
+  const body = object(req.body);
+  onlyKeys(body, ['appointment_date', 'appointment_time', 'guest_count', 'notes', 'idempotency_key']);
+  return {
+    body: {
+      appointment_date: bookingDate(body.appointment_date, 'appointment_date'),
+      appointment_time: bookingClockTime(body.appointment_time, 'appointment_time'),
+      guest_count: body.guest_count === undefined ? 1 : integer(body.guest_count, 'guest_count', { min: 1, max: 10_000 }),
+      notes: optionalText(body.notes, 'notes', 1_000),
+      idempotency_key: body.idempotency_key === undefined || body.idempotency_key === ''
+        ? ''
+        : text(body.idempotency_key, 'idempotency_key', { min: 16, max: 128, pattern: /^[A-Za-z0-9:_-]+$/ }),
+    },
+  };
+});
+const validateAppointmentCancellation = validate((req) => {
+  const body = object(req.body);
+  onlyKeys(body, ['reason']);
+  return { body: { reason: optionalText(body.reason, 'reason', 1_000) } };
+});
+const validateAppointmentReschedule = validate((req) => {
+  const body = object(req.body);
+  onlyKeys(body, ['appointment_date', 'appointment_time']);
+  return {
+    body: {
+      appointment_date: bookingDate(body.appointment_date, 'appointment_date'),
+      appointment_time: bookingClockTime(body.appointment_time, 'appointment_time'),
+    },
+  };
+});
+const validateAppointmentProviderAction = validate((req) => {
+  const body = object(req.body);
+  onlyKeys(body, ['action', 'reason']);
+  return {
+    body: {
+      action: enumValue(body.action, 'action', ['confirm', 'decline', 'complete', 'no_show', 'cancel']),
+      reason: optionalText(body.reason, 'reason', 1_000),
+    },
+  };
+});
 const validateDigitalCreate = validate((req) => ({ body: digitalPayload(req.body, false) }));
 const validateDigitalUpdate = validate((req) => ({ body: digitalPayload(req.body, true) }));
 
@@ -531,6 +660,12 @@ module.exports = {
   validateServiceUpdate,
   validateBookingCreate,
   validateBookingUpdate,
+  validateBookingStatus,
+  validateBookingAvailabilityQuery,
+  validateAppointmentCreate,
+  validateAppointmentCancellation,
+  validateAppointmentReschedule,
+  validateAppointmentProviderAction,
   validateDigitalCreate,
   validateDigitalUpdate,
   validateLessonCreate,

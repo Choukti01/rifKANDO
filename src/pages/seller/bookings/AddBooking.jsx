@@ -3,11 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import api from '../../../services/api';
 import toast from 'react-hot-toast';
 import MediaUploader from '../../../components/MediaUploader';
+import BookingScheduleFields from '../../../components/bookings/BookingScheduleFields';
+import { DEFAULT_BOOKING_SCHEDULE, bookingSchedulePayload } from '../../../components/bookings/bookingSchedule';
 
 const AddBooking = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [media, setMedia] = useState([]);
+  const [schedule, setSchedule] = useState(DEFAULT_BOOKING_SCHEDULE);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -36,6 +39,7 @@ const AddBooking = () => {
         old_price: formData.old_price ? parseFloat(formData.old_price) : null,
         duration: parseInt(formData.duration),
         max_participants: parseInt(formData.max_participants),
+        ...bookingSchedulePayload(schedule),
         media: media.map((m, idx) => ({ ...m, order: idx, isPrimary: idx === 0 }))
       };
       
@@ -84,7 +88,7 @@ const AddBooking = () => {
               <option value="training">Training</option>
               <option value="classes">Classes</option>
               <option value="events">Events</option>
-              <option value="events">Others</option>
+              <option value="other">Other</option>
 
             </select>
           </div>
@@ -120,6 +124,8 @@ const AddBooking = () => {
             <input type="text" name="image" value={formData.image} onChange={handleChange} className="form-input" placeholder="" />
           </div>
         </div>
+
+        <BookingScheduleFields value={schedule} onChange={setSchedule} />
 
         {/* Media Upload Section */}
         <div className="form-group">

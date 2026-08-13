@@ -44,6 +44,12 @@ const {
   validateServiceUpdate,
   validateBookingCreate,
   validateBookingUpdate,
+  validateBookingStatus,
+  validateBookingAvailabilityQuery,
+  validateAppointmentCreate,
+  validateAppointmentCancellation,
+  validateAppointmentReschedule,
+  validateAppointmentProviderAction,
   validateDigitalCreate,
   validateDigitalUpdate,
   validateLessonCreate,
@@ -1413,10 +1419,18 @@ app.use('/api', createDigitalRoutes({
 app.use('/api', createBookingRoutes({
   db,
   protect,
+  optionalProtect,
   requireSeller,
   validateIdParams,
   validateBookingCreate,
   validateBookingUpdate,
+  validateBookingStatus,
+  validateBookingAvailabilityQuery,
+  validateAppointmentCreate,
+  validateAppointmentCancellation,
+  validateAppointmentReschedule,
+  validateAppointmentProviderAction,
+  auditService: AuditService,
 }));
 
 // ==================== CART ENDPOINTS ====================

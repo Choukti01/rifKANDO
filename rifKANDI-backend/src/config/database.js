@@ -601,6 +601,13 @@ db.serialize(() => {
       reviews_count INTEGER DEFAULT 0,
       bookings_count INTEGER DEFAULT 0,
       status TEXT DEFAULT 'published',
+      timezone TEXT NOT NULL DEFAULT 'Africa/Casablanca',
+      buffer_minutes INTEGER NOT NULL DEFAULT 0,
+      minimum_notice_minutes INTEGER NOT NULL DEFAULT 60,
+      booking_window_days INTEGER NOT NULL DEFAULT 60,
+      max_bookings_per_day INTEGER,
+      cancellation_notice_hours INTEGER NOT NULL DEFAULT 24,
+      confirmation_mode TEXT NOT NULL DEFAULT 'instant',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (provider_id) REFERENCES users(id)
     )
@@ -634,6 +641,31 @@ db.serialize(() => {
     )
   `);
 
+  db.run(`
+    CREATE TABLE IF NOT EXISTS booking_availability_windows (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      booking_id INTEGER NOT NULL,
+      weekday INTEGER NOT NULL CHECK(weekday BETWEEN 0 AND 6),
+      start_time TIME NOT NULL,
+      end_time TIME NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE CASCADE,
+      UNIQUE(booking_id, weekday, start_time, end_time)
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS booking_date_overrides (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      booking_id INTEGER NOT NULL,
+      date DATE NOT NULL,
+      is_available BOOLEAN NOT NULL DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE CASCADE,
+      UNIQUE(booking_id, date)
+    )
+  `);
+
   // Booking appointments table
   db.run(`
     CREATE TABLE IF NOT EXISTS appointments (
@@ -648,6 +680,17 @@ db.serialize(() => {
       duration INTEGER DEFAULT 60,
       status TEXT DEFAULT 'pending',
       notes TEXT,
+      starts_at DATETIME,
+      ends_at DATETIME,
+      booking_timezone TEXT DEFAULT 'Africa/Casablanca',
+      guest_count INTEGER NOT NULL DEFAULT 1,
+      idempotency_key TEXT UNIQUE,
+      cancelled_at DATETIME,
+      cancelled_by INTEGER,
+      cancellation_reason TEXT,
+      confirmed_at DATETIME,
+      completed_at DATETIME,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (booking_id) REFERENCES bookings(id),
       FOREIGN KEY (client_id) REFERENCES users(id),
@@ -949,6 +992,37 @@ db.serialize(() => {
       SELECT RAISE(ABORT, 'audit logs are immutable');
     END
   `);
+
+  const bookingProtocolColumns = [
+    ['bookings', 'timezone', "TEXT NOT NULL DEFAULT 'Africa/Casablanca'"],
+    ['bookings', 'buffer_minutes', 'INTEGER NOT NULL DEFAULT 0'],
+    ['bookings', 'minimum_notice_minutes', 'INTEGER NOT NULL DEFAULT 60'],
+    ['bookings', 'booking_window_days', 'INTEGER NOT NULL DEFAULT 60'],
+    ['bookings', 'max_bookings_per_day', 'INTEGER'],
+    ['bookings', 'cancellation_notice_hours', 'INTEGER NOT NULL DEFAULT 24'],
+    ['bookings', 'confirmation_mode', "TEXT NOT NULL DEFAULT 'instant'"],
+    ['appointments', 'starts_at', 'DATETIME'],
+    ['appointments', 'ends_at', 'DATETIME'],
+    ['appointments', 'booking_timezone', "TEXT DEFAULT 'Africa/Casablanca'"],
+    ['appointments', 'guest_count', 'INTEGER NOT NULL DEFAULT 1'],
+    ['appointments', 'idempotency_key', 'TEXT'],
+    ['appointments', 'cancelled_at', 'DATETIME'],
+    ['appointments', 'cancelled_by', 'INTEGER'],
+    ['appointments', 'cancellation_reason', 'TEXT'],
+    ['appointments', 'confirmed_at', 'DATETIME'],
+    ['appointments', 'completed_at', 'DATETIME'],
+    ['appointments', 'updated_at', 'DATETIME'],
+  ];
+  for (const [table, column, definition] of bookingProtocolColumns) {
+    db.run(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`, (err) => {
+      if (err && !err.message.includes('duplicate column name')) {
+        console.error(`Error adding ${column} to ${table}:`, err.message);
+      }
+    });
+  }
+  db.run("UPDATE bookings SET timezone = 'Africa/Casablanca' WHERE timezone IS NULL OR timezone = ''");
+  db.run("UPDATE bookings SET confirmation_mode = 'instant' WHERE confirmation_mode IS NULL OR confirmation_mode = ''");
+  db.run("UPDATE appointments SET booking_timezone = 'Africa/Casablanca' WHERE booking_timezone IS NULL OR booking_timezone = ''");
   db.run(`
     CREATE TRIGGER IF NOT EXISTS prevent_audit_log_deletes
     BEFORE DELETE ON audit_logs
@@ -1028,6 +1102,10 @@ db.serialize(() => {
     ['idx_digital_purchases_product_buyer', 'digital_purchases(product_id, buyer_id, id DESC)'],
     ['idx_appointments_client_date', 'appointments(client_id, appointment_date DESC)'],
     ['idx_appointments_provider_date', 'appointments(provider_id, appointment_date DESC)'],
+    ['idx_appointments_provider_schedule', 'appointments(provider_id, appointment_date, appointment_time, status)'],
+    ['idx_appointments_booking_schedule', 'appointments(booking_id, appointment_date, appointment_time, status)'],
+    ['idx_booking_availability_windows_schedule', 'booking_availability_windows(booking_id, weekday, start_time)'],
+    ['idx_booking_date_overrides_schedule', 'booking_date_overrides(booking_id, date)'],
     ['idx_product_media_listing', 'product_media(product_id, display_order, id)'],
     ['idx_course_media_listing', 'course_media(course_id, display_order, id)'],
     ['idx_service_media_listing', 'service_media(service_id, display_order, id)'],
@@ -1039,6 +1117,9 @@ db.serialize(() => {
       if (err) console.error(`Error creating ${name}:`, err.message);
     });
   }
+  db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_appointments_idempotency_key ON appointments(idempotency_key)', (err) => {
+    if (err) console.error('Error creating appointment idempotency index:', err.message);
+  });
 
   // ========== NEW: Product Offers table (for Joutiya items) ==========
   db.run(`

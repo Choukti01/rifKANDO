@@ -2,6 +2,8 @@ const EXPECTED_POSTGRES_TABLES = Object.freeze([
   'appointments',
   'audit_logs',
   'auth_sessions',
+  'booking_availability_windows',
+  'booking_date_overrides',
   'booking_media',
   'booking_slots',
   'bookings',
