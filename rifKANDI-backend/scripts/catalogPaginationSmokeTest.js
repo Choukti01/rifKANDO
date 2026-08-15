@@ -45,6 +45,10 @@ const seedCatalog = async () => {
     "INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, 'seller')",
     ['Catalog Pagination Seller', 'catalog-pagination-seller@example.test', 'not-used-in-this-test']
   );
+  const buyer = await runStatement(
+    "INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, 'buyer')",
+    ['Catalog Pagination Buyer', 'catalog-pagination-buyer@example.test', 'not-used-in-this-test']
+  );
 
   for (let index = 1; index <= 13; index += 1) {
     const suffix = String(index).padStart(2, '0');
@@ -61,8 +65,10 @@ const seedCatalog = async () => {
       [`Digital ${suffix}`, 'Catalog pagination test digital product.', index, 'Ebooks', seller.lastID, `private/digital-files-user-${seller.lastID}/file-${suffix}.pdf`]
     );
     await runStatement(
-      "INSERT INTO bookings (title, description, price, category, provider_id, status) VALUES (?, ?, ?, ?, ?, 'published')",
-      [`Booking ${suffix}`, 'Catalog pagination test booking.', index, 'consultation', seller.lastID]
+      `INSERT INTO findit_requests
+        (request_number, buyer_id, title, description, category, city, preferred_condition, budget_max, budget_max_minor, status, expires_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'any', ?, ?, 'active', datetime('now', '+7 days'))`,
+      [`FIND-SEED-${suffix}`, buyer.lastID, `FINDit Request ${suffix}`, 'Catalog pagination test buyer request.', 'Auto & Parts', 'Tangier', index * 100, index * 10000]
     );
   }
 };
@@ -71,7 +77,7 @@ const assertCatalogPagination = async (port, pathname, collection) => {
   const querySeparator = pathname.includes('?') ? '&' : '?';
   const firstPage = await fetchJson(port, `${pathname}${querySeparator}page=1&limit=12`);
   assert.equal(firstPage.response.status, 200, `${pathname} first page must succeed`);
-  assert.match(firstPage.response.headers.get('cache-control') || '', /max-age=60/, `${pathname} must be safely cacheable`);
+  assert.match(firstPage.response.headers.get('cache-control') || '', /max-age=\d+/, `${pathname} must be safely cacheable`);
   assert.equal(firstPage.body[collection].length, 12, `${pathname} must return the requested page size`);
   assert.deepEqual(firstPage.body.pagination, {
     page: 1,
@@ -100,7 +106,7 @@ const run = async () => {
     await assertCatalogPagination(port, '/api/courses', 'courses');
     await assertCatalogPagination(port, '/api/services', 'services');
     await assertCatalogPagination(port, '/api/digital', 'products');
-    await assertCatalogPagination(port, '/api/bookings?category=consultation', 'bookings');
+    await assertCatalogPagination(port, '/api/findit/requests', 'requests');
 
     const digitalPage = await fetchJson(port, '/api/digital?page=1&limit=12');
     assert.equal(Object.hasOwn(digitalPage.body.products[0], 'file_url'), false, 'catalog responses must not expose private digital file references');

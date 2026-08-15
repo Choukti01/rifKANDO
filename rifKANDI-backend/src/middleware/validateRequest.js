@@ -65,7 +65,8 @@ const integer = (value, field, { min = 0, max = MAX_ID } = {}) => {
 const money = (value, field, { min = 0, max = MAX_MONEY } = {}) => {
   if (typeof value !== 'number' || !Number.isFinite(value)) fail(field, 'must be a finite number.');
   if (value < min || value > max) fail(field, `must be between ${min} and ${max}.`);
-  if (Math.round(value * 100) !== value * 100) fail(field, 'must have no more than two decimal places.');
+  const minorUnits = value * 100;
+  if (Math.abs(minorUnits - Math.round(minorUnits)) > 1e-8) fail(field, 'must have no more than two decimal places.');
   return value;
 };
 
@@ -241,9 +242,9 @@ const optionalMoney = (value, field, options = {}) => {
   return money(value, field, options);
 };
 
-const publicMedia = (value, field = 'media') => {
+const publicMedia = (value, field = 'media', maxItems = 10) => {
   if (value === undefined) return undefined;
-  if (!Array.isArray(value) || value.length > 10) fail(field, 'must contain at most 10 uploaded images.');
+  if (!Array.isArray(value) || value.length > maxItems) fail(field, `must contain at most ${maxItems} uploaded images.`);
   return value.map((item, index) => {
     object(item, `${field}.${index}`);
     onlyKeys(item, ['url', 'type', 'order', 'isPrimary'], `${field}.${index}`);
@@ -529,6 +530,69 @@ const validateDigitalAccessDecision = validate((req) => {
   };
 });
 
+const finditRequestPayload = (body) => {
+  object(body);
+  onlyKeys(body, ['title', 'description', 'category', 'city', 'preferred_condition', 'budget_max', 'expires_in_days', 'media']);
+  return {
+    title: text(body.title, 'title', { required: true, min: 3, max: 160 }),
+    description: text(body.description, 'description', { required: true, min: 10, max: 2_000 }),
+    category: text(body.category, 'category', { required: true, min: 2, max: 64 }),
+    city: text(body.city, 'city', { required: true, min: 2, max: 100 }),
+    preferred_condition: enumValue(body.preferred_condition, 'preferred_condition', ['any', 'new', 'used']),
+    budget_max: money(body.budget_max, 'budget_max', { min: 0, max: MAX_MONEY }),
+    expires_in_days: integer(body.expires_in_days, 'expires_in_days', { min: 1, max: 14 }),
+    media: publicMedia(body.media || [], 'media', 3),
+  };
+};
+
+const finditOfferPayload = (body, partial) => {
+  object(body);
+  onlyKeys(body, ['title', 'description', 'price', 'delivery_fee', 'condition', 'estimated_delivery_days']);
+  const result = {
+    title: body.title === undefined ? undefined : text(body.title, 'title', { required: true, min: 3, max: 160 }),
+    description: body.description === undefined ? undefined : text(body.description, 'description', { required: true, min: 10, max: 2_000 }),
+    price: body.price === undefined ? undefined : money(body.price, 'price', { min: 0.01 }),
+    delivery_fee: body.delivery_fee === undefined ? undefined : money(body.delivery_fee, 'delivery_fee', { min: 0 }),
+    condition: body.condition === undefined ? undefined : enumValue(body.condition, 'condition', ['new', 'used', 'refurbished']),
+    estimated_delivery_days: body.estimated_delivery_days === undefined ? undefined : integer(body.estimated_delivery_days, 'estimated_delivery_days', { min: 1, max: 60 }),
+  };
+  if (!partial) {
+    for (const [field, value] of Object.entries(result)) {
+      if (value === undefined) fail(field, 'is required.');
+    }
+  }
+  const sanitized = Object.fromEntries(Object.entries(result).filter(([, value]) => value !== undefined));
+  if (partial && Object.keys(sanitized).length === 0) fail('body', 'must include at least one editable field.');
+  return sanitized;
+};
+
+const shippingAddressPayload = (value, field = 'shippingAddress') => {
+  const address = object(value, field);
+  onlyKeys(address, ['fullName', 'email', 'phone', 'address', 'city', 'postalCode'], field);
+  return {
+    fullName: text(address.fullName, `${field}.fullName`, { required: true, min: 2, max: 120 }),
+    email: email(address.email, `${field}.email`),
+    phone: text(address.phone, `${field}.phone`, { required: true, min: 5, max: 32, pattern: /^[+()\-\s\d]+$/ }),
+    address: text(address.address, `${field}.address`, { required: true, min: 5, max: 300 }),
+    city: text(address.city, `${field}.city`, { required: true, min: 2, max: 100 }),
+    postalCode: optionalText(address.postalCode, `${field}.postalCode`, 24),
+  };
+};
+
+const validateFinditRequestCreate = validate((req) => ({ body: finditRequestPayload(req.body) }));
+const validateFinditOfferCreate = validate((req) => ({ body: finditOfferPayload(req.body, false) }));
+const validateFinditOfferUpdate = validate((req) => ({ body: finditOfferPayload(req.body, true) }));
+const validateFinditCheckout = validate((req) => {
+  const body = object(req.body);
+  onlyKeys(body, ['shippingAddress', 'notes']);
+  return {
+    body: {
+      shippingAddress: shippingAddressPayload(body.shippingAddress),
+      notes: optionalText(body.notes, 'notes', 1_000),
+    },
+  };
+});
+
 const lessonPayload = (body, partial) => {
   object(body);
   onlyKeys(body, ['title', 'description', 'duration', 'order', 'is_preview', 'video_url']);
@@ -688,6 +752,10 @@ module.exports = {
   validateDigitalUpdate,
   validateDigitalAccessRequest,
   validateDigitalAccessDecision,
+  validateFinditRequestCreate,
+  validateFinditOfferCreate,
+  validateFinditOfferUpdate,
+  validateFinditCheckout,
   validateLessonCreate,
   validateLessonUpdate,
   validateLessonProgress,

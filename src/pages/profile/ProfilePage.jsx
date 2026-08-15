@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import useAuth from '../../hooks/useAuth';
-import { UserIcon, EnvelopeIcon, PhoneIcon, MapPinIcon, BellIcon, PencilIcon } from '@heroicons/react/24/outline';
+import { UserIcon, EnvelopeIcon, PhoneIcon, MapPinIcon, BellIcon, PencilIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 import ProfilePictureUpload from '../../components/ProfilePictureUpload';
@@ -139,8 +139,7 @@ const ProfilePage = () => {
                     {user.sellerType === 'product' ? '🛍️ Product Seller' :
                      user.sellerType === 'course' ? '📚 Course Instructor' :
                      user.sellerType === 'service' ? '🛠️ Service Provider' :
-                     user.sellerType === 'digital' ? '💻 Digital Creator' :
-                     user.sellerType === 'booking' ? '📅 Booking Pro' : 'Seller'}
+                     user.sellerType === 'digital' ? '💻 Digital Creator' : 'Seller'}
                   </span>
                 ) : (
                   <button onClick={() => navigate('/choose-seller-type')} className="become-seller-btn">
@@ -183,6 +182,7 @@ const ProfilePage = () => {
 
             <div className="profile-info">
               <p className="member-since">Member since {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : '2024'}</p>
+              <button className="profile-findt-link" onClick={() => navigate('/findit/dashboard')}><MagnifyingGlassIcon />My FINDit requests</button>
             </div>
           </div>
 
@@ -304,6 +304,8 @@ const ProfilePage = () => {
         .tab-btn.active { background: #87CEEB; color: #1a1a1a; }
         .tab-icon { width: 1.25rem; height: 1.25rem; }
         .member-since { font-size: 0.7rem; color: #9ca3af; text-align: center; padding-top: 1rem; border-top: 1px solid #e5e7eb; }
+        .profile-findt-link { align-items: center; background: #f1f8fd; border: 1px solid #cfe5f5; border-radius: 0.5rem; color: #15363f; cursor: pointer; display: flex; font-size: 0.75rem; font-weight: 700; gap: 0.4rem; justify-content: center; margin: 0.7rem auto 0; padding: 0.55rem 0.65rem; width: 100%; }
+        .profile-findt-link svg { color: var(--color-brand-blue); height: 0.95rem; width: 0.95rem; }
         .profile-card { background: white; border-radius: 1rem; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid #e5e7eb; }
         .card-header h2 { font-size: 1.25rem; margin: 0; }

@@ -15,7 +15,7 @@ const feeCategories = [
   { type: 'course', label: 'Courses' },
   { type: 'service', label: 'Services' },
   { type: 'digital', label: 'Digital products' },
-  { type: 'booking', label: 'Bookings' },
+  { type: 'findit', label: 'FINDit solutions' },
 ]
 
 const SellerGuidelines = () => {
@@ -66,7 +66,7 @@ const SellerGuidelines = () => {
             </div>
             <div className="seller-guide-steps">
               <article><UserPlusIcon aria-hidden="true" /><h3>Create your account</h3><p>Use accurate contact details and confirm your email before you start selling.</p></article>
-              <article><DocumentCheckIcon aria-hidden="true" /><h3>Choose your seller workspace</h3><p>Select Products, Courses, Services, Digital, or Bookings to open the tools that match your business.</p></article>
+              <article><DocumentCheckIcon aria-hidden="true" /><h3>Choose your seller workspace</h3><p>Select Products, Courses, Services, or Digital to open the tools that match your business. FINDit is available to every seller who can solve buyer requests.</p></article>
               <article><ShieldCheckIcon aria-hidden="true" /><h3>Keep your profile current</h3><p>Make sure your name, business details, and customer-facing information remain accurate.</p></article>
             </div>
           </section>
@@ -82,7 +82,7 @@ const SellerGuidelines = () => {
             <div className="seller-guide-checklist">
               <div><CheckIcon aria-hidden="true" /><span>Use clear, accurate titles, descriptions, prices, and specifications.</span></div>
               <div><CheckIcon aria-hidden="true" /><span>Use original, high-quality images or media that honestly represent the offer.</span></div>
-              <div><CheckIcon aria-hidden="true" /><span>Set realistic availability, delivery, lesson, service, or appointment expectations.</span></div>
+              <div><CheckIcon aria-hidden="true" /><span>Set realistic availability, delivery, lesson, service, or FINDit fulfillment expectations.</span></div>
               <div><CheckIcon aria-hidden="true" /><span>Only publish content you are allowed to sell, distribute, or use commercially.</span></div>
             </div>
           </section>
@@ -118,7 +118,7 @@ const SellerGuidelines = () => {
               </div>
             </div>
             <div className="seller-guide-two-column">
-              <div><h3>Do</h3><ul><li>Meet the delivery or service timeframe you communicate.</li><li>Respond to customer questions promptly and professionally.</li><li>Keep customers informed when an order, booking, or request changes.</li></ul></div>
+              <div><h3>Do</h3><ul><li>Meet the delivery or service timeframe you communicate.</li><li>Respond to customer questions promptly and professionally.</li><li>Keep customers informed when an order or FINDit request changes.</li></ul></div>
               <div><h3>Avoid</h3><ul><li>Misleading product details, hidden conditions, or unavailable inventory.</li><li>Requesting payments outside rifKANDO for marketplace activity.</li><li>Using customer information for purposes unrelated to the transaction.</li></ul></div>
             </div>
           </section>

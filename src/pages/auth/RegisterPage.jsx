@@ -3,11 +3,13 @@ import { GoogleLogin } from '@react-oauth/google';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import useAuth from '../../hooks/useAuth';
+import { useTranslation } from 'react-i18next';
 
 const RegisterPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { googleLogin, requestPhoneRegistrationCode, verifyPhoneRegistration } = useAuth();
+  const { t } = useTranslation();
   const [formData, setFormData] = useState({ name: '', phone: '' });
   const [code, setCode] = useState('');
   const [pending, setPending] = useState(false);
@@ -41,40 +43,40 @@ const RegisterPage = () => {
   return (
     <main className="auth-page">
       <section className="auth-card" aria-labelledby="register-title">
-        <span className="auth-eyebrow">rifKANDO account</span>
-        <h1 id="register-title">{pending ? 'Confirm your phone' : 'Join rifKANDO'}</h1>
-        <p>{pending ? 'Enter the six-digit code we sent by SMS.' : 'Create your account with your phone number or Google account.'}</p>
+        <span className="auth-eyebrow">{t('auth.account')}</span>
+        <h1 id="register-title">{pending ? t('auth.confirmPhone') : t('auth.join')}</h1>
+        <p>{pending ? t('auth.codeRegistration') : t('auth.createLead')}</p>
 
         {pending ? (
           <form onSubmit={verifyCode}>
             <label>
-              SMS code
+              {t('auth.smsCode')}
               <input autoComplete="one-time-code" inputMode="numeric" maxLength={6} onChange={(event) => setCode(event.target.value.replace(/\D/g, ''))} required value={code} />
             </label>
-            <button disabled={submitting || code.length !== 6} type="submit">{submitting ? 'Confirming...' : 'Confirm and create account'}</button>
-            <button className="text-button" disabled={submitting} onClick={requestCode} type="button">Send a new code</button>
-            <button className="text-button" disabled={submitting} onClick={() => { setCode(''); setPending(false); }} type="button">Change phone number</button>
+            <button disabled={submitting || code.length !== 6} type="submit">{submitting ? t('auth.confirming') : t('auth.confirmCreate')}</button>
+            <button className="text-button" disabled={submitting} onClick={requestCode} type="button">{t('auth.newCode')}</button>
+            <button className="text-button" disabled={submitting} onClick={() => { setCode(''); setPending(false); }} type="button">{t('auth.changePhone')}</button>
           </form>
         ) : (
           <>
             <form onSubmit={requestCode}>
               <label>
-                Full name
+                {t('auth.fullName')}
                 <input autoComplete="name" name="name" onChange={update} required value={formData.name} />
               </label>
               <label>
-                Mobile number
+                {t('auth.mobile')}
                 <input autoComplete="tel" inputMode="tel" name="phone" onChange={update} placeholder="+212 6 12 34 56 78" required type="tel" value={formData.phone} />
               </label>
-              <small>Use your country code. Moroccan mobile numbers can also start with 0.</small>
-              <button disabled={submitting} type="submit">{submitting ? 'Sending SMS...' : 'Continue with phone'}</button>
+              <small>{t('auth.phoneHint')}</small>
+              <button disabled={submitting} type="submit">{submitting ? t('auth.sendingSms') : t('auth.continuePhone')}</button>
             </form>
-            <div className="divider"><span>or</span></div>
-            <div className="google"><GoogleLogin onError={() => toast.error('Google sign-up was cancelled or failed.')} onSuccess={handleGoogleSuccess} theme="outline" width="320" /></div>
+            <div className="divider"><span>{t('auth.or')}</span></div>
+            <div className="google"><GoogleLogin onError={() => toast.error(t('auth.googleSignUpFailed'))} onSuccess={handleGoogleSuccess} theme="outline" width="320" /></div>
           </>
         )}
 
-        {!pending && <p className="switch">Already have an account? <Link to={`/login${location.search}`}>Sign in</Link></p>}
+        {!pending && <p className="switch">{t('auth.alreadyHave')} <Link to={`/login${location.search}`}>{t('auth.signIn')}</Link></p>}
       </section>
       <style>{styles}</style>
     </main>

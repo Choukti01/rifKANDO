@@ -148,6 +148,7 @@ const OrdersPage = () => {
                   <tr key={order.id}>
                     <td className="order-id">
                       <span className="order-number">{order.order_number}</span>
+                      {order.order_type === 'findit' && <span className="findit-order-label">FINDit</span>}
                     </td>
                     <td className="order-items">
                       <span className="items-count">{order.item_count || 1} item(s)</span>
@@ -202,6 +203,7 @@ const OrdersPage = () => {
         .orders-table tbody td { padding: 1rem 1.25rem; font-size: 0.875rem; border-bottom: 1px solid #f3f4f6; }
         .orders-table tbody tr:hover { background: rgba(135, 206, 235, 0.05); }
         .order-number { font-weight: 600; font-family: monospace; font-size: 0.8rem; background: #f3f4f6; padding: 0.25rem 0.5rem; border-radius: 0.375rem; }
+        .findit-order-label { background: var(--color-brand-soft); border-radius: 999px; color: var(--color-brand-ink); display: inline-block; font-size: 0.65rem; font-weight: 800; margin-left: 0.4rem; padding: 0.2rem 0.45rem; }
         .amount { font-weight: 600; color: #1a1a1a; }
         .status-badge { display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.25rem 0.75rem; border-radius: 2rem; font-size: 0.75rem; font-weight: 500; }
         .order-date { color: #6b7280; font-size: 0.75rem; }

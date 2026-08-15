@@ -114,7 +114,7 @@ class StorageService {
 
   publicKeyFromUrl(value) {
     if (!value) return null;
-    const localMatch = String(value).match(/^\/uploads\/(profile-pictures|media)\/([^/?#]+)$/);
+    const localMatch = String(value).match(/^\/uploads\/(profile-pictures|media|findit-reference-images)\/([^/?#]+)$/);
     if (localMatch) return `${PUBLIC_STORAGE_PREFIX}${localMatch[1]}/${decodeURIComponent(localMatch[2])}`;
 
     if (!this.publicBaseUrl || !String(value).startsWith(`${this.publicBaseUrl}/`)) return null;

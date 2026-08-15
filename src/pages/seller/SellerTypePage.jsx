@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
-import { ShoppingBagIcon, AcademicCapIcon, WrenchScrewdriverIcon, ComputerDesktopIcon, CalendarIcon, CheckIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
+import { ShoppingBagIcon, AcademicCapIcon, WrenchScrewdriverIcon, ComputerDesktopIcon, CheckIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
 
 const SellerTypePage = () => {
   const [selectedType, setSelectedType] = useState(null);
@@ -14,7 +14,6 @@ const SellerTypePage = () => {
     { id: 'course', title: 'Course Instructor', icon: AcademicCapIcon, description: 'Publish structured online courses and lessons.', features: ['Courses', 'Lessons', 'Students'] },
     { id: 'service', title: 'Service Provider', icon: WrenchScrewdriverIcon, description: 'Offer professional services with packages and client requests.', features: ['Services', 'Packages', 'Clients'] },
     { id: 'digital', title: 'Digital Creator', icon: ComputerDesktopIcon, description: 'Sell downloadable digital products from one workspace.', features: ['Files', 'Downloads', 'Requests'] },
-    { id: 'booking', title: 'Booking Professional', icon: CalendarIcon, description: 'Offer bookable appointments and manage availability.', features: ['Appointments', 'Availability', 'Clients'] }
   ];
 
   // If user already has a seller type, redirect to dashboard

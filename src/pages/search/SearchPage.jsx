@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { MagnifyingGlassIcon, FunnelIcon, XMarkIcon, StarIcon } from '@heroicons/react/24/outline';
-import { getProducts, getCourses, getServices, getDigitalProducts, getBookings } from '../../services/api';
+import { getProducts, getCourses, getServices, getDigitalProducts } from '../../services/api';
 import toast from 'react-hot-toast';
 import MarketplaceImage from '../../components/common/MarketplaceImage';
 
@@ -22,20 +22,18 @@ const SearchPage = () => {
   // Fetch all data from all categories
   const fetchAllData = useCallback(async () => {
     try {
-      const [productsRes, coursesRes, servicesRes, digitalRes, bookingsRes] = await Promise.all([
+      const [productsRes, coursesRes, servicesRes, digitalRes] = await Promise.all([
         getProducts(),
         getCourses(),
         getServices(),
-        getDigitalProducts(),
-        getBookings()
+        getDigitalProducts()
       ]);
 
       const allResults = [
         ...(productsRes.data.products || []).map(item => ({ ...item, type: 'product', searchTitle: item.title })),
         ...(coursesRes.data.courses || []).map(item => ({ ...item, type: 'course', searchTitle: item.title })),
         ...(servicesRes.data.services || []).map(item => ({ ...item, type: 'service', searchTitle: item.title })),
-        ...(digitalRes.data.products || []).map(item => ({ ...item, type: 'digital', searchTitle: item.title })),
-        ...(bookingsRes.data.bookings || []).map(item => ({ ...item, type: 'booking', searchTitle: item.title }))
+        ...(digitalRes.data.products || []).map(item => ({ ...item, type: 'digital', searchTitle: item.title }))
       ];
 
       return allResults;
@@ -97,8 +95,7 @@ const SearchPage = () => {
       product: 'Product',
       course: 'Course',
       service: 'Service',
-      digital: 'Digital',
-      booking: 'Booking'
+      digital: 'Digital'
     };
     return labels[type] || type;
   };
@@ -109,7 +106,6 @@ const SearchPage = () => {
       case 'course': return `/course/${item.id}`;
       case 'service': return `/service/${item.id}`;
       case 'digital': return `/digital/${item.id}`;
-      case 'booking': return `/booking/${item.id}`;
       default: return '#';
     }
   };
@@ -208,7 +204,6 @@ const SearchPage = () => {
                   <option value="course">Courses</option>
                   <option value="service">Services</option>
                   <option value="digital">Digital Products</option>
-                  <option value="booking">Bookings</option>
                 </select>
               </div>
               <div>

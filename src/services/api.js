@@ -148,20 +148,23 @@ export const decideDigitalAccessRequest = (id, action, reason = '') => api.post(
 export const getDigitalDownloadAccess = (id) => api.get(`/digital/${id}/can-download`);
 export const downloadDigitalProduct = (id) => api.get(`/digital/${id}/download`, { responseType: 'blob' });
 
-// ==================== BOOKING APIs ====================
-export const getBookings = (params) => api.get('/bookings', { params });
-export const getBooking = (id) => api.get(`/bookings/${id}`);
-export const createBooking = (bookingData) => api.post('/bookings', bookingData);
-export const updateBooking = (id, bookingData) => api.put(`/bookings/${id}`, bookingData);
-export const deleteBooking = (id) => api.delete(`/bookings/${id}`);
-export const getMyBookings = () => api.get('/my-bookings');
-export const getBookingAvailability = (id, date) => api.get(`/bookings/${id}/availability`, { params: { date } });
-export const bookAppointment = (id, appointmentData) => api.post(`/bookings/${id}/book`, appointmentData);
-export const getMyAppointments = () => api.get('/my-appointments');
-export const getProviderAppointments = () => api.get('/provider-appointments');
-export const cancelAppointment = (id, reason = '') => api.post(`/appointments/${id}/cancel`, { reason });
-export const rescheduleAppointment = (id, appointmentData) => api.post(`/appointments/${id}/reschedule`, appointmentData);
-export const updateProviderAppointment = (id, action, reason = '') => api.post(`/appointments/${id}/action`, { action, reason });
+// ==================== FINDit APIs ====================
+export const getFinditRequests = (params) => api.get('/findit/requests', { params });
+export const getFinditRequest = (id) => api.get(`/findit/requests/${id}`);
+export const createFinditRequest = (requestData) => api.post('/findit/requests', requestData);
+export const getMyFinditRequests = () => api.get('/findit/my-requests');
+export const cancelFinditRequest = (id) => api.post(`/findit/requests/${id}/cancel`);
+export const uploadFinditMedia = (formData, onUploadProgress) => api.post('/upload-findit-media', formData, {
+  headers: { 'Content-Type': 'multipart/form-data' },
+  onUploadProgress,
+});
+export const getSellerFinditOffers = () => api.get('/seller/findit/offers');
+export const createFinditOffer = (requestId, offerData) => api.post(`/findit/requests/${requestId}/offers`, offerData);
+export const updateFinditOffer = (id, offerData) => api.put(`/findit/offers/${id}`, offerData);
+export const withdrawFinditOffer = (id) => api.delete(`/findit/offers/${id}`);
+export const acceptFinditOffer = (id, checkoutData, idempotencyKey) => api.post(`/findit/offers/${id}/checkout`, checkoutData, {
+  headers: { 'Idempotency-Key': idempotencyKey },
+});
 
 // ==================== CART APIs ====================
 export const getCart = () => api.get('/cart');

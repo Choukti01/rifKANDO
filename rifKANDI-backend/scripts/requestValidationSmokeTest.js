@@ -126,10 +126,10 @@ const run = async () => {
       method: 'POST', cookies: seller.cookies, csrfToken: seller.csrfToken,
       body: { title: 'Valid service', description: 'This description is long enough.', price: 100, category: 'Design', delivery_time: '2 days', revisions: 101, image: '', media: [] },
     }), 'services must cap revision counts');
-    await assertValidationError(await request(port, '/api/bookings', {
+    await assertValidationError(await request(port, '/api/findit/requests/1/offers', {
       method: 'POST', cookies: seller.cookies, csrfToken: seller.csrfToken,
-      body: { title: 'Valid booking', description: 'This description is long enough.', price: 100, category: 'Consultation', duration: 2, location_type: 'online', location: '', max_participants: 1, media: [] },
-    }), 'bookings must enforce a safe duration range');
+      body: { title: 'Valid FINDit solution', description: 'This solution description is long enough for validation.', price: 100, delivery_fee: 0, condition: 'new', estimated_delivery_days: 61 },
+    }), 'FINDit offers must enforce a safe delivery estimate range');
     await assertValidationError(await request(port, '/api/digital', {
       method: 'POST', cookies: seller.cookies, csrfToken: seller.csrfToken,
       body: { title: 'Valid digital product', description: 'This description is long enough.', price: 100, category: 'Ebooks', file_type: 'file', file_url: 'https://example.test/file.pdf', media: [] },

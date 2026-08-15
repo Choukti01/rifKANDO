@@ -79,7 +79,7 @@ const PrivacyPage = () => {
                   </div>
                   <div>
                     <h3>Marketplace activity</h3>
-                    <p>Order, booking, course, service, listing, and support information needed to operate the service.</p>
+                    <p>Order, FINDit request, course, service, listing, and support information needed to operate the service.</p>
                   </div>
                   <div>
                     <h3>Payment and payout records</h3>
@@ -105,7 +105,7 @@ const PrivacyPage = () => {
               <div className="privacy-section-number">03</div>
               <div>
                 <h2>When information is shared</h2>
-                <p>We do not sell your personal information. We share the minimum information needed with sellers, buyers, and service providers to complete a transaction or booking, process payments, provide support, and operate rifKANDO.</p>
+                <p>We do not sell your personal information. We share the minimum information needed with sellers, buyers, and service providers to complete a transaction or FINDit order, process payments, provide support, and operate rifKANDO.</p>
               </div>
             </section>
 

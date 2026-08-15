@@ -131,6 +131,7 @@ const SellerOrders = () => {
                   <tr key={order.id}>
                     <td className="order-id">
                       <span className="order-number">{order.order_number}</span>
+                      {(order.fulfillment_source === 'findit' || order.order_type === 'findit') && <span className="findit-order-label">FINDit</span>}
                     </td>
                     <td className="customer-name">{order.buyer_name || 'Customer'}</td>
                     <td className="order-total">{Number(order.seller_total ?? order.total ?? 0).toLocaleString()} MAD</td>
@@ -177,6 +178,7 @@ const SellerOrders = () => {
         .orders-table tbody td { padding: 1rem; font-size: 0.875rem; border-bottom: 1px solid #f3f4f6; }
         .orders-table tbody tr:hover { background: #f9fafb; }
         .order-number { font-weight: 600; font-family: monospace; background: #f3f4f6; padding: 0.25rem 0.5rem; border-radius: 0.375rem; font-size: 0.75rem; }
+        .findit-order-label { background: var(--color-brand-soft); border-radius: 999px; color: var(--color-brand-ink); display: inline-block; font-size: 0.65rem; font-weight: 800; margin-left: 0.4rem; padding: 0.2rem 0.45rem; }
         .customer-name { font-weight: 500; }
         .order-total { font-weight: 600; }
         .payment-badge { background: #f3f4f6; padding: 0.25rem 0.5rem; border-radius: 0.375rem; font-size: 0.7rem; }

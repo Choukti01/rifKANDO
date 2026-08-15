@@ -3,7 +3,7 @@ import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { 
   HomeIcon, ShoppingBagIcon, AcademicCapIcon,
   WrenchScrewdriverIcon, CurrencyDollarIcon, Cog6ToothIcon, 
-  ArrowLeftOnRectangleIcon, ComputerDesktopIcon, CalendarIcon,
+  ArrowLeftOnRectangleIcon, ComputerDesktopIcon, MagnifyingGlassIcon,
   ChatBubbleLeftRightIcon, Bars3Icon, XMarkIcon, ClipboardDocumentListIcon,
   HeartIcon, ShoppingCartIcon, TagIcon
 } from '@heroicons/react/24/outline';
@@ -12,6 +12,7 @@ import useCart from '../../../hooks/useCart';
 import useFavorites from '../../../hooks/useFavorites';
 import { getImageUrl } from '../../../utils/imageUtils';
 import api from '../../../services/api';
+import { useTranslation } from 'react-i18next';
 
 const DashboardLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -22,6 +23,7 @@ const DashboardLayout = () => {
   const { user, logout } = useAuth();
   const { cartCount } = useCart();
   const { favoritesCount } = useFavorites();
+  const { t } = useTranslation();
 
   useEffect(() => {
     if (!isMobileMenuOpen) return undefined;
@@ -61,30 +63,30 @@ const DashboardLayout = () => {
   }, []);
 
   const sellerWorkspaceItems = {
-    product: { name: 'Products', icon: ShoppingBagIcon, path: 'products' },
-    course: { name: 'Courses', icon: AcademicCapIcon, path: 'courses' },
-    service: { name: 'Services', icon: WrenchScrewdriverIcon, path: 'services' },
-    digital: { name: 'Digital', icon: ComputerDesktopIcon, path: 'digital' },
-    booking: { name: 'Bookings', icon: CalendarIcon, path: 'bookings' },
+    product: { name: t('sellerDashboard.products'), icon: ShoppingBagIcon, path: 'products' },
+    course: { name: t('sellerDashboard.courses'), icon: AcademicCapIcon, path: 'courses' },
+    service: { name: t('sellerDashboard.services'), icon: WrenchScrewdriverIcon, path: 'services' },
+    digital: { name: t('sellerDashboard.digital'), icon: ComputerDesktopIcon, path: 'digital' },
   };
   const selectedWorkspaceItems = sellerWorkspaceItems[user?.sellerType]
     ? [sellerWorkspaceItems[user.sellerType]]
     : Object.values(sellerWorkspaceItems);
   const navItems = [
-    { name: 'Overview', icon: HomeIcon, path: 'overview' },
+    { name: t('sellerDashboard.overview'), icon: HomeIcon, path: 'overview' },
     ...selectedWorkspaceItems,
-    { name: 'Orders', icon: ClipboardDocumentListIcon, path: 'orders' },
-    { name: 'Offers', icon: TagIcon, path: 'offers' },
-    { name: 'Messages', icon: ChatBubbleLeftRightIcon, path: 'messages', unreadCount },
-    { name: 'Wallet', icon: CurrencyDollarIcon, path: 'wallet' },
-    { name: 'Settings', icon: Cog6ToothIcon, path: 'settings' },
-    { type: 'section', name: 'Buying' },
-    { name: 'Saved items', icon: HeartIcon, path: 'favorites', count: favoritesCount },
-    { name: 'Cart', icon: ShoppingCartIcon, path: 'cart', count: cartCount },
+    { name: t('sellerDashboard.orders'), icon: ClipboardDocumentListIcon, path: 'orders' },
+    { name: t('sellerDashboard.findit'), icon: MagnifyingGlassIcon, path: 'findit' },
+    { name: t('sellerDashboard.offers'), icon: TagIcon, path: 'offers' },
+    { name: t('sellerDashboard.messages'), icon: ChatBubbleLeftRightIcon, path: 'messages', unreadCount },
+    { name: t('sellerDashboard.wallet'), icon: CurrencyDollarIcon, path: 'wallet' },
+    { name: t('sellerDashboard.settings'), icon: Cog6ToothIcon, path: 'settings' },
+    { type: 'section', name: t('sellerDashboard.buying') },
+    { name: t('sellerDashboard.savedItems'), icon: HeartIcon, path: 'favorites', count: favoritesCount },
+    { name: t('sellerDashboard.cart'), icon: ShoppingCartIcon, path: 'cart', count: cartCount },
   ];
   const activeSection = navItems.find(({ path }) =>
     location.pathname.startsWith(`/seller/dashboard/${path}`)
-  )?.name || 'Seller workspace';
+  )?.name || t('sellerDashboard.title');
 
   const handleLogout = () => {
     logout();
@@ -101,11 +103,11 @@ const DashboardLayout = () => {
     <div className="dashboard-container">
       {/* Mobile header with hamburger */}
       <div className="mobile-dashboard-header">
-        <button className="mobile-menu-btn" onClick={toggleMobileMenu}>
+        <button className="mobile-menu-btn" onClick={toggleMobileMenu} aria-label={t('sellerDashboard.open')}>
           <Bars3Icon className="icon" />
         </button>
         <div className="mobile-dashboard-title">
-          <span>Seller dashboard</span>
+          <span>{t('sellerDashboard.title')}</span>
           <h1>{activeSection}</h1>
         </div>
         <div className="placeholder" />
@@ -117,11 +119,11 @@ const DashboardLayout = () => {
       {/* Sidebar */}
       <div className={`dashboard-sidebar ${isSidebarOpen ? 'open' : 'closed'} ${isMobileMenuOpen ? 'mobile-open' : ''}`}>
         <div className="sidebar-header">
-          <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="sidebar-toggle">
+          <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="sidebar-toggle" aria-label={isSidebarOpen ? t('sellerDashboard.collapse') : t('sellerDashboard.expand')}>
             {isSidebarOpen ? '←' : '→'}
           </button>
           {/* Close button for mobile */}
-          <button className="mobile-close-btn" onClick={closeMobileMenu}>
+          <button className="mobile-close-btn" onClick={closeMobileMenu} aria-label={t('sellerDashboard.close')}>
             <XMarkIcon className="icon" />
           </button>
         </div>
@@ -135,17 +137,16 @@ const DashboardLayout = () => {
                 className="sidebar-avatar-img"
               />
             ) : (
-              <span>{user?.name?.charAt(0) || 'S'}</span>
+              <span>{user?.name?.charAt(0) || t('sellerDashboard.seller').charAt(0)}</span>
             )}
           </div>
           {isSidebarOpen && (
             <div className="sidebar-user-info">
-              <h4>{user?.name || 'Seller'}</h4>
-              <p>{user?.sellerType === 'product' ? 'Product Seller' : 
-                     user?.sellerType === 'course' ? 'Course Instructor' :
-                     user?.sellerType === 'service' ? 'Service Provider' : 
-                     user?.sellerType === 'digital' ? 'Digital Creator' :
-                     user?.sellerType === 'booking' ? 'Booking Professional' : 'Seller'}</p>
+              <h4>{user?.name || t('sellerDashboard.seller')}</h4>
+              <p>{user?.sellerType === 'product' ? t('sellerDashboard.productSeller') :
+                     user?.sellerType === 'course' ? t('sellerDashboard.courseInstructor') :
+                     user?.sellerType === 'service' ? t('sellerDashboard.serviceProvider') :
+                     user?.sellerType === 'digital' ? t('sellerDashboard.digitalCreator') : t('sellerDashboard.seller')}</p>
             </div>
           )}
         </div>
@@ -175,7 +176,7 @@ const DashboardLayout = () => {
         <div className="sidebar-footer">
           <button onClick={handleLogout} className="sidebar-logout">
             <ArrowLeftOnRectangleIcon className="sidebar-nav-icon" />
-            {isSidebarOpen && <span>Exit Dashboard</span>}
+            {isSidebarOpen && <span>{t('sellerDashboard.exit')}</span>}
           </button>
         </div>
       </div>
