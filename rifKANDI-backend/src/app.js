@@ -42,18 +42,14 @@ const {
   validateCourseUpdate,
   validateServiceCreate,
   validateServiceUpdate,
-  validateBookingCreate,
-  validateBookingUpdate,
-  validateBookingStatus,
-  validateBookingAvailabilityQuery,
-  validateAppointmentCreate,
-  validateAppointmentCancellation,
-  validateAppointmentReschedule,
-  validateAppointmentProviderAction,
   validateDigitalCreate,
   validateDigitalUpdate,
   validateDigitalAccessRequest,
   validateDigitalAccessDecision,
+  validateFinditRequestCreate,
+  validateFinditOfferCreate,
+  validateFinditOfferUpdate,
+  validateFinditCheckout,
   validateLessonCreate,
   validateLessonUpdate,
   validateLessonProgress,
@@ -85,7 +81,7 @@ const createProductRoutes = require('./routes/productRoutes');
 const createCourseRoutes = require('./routes/courseRoutes');
 const createServiceRoutes = require('./routes/serviceRoutes');
 const createDigitalRoutes = require('./routes/digitalRoutes');
-const createBookingRoutes = require('./routes/bookingRoutes');
+const createFindItRoutes = require('./routes/finditRoutes');
 // const EmailService = require('./services/emailService');
 
 
@@ -332,9 +328,19 @@ const requireOrderStatusAccess = (req, res, next) => {
       return res.status(403).json({ error: 'Only sellers or administrators can update orders.' });
     }
     db.get(
-      `SELECT 1 FROM order_items oi JOIN products p ON p.id = oi.product_id
-       WHERE oi.order_id = ? AND p.seller_id = ? LIMIT 1`,
-      [order.id, req.user.id],
+      `SELECT 1
+       FROM orders o
+       WHERE o.id = ? AND (
+         EXISTS (
+           SELECT 1 FROM order_items oi JOIN products p ON p.id = oi.product_id
+           WHERE oi.order_id = o.id AND p.seller_id = ?
+         )
+         OR EXISTS (
+           SELECT 1 FROM findit_orders fo
+           WHERE fo.order_id = o.id AND fo.seller_id = ?
+         )
+       ) LIMIT 1`,
+      [order.id, req.user.id, req.user.id],
       (accessError, sellerItem) => {
         if (accessError) return res.status(500).json({ error: 'Unable to verify order access.' });
         if (!sellerItem) return res.status(403).json({ error: 'You are not a seller for this order.' });
@@ -362,9 +368,13 @@ const requireOrderHistoryAccess = (req, res, next) => {
            JOIN products p ON p.id = oi.product_id
            WHERE oi.order_id = o.id AND p.seller_id = ?
          )
+         OR EXISTS (
+           SELECT 1 FROM findit_orders fo
+           WHERE fo.order_id = o.id AND fo.seller_id = ?
+         )
        )
      LIMIT 1`,
-    [req.params.id, req.user.id, req.user.id],
+    [req.params.id, req.user.id, req.user.id, req.user.id],
     (accessError, order) => {
       if (accessError) return res.status(500).json({ error: 'Unable to verify order access.' });
       if (!order) return res.status(404).json({ error: 'Order not found.' });
@@ -1053,6 +1063,44 @@ app.post('/api/upload-media', protect, requireSeller, (req, res, next) => {
   });
 }, persistPublicMedia, (req, res) => res.json({ success: true, ...req.publicMedia }));
 
+// FINDit reference photos are intentionally available to marketplace sellers,
+// but are re-encoded, size-limited images and cannot be used for private IDs
+// or arbitrary file delivery.
+const findItMediaUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024, files: 1, fields: 4, fieldSize: 32 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype)) return cb(null, true);
+    return cb(new Error('Only JPEG, PNG, and WebP reference images are allowed.'));
+  },
+});
+
+app.post('/api/upload-findit-media', protect, (req, res, next) => {
+  findItMediaUpload.single('media')(req, res, (error) => {
+    if (error) return res.status(400).json({ error: error.message || 'Invalid reference image.' });
+    return next();
+  });
+}, async (req, res) => {
+  let key;
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No reference image was uploaded.' });
+    key = storageService.createKey('public', 'findit-reference-images', 'jpg');
+    const image = await sharp(req.file.buffer, { failOn: 'error' })
+      .rotate()
+      .resize(1_800, 1_800, { fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: 88, mozjpeg: true })
+      .toBuffer();
+    await storageService.put(key, image, {
+      contentType: 'image/jpeg',
+      cacheControl: 'public, max-age=31536000, immutable',
+    });
+    return res.status(201).json({ success: true, url: storageService.publicUrl(key), type: 'image' });
+  } catch (error) {
+    if (key) storageService.delete(key).catch(() => {});
+    return res.status(400).json({ error: 'The uploaded reference image is invalid.' });
+  }
+});
+
 const privateDigitalUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 25 * 1024 * 1024, files: 1, fields: 10, fieldSize: 64 * 1024 },
@@ -1435,20 +1483,17 @@ app.use('/api', createDigitalRoutes({
   auditService: AuditService,
 }));
 
-app.use('/api', createBookingRoutes({
+// Booking routes are intentionally no longer mounted. Historical booking data
+// remains retained, but the product no longer accepts or exposes bookings.
+app.use('/api', createFindItRoutes({
   db,
   protect,
-  optionalProtect,
   requireSeller,
   validateIdParams,
-  validateBookingCreate,
-  validateBookingUpdate,
-  validateBookingStatus,
-  validateBookingAvailabilityQuery,
-  validateAppointmentCreate,
-  validateAppointmentCancellation,
-  validateAppointmentReschedule,
-  validateAppointmentProviderAction,
+  validateFinditRequestCreate,
+  validateFinditOfferCreate,
+  validateFinditOfferUpdate,
+  validateFinditCheckout,
   auditService: AuditService,
 }));
 
@@ -1531,7 +1576,8 @@ app.delete('/api/cart', protect, (req, res) => {
 app.get('/api/orders', protect, (req, res) => {
   db.all(`
     SELECT o.*, 
-      (SELECT COUNT(*) FROM order_items WHERE order_id = o.id) as item_count
+      ((SELECT COUNT(*) FROM order_items WHERE order_id = o.id)
+        + (SELECT COUNT(*) FROM findit_orders WHERE order_id = o.id)) as item_count
     FROM orders o
     WHERE o.user_id = ?
     ORDER BY o.created_at DESC
@@ -1553,12 +1599,16 @@ app.get('/api/orders/:id', protect, (req, res) => {
     } else if (!order) {
       res.status(404).json({ error: 'Order not found' });
     } else {
-      db.all(`
-        SELECT oi.*, p.title, p.image
-        FROM order_items oi
-        LEFT JOIN products p ON oi.product_id = p.id
-        WHERE oi.order_id = ?
-      `, [order.id], (err, items) => {
+      const itemQuery = order.order_type === 'findit'
+        ? `SELECT fo.id, fo.item_title AS title, fo.item_description AS description,
+                  fo.item_condition AS condition, fo.price, fo.price_minor, 1 AS quantity,
+                  fo.delivery_fee, fo.delivery_fee_minor, '' AS image
+           FROM findit_orders fo WHERE fo.order_id = ?`
+        : `SELECT oi.*, p.title, p.image
+           FROM order_items oi
+           LEFT JOIN products p ON oi.product_id = p.id
+           WHERE oi.order_id = ?`;
+      db.all(itemQuery, [order.id], (err, items) => {
         if (err) {
           res.status(500).json({ error: err.message });
         } else {
@@ -2027,7 +2077,7 @@ app.get('/api/my-courses-stats', protect, requireSeller, (req, res) => {
 // ==================== SELLER TYPE & PUBLIC PROFILE ====================
 app.patch('/api/users/update-seller-type', protect, validateSellerType, (req, res) => {
   const { sellerType } = req.body;
-  const valid = ['product', 'course', 'service', 'digital', 'booking'];
+  const valid = ['product', 'course', 'service', 'digital'];
   if (!valid.includes(sellerType)) {
     return res.status(400).json({ error: 'Invalid seller type' });
   }
@@ -2740,17 +2790,31 @@ app.get('/api/orders/:id/history', protect, requireOrderHistoryAccess, (req, res
 
 app.get('/api/seller/orders', protect, requireSeller, (req, res) => {
   db.all(`
-    SELECT o.*, u.name as buyer_name,
-      SUM(oi.quantity * oi.price) as seller_total,
-      SUM(oi.quantity) as seller_item_count
-    FROM orders o
-    JOIN order_items oi ON o.id = oi.order_id
-    JOIN products p ON oi.product_id = p.id
-    JOIN users u ON o.user_id = u.id
-    WHERE p.seller_id = ?
-    GROUP BY o.id
-    ORDER BY o.created_at DESC
-  `, [req.user.id], (err, rows) => {
+    SELECT * FROM (
+      SELECT o.*, u.name as buyer_name,
+        SUM(oi.quantity * oi.price) as seller_total,
+        SUM(oi.quantity) as seller_item_count,
+        'product' AS fulfillment_source,
+        NULL AS item_title
+      FROM orders o
+      JOIN order_items oi ON o.id = oi.order_id
+      JOIN products p ON oi.product_id = p.id
+      JOIN users u ON o.user_id = u.id
+      WHERE p.seller_id = ?
+      GROUP BY o.id
+      UNION ALL
+      SELECT o.*, u.name AS buyer_name,
+        fo.seller_amount AS seller_total,
+        1 AS seller_item_count,
+        'findit' AS fulfillment_source,
+        fo.item_title
+      FROM orders o
+      JOIN findit_orders fo ON fo.order_id = o.id
+      JOIN users u ON o.user_id = u.id
+      WHERE fo.seller_id = ?
+    ) seller_orders
+    ORDER BY created_at DESC
+  `, [req.user.id, req.user.id], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json({ success: true, orders: rows });
   });
@@ -2796,14 +2860,17 @@ app.get('/api/orders/:id/invoice', protect, async (req, res) => {
     let storageKey = invoice && storageService.keyFromReference(invoice.storage_reference, 'private');
 
     if (!storageKey) {
+      const itemQuery = order.order_type === 'findit'
+        ? `SELECT fo.id, fo.item_title AS title, fo.item_description AS description,
+                  fo.price, fo.price_minor, 1 AS quantity, fo.delivery_fee, fo.delivery_fee_minor
+           FROM findit_orders fo WHERE fo.order_id = ?`
+        : `SELECT oi.*, COALESCE(NULLIF(oi.product_title, ''), p.title) AS title
+           FROM order_items oi
+           LEFT JOIN products p ON oi.product_id = p.id
+           WHERE oi.order_id = ?`;
       const [user, items] = await Promise.all([
         getDatabaseRow('SELECT * FROM users WHERE id = ?', [order.user_id]),
-        getDatabaseRows(`
-          SELECT oi.*, COALESCE(NULLIF(oi.product_title, ''), p.title) AS title
-          FROM order_items oi
-          LEFT JOIN products p ON oi.product_id = p.id
-          WHERE oi.order_id = ?
-        `, [order.id]),
+        getDatabaseRows(itemQuery, [order.id]),
       ]);
       if (!user) return res.status(404).json({ error: 'Invoice customer record not found.' });
 

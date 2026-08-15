@@ -12,6 +12,7 @@ const expectedRates = {
   service: 5,
   digital: 7,
   booking: 5,
+  findit: 5,
 };
 
 assert.deepEqual(
@@ -23,6 +24,7 @@ assert.equal(calculateCommissionMinor('course', 20_000), 1_800);
 assert.equal(calculateCommissionMinor('service', 20_000), 1_000);
 assert.equal(calculateCommissionMinor('digital', 20_000), 1_400);
 assert.equal(calculateCommissionMinor('booking', 20_000), 1_000);
+assert.equal(calculateCommissionMinor('findit', 20_000), 1_000);
 
 const now = new Date('2026-08-10T12:00:00.000Z');
 assert.equal(getWithdrawalEligibility('2026-07-27 12:00:00', now).eligible, true);

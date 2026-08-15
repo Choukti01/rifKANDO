@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import {
   AcademicCapIcon,
   ArrowRightIcon,
-  CalendarIcon,
+  MagnifyingGlassIcon,
   CheckIcon,
   ComputerDesktopIcon,
   CurrencyDollarIcon,
@@ -18,7 +18,7 @@ const pricingPlans = [
   { type: 'course', title: 'Courses', icon: AcademicCapIcon, bestFor: 'Educators and trainers', features: ['Course and lesson publishing', 'Student access management', 'Course workspace tools'] },
   { type: 'service', title: 'Services', icon: WrenchScrewdriverIcon, bestFor: 'Freelancers and service providers', features: ['Service listings and packages', 'Client requests', 'Portfolio and review tools'] },
   { type: 'digital', title: 'Digital products', icon: ComputerDesktopIcon, bestFor: 'Creators of digital resources', features: ['Digital product listings', 'Purchase request workflow', 'Creator workspace tools'] },
-  { type: 'booking', title: 'Bookings', icon: CalendarIcon, bestFor: 'Professionals offering time slots', features: ['Appointment listings', 'Availability management', 'Customer booking tools'] },
+  { type: 'findit', title: 'FINDit solutions', icon: MagnifyingGlassIcon, bestFor: 'Sellers who can source hard-to-find items', features: ['Private buyer requests', 'Quoted COD solutions', '5% commission after settlement'] },
 ]
 
 const PricingPage = () => {

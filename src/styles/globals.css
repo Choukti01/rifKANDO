@@ -22,6 +22,77 @@ html[dir='rtl'] select {
   text-align: right;
 }
 
+html[dir='rtl'] .findit-request-category {
+  left: auto;
+  right: 0.7rem;
+}
+
+html[dir='rtl'] .findit-photo-list button,
+html[dir='rtl'] .seller-findit-close,
+html[dir='rtl'] .findit-close-checkout {
+  left: -0.35rem;
+  right: auto;
+}
+
+html[dir='rtl'] .seller-findit-close,
+html[dir='rtl'] .findit-close-checkout {
+  left: 0.8rem;
+}
+
+html[dir='rtl'] .findit-dashboard-heading > span {
+  text-align: left;
+}
+
+html[dir='rtl'] .dashboard-sidebar {
+  border-left: 1px solid #e5e7eb;
+  border-right: 0;
+  box-shadow: -10px 0 28px rgba(15, 23, 42, 0.035);
+  left: auto;
+  right: 0;
+}
+
+html[dir='rtl'] .dashboard-main.with-sidebar {
+  margin-left: 0;
+  margin-right: 280px;
+}
+
+html[dir='rtl'] .dashboard-main.without-sidebar {
+  margin-left: 0;
+  margin-right: 80px;
+}
+
+html[dir='rtl'] .sidebar-header {
+  justify-content: flex-start;
+}
+
+html[dir='rtl'] .sidebar-unread-badge {
+  margin-left: 0;
+  margin-right: auto;
+}
+
+html[dir='rtl'] .mobile-dashboard-header {
+  left: 0;
+  right: 0;
+}
+
+@media (max-width: 768px) {
+  html[dir='rtl'] .dashboard-sidebar {
+    border-left: 0;
+    border-radius: 18px 0 0 18px;
+    box-shadow: -14px 0 38px rgba(15, 23, 42, 0.22);
+    transform: translateX(100%);
+  }
+
+  html[dir='rtl'] .dashboard-sidebar.mobile-open {
+    transform: translateX(0);
+  }
+
+  html[dir='rtl'] .dashboard-main.with-sidebar,
+  html[dir='rtl'] .dashboard-main.without-sidebar {
+    margin-right: 0;
+  }
+}
+
 body {
   font-family: var(--font-family);
   font-size: var(--font-base);

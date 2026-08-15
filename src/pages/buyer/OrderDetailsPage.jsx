@@ -125,13 +125,15 @@ const OrderDetailsPage = () => {
   }
 
   const statusSteps = getStatusSteps(order.status);
-  const subtotal = order.items?.reduce((sum, item) => sum + (item.price * item.quantity), 0) || order.total;
+  const isFindItOrder = order.order_type === 'findit';
+  const deliveryFee = isFindItOrder ? Number(order.items?.[0]?.delivery_fee || 0) : 0;
+  const subtotal = order.items?.reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity)), 0) || Math.max(0, Number(order.total) - deliveryFee);
 
   return (
     <div className="order-details-page">
       <div className="container">
         <div className="order-details-header">
-          <h1>Order Details</h1>
+          <h1>{isFindItOrder ? 'FINDit Order Details' : 'Order Details'}</h1>
           <Link to="/orders" className="back-link">← Back to Orders</Link>
         </div>
 
@@ -219,7 +221,7 @@ const OrderDetailsPage = () => {
                 <table className="items-table">
                   <thead>
                     <tr>
-                      <th>Product</th>
+                      <th>{isFindItOrder ? 'Solution' : 'Product'}</th>
                       <th>Quantity</th>
                       <th>Unit Price</th>
                       <th>Total</th>
@@ -228,7 +230,7 @@ const OrderDetailsPage = () => {
                   <tbody>
                     {order.items.map((item, index) => (
                       <tr key={index}>
-                        <td className="item-title">{item.title || item.product_title || 'Product'}</td>
+                        <td className="item-title">{item.title || item.product_title || (isFindItOrder ? 'FINDit solution' : 'Product')}</td>
                         <td className="item-quantity">{item.quantity}</td>
                         <td className="item-price">{item.price} MAD</td>
                         <td className="item-total">{item.price * item.quantity} MAD</td>
@@ -245,7 +247,7 @@ const OrderDetailsPage = () => {
                 </div>
                 <div className="summary-row">
                   <span>Shipping</span>
-                  <span>Free</span>
+                  <span>{isFindItOrder ? (deliveryFee > 0 ? `${deliveryFee} MAD` : 'Included') : 'Free'}</span>
                 </div>
                 <div className="summary-total">
                   <span>Total</span>

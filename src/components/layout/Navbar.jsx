@@ -64,11 +64,11 @@ const Navbar = () => {
     { name: t('nav.courses'), path: '/courses' },
     { name: t('nav.services'), path: '/services' },
     { name: t('nav.digital'), path: '/digital' },
-    { name: t('nav.bookings'), path: '/bookings' },
+    { name: t('findit.navigation'), path: '/findit' },
   ];
   const isSeller = user?.role === 'seller';
   const accountPath = isSeller ? '/seller/dashboard' : '/profile';
-  const accountLabel = isSeller ? 'Seller dashboard' : t('common.profile');
+  const accountLabel = isSeller ? t('common.sellerDashboard') : t('common.profile');
 
   return (
     <>
@@ -114,7 +114,7 @@ const Navbar = () => {
 
               {/* Profile Dropdown */}
               <div className="profile-dropdown desktop-profile-dropdown" ref={dropdownRef}>
-                <button onClick={() => setIsProfileOpen(!isProfileOpen)} className="nav-icon profile-btn" aria-label="Account menu" aria-expanded={isProfileOpen} aria-haspopup="menu">
+                <button onClick={() => setIsProfileOpen(!isProfileOpen)} className="nav-icon profile-btn" aria-label={t('common.accountMenu')} aria-expanded={isProfileOpen} aria-haspopup="menu">
                   <UserIcon className="icon" />
                   {isAuthenticated && user && <span className="user-name">{user.name?.split(' ')[0]}</span>}
                   <ChevronDownIcon className="chevron-icon" />
@@ -128,11 +128,12 @@ const Navbar = () => {
                           <p className="dropdown-email">{user?.email}</p>
                         </div>
                         <Link to={accountPath} className="dropdown-item" onClick={() => setIsProfileOpen(false)}>{accountLabel}</Link>
-                        <Link to="/orders" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>My Orders</Link>
+                        <Link to="/orders" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>{t('common.myOrders')}</Link>
+                        <Link to="/findit/dashboard" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>{t('common.myFinditRequests')}</Link>
                         {!isSeller && <>
-                          <Link to="/favorites" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>Saved items</Link>
-                          <Link to="/cart" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>Cart</Link>
-                          <Link to="/choose-seller-type" className="dropdown-item seller-link" onClick={() => setIsProfileOpen(false)}>Become a Seller</Link>
+                          <Link to="/favorites" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>{t('common.savedItems')}</Link>
+                          <Link to="/cart" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>{t('nav.cart')}</Link>
+                          <Link to="/choose-seller-type" className="dropdown-item seller-link" onClick={() => setIsProfileOpen(false)}>{t('common.becomeSeller')}</Link>
                         </>}
                         <button onClick={handleLogout} className="dropdown-item logout-btn">{t('common.logout')}</button>
                       </>
@@ -145,7 +146,7 @@ const Navbar = () => {
                 )}
               </div>
 
-              <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="mobile-menu-btn" aria-label={isMenuOpen ? 'Close navigation menu' : 'Open navigation menu'} aria-controls="mobile-navigation" aria-expanded={isMenuOpen}>
+              <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="mobile-menu-btn" aria-label={isMenuOpen ? t('common.closeMenu') : t('common.openMenu')} aria-controls="mobile-navigation" aria-expanded={isMenuOpen}>
                 {isMenuOpen ? <XMarkIcon className="icon" /> : <Bars3Icon className="icon" />}
               </button>
             </div>
@@ -179,10 +180,11 @@ const Navbar = () => {
             {isAuthenticated ? (
               <>
                 <Link to={accountPath} className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>{accountLabel}</Link>
-                <Link to="/orders" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>My Orders</Link>
+                <Link to="/orders" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>{t('common.myOrders')}</Link>
+                <Link to="/findit/dashboard" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>{t('common.myFinditRequests')}</Link>
                 {!isSeller && <>
-                  <Link to="/favorites" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>Saved items</Link>
-                  <Link to="/cart" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>Cart</Link>
+                  <Link to="/favorites" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>{t('common.savedItems')}</Link>
+                  <Link to="/cart" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>{t('nav.cart')}</Link>
                 </>}
                 <button onClick={handleLogout} className="mobile-nav-link logout-mobile">{t('common.logout')}</button>
               </>

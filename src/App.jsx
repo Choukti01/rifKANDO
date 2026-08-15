@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react'
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { AnimatePresence } from 'framer-motion'
 
@@ -18,15 +18,14 @@ const ServicesPage = lazy(() => import('./pages/marketplace/ServicesPage'))
 const ServiceDetailsPage = lazy(() => import('./pages/marketplace/ServiceDetailsPage'))
 const DigitalPage = lazy(() => import('./pages/marketplace/DigitalPage'))
 const DigitalDetailsPage = lazy(() => import('./pages/marketplace/DigitalDetailsPage'))
-const BookingsPage = lazy(() => import('./pages/marketplace/BookingsPage'))
-const BookingDetailsPage = lazy(() => import('./pages/marketplace/BookingDetailsPage'))
+const FindItPage = lazy(() => import('./pages/marketplace/FindItPage'))
 const CartPage = lazy(() => import('./pages/buyer/CartPage'))
 const FavoritesPage = lazy(() => import('./pages/buyer/FavoritesPage'))
 const CheckoutPage = lazy(() => import('./pages/buyer/CheckoutPage'))
 const OrdersPage = lazy(() => import('./pages/buyer/OrdersPage'))
 const OrderDetailsPage = lazy(() => import('./pages/buyer/OrderDetailsPage'))
 const MyPurchasesPage = lazy(() => import('./pages/buyer/MyPurchasesPage'))
-const MyAppointmentsPage = lazy(() => import('./pages/buyer/MyAppointmentsPage'))
+const FindItDashboardPage = lazy(() => import('./pages/buyer/FindItDashboardPage'))
 const LoginPage = lazy(() => import('./pages/auth/LoginPage'))
 const RegisterPage = lazy(() => import('./pages/auth/RegisterPage'))
 const SellerTypePage = lazy(() => import('./pages/seller/SellerTypePage'))
@@ -53,9 +52,7 @@ const EditService = lazy(() => import('./pages/seller/services/EditService'))
 const DigitalDashboard = lazy(() => import('./pages/seller/digital/DigitalDashboard'))
 const AddDigitalProduct = lazy(() => import('./pages/seller/digital/AddDigitalProduct'))
 const EditDigitalProduct = lazy(() => import('./pages/seller/digital/EditDigitalProduct'))
-const BookingsDashboard = lazy(() => import('./pages/seller/bookings/BookingsDashboard'))
-const AddBooking = lazy(() => import('./pages/seller/bookings/AddBooking'))
-const EditBooking = lazy(() => import('./pages/seller/bookings/EditBooking'))
+const SellerFindItPage = lazy(() => import('./pages/seller/findit/SellerFindItPage'))
 const Settings = lazy(() => import('./pages/seller/dashboard/Settings'))
 const Wallet = lazy(() => import('./pages/seller/dashboard/Wallet'))
 const SellerOffers = lazy(() => import('./pages/seller/dashboard/Offers'))
@@ -124,8 +121,9 @@ function AppContent() {
                   <Route path="/service/:id" element={<ServiceDetailsPage />} />
                   <Route path="/digital" element={<DigitalPage />} />
                   <Route path="/digital/:id" element={<DigitalDetailsPage />} />
-                  <Route path="/bookings" element={<BookingsPage />} />
-                  <Route path="/booking/:id" element={<BookingDetailsPage />} />
+                  <Route path="/findit" element={<FindItPage />} />
+                  <Route path="/bookings" element={<Navigate to="/findit" replace />} />
+                  <Route path="/booking/:id" element={<Navigate to="/findit" replace />} />
                   <Route path="/search" element={<SearchPage />} />
 
                   <Route path="/admin" element={
@@ -182,11 +180,12 @@ function AppContent() {
                       <MyPurchasesPage />
                     </ProtectedRoute>
                   } />
-                  <Route path="/my-appointments" element={
+                  <Route path="/findit/dashboard" element={
                     <ProtectedRoute>
-                      <MyAppointmentsPage />
+                      <FindItDashboardPage />
                     </ProtectedRoute>
                   } />
+                  <Route path="/my-appointments" element={<Navigate to="/findit/dashboard" replace />} />
                   <Route path="/profile" element={
                     <ProtectedRoute>
                       <ProfilePage />
@@ -220,9 +219,10 @@ function AppContent() {
                     <Route path="digital" element={<DigitalDashboard />} />
                     <Route path="digital/add" element={<AddDigitalProduct />} />
                     <Route path="digital/:id/edit" element={<EditDigitalProduct />} />
-                    <Route path="bookings" element={<BookingsDashboard />} />
-                    <Route path="bookings/add" element={<AddBooking />} />
-                    <Route path="bookings/:id/edit" element={<EditBooking />} />
+                    <Route path="findit" element={<SellerFindItPage />} />
+                    <Route path="bookings" element={<Navigate to="/seller/dashboard/findit" replace />} />
+                    <Route path="bookings/add" element={<Navigate to="/seller/dashboard/findit" replace />} />
+                    <Route path="bookings/:id/edit" element={<Navigate to="/seller/dashboard/findit" replace />} />
                     <Route path="settings" element={<Settings />} />
                     <Route path="wallet" element={<Wallet />} />
                     <Route path="orders" element={<SellerOrders />} />

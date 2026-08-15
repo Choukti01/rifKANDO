@@ -165,6 +165,7 @@ db.serialize(() => {
       order_number TEXT UNIQUE NOT NULL,
       user_id INTEGER NOT NULL,
       total REAL NOT NULL,
+      order_type TEXT NOT NULL DEFAULT 'product',
       status TEXT DEFAULT 'pending',
       payment_method TEXT,
       payment_status TEXT DEFAULT 'pending',
@@ -977,6 +978,97 @@ db.serialize(() => {
     )
   `, (err) => { if (err) console.error('Error creating refund_requests:', err); else console.log('✅ refund requests table ready'); });
 
+  // FINDit is a separate buyer-request marketplace. Its requests and offers
+  // are not product catalogue listings. An accepted offer creates a normal
+  // COD order with an immutable FINDit financial snapshot.
+  db.run(`
+    CREATE TABLE IF NOT EXISTS findit_requests (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      request_number TEXT NOT NULL UNIQUE,
+      buyer_id INTEGER NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT NOT NULL,
+      category TEXT NOT NULL,
+      city TEXT NOT NULL,
+      preferred_condition TEXT NOT NULL DEFAULT 'any',
+      budget_max REAL NOT NULL DEFAULT 0,
+      budget_max_minor INTEGER NOT NULL DEFAULT 0,
+      status TEXT NOT NULL DEFAULT 'active',
+      expires_at DATETIME NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (buyer_id) REFERENCES users(id)
+    )
+  `, (err) => { if (err) console.error('Error creating findit_requests:', err); });
+  db.run(`
+    CREATE TABLE IF NOT EXISTS findit_request_media (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      request_id INTEGER NOT NULL,
+      media_url TEXT NOT NULL,
+      display_order INTEGER NOT NULL DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (request_id) REFERENCES findit_requests(id) ON DELETE CASCADE
+    )
+  `, (err) => { if (err) console.error('Error creating findit_request_media:', err); });
+  db.run(`
+    CREATE TABLE IF NOT EXISTS findit_offers (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      request_id INTEGER NOT NULL,
+      seller_id INTEGER NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT NOT NULL,
+      price REAL NOT NULL,
+      price_minor INTEGER NOT NULL,
+      delivery_fee REAL NOT NULL DEFAULT 0,
+      delivery_fee_minor INTEGER NOT NULL DEFAULT 0,
+      condition TEXT NOT NULL,
+      estimated_delivery_days INTEGER NOT NULL,
+      status TEXT NOT NULL DEFAULT 'active',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(request_id, seller_id),
+      FOREIGN KEY (request_id) REFERENCES findit_requests(id) ON DELETE CASCADE,
+      FOREIGN KEY (seller_id) REFERENCES users(id)
+    )
+  `, (err) => { if (err) console.error('Error creating findit_offers:', err); });
+  db.run(`
+    CREATE TABLE IF NOT EXISTS findit_orders (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      order_id INTEGER NOT NULL UNIQUE,
+      request_id INTEGER NOT NULL,
+      offer_id INTEGER NOT NULL UNIQUE,
+      seller_id INTEGER NOT NULL,
+      item_title TEXT NOT NULL,
+      item_description TEXT NOT NULL,
+      item_condition TEXT NOT NULL,
+      price REAL NOT NULL,
+      price_minor INTEGER NOT NULL,
+      delivery_fee REAL NOT NULL DEFAULT 0,
+      delivery_fee_minor INTEGER NOT NULL DEFAULT 0,
+      commission REAL NOT NULL,
+      commission_minor INTEGER NOT NULL,
+      seller_amount REAL NOT NULL,
+      seller_amount_minor INTEGER NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (order_id) REFERENCES orders(id),
+      FOREIGN KEY (request_id) REFERENCES findit_requests(id),
+      FOREIGN KEY (offer_id) REFERENCES findit_offers(id),
+      FOREIGN KEY (seller_id) REFERENCES users(id)
+    )
+  `, (err) => { if (err) console.error('Error creating findit_orders:', err); });
+  db.run(`
+    CREATE TABLE IF NOT EXISTS findit_checkout_requests (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      idempotency_key TEXT NOT NULL,
+      order_id INTEGER NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(user_id, idempotency_key),
+      FOREIGN KEY (user_id) REFERENCES users(id),
+      FOREIGN KEY (order_id) REFERENCES orders(id)
+    )
+  `, (err) => { if (err) console.error('Error creating findit_checkout_requests:', err); });
+
   db.run('ALTER TABLE withdrawal_requests ADD COLUMN request_key TEXT', (err) => {
     if (err && !err.message.includes('duplicate column name')) console.error('Error adding withdrawal request key:', err.message);
   });
@@ -986,6 +1078,9 @@ db.serialize(() => {
   });
   db.run('ALTER TABLE orders ADD COLUMN payment_details TEXT', (err) => {
     if (err && !err.message.includes('duplicate column name')) console.error('Error adding order payment details:', err.message);
+  });
+  db.run("ALTER TABLE orders ADD COLUMN order_type TEXT NOT NULL DEFAULT 'product'", (err) => {
+    if (err && !err.message.includes('duplicate column name')) console.error('Error adding order type:', err.message);
   });
   db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_withdrawal_requests_request_key ON withdrawal_requests(request_key)', (err) => {
     if (err) console.error('Error creating withdrawal request key index:', err.message);
@@ -1151,6 +1246,12 @@ db.serialize(() => {
     ['idx_service_media_listing', 'service_media(service_id, display_order, id)'],
     ['idx_digital_media_listing', 'digital_media(digital_id, display_order, id)'],
     ['idx_booking_media_listing', 'booking_media(booking_id, display_order, id)'],
+    ['idx_findit_requests_catalog', 'findit_requests(status, expires_at, created_at DESC)'],
+    ['idx_findit_requests_buyer', 'findit_requests(buyer_id, created_at DESC)'],
+    ['idx_findit_request_media_request', 'findit_request_media(request_id, display_order, id)'],
+    ['idx_findit_offers_request_status', 'findit_offers(request_id, status, created_at DESC)'],
+    ['idx_findit_offers_seller', 'findit_offers(seller_id, updated_at DESC)'],
+    ['idx_findit_orders_seller', 'findit_orders(seller_id, order_id)'],
   ];
   for (const [name, definition] of queryIndexes) {
     db.run(`CREATE INDEX IF NOT EXISTS ${name} ON ${definition}`, (err) => {

@@ -43,6 +43,12 @@ async function main() {
   assert.match(digitalDeliveryMigration.sql, /ADD COLUMN IF NOT EXISTS download_file_name TEXT/i);
   assert.match(digitalDeliveryMigration.sql, /idx_digital_requests_one_pending_request/i);
 
+  const findItMigration = migrations.find((migration) => migration.version === '007');
+  assert.ok(findItMigration, 'FINDit marketplace must be versioned as migration 007.');
+  assert.match(findItMigration.sql, /CREATE TABLE findit_requests/i);
+  assert.match(findItMigration.sql, /CREATE TABLE findit_offers/i);
+  assert.match(findItMigration.sql, /ADD COLUMN IF NOT EXISTS order_type TEXT/i);
+
   const baselineSql = migrations[0].sql;
   const allMigrationSql = migrations.map((migration) => migration.sql).join('\n');
   for (const table of EXPECTED_POSTGRES_TABLES) {
@@ -50,10 +56,10 @@ async function main() {
   }
 
   for (const [table, column] of REQUIRED_MINOR_UNIT_COLUMNS) {
-    const tableStart = baselineSql.indexOf(`CREATE TABLE ${table} (`);
-    const tableEnd = baselineSql.indexOf('\n);', tableStart);
+    const tableStart = allMigrationSql.indexOf(`CREATE TABLE ${table} (`);
+    const tableEnd = allMigrationSql.indexOf('\n);', tableStart);
     assert.ok(tableStart >= 0 && tableEnd > tableStart, `Unable to inspect ${table}`);
-    assert.match(baselineSql.slice(tableStart, tableEnd), new RegExp(`\\b${column} BIGINT\\b`));
+    assert.match(allMigrationSql.slice(tableStart, tableEnd), new RegExp(`\\b${column} BIGINT\\b`));
   }
 
   assert.match(baselineSql, /CREATE FUNCTION prevent_audit_log_mutation\(\)/);
@@ -79,6 +85,7 @@ async function main() {
   assert.match(output, /004  phone_otp_authentication/);
   assert.match(output, /005  professional_booking_protocol/);
   assert.match(output, /006  digital_delivery_protocol/);
+  assert.match(output, /007  findit_marketplace/);
 
   assert.ok(fs.existsSync(path.join(__dirname, '../migrations/postgres/001_initial_schema.sql')));
   assert.ok(fs.existsSync(path.join(__dirname, '../migrations/postgres/002_seller_withdrawal_eligibility.sql')));
@@ -86,6 +93,7 @@ async function main() {
   assert.ok(fs.existsSync(path.join(__dirname, '../migrations/postgres/004_phone_otp_authentication.sql')));
   assert.ok(fs.existsSync(path.join(__dirname, '../migrations/postgres/005_professional_booking_protocol.sql')));
   assert.ok(fs.existsSync(path.join(__dirname, '../migrations/postgres/006_digital_delivery_protocol.sql')));
+  assert.ok(fs.existsSync(path.join(__dirname, '../migrations/postgres/007_findit_marketplace.sql')));
   console.log('PostgreSQL migration smoke test passed.');
 }
 

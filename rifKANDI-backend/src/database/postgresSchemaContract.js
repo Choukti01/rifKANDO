@@ -22,6 +22,11 @@ const EXPECTED_POSTGRES_TABLES = Object.freeze([
   'enrollments',
   'escrow_transactions',
   'favorites',
+  'findit_checkout_requests',
+  'findit_offers',
+  'findit_orders',
+  'findit_request_media',
+  'findit_requests',
   'financial_operations',
   'fraud_reports',
   'google_verifications',
@@ -66,6 +71,13 @@ const REQUIRED_MINOR_UNIT_COLUMNS = Object.freeze([
   ['wallet_ledger_entries', 'amount_minor'],
   ['payment_transactions', 'amount_minor'],
   ['refund_requests', 'amount_minor'],
+  ['findit_requests', 'budget_max_minor'],
+  ['findit_offers', 'price_minor'],
+  ['findit_offers', 'delivery_fee_minor'],
+  ['findit_orders', 'price_minor'],
+  ['findit_orders', 'delivery_fee_minor'],
+  ['findit_orders', 'commission_minor'],
+  ['findit_orders', 'seller_amount_minor'],
 ]);
 
 module.exports = {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ShoppingBagIcon, CurrencyDollarIcon, EyeIcon, AcademicCapIcon, WrenchScrewdriverIcon, ComputerDesktopIcon, CalendarIcon } from '@heroicons/react/24/outline';
-import { getMyProducts, getMyCourses, getMyServices, getMyDigitalProducts, getMyBookings } from '../../../services/api';
+import { ShoppingBagIcon, CurrencyDollarIcon, EyeIcon, AcademicCapIcon, WrenchScrewdriverIcon, ComputerDesktopIcon } from '@heroicons/react/24/outline';
+import { getMyProducts, getMyCourses, getMyServices, getMyDigitalProducts } from '../../../services/api';
 import api from '../../../services/api';
 import useAuth from '../../../hooks/useAuth';
 import toast from 'react-hot-toast';
@@ -15,7 +15,6 @@ const Overview = () => {
     totalCourses: 0,
     totalServices: 0,
     totalDigital: 0,
-    totalBookings: 0,
     totalOrders: 0,
     totalOrderValue: 0,
     totalViews: 0
@@ -28,12 +27,11 @@ const Overview = () => {
 
     const loadDashboardData = async () => {
       try {
-        const [productsRes, coursesRes, servicesRes, digitalRes, bookingsRes, ordersRes] = await Promise.all([
+        const [productsRes, coursesRes, servicesRes, digitalRes, ordersRes] = await Promise.all([
           getMyProducts().catch(() => ({ data: { products: [] } })),
           getMyCourses().catch(() => ({ data: { courses: [] } })),
           getMyServices().catch(() => ({ data: { services: [] } })),
           getMyDigitalProducts().catch(() => ({ data: { products: [] } })),
-          getMyBookings().catch(() => ({ data: { bookings: [] } })),
           api.get('/seller/orders').catch(() => ({ data: { orders: [] } }))
         ]);
 
@@ -43,10 +41,9 @@ const Overview = () => {
         const courses = coursesRes.data.courses || [];
         const services = servicesRes.data.services || [];
         const digital = digitalRes.data.products || [];
-        const bookings = bookingsRes.data.bookings || [];
         const orders = ordersRes.data.orders || [];
         const totalOrderValue = orders.reduce((sum, order) => sum + Number(order.seller_total ?? order.total ?? 0), 0);
-        const totalViews = [...products, ...courses, ...services, ...digital, ...bookings]
+        const totalViews = [...products, ...courses, ...services, ...digital]
           .reduce((sum, item) => sum + (item.views || 0), 0);
 
         setStats({
@@ -54,7 +51,6 @@ const Overview = () => {
           totalCourses: courses.length,
           totalServices: services.length,
           totalDigital: digital.length,
-          totalBookings: bookings.length,
           totalOrders: orders.length,
           totalOrderValue,
           totalViews
@@ -114,21 +110,17 @@ const Overview = () => {
   if (sellerType === 'digital' || !sellerType) {
     mainStats.push({ label: 'Digital', value: stats.totalDigital, icon: ComputerDesktopIcon, color: '#216275' });
   }
-  if (sellerType === 'booking' || !sellerType) {
-    mainStats.push({ label: 'Bookings', value: stats.totalBookings, icon: CalendarIcon, color: '#216275' });
-  }
 
   const overviewStats = [
     { label: 'Order value', value: `${stats.totalOrderValue.toLocaleString()} MAD`, icon: CurrencyDollarIcon, color: '#216275' },
     { label: 'Orders', value: stats.totalOrders, icon: ShoppingBagIcon, color: '#216275' },
     { label: 'Listing views', value: stats.totalViews.toLocaleString(), icon: EyeIcon, color: '#216275' },
   ];
-  const totalListings = stats.totalProducts + stats.totalCourses + stats.totalServices + stats.totalDigital + stats.totalBookings;
+  const totalListings = stats.totalProducts + stats.totalCourses + stats.totalServices + stats.totalDigital;
   const firstListingPaths = {
     course: '/seller/dashboard/courses/add',
     service: '/seller/dashboard/services/add',
-    digital: '/seller/dashboard/digital/add',
-    booking: '/seller/dashboard/bookings/add'
+    digital: '/seller/dashboard/digital/add'
   };
   const firstListingPath = firstListingPaths[sellerType] || '/seller/dashboard/products/add';
   const listingLabels = {
@@ -136,7 +128,6 @@ const Overview = () => {
     course: 'course',
     service: 'service',
     digital: 'digital product',
-    booking: 'booking',
   };
   const primaryListingLabel = listingLabels[sellerType] || 'product';
   const checklist = [

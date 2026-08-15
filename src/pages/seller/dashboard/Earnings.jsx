@@ -8,7 +8,7 @@ const COMMISSION_CATEGORIES = [
   { key: 'course', label: 'Courses' },
   { key: 'service', label: 'Services' },
   { key: 'digital', label: 'Digital products' },
-  { key: 'booking', label: 'Bookings' },
+  { key: 'findit', label: 'FINDit solutions' },
 ];
 
 const formatCurrency = (amount) => `${new Intl.NumberFormat('en-US', {

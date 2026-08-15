@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ShoppingBagIcon, AcademicCapIcon, WrenchScrewdriverIcon, ComputerDesktopIcon, CalendarIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
-import { getProducts, getCourses, getServices, getDigitalProducts, getBookings } from '/src/services/api';
+import { ShoppingBagIcon, AcademicCapIcon, WrenchScrewdriverIcon, ComputerDesktopIcon, MagnifyingGlassIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
+import { getProducts, getCourses, getServices, getDigitalProducts, getFinditRequests } from '/src/services/api';
 import MediaGallery from '../../components/MediaGallery';
 import { getImageUrl } from '../../utils/imageUtils';
 import MarketplaceImage from '../../components/common/MarketplaceImage';
@@ -17,19 +17,19 @@ const HomePage = () => {
     coursesCount: 0,
     servicesCount: 0,
     digitalCount: 0,
-    bookingsCount: 0
+    finditRequestsCount: 0
   });
 
   useEffect(() => {
     let isCurrent = true;
 
     const loadHomeData = async () => {
-      const [productsResult, coursesResult, servicesResult, digitalResult, bookingsResult] = await Promise.allSettled([
+      const [productsResult, coursesResult, servicesResult, digitalResult, finditResult] = await Promise.allSettled([
         getProducts(),
         getCourses(),
         getServices(),
         getDigitalProducts(),
-        getBookings()
+        getFinditRequests({ limit: 1 })
       ]);
 
       if (!isCurrent) return;
@@ -38,22 +38,23 @@ const HomePage = () => {
       const courses = coursesResult.status === 'fulfilled' ? coursesResult.value.data.courses || [] : [];
       const services = servicesResult.status === 'fulfilled' ? servicesResult.value.data.services || [] : [];
       const digital = digitalResult.status === 'fulfilled' ? digitalResult.value.data.products || [] : [];
-      const bookings = bookingsResult.status === 'fulfilled' ? bookingsResult.value.data.bookings || [] : [];
+      const finditTotal = finditResult.status === 'fulfilled'
+        ? Number(finditResult.value.data.pagination?.total || finditResult.value.data.requests?.length || 0)
+        : 0;
 
       setStats({
         productsCount: products.length,
         coursesCount: courses.length,
         servicesCount: services.length,
         digitalCount: digital.length,
-        bookingsCount: bookings.length
+        finditRequestsCount: finditTotal
       });
 
       setFeaturedItems([
         ...products.slice(0, 2).map(item => ({ ...item, type: 'product' })),
         ...courses.slice(0, 2).map(item => ({ ...item, type: 'course' })),
         ...services.slice(0, 2).map(item => ({ ...item, type: 'service' })),
-        ...digital.slice(0, 2).map(item => ({ ...item, type: 'digital' })),
-        ...bookings.slice(0, 2).map(item => ({ ...item, type: 'booking' }))
+        ...digital.slice(0, 2).map(item => ({ ...item, type: 'digital' }))
       ].slice(0, 8));
       setLoading(false);
     };
@@ -70,7 +71,7 @@ const HomePage = () => {
     { name: t('nav.courses'), icon: AcademicCapIcon, path: '/courses', color: '#10B981', count: stats.coursesCount },
     { name: t('nav.services'), icon: WrenchScrewdriverIcon, path: '/services', color: '#8B5CF6', count: stats.servicesCount },
     { name: t('nav.digital'), icon: ComputerDesktopIcon, path: '/digital', color: '#F59E0B', count: stats.digitalCount },
-    { name: t('nav.bookings'), icon: CalendarIcon, path: '/bookings', color: '#EF4444', count: stats.bookingsCount },
+    { name: 'FINDit', icon: MagnifyingGlassIcon, path: '/findit', color: 'var(--color-brand-blue)', count: stats.finditRequestsCount, countLabel: 'open requests' },
   ];
 
   const getItemUrl = (item) => {
@@ -79,7 +80,6 @@ const HomePage = () => {
       case 'course': return `/course/${item.id}`;
       case 'service': return `/service/${item.id}`;
       case 'digital': return `/digital/${item.id}`;
-      case 'booking': return `/booking/${item.id}`;
       default: return '#';
     }
   };
@@ -150,7 +150,7 @@ const HomePage = () => {
                     <Icon className="category-icon-svg" />
                   </div>
                   <h3 className="category-name">{cat.name}</h3>
-                  <p className="category-count">{cat.count.toLocaleString()} {cat.count === 1 ? 'item' : 'items'}</p>
+                  <p className="category-count">{cat.count.toLocaleString()} {cat.countLabel || (cat.count === 1 ? 'item' : 'items')}</p>
                 </Link>
               )
             })}
@@ -231,8 +231,8 @@ const HomePage = () => {
               <div className="stat-label">Online Courses</div>
             </div>
             <div className="stat-item">
-              <div className="stat-number">{stats.servicesCount + stats.bookingsCount}</div>
-              <div className="stat-label">Services Offered</div>
+              <div className="stat-number">{stats.finditRequestsCount}</div>
+              <div className="stat-label">Open FINDit Requests</div>
             </div>
             <div className="stat-item">
               <div className="stat-number">{categories.length}</div>

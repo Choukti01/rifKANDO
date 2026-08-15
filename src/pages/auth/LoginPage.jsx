@@ -3,11 +3,13 @@ import { GoogleLogin } from '@react-oauth/google';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import useAuth from '../../hooks/useAuth';
+import { useTranslation } from 'react-i18next';
 
 const LoginPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { googleLogin, requestPhoneLoginCode, verifyPhoneLogin } = useAuth();
+  const { t } = useTranslation();
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
   const [pending, setPending] = useState(false);
@@ -39,36 +41,36 @@ const LoginPage = () => {
   return (
     <main className="auth-page">
       <section className="auth-card" aria-labelledby="login-title">
-        <span className="auth-eyebrow">rifKANDO account</span>
-        <h1 id="login-title">{pending ? 'Enter your SMS code' : 'Welcome back'}</h1>
-        <p>{pending ? 'Use the six-digit code sent to your phone.' : 'Sign in securely with your phone number or Google account.'}</p>
+        <span className="auth-eyebrow">{t('auth.account')}</span>
+        <h1 id="login-title">{pending ? t('auth.enterCode') : t('auth.welcomeBack')}</h1>
+        <p>{pending ? t('auth.codeSent') : t('auth.signInLead')}</p>
 
         {pending ? (
           <form onSubmit={verifyCode}>
             <label>
-              SMS code
+              {t('auth.smsCode')}
               <input autoComplete="one-time-code" inputMode="numeric" maxLength={6} onChange={(event) => setCode(event.target.value.replace(/\D/g, ''))} required value={code} />
             </label>
-            <button disabled={submitting || code.length !== 6} type="submit">{submitting ? 'Signing in...' : 'Sign in'}</button>
-            <button className="text-button" disabled={submitting} onClick={requestCode} type="button">Send a new code</button>
-            <button className="text-button" disabled={submitting} onClick={() => { setCode(''); setPending(false); }} type="button">Use a different phone number</button>
+            <button disabled={submitting || code.length !== 6} type="submit">{submitting ? t('auth.signingIn') : t('auth.signIn')}</button>
+            <button className="text-button" disabled={submitting} onClick={requestCode} type="button">{t('auth.newCode')}</button>
+            <button className="text-button" disabled={submitting} onClick={() => { setCode(''); setPending(false); }} type="button">{t('auth.differentPhone')}</button>
           </form>
         ) : (
           <>
             <form onSubmit={requestCode}>
               <label>
-                Mobile number
+                {t('auth.mobile')}
                 <input autoComplete="tel" inputMode="tel" onChange={(event) => setPhone(event.target.value)} placeholder="+212 6 12 34 56 78" required type="tel" value={phone} />
               </label>
-              <small>Use your country code. Moroccan mobile numbers can also start with 0.</small>
-              <button disabled={submitting} type="submit">{submitting ? 'Sending SMS...' : 'Continue with phone'}</button>
+              <small>{t('auth.phoneHint')}</small>
+              <button disabled={submitting} type="submit">{submitting ? t('auth.sendingSms') : t('auth.continuePhone')}</button>
             </form>
-            <div className="divider"><span>or</span></div>
-            <div className="google"><GoogleLogin onError={() => toast.error('Google sign-in was cancelled or failed.')} onSuccess={handleGoogleSuccess} theme="outline" width="320" /></div>
+            <div className="divider"><span>{t('auth.or')}</span></div>
+            <div className="google"><GoogleLogin onError={() => toast.error(t('auth.googleSignInFailed'))} onSuccess={handleGoogleSuccess} theme="outline" width="320" /></div>
           </>
         )}
 
-        {!pending && <p className="switch">New to rifKANDO? <Link to={`/register${location.search}`}>Create an account</Link></p>}
+        {!pending && <p className="switch">{t('auth.newTo')} <Link to={`/register${location.search}`}>{t('auth.create')}</Link></p>}
       </section>
       <style>{styles}</style>
     </main>

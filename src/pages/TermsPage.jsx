@@ -4,7 +4,7 @@ import { ArrowRightIcon, DocumentTextIcon, ScaleIcon, ShieldCheckIcon } from '@h
 
 const termsSections = [
   { id: 'acceptance', title: 'Acceptance of terms', text: 'By accessing or using rifKANDO, you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use our platform.' },
-  { id: 'service', title: 'Description of service', text: 'rifKANDO is a multi-service platform that connects buyers and sellers. We provide a marketplace for physical products, digital products, courses, services, and bookings.' },
+  { id: 'service', title: 'Description of service', text: 'rifKANDO is a multi-service platform that connects buyers and sellers. We provide a marketplace for physical products, digital products, courses, services, and FINDit buyer requests.' },
   { id: 'accounts', title: 'User accounts', text: 'You must create an account to use certain features. You are responsible for maintaining the security of your account and for all activities that occur under your account.' },
   { id: 'buying-selling', title: 'Buying and selling', text: 'When you purchase an item on rifKANDO, you agree to pay the listed price plus any applicable fees. Sellers agree to deliver the item as described and within the stated timeframe.' },
   { id: 'payments', title: 'Payments and fees', text: 'All payments are processed through our secure payment system. rifKANDO charges a commission on each sale, as outlined in our pricing page.' },
