@@ -138,7 +138,10 @@ const validateCheckout = validate((req) => {
         city: text(address.city, 'shippingAddress.city', { required: true, min: 2, max: 100 }),
         postalCode: optionalText(address.postalCode, 'shippingAddress.postalCode', 24),
       },
-      paymentMethod: enumValue(body.paymentMethod, 'paymentMethod', ['cash', 'cmi', 'wallet']),
+      // The backend must enforce the same focused launch policy as the UI.
+      // CMI and wallet checkout remain implemented but cannot be selected by
+      // a crafted browser request while COD is the only public payment method.
+      paymentMethod: enumValue(body.paymentMethod, 'paymentMethod', ['cash']),
       notes: optionalText(body.notes, 'notes', 1_000),
       items,
       total: money(body.total, 'total', { min: 0.01 }),
@@ -268,7 +271,9 @@ const productPayload = (body, { partial }) => {
     category: text(body.category, 'category', { required, min: 2, max: 64 }),
     stock: body.stock === undefined ? undefined : integer(body.stock, 'stock', { min: 0, max: 1_000_000 }),
     media: publicMedia(body.media),
-    condition: body.condition === undefined ? undefined : enumValue(body.condition, 'condition', ['new', 'used', 'joutiya']),
+    // Keep this in sync with the storefront and seller listing forms.  The
+    // public product state is `used_as_new`, not the legacy `used` value.
+    condition: body.condition === undefined ? undefined : enumValue(body.condition, 'condition', ['new', 'used_as_new', 'joutiya']),
   };
   if (required && result.stock === undefined) fail('stock', 'is required.');
   if (required && result.condition === undefined) fail('condition', 'is required.');
@@ -668,7 +673,9 @@ const validatePasswordChange = validate((req) => {
 const validateSellerType = validate((req) => {
   const body = object(req.body);
   onlyKeys(body, ['sellerType']);
-  return { body: { sellerType: enumValue(body.sellerType, 'sellerType', ['product', 'course', 'service', 'digital', 'booking']) } };
+  // New sellers can only enter the operational Products + COD workspace. The
+  // other seller models remain retained for their later rollout.
+  return { body: { sellerType: enumValue(body.sellerType, 'sellerType', ['product']) } };
 });
 
 const validateProductReview = validate((req) => {
@@ -711,7 +718,7 @@ const validateProductQuery = validate((req) => {
       maxPrice,
       minRating: query.minRating === undefined || query.minRating === '' ? undefined : money(Number(query.minRating), 'query.minRating', { min: 0, max: 5 }),
       sortBy: query.sortBy === undefined || query.sortBy === '' ? 'newest' : enumValue(query.sortBy, 'query.sortBy', ['newest', 'price_asc', 'price_desc', 'rating']),
-      condition: query.condition === undefined || query.condition === '' ? '' : enumValue(query.condition, 'query.condition', ['new', 'used', 'joutiya']),
+      condition: query.condition === undefined || query.condition === '' ? '' : enumValue(query.condition, 'query.condition', ['new', 'used_as_new', 'joutiya']),
     },
   };
 });

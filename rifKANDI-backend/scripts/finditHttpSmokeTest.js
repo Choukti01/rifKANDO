@@ -16,7 +16,7 @@ process.env.SESSION_SECRET = 'test-session-secret-that-is-long-enough-for-findit
 process.env.AUDIT_LOG_SECRET = 'test-audit-secret-that-is-long-enough-for-findit-tests';
 process.env.CLIENT_URL = 'https://www.rifkando.test';
 process.env.BACKEND_URL = 'https://api.rifkando.test';
-process.env.FEATURE_FLAGS = 'checkout=true,cmi_payments=true,digital_downloads=true';
+process.env.FEATURE_FLAGS = 'checkout=true,cmi_payments=false,wallet_payments=false,digital_downloads=false,courses=false,services=false,digital=false';
 fsSync.mkdirSync(testDirectory, { recursive: true });
 
 const db = require('../src/config/database');

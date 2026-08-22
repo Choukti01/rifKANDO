@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ShoppingBagIcon, AcademicCapIcon, WrenchScrewdriverIcon, ComputerDesktopIcon, MagnifyingGlassIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
-import { getProducts, getCourses, getServices, getDigitalProducts, getFinditRequests } from '/src/services/api';
+import { getProducts, getFinditRequests } from '/src/services/api';
 import MediaGallery from '../../components/MediaGallery';
 import { getImageUrl } from '../../utils/imageUtils';
 import MarketplaceImage from '../../components/common/MarketplaceImage';
@@ -14,9 +14,6 @@ const HomePage = () => {
   const [galleryItem, setGalleryItem] = useState(null);
   const [stats, setStats] = useState({
     productsCount: 0,
-    coursesCount: 0,
-    servicesCount: 0,
-    digitalCount: 0,
     finditRequestsCount: 0
   });
 
@@ -24,38 +21,26 @@ const HomePage = () => {
     let isCurrent = true;
 
     const loadHomeData = async () => {
-      const [productsResult, coursesResult, servicesResult, digitalResult, finditResult] = await Promise.allSettled([
+      const [productsResult, finditResult] = await Promise.allSettled([
         getProducts(),
-        getCourses(),
-        getServices(),
-        getDigitalProducts(),
         getFinditRequests({ limit: 1 })
       ]);
 
       if (!isCurrent) return;
 
       const products = productsResult.status === 'fulfilled' ? productsResult.value.data.products || [] : [];
-      const courses = coursesResult.status === 'fulfilled' ? coursesResult.value.data.courses || [] : [];
-      const services = servicesResult.status === 'fulfilled' ? servicesResult.value.data.services || [] : [];
-      const digital = digitalResult.status === 'fulfilled' ? digitalResult.value.data.products || [] : [];
       const finditTotal = finditResult.status === 'fulfilled'
         ? Number(finditResult.value.data.pagination?.total || finditResult.value.data.requests?.length || 0)
         : 0;
 
       setStats({
         productsCount: products.length,
-        coursesCount: courses.length,
-        servicesCount: services.length,
-        digitalCount: digital.length,
         finditRequestsCount: finditTotal
       });
 
       setFeaturedItems([
-        ...products.slice(0, 2).map(item => ({ ...item, type: 'product' })),
-        ...courses.slice(0, 2).map(item => ({ ...item, type: 'course' })),
-        ...services.slice(0, 2).map(item => ({ ...item, type: 'service' })),
-        ...digital.slice(0, 2).map(item => ({ ...item, type: 'digital' }))
-      ].slice(0, 8));
+        ...products.slice(0, 8).map(item => ({ ...item, type: 'product' })),
+      ]);
       setLoading(false);
     };
 
@@ -67,11 +52,11 @@ const HomePage = () => {
   }, []);
 
   const categories = [
-    { name: t('nav.products'), icon: ShoppingBagIcon, path: '/products', color: '#3B82F6', count: stats.productsCount },
-    { name: t('nav.courses'), icon: AcademicCapIcon, path: '/courses', color: '#10B981', count: stats.coursesCount },
-    { name: t('nav.services'), icon: WrenchScrewdriverIcon, path: '/services', color: '#8B5CF6', count: stats.servicesCount },
-    { name: t('nav.digital'), icon: ComputerDesktopIcon, path: '/digital', color: '#F59E0B', count: stats.digitalCount },
-    { name: 'FINDit', icon: MagnifyingGlassIcon, path: '/findit', color: 'var(--color-brand-blue)', count: stats.finditRequestsCount, countLabel: 'open requests' },
+    { name: t('nav.products'), icon: ShoppingBagIcon, path: '/products', color: 'var(--color-brand-blue)', count: stats.productsCount },
+    { name: t('nav.courses'), icon: AcademicCapIcon, path: '/courses', color: '#64748b', underDevelopment: true },
+    { name: t('nav.services'), icon: WrenchScrewdriverIcon, path: '/services', color: '#64748b', underDevelopment: true },
+    { name: t('nav.digital'), icon: ComputerDesktopIcon, path: '/digital', color: '#64748b', underDevelopment: true },
+    { name: t('findit.navigation'), icon: MagnifyingGlassIcon, path: '/findit', color: 'var(--color-brand-blue)', count: stats.finditRequestsCount, countLabel: 'open requests' },
   ];
 
   const getItemUrl = (item) => {
@@ -150,7 +135,9 @@ const HomePage = () => {
                     <Icon className="category-icon-svg" />
                   </div>
                   <h3 className="category-name">{cat.name}</h3>
-                  <p className="category-count">{cat.count.toLocaleString()} {cat.countLabel || (cat.count === 1 ? 'item' : 'items')}</p>
+                  <p className={`category-count ${cat.underDevelopment ? 'category-count-coming' : ''}`}>
+                    {cat.underDevelopment ? t('launch.shortLabel') : `${cat.count.toLocaleString()} ${cat.countLabel || (cat.count === 1 ? 'item' : 'items')}`}
+                  </p>
                 </Link>
               )
             })}
@@ -223,20 +210,20 @@ const HomePage = () => {
         <div className="container">
           <div className="stats-grid">
             <div className="stat-item">
-              <div className="stat-number">{stats.productsCount + stats.digitalCount}</div>
+              <div className="stat-number">{stats.productsCount}</div>
               <div className="stat-label">Products Available</div>
             </div>
             <div className="stat-item">
-              <div className="stat-number">{stats.coursesCount}</div>
-              <div className="stat-label">Online Courses</div>
+              <div className="stat-number">COD</div>
+              <div className="stat-label">Payment at Delivery</div>
             </div>
             <div className="stat-item">
               <div className="stat-number">{stats.finditRequestsCount}</div>
               <div className="stat-label">Open FINDit Requests</div>
             </div>
             <div className="stat-item">
-              <div className="stat-number">{categories.length}</div>
-              <div className="stat-label">Marketplace Categories</div>
+              <div className="stat-number">2</div>
+              <div className="stat-label">Active Marketplace Sections</div>
             </div>
           </div>
         </div>
@@ -289,6 +276,7 @@ const HomePage = () => {
         .category-icon-svg { width: 32px; height: 32px; color: white; }
         .category-name { font-weight: 600; margin-bottom: 0.25rem; color: #1a1a1a; }
         .category-count { font-size: 0.875rem; color: #6b7280; }
+        .category-count-coming { color: #64748b; font-weight: 700; }
         .bg-gray-50 { background-color: #f9fafb; }
         .featured-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
         .featured-title { font-size: 1.75rem; font-weight: 700; }

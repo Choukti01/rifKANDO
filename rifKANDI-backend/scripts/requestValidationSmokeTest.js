@@ -12,6 +12,9 @@ process.env.DATABASE_PATH = path.join(testDirectory, 'rifkando.db');
 process.env.JWT_SECRET = 'test-jwt-secret-that-is-long-enough-for-validation-tests';
 process.env.SESSION_SECRET = 'test-session-secret-that-is-long-enough-for-validation-tests';
 process.env.CLIENT_URL = 'https://www.rifkando.test';
+// Enable parked domains only inside this validation suite. Production keeps
+// these flags off and returns the launch-mode 503 before route validation.
+process.env.FEATURE_FLAGS = 'checkout=true,cmi_payments=true,wallet_payments=true,digital_downloads=true,courses=true,services=true,digital=true';
 fsSync.mkdirSync(testDirectory, { recursive: true });
 
 const db = require('../src/config/database');
@@ -93,6 +96,8 @@ const run = async () => {
     const finance = await login(port, 'validation-finance@example.test', password);
     const seller = await login(port, 'validation-seller@example.test', password);
 
+    const usedAsNewQuery = await request(port, '/api/products?condition=used_as_new');
+    assert.equal(usedAsNewQuery.status, 200, 'the Used as New product filter must be accepted');
     await assertValidationError(await request(port, '/api/products?limit=101'), 'oversized pagination must be rejected');
     await assertValidationError(await request(port, '/api/cart/1', {
       method: 'PUT', cookies: buyer.cookies, csrfToken: buyer.csrfToken, body: { quantity: '2' },

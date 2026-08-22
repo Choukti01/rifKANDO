@@ -10,10 +10,12 @@ const SellerTypePage = () => {
   const { user, updateSellerType } = useAuth();
 
   const sellerTypes = [
-    { id: 'product', title: 'Product Seller', icon: ShoppingBagIcon, description: 'Sell physical products with inventory and order management.', features: ['Inventory', 'Orders', 'Shipping details'] },
-    { id: 'course', title: 'Course Instructor', icon: AcademicCapIcon, description: 'Publish structured online courses and lessons.', features: ['Courses', 'Lessons', 'Students'] },
-    { id: 'service', title: 'Service Provider', icon: WrenchScrewdriverIcon, description: 'Offer professional services with packages and client requests.', features: ['Services', 'Packages', 'Clients'] },
-    { id: 'digital', title: 'Digital Creator', icon: ComputerDesktopIcon, description: 'Sell downloadable digital products from one workspace.', features: ['Files', 'Downloads', 'Requests'] },
+    { id: 'product', title: 'Product Seller', icon: ShoppingBagIcon, description: 'Sell physical products with inventory and COD order management.', features: ['Inventory', 'COD orders', 'Shipping details'], available: true },
+    // Future seller workspaces stay visible without allowing an account to enter
+    // a flow that is not operational during the focused launch.
+    { id: 'course', title: 'Course Instructor', icon: AcademicCapIcon, description: 'Publish structured online courses and lessons.', features: ['Courses', 'Lessons', 'Students'], available: false },
+    { id: 'service', title: 'Service Provider', icon: WrenchScrewdriverIcon, description: 'Offer professional services with packages and client requests.', features: ['Services', 'Packages', 'Clients'], available: false },
+    { id: 'digital', title: 'Digital Creator', icon: ComputerDesktopIcon, description: 'Sell downloadable digital products from one workspace.', features: ['Files', 'Downloads', 'Requests'], available: false },
   ];
 
   // If user already has a seller type, redirect to dashboard
@@ -51,12 +53,13 @@ const SellerTypePage = () => {
                 type="button"
                 role="radio"
                 aria-checked={isSelected}
-                onClick={() => setSelectedType(type)}
-                className={`seller-type-card ${isSelected ? 'selected' : ''}`}
+                onClick={() => type.available && setSelectedType(type)}
+                className={`seller-type-card ${isSelected ? 'selected' : ''} ${type.available ? '' : 'coming-soon'}`}
+                disabled={!type.available}
               >
                 <span className="seller-type-icon"><Icon aria-hidden="true" /></span>
                 <span className="seller-type-copy">
-                  <span className="seller-type-title-row"><strong>{type.title}</strong>{isSelected && <span className="seller-type-badge"><CheckIcon aria-hidden="true" />Selected</span>}</span>
+                  <span className="seller-type-title-row"><strong>{type.title}</strong>{isSelected ? <span className="seller-type-badge"><CheckIcon aria-hidden="true" />Selected</span> : !type.available && <span className="seller-type-badge is-coming">Under development</span>}</span>
                   <span className="seller-type-description">{type.description}</span>
                   <span className="seller-type-features">{type.features.map((feature) => <span key={feature}><CheckIcon aria-hidden="true" />{feature}</span>)}</span>
                 </span>
@@ -82,6 +85,8 @@ const SellerTypePage = () => {
         .seller-type-card:hover { transform: translateY(-3px); border-color: var(--color-brand-blue); box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08); }
         .seller-type-card:focus-visible, .continue-btn:focus-visible { outline: 3px solid rgba(99, 184, 243, 0.55); outline-offset: 3px; }
         .seller-type-card.selected { border-color: var(--color-brand-blue); background: var(--color-brand-soft); box-shadow: 0 0 0 3px rgba(99, 184, 243, 0.2); }
+        .seller-type-card.coming-soon { cursor: not-allowed; opacity: 0.72; }
+        .seller-type-card.coming-soon:hover { transform: none; border-color: #e5e7eb; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04); }
         .seller-type-icon { flex: 0 0 auto; width: 48px; height: 48px; border-radius: 0.85rem; display: grid; place-items: center; background: var(--color-brand-soft); color: var(--color-brand-ink); }
         .seller-type-icon svg { width: 1.5rem; height: 1.5rem; }
         .seller-type-copy { display: block; min-width: 0; }
@@ -92,6 +97,7 @@ const SellerTypePage = () => {
         .seller-type-features span { display: inline-flex; align-items: center; gap: 0.4rem; }
         .seller-type-features svg { width: 0.9rem; height: 0.9rem; color: var(--color-brand-ink); }
         .seller-type-badge { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.22rem 0.45rem; background: var(--color-brand-blue); border-radius: 999px; color: var(--color-brand-ink); font-size: 0.7rem; font-weight: 800; white-space: nowrap; }
+        .seller-type-badge.is-coming { color: #475569; background: #e2e8f0; }
         .seller-type-badge svg { width: 0.75rem; height: 0.75rem; }
         .seller-type-action { display: grid; justify-items: center; gap: 0.85rem; margin-top: 2rem; }
         .seller-type-action p { color: #4b5563; font-size: 0.875rem; }

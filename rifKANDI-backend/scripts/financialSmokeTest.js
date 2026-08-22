@@ -12,6 +12,9 @@ process.env.CMI_STORE_KEY = 'test-store-key';
 process.env.CMI_CLIENT_ID = 'test-client-id';
 process.env.CLIENT_URL = 'https://www.rifkando.test';
 process.env.BACKEND_URL = 'https://api.rifkando.test';
+// Financial unit tests exercise preserved non-COD settlement code directly.
+// Public checkout remains COD-only through its request validation and render config.
+process.env.FEATURE_FLAGS = 'checkout=true,cmi_payments=true,wallet_payments=true,digital_downloads=true,courses=false,services=false,digital=true';
 fsSync.mkdirSync(testDirectory, { recursive: true });
 
 const db = require('../src/config/database');

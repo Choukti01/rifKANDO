@@ -23,11 +23,15 @@ withFlags(undefined, () => {
   assert.deepEqual(getFeatureFlags(), DEFAULT_FEATURE_FLAGS);
 });
 
-withFlags('checkout=false, cmi_payments=off, digital_downloads=true', () => {
+withFlags('checkout=false, cmi_payments=off, wallet_payments=false, digital_downloads=true, courses=false, services=false, digital=true', () => {
   assert.deepEqual(getFeatureFlags(), {
     checkout: false,
     cmi_payments: false,
+    wallet_payments: false,
     digital_downloads: true,
+    courses: false,
+    services: false,
+    digital: true,
   });
 });
 

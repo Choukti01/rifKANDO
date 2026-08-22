@@ -135,21 +135,27 @@ application cannot independently verify the gateway's bank settlement.
 
 ## Feature-flag rollback
 
-The backend supports three operational switches through the Render
+The backend supports focused-launch operational switches through the Render
 `FEATURE_FLAGS` environment variable:
 
 ```text
-checkout=true,cmi_payments=true,digital_downloads=true
+checkout=true,cmi_payments=false,wallet_payments=false,digital_downloads=false,courses=false,services=false,digital=false
 ```
 
-Set a switch to `false` and restart the service to stop only that new operation:
+This is the current public launch configuration: Products and FINDit use Cash
+on Delivery. Set a switch to `false` and restart the service to stop only that
+operation:
 
 - `checkout=false` stops new marketplace orders.
 - `cmi_payments=false` stops new CMI payment initiation. Signed CMI callbacks
   remain active so payments already in flight can be reconciled safely.
+- `wallet_payments=false` blocks non-COD wallet settlement in internal order
+  workflows. Public checkout validates COD only regardless of this switch.
 - `digital_downloads=false` temporarily stops protected digital file delivery.
+- `courses=false`, `services=false`, and `digital=false` park their entire API
+  domains while their source and data remain retained for future rollout.
 
-Use all three values explicitly when changing the variable. The service rejects
+Use all values explicitly when changing the variable. The service rejects
 unknown, duplicated, or malformed values at startup. After a restart, verify
 `/ready` and, as a super administrator, `GET /api/admin/feature-flags`. That
 read is recorded in the tamper-evident audit log. Restore the prior value only

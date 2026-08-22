@@ -18,7 +18,7 @@ process.env.CMI_STORE_KEY = 'test-store-key';
 process.env.CMI_CLIENT_ID = 'test-client-id';
 process.env.CLIENT_URL = 'https://www.rifkando.test';
 process.env.BACKEND_URL = 'https://api.rifkando.test';
-process.env.FEATURE_FLAGS = 'checkout=true,cmi_payments=true,digital_downloads=true';
+process.env.FEATURE_FLAGS = 'checkout=true,cmi_payments=false,wallet_payments=false,digital_downloads=true,courses=false,services=false,digital=true';
 fsSync.mkdirSync(testDirectory, { recursive: true });
 
 const db = require('../src/config/database');
@@ -111,19 +111,18 @@ const run = async () => {
     ['Workflow CMI product', 200, seller.lastID, 3]
   );
 
-  const cmiOrder = await WalletService.createMarketplaceOrder({
-    buyerId: buyer.lastID,
-    orderNumber: 'RIF-HTTP-CMI-1001',
-    paymentMethod: 'cmi',
-    shippingAddress: address,
-    items: [{ id: product.lastID, quantity: 1 }],
-    expectedTotal: 250,
-    idempotencyKey: 'workflow-cmi-checkout:1001',
-  });
+  // Historical CMI orders still need a secure callback path after new CMI
+  // checkout has been paused. Seed that legacy state directly for this test.
+  const cmiOrder = await runStatement(
+    `INSERT INTO orders
+      (order_number, user_id, total, total_minor, payment_method, payment_status, shipping_address, notes, status)
+     VALUES (?, ?, ?, ?, 'cmi', 'pending', ?, '', 'pending')`,
+    ['RIF-HTTP-CMI-1001', buyer.lastID, 250, 25000, JSON.stringify(address)]
+  );
   const oid = 'CMI-HTTP-WORKFLOW-1001';
   await runStatement(
     "INSERT INTO payment_transactions (order_id, cmi_oid, amount, amount_minor, status) VALUES (?, ?, ?, ?, 'pending')",
-    [cmiOrder.order.id, oid, 250, 25000]
+    [cmiOrder.lastID, oid, 250, 25000]
   );
 
   const privateKey = storage.createKey('private', `digital-files-user-${seller.lastID}`, 'pdf');
@@ -160,11 +159,11 @@ const run = async () => {
     });
     assert.equal(unsignedCallback.status, 400, 'unsigned payment callbacks must be rejected');
     assert.equal(await unsignedCallback.text(), 'INVALID');
-    assert.equal((await getRow('SELECT payment_status FROM orders WHERE id = ?', [cmiOrder.order.id])).payment_status, 'pending');
+    assert.equal((await getRow('SELECT payment_status FROM orders WHERE id = ?', [cmiOrder.lastID])).payment_status, 'pending');
 
     // Pausing new CMI initiation must not prevent a gateway callback from
     // completing an already-authorized transaction.
-    process.env.FEATURE_FLAGS = 'checkout=true,cmi_payments=false,digital_downloads=true';
+    process.env.FEATURE_FLAGS = 'checkout=true,cmi_payments=false,wallet_payments=false,digital_downloads=true,courses=false,services=false,digital=true';
     const validCallback = signCmiCallback({
       oid,
       amount: '250.00',
@@ -177,13 +176,13 @@ const run = async () => {
     assert.equal(await paidCallback.text(), 'OK');
     const replayCallback = await request(port, '/api/payment/callback', { method: 'POST', body: validCallback });
     assert.equal(replayCallback.status, 200, 'valid callback replays must remain harmless');
-    assert.equal((await getRow('SELECT payment_status FROM orders WHERE id = ?', [cmiOrder.order.id])).payment_status, 'paid');
+    assert.equal((await getRow('SELECT payment_status FROM orders WHERE id = ?', [cmiOrder.lastID])).payment_status, 'paid');
 
     const anonymousDownload = await request(port, `/api/digital/${digital.lastID}/download`);
     assert.equal(anonymousDownload.status, 401, 'private downloads require a session');
     const buyerSession = await login(port, 'workflow-buyer@example.test', password);
 
-    process.env.FEATURE_FLAGS = 'checkout=false,cmi_payments=false,digital_downloads=true';
+    process.env.FEATURE_FLAGS = 'checkout=false,cmi_payments=false,wallet_payments=false,digital_downloads=true,courses=false,services=false,digital=true';
     const disabledCheckout = await request(port, '/api/orders', {
       method: 'POST',
       cookies: buyerSession.cookies,
@@ -191,6 +190,24 @@ const run = async () => {
       body: {},
     });
     assert.equal(disabledCheckout.status, 503, 'checkout rollback must stop new orders before validation');
+
+    process.env.FEATURE_FLAGS = 'checkout=true,cmi_payments=false,wallet_payments=false,digital_downloads=true,courses=false,services=false,digital=true';
+    const nonCodCheckout = await request(port, '/api/orders', {
+      method: 'POST',
+      cookies: buyerSession.cookies,
+      csrfToken: buyerSession.csrfToken,
+      headers: { 'Idempotency-Key': 'workflow-non-cod-checkout:1001' },
+      body: {
+        shippingAddress: address,
+        paymentMethod: 'cmi',
+        items: [{ id: product.lastID, quantity: 1 }],
+        total: 250,
+      },
+    });
+    assert.equal(nonCodCheckout.status, 422, 'non-COD payment methods must be rejected before order creation');
+
+    const pausedCourses = await request(port, '/api/courses');
+    assert.equal(pausedCourses.status, 503, 'paused course APIs must not expose launch-mode content');
 
     const disabledCmiInitiation = await request(port, '/api/payment/cmi/initiate', {
       method: 'POST',
@@ -200,17 +217,17 @@ const run = async () => {
     });
     assert.equal(disabledCmiInitiation.status, 503, 'CMI rollback must stop new payment initiation before validation');
 
-    process.env.FEATURE_FLAGS = 'checkout=true,cmi_payments=true,digital_downloads=true';
+    process.env.FEATURE_FLAGS = 'checkout=true,cmi_payments=false,wallet_payments=false,digital_downloads=true,courses=false,services=false,digital=true';
     const firstDownload = await request(port, `/api/digital/${digital.lastID}/download`, { cookies: buyerSession.cookies });
     assert.equal(firstDownload.status, 200, 'a buyer with a purchase may download the private file');
     assert.match(firstDownload.headers.get('content-disposition') || '', /attachment/i);
     assert.deepEqual(Buffer.from(await firstDownload.arrayBuffer()), privateContents);
 
-    process.env.FEATURE_FLAGS = 'checkout=true,cmi_payments=true,digital_downloads=false';
+    process.env.FEATURE_FLAGS = 'checkout=true,cmi_payments=false,wallet_payments=false,digital_downloads=false,courses=false,services=false,digital=false';
     const disabledDownload = await request(port, `/api/digital/${digital.lastID}/download`, { cookies: buyerSession.cookies });
     assert.equal(disabledDownload.status, 503, 'digital-delivery rollback must stop protected downloads');
 
-    process.env.FEATURE_FLAGS = 'checkout=true,cmi_payments=true,digital_downloads=true';
+    process.env.FEATURE_FLAGS = 'checkout=true,cmi_payments=false,wallet_payments=false,digital_downloads=true,courses=false,services=false,digital=true';
     const exhaustedDownload = await request(port, `/api/digital/${digital.lastID}/download`, { cookies: buyerSession.cookies });
     assert.equal(exhaustedDownload.status, 403, 'download limits must be enforced atomically');
     const directPrivatePath = await request(port, `/uploads/${privateKey}`);
