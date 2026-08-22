@@ -12,19 +12,20 @@ const ChatPage = lazy(() => import('./pages/messages/ChatPage'))
 const MessagesInbox = lazy(() => import('./pages/messages/MessagesInbox'))
 const ProductsPage = lazy(() => import('./pages/marketplace/ProductsPage'))
 const ProductDetailsPage = lazy(() => import('./pages/marketplace/ProductDetailsPage'))
-const CoursesPage = lazy(() => import('./pages/marketplace/CoursesPage'))
-const CourseDetailsPage = lazy(() => import('./pages/marketplace/CourseDetailsPage'))
-const ServicesPage = lazy(() => import('./pages/marketplace/ServicesPage'))
-const ServiceDetailsPage = lazy(() => import('./pages/marketplace/ServiceDetailsPage'))
-const DigitalPage = lazy(() => import('./pages/marketplace/DigitalPage'))
-const DigitalDetailsPage = lazy(() => import('./pages/marketplace/DigitalDetailsPage'))
+// Parked launch modules. Their implementations remain untouched in source.
+// const CoursesPage = lazy(() => import('./pages/marketplace/CoursesPage'))
+// const CourseDetailsPage = lazy(() => import('./pages/marketplace/CourseDetailsPage'))
+// const ServicesPage = lazy(() => import('./pages/marketplace/ServicesPage'))
+// const ServiceDetailsPage = lazy(() => import('./pages/marketplace/ServiceDetailsPage'))
+// const DigitalPage = lazy(() => import('./pages/marketplace/DigitalPage'))
+// const DigitalDetailsPage = lazy(() => import('./pages/marketplace/DigitalDetailsPage'))
 const FindItPage = lazy(() => import('./pages/marketplace/FindItPage'))
 const CartPage = lazy(() => import('./pages/buyer/CartPage'))
 const FavoritesPage = lazy(() => import('./pages/buyer/FavoritesPage'))
 const CheckoutPage = lazy(() => import('./pages/buyer/CheckoutPage'))
 const OrdersPage = lazy(() => import('./pages/buyer/OrdersPage'))
 const OrderDetailsPage = lazy(() => import('./pages/buyer/OrderDetailsPage'))
-const MyPurchasesPage = lazy(() => import('./pages/buyer/MyPurchasesPage'))
+// const MyPurchasesPage = lazy(() => import('./pages/buyer/MyPurchasesPage'))
 const FindItDashboardPage = lazy(() => import('./pages/buyer/FindItDashboardPage'))
 const LoginPage = lazy(() => import('./pages/auth/LoginPage'))
 const RegisterPage = lazy(() => import('./pages/auth/RegisterPage'))
@@ -36,22 +37,22 @@ const PaymentSuccess = lazy(() => import('./pages/PaymentSuccess'))
 const PaymentFailed = lazy(() => import('./pages/PaymentFailed'))
 const SellerOrders = lazy(() => import('./pages/seller/dashboard/Orders'))
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'))
-const PackagesManager = lazy(() => import('./pages/seller/services/PackagesManager'))
-const LessonsManager = lazy(() => import('./pages/seller/courses/LessonsManager'))
+// const PackagesManager = lazy(() => import('./pages/seller/services/PackagesManager'))
+// const LessonsManager = lazy(() => import('./pages/seller/courses/LessonsManager'))
 const DashboardLayout = lazy(() => import('./pages/seller/dashboard/DashboardLayout'))
 const Overview = lazy(() => import('./pages/seller/dashboard/Overview'))
 const ProductsDashboard = lazy(() => import('./pages/seller/products/ProductsDashboard'))
 const AddProduct = lazy(() => import('./pages/seller/products/AddProduct'))
 const EditProduct = lazy(() => import('./pages/seller/products/EditProduct'))
-const CoursesDashboard = lazy(() => import('./pages/seller/courses/CoursesDashboard'))
-const AddCourse = lazy(() => import('./pages/seller/courses/AddCourse'))
-const EditCourse = lazy(() => import('./pages/seller/courses/EditCourse'))
-const ServicesDashboard = lazy(() => import('./pages/seller/services/ServicesDashboard'))
-const AddService = lazy(() => import('./pages/seller/services/AddService'))
-const EditService = lazy(() => import('./pages/seller/services/EditService'))
-const DigitalDashboard = lazy(() => import('./pages/seller/digital/DigitalDashboard'))
-const AddDigitalProduct = lazy(() => import('./pages/seller/digital/AddDigitalProduct'))
-const EditDigitalProduct = lazy(() => import('./pages/seller/digital/EditDigitalProduct'))
+// const CoursesDashboard = lazy(() => import('./pages/seller/courses/CoursesDashboard'))
+// const AddCourse = lazy(() => import('./pages/seller/courses/AddCourse'))
+// const EditCourse = lazy(() => import('./pages/seller/courses/EditCourse'))
+// const ServicesDashboard = lazy(() => import('./pages/seller/services/ServicesDashboard'))
+// const AddService = lazy(() => import('./pages/seller/services/AddService'))
+// const EditService = lazy(() => import('./pages/seller/services/EditService'))
+// const DigitalDashboard = lazy(() => import('./pages/seller/digital/DigitalDashboard'))
+// const AddDigitalProduct = lazy(() => import('./pages/seller/digital/AddDigitalProduct'))
+// const EditDigitalProduct = lazy(() => import('./pages/seller/digital/EditDigitalProduct'))
 const SellerFindItPage = lazy(() => import('./pages/seller/findit/SellerFindItPage'))
 const Settings = lazy(() => import('./pages/seller/dashboard/Settings'))
 const Wallet = lazy(() => import('./pages/seller/dashboard/Wallet'))
@@ -71,6 +72,7 @@ import { FavoritesProvider } from './contexts/FavoritesContext'
 // Protected Route Component
 import ProtectedRoute from './components/common/ProtectedRoute'
 import PageTransition from './components/common/PageTransition'
+import UnderDevelopment from './components/common/UnderDevelopment'
 
 const PageLoadingFallback = () => (
   <div
@@ -115,15 +117,16 @@ function AppContent() {
                   <Route path="/" element={<HomePage />} />
                   <Route path="/products" element={<ProductsPage />} />
                   <Route path="/product/:id" element={<ProductDetailsPage />} />
-                  <Route path="/courses" element={<CoursesPage />} />
-                  <Route path="/course/:id" element={<CourseDetailsPage />} />
-                  <Route path="/services" element={<ServicesPage />} />
-                  <Route path="/service/:id" element={<ServiceDetailsPage />} />
-                  <Route path="/digital" element={<DigitalPage />} />
-                  <Route path="/digital/:id" element={<DigitalDetailsPage />} />
+                  {/* Focused launch: the original course, service, and digital pages remain in source but are intentionally parked. */}
+                  <Route path="/courses" element={<UnderDevelopment sectionKey="courses" />} />
+                  <Route path="/course/:id" element={<UnderDevelopment sectionKey="courses" />} />
+                  <Route path="/services" element={<UnderDevelopment sectionKey="services" />} />
+                  <Route path="/service/:id" element={<UnderDevelopment sectionKey="services" />} />
+                  <Route path="/digital" element={<UnderDevelopment sectionKey="digital" />} />
+                  <Route path="/digital/:id" element={<UnderDevelopment sectionKey="digital" />} />
                   <Route path="/findit" element={<FindItPage />} />
-                  <Route path="/bookings" element={<Navigate to="/findit" replace />} />
-                  <Route path="/booking/:id" element={<Navigate to="/findit" replace />} />
+                  <Route path="/bookings" element={<UnderDevelopment sectionKey="bookings" />} />
+                  <Route path="/booking/:id" element={<UnderDevelopment sectionKey="bookings" />} />
                   <Route path="/search" element={<SearchPage />} />
 
                   <Route path="/admin" element={
@@ -177,7 +180,7 @@ function AppContent() {
                   } />
                   <Route path="/my-purchases" element={
                     <ProtectedRoute>
-                      <MyPurchasesPage />
+                      <UnderDevelopment sectionKey="digital" />
                     </ProtectedRoute>
                   } />
                   <Route path="/findit/dashboard" element={
@@ -208,21 +211,12 @@ function AppContent() {
                     <Route path="products" element={<ProductsDashboard />} />
                     <Route path="products/add" element={<AddProduct />} />
                     <Route path="products/:id/edit" element={<EditProduct />} />
-                    <Route path="courses" element={<CoursesDashboard />} />
-                    <Route path="courses/add" element={<AddCourse />} />
-                    <Route path="courses/:id/edit" element={<EditCourse />} />
-                    <Route path="courses/:id/lessons" element={<LessonsManager />} />
-                    <Route path="services" element={<ServicesDashboard />} />
-                    <Route path="services/add" element={<AddService />} />
-                    <Route path="services/:id/edit" element={<EditService />} />
-                    <Route path="services/:id/packages" element={<PackagesManager />} />
-                    <Route path="digital" element={<DigitalDashboard />} />
-                    <Route path="digital/add" element={<AddDigitalProduct />} />
-                    <Route path="digital/:id/edit" element={<EditDigitalProduct />} />
+                    {/* The seller implementations below are retained in source and reactivated when their launch checks are complete. */}
+                    <Route path="courses/*" element={<UnderDevelopment sectionKey="courses" sellerWorkspace />} />
+                    <Route path="services/*" element={<UnderDevelopment sectionKey="services" sellerWorkspace />} />
+                    <Route path="digital/*" element={<UnderDevelopment sectionKey="digital" sellerWorkspace />} />
                     <Route path="findit" element={<SellerFindItPage />} />
-                    <Route path="bookings" element={<Navigate to="/seller/dashboard/findit" replace />} />
-                    <Route path="bookings/add" element={<Navigate to="/seller/dashboard/findit" replace />} />
-                    <Route path="bookings/:id/edit" element={<Navigate to="/seller/dashboard/findit" replace />} />
+                    <Route path="bookings/*" element={<UnderDevelopment sectionKey="bookings" sellerWorkspace />} />
                     <Route path="settings" element={<Settings />} />
                     <Route path="wallet" element={<Wallet />} />
                     <Route path="orders" element={<SellerOrders />} />

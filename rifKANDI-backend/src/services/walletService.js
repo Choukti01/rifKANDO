@@ -1,5 +1,6 @@
 const db = require('../config/database');
 const Money = require('./moneyService');
+const { getFeatureFlags } = require('./featureFlagService');
 const {
   calculateCommissionMinor,
   getWithdrawalEligibility,
@@ -747,7 +748,13 @@ class WalletService {
   }) {
     const safeBuyerId = this.positiveInteger(buyerId, 'Buyer ID');
     const safeRequestKey = this.normalizeIdempotencyKey(idempotencyKey, 'Checkout idempotency key');
-    const allowedPaymentMethods = new Set(['cash', 'cmi', 'wallet']);
+    // Keep non-COD settlement implementations for their eventual rollout.
+    // They are available only in explicit non-production test or rollout
+    // configuration and never through the public checkout validator today.
+    const allowedPaymentMethods = new Set(['cash']);
+    const paymentFlags = getFeatureFlags();
+    if (paymentFlags.cmi_payments) allowedPaymentMethods.add('cmi');
+    if (paymentFlags.wallet_payments) allowedPaymentMethods.add('wallet');
     if (!allowedPaymentMethods.has(paymentMethod)) throw new Error('Unsupported payment method.');
     if (!Array.isArray(items) || items.length === 0 || items.length > 25) {
       throw new Error('Checkout must contain between 1 and 25 items.');

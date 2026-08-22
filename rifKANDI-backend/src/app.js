@@ -1136,7 +1136,7 @@ const inspectPrivateDigitalFile = async (file) => {
   throw new Error('Unsupported or invalid digital file.');
 };
 
-app.post('/api/upload-digital-file', protect, requireSeller, (req, res, next) => {
+app.post('/api/upload-digital-file', protect, requireSeller, requireFeature('digital'), (req, res, next) => {
   privateDigitalUpload.single('file')(req, res, (error) => {
     if (error) return res.status(400).json({ error: error.message || 'Invalid digital file.' });
     return next();
@@ -1429,6 +1429,20 @@ app.post('/api/auth/google', authRateLimit, async (req, res) => {
 app.all(['/api/auth/google/verify', '/api/auth/google/resend-verification'], (_req, res) => {
   res.status(410).json({ error: 'Google accounts are verified directly by Google. Sign in again to continue.' });
 });
+
+// Focused launch guards. The course, service, and digital implementations and
+// their data remain intact, but API access is unavailable until each domain is
+// explicitly reopened. These must be registered before the routers so they
+// also protect legacy endpoints that live later in this module.
+app.use('/api/courses', requireFeature('courses'));
+app.use('/api/my-courses', requireFeature('courses'));
+app.use('/api/my-courses-stats', requireFeature('courses'));
+app.use('/api/services', requireFeature('services'));
+app.use('/api/my-services', requireFeature('services'));
+app.use('/api/digital', requireFeature('digital'));
+app.use('/api/my-digital', requireFeature('digital'));
+app.use('/api/my-purchases', requireFeature('digital'));
+app.use('/api/seller/digital-requests', requireFeature('digital'));
 
 app.use('/api', createProductRoutes({
   db,

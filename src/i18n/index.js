@@ -313,6 +313,49 @@ Object.assign(resources.ar.translation, {
 resources.ar.translation.nav.findit = '\u0627\u0639\u062b\u0631 \u0639\u0644\u064a\u0647\u0627';
 resources.ar.translation.findit.navigation = '\u0627\u0639\u062b\u0631 \u0639\u0644\u064a\u0647\u0627';
 
+Object.assign(resources.en.translation, {
+  launch: {
+    eyebrow: 'Focused launch',
+    shortLabel: 'Under development',
+    title: '{{section}} is under development',
+    description: 'We are completing this section before opening it to the public. Products and FINDit are available now with cash on delivery.',
+    products: 'Browse products',
+    findit: 'Explore FINDit',
+    sections: { courses: 'Courses', services: 'Services', digital: 'Digital products', bookings: 'Bookings' },
+  },
+});
+
+Object.assign(resources.fr.translation, {
+  launch: {
+    eyebrow: 'Lancement ciblé',
+    shortLabel: 'En cours de développement',
+    title: '{{section}} est en cours de développement',
+    description: 'Nous finalisons cette section avant de l’ouvrir au public. Les produits et FINDit sont disponibles avec le paiement à la livraison.',
+    products: 'Voir les produits',
+    findit: 'Découvrir FINDit',
+    sections: { courses: 'Les cours', services: 'Les services', digital: 'Les produits numériques', bookings: 'Les réservations' },
+  },
+});
+
+Object.assign(resources.ar.translation, {
+  launch: {
+    eyebrow: '\u0625\u0637\u0644\u0627\u0642 \u0645\u0631\u0643\u0632',
+    shortLabel: '\u0642\u064a\u062f \u0627\u0644\u062a\u0637\u0648\u064a\u0631',
+    title: '{{section}} \u0642\u064a\u062f \u0627\u0644\u062a\u0637\u0648\u064a\u0631',
+    description: '\u0646\u064f\u0643\u0645\u0644 \u0647\u0630\u0627 \u0627\u0644\u0642\u0633\u0645 \u0642\u0628\u0644 \u0641\u062a\u062d\u0647 \u0644\u0644\u0639\u0645\u0648\u0645. \u0627\u0644\u0645\u0646\u062a\u062c\u0627\u062a \u0648\u0627\u0639\u062b\u0631 \u0639\u0644\u064a\u0647\u0627 \u0645\u062a\u0627\u062d\u0629 \u0627\u0644\u0622\u0646 \u0628\u0627\u0644\u062f\u0641\u0639 \u0639\u0646\u062f \u0627\u0644\u0627\u0633\u062a\u0644\u0627\u0645.',
+    products: '\u062a\u0635\u0641\u062d \u0627\u0644\u0645\u0646\u062a\u062c\u0627\u062a',
+    findit: '\u0627\u0633\u062a\u0643\u0634\u0641 \u0627\u0639\u062b\u0631 \u0639\u0644\u064a\u0647\u0627',
+    sections: { courses: '\u0627\u0644\u062f\u0648\u0631\u0627\u062a', services: '\u0627\u0644\u062e\u062f\u0645\u0627\u062a', digital: '\u0627\u0644\u0645\u0646\u062a\u062c\u0627\u062a \u0627\u0644\u0631\u0642\u0645\u064a\u0629', bookings: '\u0627\u0644\u062d\u062c\u0648\u0632\u0627\u062a' },
+  },
+});
+
+Object.assign(resources.en.translation.common, { search: 'Search products...' });
+Object.assign(resources.fr.translation.common, { search: 'Rechercher des produits...' });
+Object.assign(resources.ar.translation.common, { search: '\u0627\u0628\u062d\u062b \u0639\u0646 \u0645\u0646\u062a\u062c\u0627\u062a...' });
+Object.assign(resources.en.translation.home, { valueStatement: 'Trusted products and FINDit requests, connecting Morocco to the world.' });
+Object.assign(resources.fr.translation.home, { valueStatement: 'Des produits fiables et des demandes FINDit, du Maroc vers le monde.' });
+Object.assign(resources.ar.translation.home, { valueStatement: '\u0645\u0646\u062a\u062c\u0627\u062a \u0645\u0648\u062b\u0648\u0642\u0629 \u0648\u0637\u0644\u0628\u0627\u062a \u0627\u0639\u062b\u0631 \u0639\u0644\u064a\u0647\u0627 \u0645\u0646 \u0627\u0644\u0645\u063a\u0631\u0628 \u0625\u0644\u0649 \u0627\u0644\u0639\u0627\u0644\u0645.' });
+
 const replaceArabicFinditBrand = (value) => {
   if (typeof value === 'string') return value.replaceAll('FINDit', resources.ar.translation.findit.navigation);
   if (value && typeof value === 'object') Object.values(value).forEach(replaceArabicFinditBrand);

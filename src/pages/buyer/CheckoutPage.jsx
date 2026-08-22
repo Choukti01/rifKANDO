@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ShieldCheckIcon, TruckIcon, CreditCardIcon } from '@heroicons/react/24/outline'
+import { ShieldCheckIcon, TruckIcon } from '@heroicons/react/24/outline'
 import useCart from '../../hooks/useCart'
 import useAuth from '../../hooks/useAuth'
 import api from '../../services/api'
@@ -14,7 +14,8 @@ const CheckoutPage = () => {
   const [loading, setLoading] = useState(false)
   const checkoutRequestIdRef = useRef(null)
   const [step, setStep] = useState(1)
-  const [paymentMethod, setPaymentMethod] = useState('cash')
+  // COD is the only public payment method during the focused launch.
+  const paymentMethod = 'cash'
   const [formData, setFormData] = useState({
     fullName: user?.name || '',
     email: user?.email || '',
@@ -60,8 +61,6 @@ const CheckoutPage = () => {
     }
 
     setLoading(true)
-    let paymentRedirectStarted = false
-    
     try {
       if (!checkoutRequestIdRef.current) {
         checkoutRequestIdRef.current = globalThis.crypto?.randomUUID?.()
@@ -91,6 +90,10 @@ const CheckoutPage = () => {
         total: total
       }
 
+      /*
+       * CMI is intentionally parked for the COD-only launch. The integration
+       * stays here as a reactivation reference and is separately protected on
+       * the server, so no browser or direct API request can select it today.
       if (paymentMethod === 'cmi') {
         const orderResponse = await api.post('/orders', orderData, requestConfig)
         if (!orderResponse.data.success) throw new Error('Could not create your order')
@@ -106,20 +109,20 @@ const CheckoutPage = () => {
         document.body.appendChild(formContainer)
         const form = formContainer.querySelector('form')
         if (!form) throw new Error('Could not open the secure payment page')
-        paymentRedirectStarted = true
         form.submit()
-      } else {
-        const response = await api.post('/orders', orderData, requestConfig)
-        if (!response.data.success) throw new Error('Could not place your order')
-        toast.success('Order placed. Thank you for shopping with rifKANDO!')
-        await clearCart()
-        navigate('/orders')
       }
+      */
+
+      const response = await api.post('/orders', orderData, requestConfig)
+      if (!response.data.success) throw new Error('Could not place your COD order')
+      toast.success('COD order placed. Thank you for shopping with rifKANDO!')
+      await clearCart()
+      navigate('/orders')
     } catch (error) {
       console.error('Order failed:', error)
       toast.error(error.response?.data?.error || 'Failed to place order')
     } finally {
-      if (!paymentRedirectStarted) setLoading(false)
+      setLoading(false)
     }
   }
 
@@ -210,21 +213,16 @@ const CheckoutPage = () => {
               <div className="checkout-form">
                 <h2>Payment Method</h2>
                 <div className="payment-options">
-                  <label className={`payment-option ${paymentMethod === 'cash' ? 'active' : ''}`}>
-                    <input 
-                      type="radio" 
-                      name="paymentMethod" 
-                      value="cash" 
-                      checked={paymentMethod === 'cash'}
-                      onChange={() => setPaymentMethod('cash')}
-                    />
+                  <div className="payment-option active" role="status">
                     <TruckIcon className="payment-icon" />
                     <div>
                       <strong>Cash on Delivery</strong>
                       <p>Pay when your order is delivered.</p>
                     </div>
-                  </label>
+                  </div>
 
+                  {/* CMI is retained for a future release. Do not render an unavailable payment choice to buyers. */}
+                  {/*
                   <label className={`payment-option ${paymentMethod === 'cmi' ? 'active' : ''}`}>
                     <input 
                       type="radio" 
@@ -239,6 +237,7 @@ const CheckoutPage = () => {
                       <p>You will continue to CMI's secure payment page.</p>
                     </div>
                   </label>
+                  */}
                 </div>
                 <div className="form-buttons">
                   <button type="button" onClick={() => setStep(1)} className="back-btn">Back</button>
@@ -262,7 +261,7 @@ const CheckoutPage = () => {
                 </div>
                 <div className="review-section">
                   <h3>Payment Method</h3>
-                  <p>{paymentMethod === 'cash' ? 'Cash on Delivery' : 'Credit Card (CMI)'}</p>
+                  <p>Cash on Delivery</p>
                 </div>
                 <div className="review-section">
                   <h3>Order Items</h3>
@@ -285,7 +284,7 @@ const CheckoutPage = () => {
                     className="place-order-btn"
                     disabled={loading}
                   >
-                    {loading ? 'Processing...' : paymentMethod === 'cmi' ? 'Continue to secure payment' : 'Place order'}
+                    {loading ? 'Processing...' : 'Place COD order'}
                   </button>
                 </div>
               </div>

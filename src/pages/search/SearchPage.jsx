@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { MagnifyingGlassIcon, FunnelIcon, XMarkIcon, StarIcon } from '@heroicons/react/24/outline';
-import { getProducts, getCourses, getServices, getDigitalProducts } from '../../services/api';
+import { getProducts } from '../../services/api';
 import toast from 'react-hot-toast';
 import MarketplaceImage from '../../components/common/MarketplaceImage';
 
@@ -19,21 +19,14 @@ const SearchPage = () => {
   const loading = Boolean(query) && completedSearchKey !== searchKey;
   const visibleResults = query ? results : [];
 
-  // Fetch all data from all categories
+  // Focused launch: only public product listings are searchable. Other
+  // marketplace domains stay retained but are intentionally unavailable.
   const fetchAllData = useCallback(async () => {
     try {
-      const [productsRes, coursesRes, servicesRes, digitalRes] = await Promise.all([
-        getProducts(),
-        getCourses(),
-        getServices(),
-        getDigitalProducts()
-      ]);
+      const productsRes = await getProducts();
 
       const allResults = [
         ...(productsRes.data.products || []).map(item => ({ ...item, type: 'product', searchTitle: item.title })),
-        ...(coursesRes.data.courses || []).map(item => ({ ...item, type: 'course', searchTitle: item.title })),
-        ...(servicesRes.data.services || []).map(item => ({ ...item, type: 'service', searchTitle: item.title })),
-        ...(digitalRes.data.products || []).map(item => ({ ...item, type: 'digital', searchTitle: item.title }))
       ];
 
       return allResults;
@@ -145,7 +138,7 @@ const SearchPage = () => {
                 <MagnifyingGlassIcon className="search-icon" />
                 <input
                   type="text"
-                  placeholder="Search products, courses, services..."
+                  placeholder="Search products..."
                   ref={searchInputRef}
                   defaultValue={query}
                 />
@@ -174,7 +167,7 @@ const SearchPage = () => {
               <MagnifyingGlassIcon className="search-icon" />
               <input
                 type="text"
-                placeholder="Search products, courses, services..."
+                placeholder="Search products..."
                 ref={searchInputRef}
                 defaultValue={query}
               />
@@ -199,11 +192,7 @@ const SearchPage = () => {
               <div>
                 <label>Type</label>
                 <select value={filterType} onChange={(e) => setFilterType(e.target.value)}>
-                  <option value="all">All Types</option>
-                  <option value="product">Products</option>
-                  <option value="course">Courses</option>
-                  <option value="service">Services</option>
-                  <option value="digital">Digital Products</option>
+                  <option value="all">Products</option>
                 </select>
               </div>
               <div>
@@ -250,9 +239,9 @@ const SearchPage = () => {
               <p>Popular searches:</p>
               <div className="suggestion-tags">
                 <button type="button" onClick={() => runSuggestedSearch('iphone')}>iphone</button>
-                <button type="button" onClick={() => runSuggestedSearch('react')}>react</button>
-                <button type="button" onClick={() => runSuggestedSearch('logo design')}>logo design</button>
-                <button type="button" onClick={() => runSuggestedSearch('course')}>course</button>
+                <button type="button" onClick={() => runSuggestedSearch('electronics')}>electronics</button>
+                <button type="button" onClick={() => runSuggestedSearch('fashion')}>fashion</button>
+                <button type="button" onClick={() => runSuggestedSearch('home')}>home</button>
               </div>
             </div>
           </div>

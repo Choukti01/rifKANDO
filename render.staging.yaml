@@ -50,7 +50,7 @@ services:
       - key: REFRESH_TOKEN_TTL_DAYS
         value: 30
       - key: FEATURE_FLAGS
-        value: checkout=true,cmi_payments=true,digital_downloads=true
+        value: checkout=true,cmi_payments=false,wallet_payments=false,digital_downloads=false,courses=false,services=false,digital=false
       - key: GOOGLE_CLIENT_ID
         sync: false
       - key: RESEND_API_KEY

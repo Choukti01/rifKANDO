@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ShoppingBagIcon, CurrencyDollarIcon, EyeIcon, AcademicCapIcon, WrenchScrewdriverIcon, ComputerDesktopIcon } from '@heroicons/react/24/outline';
-import { getMyProducts, getMyCourses, getMyServices, getMyDigitalProducts } from '../../../services/api';
+import { ShoppingBagIcon, CurrencyDollarIcon, EyeIcon } from '@heroicons/react/24/outline';
+import { getMyProducts } from '../../../services/api';
 import api from '../../../services/api';
 import useAuth from '../../../hooks/useAuth';
 import toast from 'react-hot-toast';
@@ -12,9 +12,6 @@ const Overview = () => {
   const { user } = useAuth();
   const [stats, setStats] = useState({
     totalProducts: 0,
-    totalCourses: 0,
-    totalServices: 0,
-    totalDigital: 0,
     totalOrders: 0,
     totalOrderValue: 0,
     totalViews: 0
@@ -27,30 +24,24 @@ const Overview = () => {
 
     const loadDashboardData = async () => {
       try {
-        const [productsRes, coursesRes, servicesRes, digitalRes, ordersRes] = await Promise.all([
+        // Courses, services, and digital products are intentionally parked in
+        // launch mode. Do not request their disabled APIs from the seller
+        // overview or the browser will receive avoidable 503 responses.
+        const [productsRes, ordersRes] = await Promise.all([
           getMyProducts().catch(() => ({ data: { products: [] } })),
-          getMyCourses().catch(() => ({ data: { courses: [] } })),
-          getMyServices().catch(() => ({ data: { services: [] } })),
-          getMyDigitalProducts().catch(() => ({ data: { products: [] } })),
           api.get('/seller/orders').catch(() => ({ data: { orders: [] } }))
         ]);
 
         if (!isCurrent) return;
 
         const products = productsRes.data.products || [];
-        const courses = coursesRes.data.courses || [];
-        const services = servicesRes.data.services || [];
-        const digital = digitalRes.data.products || [];
         const orders = ordersRes.data.orders || [];
         const totalOrderValue = orders.reduce((sum, order) => sum + Number(order.seller_total ?? order.total ?? 0), 0);
-        const totalViews = [...products, ...courses, ...services, ...digital]
+        const totalViews = products
           .reduce((sum, item) => sum + (item.views || 0), 0);
 
         setStats({
           totalProducts: products.length,
-          totalCourses: courses.length,
-          totalServices: services.length,
-          totalDigital: digital.length,
           totalOrders: orders.length,
           totalOrderValue,
           totalViews
@@ -92,44 +83,18 @@ const Overview = () => {
     return <LoadingSkeleton variant="list" count={4} label="Loading seller dashboard" />;
   }
 
-  // Determine which seller type stats to show
-  const sellerType = user?.sellerType;
-  
-  // Stats based on seller type
-  const mainStats = [];
-  
-  if (sellerType === 'product' || !sellerType) {
-    mainStats.push({ label: 'Products', value: stats.totalProducts, icon: ShoppingBagIcon, color: '#216275' });
-  }
-  if (sellerType === 'course' || !sellerType) {
-    mainStats.push({ label: 'Courses', value: stats.totalCourses, icon: AcademicCapIcon, color: '#216275' });
-  }
-  if (sellerType === 'service' || !sellerType) {
-    mainStats.push({ label: 'Services', value: stats.totalServices, icon: WrenchScrewdriverIcon, color: '#216275' });
-  }
-  if (sellerType === 'digital' || !sellerType) {
-    mainStats.push({ label: 'Digital', value: stats.totalDigital, icon: ComputerDesktopIcon, color: '#216275' });
-  }
+  const mainStats = [
+    { label: 'Products', value: stats.totalProducts, icon: ShoppingBagIcon, color: '#216275' },
+  ];
 
   const overviewStats = [
     { label: 'Order value', value: `${stats.totalOrderValue.toLocaleString()} MAD`, icon: CurrencyDollarIcon, color: '#216275' },
     { label: 'Orders', value: stats.totalOrders, icon: ShoppingBagIcon, color: '#216275' },
     { label: 'Listing views', value: stats.totalViews.toLocaleString(), icon: EyeIcon, color: '#216275' },
   ];
-  const totalListings = stats.totalProducts + stats.totalCourses + stats.totalServices + stats.totalDigital;
-  const firstListingPaths = {
-    course: '/seller/dashboard/courses/add',
-    service: '/seller/dashboard/services/add',
-    digital: '/seller/dashboard/digital/add'
-  };
-  const firstListingPath = firstListingPaths[sellerType] || '/seller/dashboard/products/add';
-  const listingLabels = {
-    product: 'product',
-    course: 'course',
-    service: 'service',
-    digital: 'digital product',
-  };
-  const primaryListingLabel = listingLabels[sellerType] || 'product';
+  const totalListings = stats.totalProducts;
+  const firstListingPath = '/seller/dashboard/products/add';
+  const primaryListingLabel = 'product';
   const checklist = [
     { label: 'Complete your profile', done: Boolean(user?.name && user?.phone && user?.city), to: '/seller/dashboard/settings' },
     { label: 'Publish your first listing', done: totalListings > 0, to: firstListingPath },

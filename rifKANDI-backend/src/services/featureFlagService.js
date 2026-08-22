@@ -1,7 +1,13 @@
 const DEFAULT_FEATURE_FLAGS = Object.freeze({
   checkout: true,
-  cmi_payments: true,
-  digital_downloads: true,
+  // Focused launch: products and FINDit use COD only. Parked domains stay in
+  // source but are unavailable until their own launch checks are complete.
+  cmi_payments: false,
+  wallet_payments: false,
+  digital_downloads: false,
+  courses: false,
+  services: false,
+  digital: false,
 });
 
 const featureNames = new Set(Object.keys(DEFAULT_FEATURE_FLAGS));

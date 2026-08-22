@@ -11,6 +11,9 @@ process.env.DATABASE_PATH = path.join(testDirectory, 'rifkando.db');
 process.env.JWT_SECRET = 'catalog-pagination-test-secret-that-is-long-enough';
 process.env.SESSION_SECRET = 'catalog-pagination-session-secret-that-is-long-enough';
 process.env.CLIENT_URL = 'https://www.rifkando.test';
+// This suite validates preserved catalog implementations, not the focused
+// production launch policy, so it opts into those domains explicitly.
+process.env.FEATURE_FLAGS = 'checkout=true,cmi_payments=false,wallet_payments=false,digital_downloads=true,courses=true,services=true,digital=true';
 fsSync.mkdirSync(testDirectory, { recursive: true });
 
 const db = require('../src/config/database');
