@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../../services/api';
 
 
@@ -52,6 +53,14 @@ const AdminDashboard = () => {
         <div className="stat-card"><div className="stat-label">Revenue</div><div className="stat-value">{stats.totalRevenue?.toLocaleString()} MAD</div></div>
         <div className="stat-card"><div className="stat-label">Pending Orders</div><div className="stat-value">{stats.pendingOrders || 0}</div></div>
         <div className="stat-card"><div className="stat-label">Pending Withdrawals</div><div className="stat-value">{stats.pendingWithdrawals || 0}</div></div>
+      </div>
+
+      <div className="admin-actions">
+        <Link to="/admin/cod-reconciliation" className="action-card">
+          <div className="action-icon">◈</div>
+          <h3>COD reconciliation</h3>
+          <p>Record carrier collection, reconcile remittance, and release seller payouts safely.</p>
+        </Link>
       </div>
 
       {/* Recent Orders Table */}

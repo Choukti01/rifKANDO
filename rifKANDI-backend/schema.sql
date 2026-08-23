@@ -99,6 +99,57 @@ CREATE TABLE IF NOT EXISTS order_items (
   FOREIGN KEY (product_id) REFERENCES products(id)
 );
 
+-- COD fulfilments
+CREATE TABLE IF NOT EXISTS cod_fulfillments (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  order_id INTEGER NOT NULL,
+  seller_id INTEGER NOT NULL,
+  source TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending_confirmation',
+  settlement_status TEXT NOT NULL DEFAULT 'awaiting_delivery',
+  gross_amount REAL NOT NULL,
+  gross_amount_minor INTEGER NOT NULL,
+  customer_delivery_fee REAL NOT NULL DEFAULT 0,
+  customer_delivery_fee_minor INTEGER NOT NULL DEFAULT 0,
+  expected_cod_amount REAL NOT NULL,
+  expected_cod_amount_minor INTEGER NOT NULL,
+  commission REAL NOT NULL,
+  commission_minor INTEGER NOT NULL,
+  seller_amount REAL NOT NULL,
+  seller_amount_minor INTEGER NOT NULL,
+  carrier_name TEXT,
+  tracking_number TEXT,
+  collected_amount REAL,
+  collected_amount_minor INTEGER,
+  carrier_delivery_fee REAL,
+  carrier_delivery_fee_minor INTEGER,
+  carrier_return_fee REAL,
+  carrier_return_fee_minor INTEGER,
+  remitted_amount REAL,
+  remitted_amount_minor INTEGER,
+  carrier_collection_reference TEXT,
+  carrier_settlement_reference TEXT,
+  collection_note TEXT,
+  settlement_note TEXT,
+  exception_note TEXT,
+  confirmed_at DATETIME,
+  dispatched_at DATETIME,
+  delivered_at DATETIME,
+  refused_at DATETIME,
+  returned_at DATETIME,
+  cancelled_at DATETIME,
+  settled_at DATETIME,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (order_id) REFERENCES orders(id),
+  FOREIGN KEY (seller_id) REFERENCES users(id),
+  UNIQUE(order_id, seller_id)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_cod_fulfillments_collection_reference
+  ON cod_fulfillments(carrier_collection_reference)
+  WHERE carrier_collection_reference IS NOT NULL;
+
 -- favorites
 CREATE TABLE IF NOT EXISTS favorites (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

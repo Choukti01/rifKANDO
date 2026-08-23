@@ -105,7 +105,7 @@ const SellerGuidelines = () => {
             </div>
             <div className="seller-guide-wallet-note">
               <CurrencyDollarIcon aria-hidden="true" />
-              <p>Payments are processed into your rifKANDO wallet. New sellers can request a withdrawal after {WITHDRAWAL_HOLD_DAYS} days. Wallet eligibility and balances are shown in your seller dashboard.</p>
+              <p>For COD orders, confirm the order and add the carrier tracking number. rifKANDO credits your wallet after the carrier collection and remittance are reconciled. New sellers can request a withdrawal after {WITHDRAWAL_HOLD_DAYS} days.</p>
             </div>
           </section>
 

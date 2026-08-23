@@ -36,7 +36,9 @@ const Overview = () => {
 
         const products = productsRes.data.products || [];
         const orders = ordersRes.data.orders || [];
-        const totalOrderValue = orders.reduce((sum, order) => sum + Number(order.seller_total ?? order.total ?? 0), 0);
+        const totalOrderValue = orders
+          .filter((order) => !['cancelled', 'refused', 'returned'].includes(order.fulfillment_status || order.status))
+          .reduce((sum, order) => sum + Number(order.seller_amount ?? order.seller_total ?? order.total ?? 0), 0);
         const totalViews = products
           .reduce((sum, item) => sum + (item.views || 0), 0);
 
@@ -70,6 +72,10 @@ const Overview = () => {
       shipped: '#3b82f6',
       processing: '#f59e0b',
       pending: '#f59e0b',
+      pending_confirmation: '#f59e0b',
+      confirmed: '#168dd9',
+      refused: '#ef4444',
+      returned: '#ef4444',
       cancelled: '#ef4444'
     };
     return colors[status] || '#6b7280';
@@ -189,13 +195,13 @@ const Overview = () => {
               </thead>
               <tbody>
                 {recentOrders.map(order => (
-                  <tr key={order.id}>
+                  <tr key={order.fulfillment_id || order.id}>
                     <td>{order.order_number}</td>
-                    <td>{order.customer_name || 'Customer'}</td>
-                    <td>{Number(order.seller_total ?? order.total ?? 0).toLocaleString()} MAD</td>
+                    <td>{order.buyer_name || order.customer_name || 'Customer'}</td>
+                    <td>{Number(order.seller_amount ?? order.seller_total ?? order.total ?? 0).toLocaleString()} MAD</td>
                     <td>
-                      <span className="status-badge" style={{ background: `${getStatusColor(order.status)}20`, color: getStatusColor(order.status) }}>
-                        {getStatusText(order.status)}
+                      <span className="status-badge" style={{ background: `${getStatusColor(order.fulfillment_status || order.status)}20`, color: getStatusColor(order.fulfillment_status || order.status) }}>
+                        {getStatusText(order.fulfillment_status || order.status)}
                       </span>
                     </td>
                     <td>{new Date(order.created_at).toLocaleDateString()}</td>

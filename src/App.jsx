@@ -37,6 +37,7 @@ const PaymentSuccess = lazy(() => import('./pages/PaymentSuccess'))
 const PaymentFailed = lazy(() => import('./pages/PaymentFailed'))
 const SellerOrders = lazy(() => import('./pages/seller/dashboard/Orders'))
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'))
+const CODReconciliation = lazy(() => import('./pages/admin/CODReconciliation'))
 // const PackagesManager = lazy(() => import('./pages/seller/services/PackagesManager'))
 // const LessonsManager = lazy(() => import('./pages/seller/courses/LessonsManager'))
 const DashboardLayout = lazy(() => import('./pages/seller/dashboard/DashboardLayout'))
@@ -132,6 +133,11 @@ function AppContent() {
                   <Route path="/admin" element={
                     <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
                       <AdminDashboard />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/admin/cod-reconciliation" element={
+                    <ProtectedRoute requiredRoles={['finance', 'admin', 'super_admin']}>
+                      <CODReconciliation />
                     </ProtectedRoute>
                   } />
                   <Route path="/payment/success" element={<PaymentSuccess />} />

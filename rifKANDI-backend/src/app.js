@@ -27,6 +27,10 @@ const {
   validateRefundRequest,
   validateRefundCompletion,
   validateOrderStatus,
+  validateCodSellerAction,
+  validateCodCollection,
+  validateCodSettlement,
+  validateCodException,
   validateCmiInitiation,
   validateOffer,
   validateOfferResponse,
@@ -64,6 +68,7 @@ const { createUploadReceipt, fileSha256 } = require('./services/digitalFileServi
 const sessionService = require('./services/sessionService');
 const AuditService = require('./services/auditService');
 const Money = require('./services/moneyService');
+const CodFulfillmentService = require('./services/codFulfillmentService');
 const FeatureFlags = require('./services/featureFlagService');
 const { snapshot: getObservabilitySnapshot } = require('./services/observabilityService');
 const {
@@ -383,8 +388,9 @@ const requireOrderHistoryAccess = (req, res, next) => {
   );
 };
 
-// Update order status (seller) - SIMPLIFIED WORKING VERSION
-app.patch('/api/orders/:id/status', protect, validateIdParams('id'), validateOrderStatus, requireOrderStatusAccess, async (req, res) => {
+// This legacy status endpoint is reserved for administrators. Sellers use the
+// COD fulfilment flow, which requires carrier and settlement evidence.
+app.patch('/api/orders/:id/status', protect, requireAdmin, validateIdParams('id'), validateOrderStatus, async (req, res) => {
   const { status } = req.body;
   const validStatuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
   
@@ -1626,15 +1632,25 @@ app.get('/api/orders/:id', protect, (req, res) => {
         if (err) {
           res.status(500).json({ error: err.message });
         } else {
-          order.items = items;
-          if (order.shipping_address) {
-            try {
-              order.shipping_address = JSON.parse(order.shipping_address);
-            } catch(e) {
-              order.shipping_address = {};
+          db.all(`
+            SELECT id, source, status, settlement_status, carrier_name, tracking_number,
+                   confirmed_at, dispatched_at, delivered_at, refused_at, returned_at, cancelled_at, settled_at
+            FROM cod_fulfillments
+            WHERE order_id = ?
+            ORDER BY id ASC
+          `, [order.id], (fulfillmentError, fulfillments) => {
+            if (fulfillmentError) return res.status(500).json({ error: fulfillmentError.message });
+            order.items = items;
+            order.fulfillments = fulfillments;
+            if (order.shipping_address) {
+              try {
+                order.shipping_address = JSON.parse(order.shipping_address);
+              } catch(e) {
+                order.shipping_address = {};
+              }
             }
-          }
-          res.json({ success: true, order });
+            return res.json({ success: true, order });
+          });
         }
       });
     }
@@ -1830,14 +1846,14 @@ app.post('/api/orders', protect, async (req, res) => {
                     await WalletService.deductFunds(buyerId, total, 'purchase', orderId, `Order #${orderNumber}`);
                   }
                   
-                  const commission = total * 0.075;
+                  const commission = total * 0.05;
                   for (const [sellerId, sellerItems] of sellerItemsMap) {
                     const sellerTotal = sellerItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
                     await WalletService.createEscrow(orderId, buyerId, sellerId, sellerTotal, commission);
                   }
                   
                   const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-                  const platformCommissionRate = 0.075;
+                  const platformCommissionRate = 0.05;
                   const platformCommission = subtotal * platformCommissionRate;
 
                   let gatewayFee = 0;
@@ -1866,7 +1882,7 @@ app.post('/api/orders', protect, async (req, res) => {
                   }
 
                   if (paymentMethod === 'wallet') {
-                    const platformCommissionRate = 0.075;
+                    const platformCommissionRate = 0.05;
                     for (const [sellerId, sellerItems] of sellerItemsMap) {
                       const sellerTotal = sellerItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
                       const sellerEarns = sellerTotal - (sellerTotal * platformCommissionRate);
@@ -2804,34 +2820,52 @@ app.get('/api/orders/:id/history', protect, requireOrderHistoryAccess, (req, res
 
 app.get('/api/seller/orders', protect, requireSeller, (req, res) => {
   db.all(`
-    SELECT * FROM (
-      SELECT o.*, u.name as buyer_name,
-        SUM(oi.quantity * oi.price) as seller_total,
-        SUM(oi.quantity) as seller_item_count,
-        'product' AS fulfillment_source,
-        NULL AS item_title
-      FROM orders o
-      JOIN order_items oi ON o.id = oi.order_id
-      JOIN products p ON oi.product_id = p.id
-      JOIN users u ON o.user_id = u.id
-      WHERE p.seller_id = ?
-      GROUP BY o.id
-      UNION ALL
-      SELECT o.*, u.name AS buyer_name,
-        fo.seller_amount AS seller_total,
-        1 AS seller_item_count,
-        'findit' AS fulfillment_source,
-        fo.item_title
-      FROM orders o
-      JOIN findit_orders fo ON fo.order_id = o.id
-      JOIN users u ON o.user_id = u.id
-      WHERE fo.seller_id = ?
-    ) seller_orders
-    ORDER BY created_at DESC
-  `, [req.user.id, req.user.id], (err, rows) => {
+    SELECT
+      f.id AS fulfillment_id, f.source AS fulfillment_source,
+      f.status AS fulfillment_status, f.settlement_status,
+      f.gross_amount, f.gross_amount_minor, f.customer_delivery_fee, f.customer_delivery_fee_minor,
+      f.expected_cod_amount, f.expected_cod_amount_minor, f.commission, f.commission_minor,
+      f.seller_amount, f.seller_amount_minor, f.carrier_name, f.tracking_number,
+      f.confirmed_at, f.dispatched_at, f.delivered_at, f.settled_at, f.created_at AS fulfillment_created_at,
+      o.id AS order_id, o.order_number, o.order_type, o.total, o.total_minor,
+      o.status AS order_status, o.payment_status, o.payment_method, o.shipping_address, o.notes,
+      o.created_at, u.name AS buyer_name,
+      COALESCE(
+        fo.item_title,
+        (SELECT COALESCE(NULLIF(oi.product_title, ''), p.title)
+         FROM order_items oi LEFT JOIN products p ON p.id = oi.product_id
+         WHERE oi.order_id = o.id ORDER BY oi.id ASC LIMIT 1)
+      ) AS item_title,
+      COALESCE((SELECT SUM(oi.quantity) FROM order_items oi WHERE oi.order_id = o.id), 1) AS seller_item_count
+    FROM cod_fulfillments f
+    JOIN orders o ON o.id = f.order_id
+    JOIN users u ON u.id = o.user_id
+    LEFT JOIN findit_orders fo ON fo.order_id = o.id AND f.source = 'findit'
+    WHERE f.seller_id = ?
+    ORDER BY f.created_at DESC
+  `, [req.user.id], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json({ success: true, orders: rows });
   });
+});
+
+app.patch('/api/seller/cod-fulfillments/:id', protect, requireSeller, validateIdParams('id'), validateCodSellerAction, async (req, res) => {
+  try {
+    const result = await CodFulfillmentService.sellerAction({
+      fulfillmentId: req.params.id,
+      sellerId: req.user.id,
+      ...req.body,
+    });
+    await AuditService.recordFromRequest(req, {
+      action: `cod_fulfillment.seller_${req.body.action}`,
+      resourceType: 'cod_fulfillment',
+      resourceId: req.params.id,
+      metadata: { orderId: result.fulfillment.order_id, status: result.fulfillment.status },
+    });
+    return res.json({ success: true, fulfillment: result.fulfillment, order: result.orderState });
+  } catch (error) {
+    return res.status(400).json({ error: error.message, requestId: req.requestId });
+  }
 });
 
 function getDatabaseRow(query, values) {
@@ -3053,6 +3087,111 @@ app.get('/api/admin/audit-logs', protect, authorize(ROLES.SUPER_ADMIN), async (r
 });
 
 // ==================== COD ADMIN PANEL ====================
+app.get('/api/admin/cod-fulfillments', protect, requireFinance, async (req, res) => {
+  try {
+    const fulfillments = await getDatabaseRows(`
+      SELECT
+        f.id AS fulfillment_id, f.source, f.status, f.settlement_status,
+        f.gross_amount, f.gross_amount_minor, f.customer_delivery_fee, f.customer_delivery_fee_minor,
+        f.expected_cod_amount, f.expected_cod_amount_minor, f.commission, f.commission_minor,
+        f.seller_amount, f.seller_amount_minor, f.carrier_name, f.tracking_number,
+        f.collected_amount, f.collected_amount_minor, f.carrier_delivery_fee, f.carrier_delivery_fee_minor,
+        f.carrier_return_fee, f.carrier_return_fee_minor, f.carrier_collection_reference,
+        f.remitted_amount, f.remitted_amount_minor,
+        f.carrier_settlement_reference, f.collection_note, f.settlement_note, f.exception_note,
+        f.confirmed_at, f.dispatched_at, f.delivered_at, f.refused_at, f.returned_at, f.cancelled_at,
+        f.settled_at, f.created_at,
+        o.id AS order_id, o.order_number, o.order_type, o.shipping_address, o.notes, o.created_at AS order_created_at,
+        buyer.name AS buyer_name, buyer.email AS buyer_email,
+        seller.name AS seller_name, seller.email AS seller_email,
+        COALESCE(
+          fo.item_title,
+          (SELECT COALESCE(NULLIF(oi.product_title, ''), p.title)
+           FROM order_items oi LEFT JOIN products p ON p.id = oi.product_id
+           WHERE oi.order_id = o.id ORDER BY oi.id ASC LIMIT 1)
+        ) AS item_title
+      FROM cod_fulfillments f
+      JOIN orders o ON o.id = f.order_id
+      JOIN users buyer ON buyer.id = o.user_id
+      JOIN users seller ON seller.id = f.seller_id
+      LEFT JOIN findit_orders fo ON fo.order_id = o.id AND f.source = 'findit'
+      ORDER BY
+        CASE f.settlement_status
+          WHEN 'awaiting_remittance' THEN 0
+          WHEN 'awaiting_delivery' THEN 1
+          WHEN 'settled' THEN 2
+          ELSE 3
+        END,
+        f.created_at ASC
+    `, []);
+    await AuditService.recordFromRequest(req, {
+      action: 'finance.cod_fulfillments_viewed',
+      resourceType: 'cod_fulfillment',
+      metadata: { resultCount: fulfillments.length },
+    });
+    return res.json({ success: true, fulfillments });
+  } catch (error) {
+    return res.status(500).json({ error: 'Unable to load COD fulfilments.', requestId: req.requestId });
+  }
+});
+
+app.post('/api/admin/cod-fulfillments/:id/record-collection', protect, requireFinance, validateIdParams('id'), validateCodCollection, async (req, res) => {
+  try {
+    const result = await CodFulfillmentService.recordCollection({
+      fulfillmentId: req.params.id,
+      financeUserId: req.user.id,
+      ...req.body,
+    });
+    await AuditService.recordFromRequest(req, {
+      action: 'finance.cod_collection_recorded',
+      resourceType: 'cod_fulfillment',
+      resourceId: req.params.id,
+      metadata: { orderId: result.fulfillment.order_id, status: result.fulfillment.status },
+    });
+    return res.json({ success: true, fulfillment: result.fulfillment, order: result.orderState });
+  } catch (error) {
+    return res.status(400).json({ error: error.message, requestId: req.requestId });
+  }
+});
+
+app.post('/api/admin/cod-fulfillments/:id/settle', protect, requireFinance, validateIdParams('id'), validateCodSettlement, async (req, res) => {
+  try {
+    const result = await CodFulfillmentService.settle({
+      fulfillmentId: req.params.id,
+      financeUserId: req.user.id,
+      ...req.body,
+    });
+    await AuditService.recordFromRequest(req, {
+      action: 'finance.cod_remittance_reconciled',
+      resourceType: 'cod_fulfillment',
+      resourceId: req.params.id,
+      metadata: { orderId: result.fulfillment.order_id, alreadyProcessed: result.alreadyProcessed },
+    });
+    return res.json({ success: true, fulfillment: result.fulfillment, alreadyProcessed: result.alreadyProcessed });
+  } catch (error) {
+    return res.status(400).json({ error: error.message, requestId: req.requestId });
+  }
+});
+
+app.post('/api/admin/cod-fulfillments/:id/exception', protect, requireFinance, validateIdParams('id'), validateCodException, async (req, res) => {
+  try {
+    const result = await CodFulfillmentService.recordException({
+      fulfillmentId: req.params.id,
+      financeUserId: req.user.id,
+      ...req.body,
+    });
+    await AuditService.recordFromRequest(req, {
+      action: 'finance.cod_exception_recorded',
+      resourceType: 'cod_fulfillment',
+      resourceId: req.params.id,
+      metadata: { orderId: result.fulfillment.order_id, status: result.fulfillment.status },
+    });
+    return res.json({ success: true, fulfillment: result.fulfillment, order: result.orderState });
+  } catch (error) {
+    return res.status(400).json({ error: error.message, requestId: req.requestId });
+  }
+});
+
 app.get('/api/admin/cod-orders', protect, requireFinance, async (req, res) => {
   try {
     await AuditService.recordFromRequest(req, {
@@ -3157,22 +3296,9 @@ app.post('/api/admin/cod-orders/:id/confirm', protect, requireFinance, async (re
 */
 
 app.post('/api/admin/cod-orders/:id/confirm', protect, requireFinance, validateIdParams('id'), async (req, res) => {
-  try {
-    const result = await WalletService.settleCodOrder(req.params.id, req.user.id);
-    await AuditService.recordFromRequest(req, {
-      action: 'order.cod_settled',
-      resourceType: 'order',
-      resourceId: req.params.id,
-      metadata: { alreadyProcessed: result.alreadyProcessed },
-    });
-    return res.json({
-      success: true,
-      alreadyProcessed: result.alreadyProcessed,
-      message: result.alreadyProcessed ? 'COD order was already settled' : 'Cash collected and seller credited',
-    });
-  } catch (error) {
-    return res.status(400).json({ error: error.message });
-  }
+  return res.status(410).json({
+    error: 'Direct COD settlement is no longer available. Record carrier collection and remittance on the COD fulfilment instead.',
+  });
 });
 
 // ==================== CMI PAYMENT ENDPOINTS ====================

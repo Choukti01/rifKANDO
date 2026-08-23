@@ -200,6 +200,60 @@ const validateOrderStatus = validate((req) => {
   return { body: { status: enumValue(body.status, 'status', ['processing', 'shipped', 'delivered', 'cancelled']) } };
 });
 
+const validateCodSellerAction = validate((req) => {
+  const body = object(req.body);
+  onlyKeys(body, ['action', 'carrierName', 'trackingNumber', 'note']);
+  const action = enumValue(body.action, 'action', ['confirm', 'dispatch', 'cancel']);
+  const carrierName = optionalText(body.carrierName, 'carrierName', 120);
+  const trackingNumber = optionalText(body.trackingNumber, 'trackingNumber', 128);
+  if (action === 'dispatch') {
+    if (!carrierName) fail('carrierName', 'is required when dispatching a COD order.');
+    if (!trackingNumber) fail('trackingNumber', 'is required when dispatching a COD order.');
+  }
+  return { body: { action, carrierName, trackingNumber, note: optionalText(body.note, 'note', 1_000) } };
+});
+
+const validateCodCollection = validate((req) => {
+  const body = object(req.body);
+  onlyKeys(body, ['carrierReference', 'collectedAmount', 'carrierDeliveryFee', 'carrierReturnFee', 'note']);
+  return {
+    body: {
+      carrierReference: text(body.carrierReference, 'carrierReference', { required: true, min: 2, max: 256 }),
+      collectedAmount: money(body.collectedAmount, 'collectedAmount', { min: 0.01 }),
+      carrierDeliveryFee: body.carrierDeliveryFee === undefined
+        ? 0
+        : money(body.carrierDeliveryFee, 'carrierDeliveryFee', { min: 0 }),
+      carrierReturnFee: body.carrierReturnFee === undefined
+        ? 0
+        : money(body.carrierReturnFee, 'carrierReturnFee', { min: 0 }),
+      note: optionalText(body.note, 'note', 1_000),
+    },
+  };
+});
+
+const validateCodSettlement = validate((req) => {
+  const body = object(req.body);
+  onlyKeys(body, ['settlementReference', 'remittedAmount', 'note']);
+  return {
+    body: {
+      settlementReference: text(body.settlementReference, 'settlementReference', { required: true, min: 2, max: 256 }),
+      remittedAmount: money(body.remittedAmount, 'remittedAmount', { min: 0 }),
+      note: optionalText(body.note, 'note', 1_000),
+    },
+  };
+});
+
+const validateCodException = validate((req) => {
+  const body = object(req.body);
+  onlyKeys(body, ['status', 'note']);
+  return {
+    body: {
+      status: enumValue(body.status, 'status', ['refused', 'returned']),
+      note: text(body.note, 'note', { required: true, min: 3, max: 1_000 }),
+    },
+  };
+});
+
 const validateCmiInitiation = validate((req) => {
   const body = object(req.body);
   onlyKeys(body, ['orderId']);
@@ -732,6 +786,10 @@ module.exports = {
   validateRefundRequest,
   validateRefundCompletion,
   validateOrderStatus,
+  validateCodSellerAction,
+  validateCodCollection,
+  validateCodSettlement,
+  validateCodException,
   validateCmiInitiation,
   validateOffer,
   validateOfferResponse,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../../../services/api';
 import toast from 'react-hot-toast';
@@ -21,11 +21,7 @@ const EditService = () => {
     image: '🛠️'
   });
 
-  useEffect(() => {
-    fetchService();
-  }, [id]);
-
-  const fetchService = async () => {
+  const fetchService = useCallback(async () => {
     try {
       setFetching(true);
       const response = await api.get(`/services/${id}`);
@@ -53,7 +49,14 @@ const EditService = () => {
     } finally {
       setFetching(false);
     }
-  };
+  }, [id, navigate]);
+
+  useEffect(() => {
+    const requestTimer = window.setTimeout(() => {
+      void fetchService();
+    }, 0);
+    return () => window.clearTimeout(requestTimer);
+  }, [fetchService]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
