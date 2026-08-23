@@ -433,6 +433,15 @@ const createFindItRoutes = ({
           "INSERT INTO payment_splits (order_id, party_type, party_id, amount, amount_minor, status) VALUES (?, 'seller', ?, ?, ?, 'pending')",
           [orderId, offer.seller_id, Money.fromMinor(sellerAmountMinor), sellerAmountMinor]
         );
+        await WalletService.createCodFulfillmentTx(transaction, {
+          orderId,
+          sellerId: offer.seller_id,
+          source: 'findit',
+          grossAmount: priceMinor,
+          customerDeliveryFee: deliveryFeeMinor,
+          commission: commissionMinor,
+          sellerAmount: sellerAmountMinor,
+        });
         await transaction.run(
           "INSERT INTO payment_splits (order_id, party_type, amount, amount_minor, status) VALUES (?, 'platform', ?, ?, 'pending')",
           [orderId, Money.fromMinor(commissionMinor), commissionMinor]

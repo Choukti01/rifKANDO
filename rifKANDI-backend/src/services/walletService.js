@@ -417,6 +417,48 @@ class WalletService {
     };
   }
 
+  static async createCodFulfillmentTx(tx, {
+    orderId,
+    sellerId,
+    source,
+    grossAmount,
+    customerDeliveryFee = 0,
+    commission,
+    sellerAmount,
+  }) {
+    const safeOrderId = this.positiveInteger(orderId, 'Order ID');
+    const safeSellerId = this.positiveInteger(sellerId, 'Seller ID');
+    if (!['product', 'findit'].includes(source)) throw new Error('COD fulfilment source is invalid.');
+
+    const grossMinor = this.minor(grossAmount, { allowZero: true });
+    const deliveryMinor = this.minor(customerDeliveryFee, { allowZero: true });
+    const commissionMinor = this.minor(commission, { allowZero: true });
+    const sellerMinor = this.minor(sellerAmount, { allowZero: true });
+    if (grossMinor !== commissionMinor + sellerMinor) {
+      throw new Error('COD fulfilment amounts do not reconcile.');
+    }
+    const expectedCodMinor = this.minor(grossMinor + deliveryMinor, { allowZero: true });
+
+    const inserted = await tx.run(
+      `INSERT INTO cod_fulfillments
+        (order_id, seller_id, source, gross_amount, gross_amount_minor,
+         customer_delivery_fee, customer_delivery_fee_minor, expected_cod_amount, expected_cod_amount_minor,
+         commission, commission_minor, seller_amount, seller_amount_minor)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        safeOrderId,
+        safeSellerId,
+        source,
+        Money.fromMinor(grossMinor), grossMinor,
+        Money.fromMinor(deliveryMinor), deliveryMinor,
+        Money.fromMinor(expectedCodMinor), expectedCodMinor,
+        Money.fromMinor(commissionMinor), commissionMinor,
+        Money.fromMinor(sellerMinor), sellerMinor,
+      ]
+    );
+    return inserted.lastID;
+  }
+
   static async fundOrderEscrowsTx(tx, orderId) {
     const safeOrderId = this.positiveInteger(orderId, 'Order ID');
     const escrows = await tx.all(
@@ -817,6 +859,14 @@ class WalletService {
         sellerGroups.set(product.seller_id, group);
       }
 
+      // A COD order maps to one physical parcel and one carrier collection.
+      // Split-shipment checkout needs a separate order per seller before it can
+      // be launched safely, so reject mixed-seller carts instead of creating an
+      // ambiguous settlement record.
+      if (paymentMethod === 'cash' && sellerGroups.size > 1) {
+        throw new Error('COD checkout currently supports items from one seller at a time. Please place separate orders for each seller.');
+      }
+
       const deliveryFee = subtotal > FREE_DELIVERY_THRESHOLD_MINOR ? 0 : DELIVERY_FEE_MINOR;
       const total = this.minor(subtotal + deliveryFee);
       if (expectedTotal !== undefined && expectedTotal !== null && expectedTotal !== '') {
@@ -873,7 +923,17 @@ class WalletService {
            VALUES (?, 'seller', ?, ?, ?, 'pending')`,
           [orderId, sellerId, Money.fromMinor(sellerAmount), sellerAmount]
         );
-        if (paymentMethod !== 'cash') {
+        if (paymentMethod === 'cash') {
+          await this.createCodFulfillmentTx(tx, {
+            orderId,
+            sellerId,
+            source: 'product',
+            grossAmount,
+            customerDeliveryFee: deliveryFee,
+            commission,
+            sellerAmount,
+          });
+        } else {
           await this.createEscrowTx(tx, {
             orderId,
             buyerId: safeBuyerId,
@@ -986,6 +1046,14 @@ class WalletService {
                     WHERE order_id = ? AND status = 'pending'`, [safeOrderId]);
       await tx.run(`UPDATE payment_splits SET status = 'cancelled'
                     WHERE order_id = ? AND status = 'pending'`, [safeOrderId]);
+      await tx.run(
+        `UPDATE cod_fulfillments
+         SET status = 'cancelled', settlement_status = 'void',
+             cancelled_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP,
+             exception_note = COALESCE(exception_note, 'Cancelled by buyer before dispatch.')
+         WHERE order_id = ? AND status = 'pending_confirmation'`,
+        [safeOrderId]
+      );
       await tx.run(
         `INSERT INTO order_status_history (order_id, status, note, created_by)
          VALUES (?, 'cancelled', 'Order cancelled by buyer before payment', ?)`,
@@ -1147,63 +1215,8 @@ class WalletService {
     });
   }
 
-  static async settleCodOrder(orderId, adminId) {
-    const safeOrderId = this.positiveInteger(orderId, 'Order ID');
-    return this.withFinancialTransaction(async (tx) => {
-      const order = await tx.get(
-        this.lockForUpdate(`SELECT * FROM orders
-         WHERE id = ? AND payment_method = 'cash' AND status = 'delivered'`),
-        [safeOrderId]
-      );
-      if (!order) throw new Error('Order not found or not eligible for COD settlement.');
-
-      const sellerSplits = await tx.all(
-        this.lockForUpdate(`SELECT * FROM payment_splits
-         WHERE order_id = ? AND party_type = 'seller' AND status = 'pending'
-         ORDER BY id ASC`),
-        [safeOrderId]
-      );
-      if (sellerSplits.length === 0) return { success: true, alreadyProcessed: true };
-
-      const operationKey = `cod-settlement:${safeOrderId}`;
-      const operation = await this.createOperationTx(tx, {
-        operationKey,
-        operationType: 'cod_settlement',
-        referenceType: 'order',
-        referenceId: safeOrderId,
-        metadata: { adminId },
-      });
-      if (operation.alreadyProcessed) return { success: true, alreadyProcessed: true };
-
-      for (const split of sellerSplits) {
-        const splitUpdate = await tx.run(
-          `UPDATE payment_splits
-           SET status = 'completed', completed_at = CURRENT_TIMESTAMP
-           WHERE id = ? AND status = 'pending'`,
-          [split.id]
-        );
-        if (splitUpdate.changes !== 1) throw new Error('COD seller settlement was already processed.');
-        const amountMinor = this.minorFromRow(split, 'amount_minor', 'amount');
-        await this.moveBalanceTx(tx, {
-          userId: split.party_id,
-          account: 'available_balance',
-          delta: amountMinor,
-          type: 'cod_settlement',
-          referenceId: safeOrderId,
-          referenceType: 'order',
-          description: `COD settlement for order #${order.order_number}`,
-          idempotencyKey: `${operationKey}:seller:${split.party_id}`,
-          earnedDelta: amountMinor,
-        });
-      }
-      await tx.run(
-        `UPDATE payment_splits
-         SET status = 'completed', completed_at = CURRENT_TIMESTAMP
-         WHERE order_id = ? AND party_type IN ('platform', 'delivery') AND status = 'pending'`,
-        [safeOrderId]
-      );
-      return { success: true, alreadyProcessed: false };
-    });
+  static async settleCodOrder() {
+    throw new Error('Direct COD settlement is disabled. Record carrier collection and remittance against the COD fulfilment.');
   }
 }
 

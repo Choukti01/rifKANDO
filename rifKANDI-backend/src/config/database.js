@@ -842,6 +842,60 @@ db.serialize(() => {
     )
   `, (err) => { if (err) console.error('Error creating payment_splits:', err); else console.log('✅ payment_splits table ready'); });
 
+  // A COD fulfilment represents the physical parcel and its money lifecycle.
+  // It is deliberately separate from the order: a seller can confirm and hand
+  // over a parcel, finance records the carrier collection, and the seller is
+  // credited only after the carrier remittance is reconciled.
+  db.run(`
+    CREATE TABLE IF NOT EXISTS cod_fulfillments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      order_id INTEGER NOT NULL,
+      seller_id INTEGER NOT NULL,
+      source TEXT NOT NULL CHECK(source IN ('product', 'findit')),
+      status TEXT NOT NULL DEFAULT 'pending_confirmation'
+        CHECK(status IN ('pending_confirmation', 'confirmed', 'shipped', 'delivered', 'refused', 'returned', 'cancelled')),
+      settlement_status TEXT NOT NULL DEFAULT 'awaiting_delivery'
+        CHECK(settlement_status IN ('awaiting_delivery', 'awaiting_remittance', 'settled', 'void')),
+      gross_amount REAL NOT NULL,
+      gross_amount_minor INTEGER NOT NULL,
+      customer_delivery_fee REAL NOT NULL DEFAULT 0,
+      customer_delivery_fee_minor INTEGER NOT NULL DEFAULT 0,
+      expected_cod_amount REAL NOT NULL,
+      expected_cod_amount_minor INTEGER NOT NULL,
+      commission REAL NOT NULL,
+      commission_minor INTEGER NOT NULL,
+      seller_amount REAL NOT NULL,
+      seller_amount_minor INTEGER NOT NULL,
+      carrier_name TEXT,
+      tracking_number TEXT,
+      collected_amount REAL,
+      collected_amount_minor INTEGER,
+      carrier_delivery_fee REAL,
+      carrier_delivery_fee_minor INTEGER,
+      carrier_return_fee REAL,
+      carrier_return_fee_minor INTEGER,
+      remitted_amount REAL,
+      remitted_amount_minor INTEGER,
+      carrier_collection_reference TEXT,
+      carrier_settlement_reference TEXT,
+      collection_note TEXT,
+      settlement_note TEXT,
+      exception_note TEXT,
+      confirmed_at DATETIME,
+      dispatched_at DATETIME,
+      delivered_at DATETIME,
+      refused_at DATETIME,
+      returned_at DATETIME,
+      cancelled_at DATETIME,
+      settled_at DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (order_id) REFERENCES orders(id),
+      FOREIGN KEY (seller_id) REFERENCES users(id),
+      UNIQUE(order_id, seller_id)
+    )
+  `, (err) => { if (err) console.error('Error creating cod_fulfillments:', err); else console.log('✅ cod_fulfillments table ready'); });
+
   // Initialize wallet for existing users
   db.run(`
     INSERT OR IGNORE INTO wallets (user_id, available_balance, escrow_balance, pending_withdrawal, total_earned)
@@ -1196,6 +1250,15 @@ db.serialize(() => {
     ['wallet_transactions', 'balance_before_minor', 'balance_before'],
     ['wallet_transactions', 'balance_after_minor', 'balance_after'],
     ['payment_splits', 'amount_minor', 'amount'],
+    ['cod_fulfillments', 'gross_amount_minor', 'gross_amount'],
+    ['cod_fulfillments', 'customer_delivery_fee_minor', 'customer_delivery_fee'],
+    ['cod_fulfillments', 'expected_cod_amount_minor', 'expected_cod_amount'],
+    ['cod_fulfillments', 'commission_minor', 'commission'],
+    ['cod_fulfillments', 'seller_amount_minor', 'seller_amount'],
+    ['cod_fulfillments', 'collected_amount_minor', 'collected_amount'],
+    ['cod_fulfillments', 'carrier_delivery_fee_minor', 'carrier_delivery_fee'],
+    ['cod_fulfillments', 'carrier_return_fee_minor', 'carrier_return_fee'],
+    ['cod_fulfillments', 'remitted_amount_minor', 'remitted_amount'],
     ['payment_transactions', 'amount_minor', 'amount'],
     ['wallet_ledger_entries', 'amount_minor', 'amount'],
     ['wallet_ledger_entries', 'balance_before_minor', 'balance_before'],
@@ -1252,12 +1315,24 @@ db.serialize(() => {
     ['idx_findit_offers_request_status', 'findit_offers(request_id, status, created_at DESC)'],
     ['idx_findit_offers_seller', 'findit_offers(seller_id, updated_at DESC)'],
     ['idx_findit_orders_seller', 'findit_orders(seller_id, order_id)'],
+    ['idx_cod_fulfillments_seller_status', 'cod_fulfillments(seller_id, status, created_at DESC)'],
+    ['idx_cod_fulfillments_finance', 'cod_fulfillments(settlement_status, status, created_at ASC)'],
+    ['idx_cod_fulfillments_order', 'cod_fulfillments(order_id, seller_id)'],
+    ['idx_cod_fulfillments_tracking', 'cod_fulfillments(carrier_name, tracking_number)'],
   ];
   for (const [name, definition] of queryIndexes) {
     db.run(`CREATE INDEX IF NOT EXISTS ${name} ON ${definition}`, (err) => {
       if (err) console.error(`Error creating ${name}:`, err.message);
     });
   }
+  db.run(
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_cod_fulfillments_collection_reference
+     ON cod_fulfillments(carrier_collection_reference)
+     WHERE carrier_collection_reference IS NOT NULL`,
+    (err) => {
+      if (err) console.error('Error creating COD collection reference index:', err.message);
+    }
+  );
   db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_appointments_idempotency_key ON appointments(idempotency_key)', (err) => {
     if (err) console.error('Error creating appointment idempotency index:', err.message);
   });

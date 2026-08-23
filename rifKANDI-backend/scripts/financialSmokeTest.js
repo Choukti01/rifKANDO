@@ -96,8 +96,8 @@ const run = async () => {
     'SELECT commission_minor, seller_amount_minor FROM escrow_transactions WHERE order_id = ?',
     [orderResult.order.id]
   );
-  assert.equal(productEscrow.commission_minor, 1500, 'physical products must use the 7.5% commission rate');
-  assert.equal(productEscrow.seller_amount_minor, 18500);
+  assert.equal(productEscrow.commission_minor, 1000, 'physical products must use the 5% commission rate');
+  assert.equal(productEscrow.seller_amount_minor, 19000);
   const withdrawal = await WalletService.requestWithdrawal(
     walletFlow.sellerId,
     100,
@@ -115,8 +115,8 @@ const run = async () => {
   const sellerWallet = await WalletService.getWallet(walletFlow.sellerId);
   assert.equal(buyerWallet.available_balance, 750);
   assert.equal(buyerWallet.available_balance_minor, 75000);
-  assert.equal(sellerWallet.available_balance, 85);
-  assert.equal(sellerWallet.available_balance_minor, 8500);
+  assert.equal(sellerWallet.available_balance, 90);
+  assert.equal(sellerWallet.available_balance_minor, 9000);
   assert.equal(sellerWallet.escrow_balance, 0);
   assert.equal(sellerWallet.pending_withdrawal, 0);
 
@@ -162,8 +162,8 @@ const run = async () => {
   );
   assert.equal(persistedCmiOrder.payment_status, 'paid');
   assert.equal(persistedCmiOrder.status, 'processing');
-  assert.equal(cmiSellerWallet.escrow_balance, 185);
-  assert.equal(cmiSellerWallet.escrow_balance_minor, 18500);
+  assert.equal(cmiSellerWallet.escrow_balance, 190);
+  assert.equal(cmiSellerWallet.escrow_balance_minor, 19000);
 
   const newSeller = await WalletService.withFinancialTransaction((tx) => tx.run(
     "INSERT INTO users (name, email, password, role, seller_started_at) VALUES (?, ?, ?, 'seller', CURRENT_TIMESTAMP)",

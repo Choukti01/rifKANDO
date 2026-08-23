@@ -1,194 +1,216 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { TruckIcon, CheckCircleIcon, ClockIcon, XCircleIcon, CubeIcon } from '@heroicons/react/24/outline';
-import api from '../../../services/api';   // 👈 correct path (three levels up)
+import {
+  CheckCircleIcon,
+  ClockIcon,
+  CubeIcon,
+  TruckIcon,
+  XCircleIcon,
+} from '@heroicons/react/24/outline';
+import api from '../../../services/api';
+
+const statusConfig = {
+  pending_confirmation: { label: 'Needs confirmation', icon: ClockIcon, tone: 'amber' },
+  confirmed: { label: 'Ready to dispatch', icon: CubeIcon, tone: 'blue' },
+  shipped: { label: 'With carrier', icon: TruckIcon, tone: 'violet' },
+  delivered: { label: 'Carrier collected', icon: CheckCircleIcon, tone: 'emerald' },
+  refused: { label: 'Customer refused', icon: XCircleIcon, tone: 'red' },
+  returned: { label: 'Returned to seller', icon: XCircleIcon, tone: 'red' },
+  cancelled: { label: 'Cancelled', icon: XCircleIcon, tone: 'slate' },
+};
+
+const settlementLabels = {
+  awaiting_delivery: 'Payout starts after carrier collection',
+  awaiting_remittance: 'Carrier collection recorded. Finance is reconciling remittance.',
+  settled: 'Seller payout credited to your wallet',
+  void: 'No payout for this order',
+};
+
+const money = (value) => `${Number(value || 0).toLocaleString()} MAD`;
 
 const SellerOrders = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(null);
+  const [forms, setForms] = useState({});
 
-  useEffect(() => {
-    let isCurrent = true;
-
-    const loadOrders = async () => {
-      try {
-        const response = await api.get('/seller/orders');
-        if (!isCurrent) return;
-
-        if (response.data.success) {
-          setOrders(response.data.orders || []);
-        } else {
-          toast.error('Failed to load orders');
-        }
-      } catch (error) {
-        if (isCurrent) {
-          console.error('Fetch orders error:', error);
-          toast.error('Failed to load orders');
-        }
-      } finally {
-        if (isCurrent) setLoading(false);
-      }
-    };
-
-    void loadOrders();
-
-    return () => {
-      isCurrent = false;
-    };
-  }, []);
-
-  const fetchOrders = async () => {
+  const loadOrders = async () => {
     try {
       const response = await api.get('/seller/orders');
-      if (response.data.success) {
-        setOrders(response.data.orders || []);
-      } else {
-        toast.error('Failed to load orders');
-      }
+      setOrders(response.data.orders || []);
     } catch (error) {
-      console.error('Fetch orders error:', error);
-      toast.error('Failed to load orders');
+      console.error('Seller COD orders could not be loaded:', error);
+      toast.error(error.response?.data?.error || 'Unable to load orders.');
     } finally {
       setLoading(false);
     }
   };
 
-  const updateStatus = async (orderId, status) => {
-    setUpdating(orderId);
-    try {
-      const response = await api.patch(`/orders/${orderId}/status`, { status });
-      if (response.data.success) {
-        toast.success(`Order status updated to ${status}`);
-        fetchOrders();
-      } else {
-        toast.error(response.data.error || 'Failed to update status');
+  useEffect(() => {
+    let isCurrent = true;
+    const loadInitialOrders = async () => {
+      try {
+        const response = await api.get('/seller/orders');
+        if (isCurrent) setOrders(response.data.orders || []);
+      } catch (error) {
+        if (isCurrent) {
+          console.error('Seller COD orders could not be loaded:', error);
+          toast.error(error.response?.data?.error || 'Unable to load orders.');
+        }
+      } finally {
+        if (isCurrent) setLoading(false);
       }
+    };
+    void loadInitialOrders();
+    return () => { isCurrent = false; };
+  }, []);
+
+  const updateForm = (fulfillmentId, field, value) => {
+    setForms((current) => ({
+      ...current,
+      [fulfillmentId]: { ...current[fulfillmentId], [field]: value },
+    }));
+  };
+
+  const performAction = async (order, action) => {
+    const fulfillmentId = order.fulfillment_id;
+    const form = forms[fulfillmentId] || {};
+    if (action === 'dispatch' && (!form.carrierName?.trim() || !form.trackingNumber?.trim())) {
+      toast.error('Add the carrier name and tracking number before dispatching.');
+      return;
+    }
+
+    setUpdating(fulfillmentId);
+    try {
+      await api.patch(`/seller/cod-fulfillments/${fulfillmentId}`, {
+        action,
+        carrierName: form.carrierName || '',
+        trackingNumber: form.trackingNumber || '',
+        note: form.note || '',
+      });
+      toast.success(action === 'confirm' ? 'COD order confirmed.' : action === 'dispatch' ? 'Parcel marked as handed to the carrier.' : 'COD order cancelled.');
+      await loadOrders();
     } catch (error) {
-      console.error('Update error:', error);
-      toast.error('Network error - check if backend is running');
+      toast.error(error.response?.data?.error || 'The COD order could not be updated.');
     } finally {
       setUpdating(null);
     }
   };
 
-  const getStatusConfig = (status) => {
-    const configs = {
-      pending: { icon: ClockIcon, text: 'Pending', color: '#f59e0b', bg: '#fef3c7' },
-      processing: { icon: CubeIcon, text: 'Processing', color: '#3b82f6', bg: '#dbeafe' },
-      shipped: { icon: TruckIcon, text: 'Shipped', color: '#8b5cf6', bg: '#ede9fe' },
-      delivered: { icon: CheckCircleIcon, text: 'Delivered', color: '#10b981', bg: '#d1fae5' },
-      cancelled: { icon: XCircleIcon, text: 'Cancelled', color: '#ef4444', bg: '#fee2e2' }
-    };
-    return configs[status] || configs.pending;
-  };
-
-  if (loading) {
-    return (
-      <div className="text-center py-16">
-        <div style={{ width: '40px', height: '40px', border: '3px solid #e5e7eb', borderTopColor: '#87CEEB', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto' }}></div>
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      </div>
-    );
-  }
+  if (loading) return <div className="seller-orders-loading" aria-label="Loading COD orders" />;
 
   return (
-    <div className="seller-orders">
-      <div className="seller-orders-header">
-        <h2>Orders</h2>
-        <p className="orders-count">{orders.length} total orders</p>
-      </div>
+    <section className="seller-cod-orders">
+      <header className="seller-cod-orders__header">
+        <div>
+          <span className="seller-cod-orders__eyebrow">Cash on delivery</span>
+          <h2>Order fulfilment</h2>
+          <p>Confirm each order, add the carrier tracking number, and let finance reconcile carrier remittance before payout.</p>
+        </div>
+        <span className="seller-cod-orders__count">{orders.length} order{orders.length === 1 ? '' : 's'}</span>
+      </header>
 
       {orders.length === 0 ? (
-        <div className="empty-orders">
-          <CubeIcon style={{ width: '3rem', height: '3rem', color: '#d1d5db', marginBottom: '1rem' }} />
-          <p>No orders yet</p>
+        <div className="seller-cod-orders__empty">
+          <CubeIcon aria-hidden="true" />
+          <h3>No COD orders yet</h3>
+          <p>New product and FINDit orders appear here when customers check out.</p>
         </div>
       ) : (
-        <div className="orders-table-container">
-          <table className="orders-table">
-            <thead>
-              <tr>
-                <th>Order ID</th>
-                <th>Customer</th>
-                <th>Total</th>
-                <th>Payment</th>
-                <th>Status</th>
-                <th>Date</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {orders.map(order => {
-                const statusConfig = getStatusConfig(order.status);
-                const StatusIcon = statusConfig.icon;
-                let paymentMethodText = 'Unknown';
-                if (order.payment_method === 'cash') paymentMethodText = 'Cash';
-                else if (order.payment_method === 'cmi') paymentMethodText = 'Card';
-                else if (order.payment_method === 'wallet') paymentMethodText = 'Wallet';
-                
-                return (
-                  <tr key={order.id}>
-                    <td className="order-id">
-                      <span className="order-number">{order.order_number}</span>
-                      {(order.fulfillment_source === 'findit' || order.order_type === 'findit') && <span className="findit-order-label">FINDit</span>}
-                    </td>
-                    <td className="customer-name">{order.buyer_name || 'Customer'}</td>
-                    <td className="order-total">{Number(order.seller_total ?? order.total ?? 0).toLocaleString()} MAD</td>
-                    <td className="payment-method">
-                      <span className="payment-badge">{paymentMethodText}</span>
-                    </td>
-                    <td>
-                      <span className="status-badge" style={{ backgroundColor: statusConfig.bg, color: statusConfig.color }}>
-                        <StatusIcon style={{ width: '0.75rem', height: '0.75rem' }} />
-                        {statusConfig.text}
-                      </span>
-                    </td>
-                    <td className="order-date">{new Date(order.created_at).toLocaleDateString()}</td>
-                    <td className="order-action">
-                      <select 
-                        onChange={(e) => updateStatus(order.id, e.target.value)} 
-                        value={order.status}
-                        disabled={updating === order.id}
-                        className="status-select"
-                      >
-                        <option value="pending">Pending</option>
-                        <option value="processing">Processing</option>
-                        <option value="shipped">Shipped</option>
-                        <option value="delivered">Delivered</option>
-                        <option value="cancelled">Cancelled</option>
-                      </select>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+        <div className="seller-cod-orders__list">
+          {orders.map((order) => {
+            const config = statusConfig[order.fulfillment_status] || statusConfig.pending_confirmation;
+            const StatusIcon = config.icon;
+            const form = forms[order.fulfillment_id] || {};
+            const isBusy = updating === order.fulfillment_id;
+            return (
+              <article className="seller-cod-order" key={order.fulfillment_id}>
+                <div className="seller-cod-order__topline">
+                  <div>
+                    <div className="seller-cod-order__meta">
+                      <strong>{order.order_number}</strong>
+                      {order.fulfillment_source === 'findit' && <span className="seller-cod-order__findit">FINDit</span>}
+                    </div>
+                    <p>{order.item_title || 'Product order'} · {order.buyer_name || 'Customer'}</p>
+                  </div>
+                  <span className={`seller-cod-order__status seller-cod-order__status--${config.tone}`}>
+                    <StatusIcon aria-hidden="true" /> {config.label}
+                  </span>
+                </div>
+
+                <dl className="seller-cod-order__amounts">
+                  <div><dt>Collect from customer</dt><dd>{money(order.expected_cod_amount)}</dd></div>
+                  <div><dt>Your payout after 5% fee</dt><dd>{money(order.seller_amount)}</dd></div>
+                  <div><dt>Created</dt><dd>{new Date(order.created_at).toLocaleDateString()}</dd></div>
+                </dl>
+
+                {order.fulfillment_status === 'pending_confirmation' && (
+                  <div className="seller-cod-order__actions">
+                    <button className="seller-cod-order__button seller-cod-order__button--primary" disabled={isBusy} onClick={() => performAction(order, 'confirm')}>
+                      {isBusy ? 'Saving…' : 'Confirm order'}
+                    </button>
+                    <button className="seller-cod-order__button seller-cod-order__button--quiet" disabled={isBusy} onClick={() => performAction(order, 'cancel')}>
+                      Cancel before dispatch
+                    </button>
+                  </div>
+                )}
+
+                {order.fulfillment_status === 'confirmed' && (
+                  <div className="seller-cod-order__dispatch">
+                    <label>Carrier
+                      <input value={form.carrierName || ''} onChange={(event) => updateForm(order.fulfillment_id, 'carrierName', event.target.value)} placeholder="e.g. Najm Chamal" maxLength="120" />
+                    </label>
+                    <label>Tracking number
+                      <input value={form.trackingNumber || ''} onChange={(event) => updateForm(order.fulfillment_id, 'trackingNumber', event.target.value)} placeholder="Carrier tracking number" maxLength="128" />
+                    </label>
+                    <button className="seller-cod-order__button seller-cod-order__button--primary" disabled={isBusy} onClick={() => performAction(order, 'dispatch')}>
+                      {isBusy ? 'Saving…' : 'Hand to carrier'}
+                    </button>
+                  </div>
+                )}
+
+                {order.carrier_name && order.tracking_number && (
+                  <p className="seller-cod-order__tracking">Carrier: <strong>{order.carrier_name}</strong> · Tracking: <strong>{order.tracking_number}</strong></p>
+                )}
+                <p className={`seller-cod-order__settlement ${order.settlement_status === 'settled' ? 'is-settled' : ''}`}>
+                  {settlementLabels[order.settlement_status] || 'Settlement status unavailable.'}
+                </p>
+              </article>
+            );
+          })}
         </div>
       )}
 
       <style>{`
-        .seller-orders { max-width: 1200px; margin: 0 auto; }
-        .seller-orders-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
-        .seller-orders-header h2 { font-size: 1.5rem; margin: 0; }
-        .orders-count { color: #6b7280; font-size: 0.875rem; background: #f3f4f6; padding: 0.25rem 0.75rem; border-radius: 2rem; }
-        .orders-table-container { background: white; border-radius: 1rem; overflow-x: auto; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .orders-table { width: 100%; border-collapse: collapse; min-width: 700px; }
-        .orders-table thead th { text-align: left; padding: 1rem; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: #6b7280; border-bottom: 1px solid #e5e7eb; }
-        .orders-table tbody td { padding: 1rem; font-size: 0.875rem; border-bottom: 1px solid #f3f4f6; }
-        .orders-table tbody tr:hover { background: #f9fafb; }
-        .order-number { font-weight: 600; font-family: monospace; background: #f3f4f6; padding: 0.25rem 0.5rem; border-radius: 0.375rem; font-size: 0.75rem; }
-        .findit-order-label { background: var(--color-brand-soft); border-radius: 999px; color: var(--color-brand-ink); display: inline-block; font-size: 0.65rem; font-weight: 800; margin-left: 0.4rem; padding: 0.2rem 0.45rem; }
-        .customer-name { font-weight: 500; }
-        .order-total { font-weight: 600; }
-        .payment-badge { background: #f3f4f6; padding: 0.25rem 0.5rem; border-radius: 0.375rem; font-size: 0.7rem; }
-        .status-badge { display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.25rem 0.75rem; border-radius: 2rem; font-size: 0.75rem; font-weight: 500; }
-        .order-date { color: #6b7280; font-size: 0.75rem; }
-        .status-select { padding: 0.375rem 0.75rem; border: 1px solid #e5e7eb; border-radius: 0.5rem; font-size: 0.75rem; background: white; cursor: pointer; }
-        .status-select:disabled { opacity: 0.5; cursor: not-allowed; }
-        .empty-orders { text-align: center; padding: 3rem; background: white; border-radius: 1rem; color: #6b7280; }
+        .seller-cod-orders { color: #10233f; }
+        .seller-orders-loading { width: 2.25rem; height: 2.25rem; margin: 4rem auto; border: 3px solid #d9e5f2; border-top-color: #2397e8; border-radius: 50%; animation: sellerCodSpin .8s linear infinite; }
+        @keyframes sellerCodSpin { to { transform: rotate(360deg); } }
+        .seller-cod-orders__header { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; margin-bottom: 1.5rem; }
+        .seller-cod-orders__eyebrow { color: #168dd9; font-size: .75rem; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+        .seller-cod-orders h2 { margin: .25rem 0 .35rem; font-size: 1.6rem; }
+        .seller-cod-orders__header p { max-width: 44rem; margin: 0; color: #5a6d82; line-height: 1.55; }
+        .seller-cod-orders__count { padding: .45rem .7rem; background: #e9f6ff; color: #0877bf; border-radius: 999px; font-weight: 700; white-space: nowrap; }
+        .seller-cod-orders__list { display: grid; gap: 1rem; }
+        .seller-cod-order { padding: 1.2rem; background: #fff; border: 1px solid #dbe6ef; border-radius: 1rem; box-shadow: 0 .5rem 1.5rem rgba(16, 35, 63, .05); }
+        .seller-cod-order__topline { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; }
+        .seller-cod-order__meta { display: flex; gap: .55rem; align-items: center; flex-wrap: wrap; }
+        .seller-cod-order__meta strong { color: #10233f; }
+        .seller-cod-order__topline p { margin: .35rem 0 0; color: #64748b; }
+        .seller-cod-order__findit { padding: .2rem .45rem; border-radius: 999px; background: #e9f6ff; color: #0877bf; font-size: .7rem; font-weight: 800; }
+        .seller-cod-order__status { display: inline-flex; gap: .35rem; align-items: center; padding: .38rem .56rem; border-radius: 999px; font-size: .78rem; font-weight: 700; white-space: nowrap; }
+        .seller-cod-order__status svg { width: 1rem; height: 1rem; }
+        .seller-cod-order__status--amber { background: #fff4d6; color: #a65f00; }.seller-cod-order__status--blue { background: #e9f6ff; color: #0877bf; }.seller-cod-order__status--violet { background: #f1edff; color: #6542bd; }.seller-cod-order__status--emerald { background: #e7f8f0; color: #087f52; }.seller-cod-order__status--red { background: #fff0f0; color: #b42318; }.seller-cod-order__status--slate { background: #eef2f6; color: #526477; }
+        .seller-cod-order__amounts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; padding: 1rem 0; margin: 1rem 0; border-block: 1px solid #edf2f6; }
+        .seller-cod-order__amounts dt { color: #6b7b8d; font-size: .76rem; }.seller-cod-order__amounts dd { margin: .25rem 0 0; font-weight: 800; color: #172d4b; }
+        .seller-cod-order__actions, .seller-cod-order__dispatch { display: flex; gap: .65rem; align-items: end; flex-wrap: wrap; }
+        .seller-cod-order__dispatch label { display: grid; gap: .35rem; flex: 1 1 13rem; font-size: .8rem; font-weight: 700; color: #526477; }
+        .seller-cod-order__dispatch input { min-height: 2.55rem; padding: .55rem .65rem; border: 1px solid #cddbe7; border-radius: .55rem; color: #10233f; }
+        .seller-cod-order__button { min-height: 2.55rem; padding: .55rem .85rem; border-radius: .55rem; font-weight: 750; cursor: pointer; border: 1px solid transparent; }.seller-cod-order__button:disabled { opacity: .6; cursor: wait; }.seller-cod-order__button--primary { background: #168dd9; color: #fff; }.seller-cod-order__button--primary:hover:not(:disabled) { background: #0877bf; }.seller-cod-order__button--quiet { background: #fff; color: #526477; border-color: #cddbe7; }
+        .seller-cod-order__tracking { margin: 1rem 0 .35rem; color: #42556d; font-size: .9rem; }.seller-cod-order__settlement { margin: .7rem 0 0; color: #63758a; font-size: .88rem; }.seller-cod-order__settlement.is-settled { color: #087f52; font-weight: 700; }
+        .seller-cod-orders__empty { padding: 3rem 1rem; text-align: center; background: #fff; border: 1px dashed #c9d8e5; border-radius: 1rem; color: #65758a; }.seller-cod-orders__empty svg { width: 2.5rem; color: #168dd9; }.seller-cod-orders__empty h3 { color: #172d4b; margin: .75rem 0 .25rem; }.seller-cod-orders__empty p { margin: 0; }
+        @media (max-width: 640px) { .seller-cod-orders__header, .seller-cod-order__topline { flex-direction: column; }.seller-cod-orders__count { align-self: flex-start; }.seller-cod-order__amounts { grid-template-columns: 1fr 1fr; }.seller-cod-order__amounts div:last-child { grid-column: span 2; }.seller-cod-order__button { width: 100%; }.seller-cod-order__dispatch label { flex-basis: 100%; } }
       `}</style>
-    </div>
+    </section>
   );
 };
 

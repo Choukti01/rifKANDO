@@ -60,6 +60,7 @@ async function run() {
   await runStatement("INSERT INTO users (name, email, password, role, is_verified) VALUES (?, ?, ?, 'buyer', 1)", ['Other Buyer', 'other-buyer@example.test', hash]);
   const seller = await runStatement("INSERT INTO users (name, email, password, role, is_verified) VALUES (?, ?, ?, 'seller', 1)", ['Parts Seller', 'seller@example.test', hash]);
   await runStatement("INSERT INTO users (name, email, password, role, is_verified) VALUES (?, ?, ?, 'seller', 1)", ['Other Seller', 'other-seller@example.test', hash]);
+  await runStatement("INSERT INTO users (name, email, password, role, is_verified) VALUES (?, ?, ?, 'finance', 1)", ['Finance Operator', 'finance@example.test', hash]);
   const server = await startServer();
   const port = server.address().port;
   try {
@@ -67,6 +68,7 @@ async function run() {
     const otherBuyerSession = await login(port, 'other-buyer@example.test', password);
     const sellerSession = await login(port, 'seller@example.test', password);
     const otherSellerSession = await login(port, 'other-seller@example.test', password);
+    const financeSession = await login(port, 'finance@example.test', password);
 
     const create = await request(port, '/api/findit/requests', {
       method: 'POST', cookies: buyerSession.cookies, csrfToken: buyerSession.csrfToken,
@@ -139,30 +141,61 @@ async function run() {
     const platformSplit = await getRow("SELECT amount_minor FROM payment_splits WHERE order_id = ? AND party_type = 'platform'", [order.id]);
     assert.equal(platformSplit.amount_minor, 10_000, 'platform payment split keeps the 5% commission snapshot');
 
-    const unauthorizedStatus = await request(port, `/api/orders/${order.id}/status`, {
-      method: 'PATCH', cookies: otherSellerSession.cookies, csrfToken: otherSellerSession.csrfToken, body: { status: 'processing' },
-    });
-    assert.equal(unauthorizedStatus.status, 403, 'unrelated sellers cannot fulfil a FINDit order');
-    const processing = await request(port, `/api/orders/${order.id}/status`, {
+    const fulfillment = await getRow('SELECT * FROM cod_fulfillments WHERE order_id = ?', [order.id]);
+    assert.ok(fulfillment, 'FINDit COD checkout creates an immutable fulfilment record');
+    assert.equal(fulfillment.expected_cod_amount_minor, 205_000, 'COD record includes item price and the buyer delivery fee');
+
+    const legacyStatus = await request(port, `/api/orders/${order.id}/status`, {
       method: 'PATCH', cookies: sellerSession.cookies, csrfToken: sellerSession.csrfToken, body: { status: 'processing' },
     });
-    assert.equal(processing.status, 200, 'selected FINDit seller can begin fulfilment');
-    const shipped = await request(port, `/api/orders/${order.id}/status`, {
-      method: 'PATCH', cookies: sellerSession.cookies, csrfToken: sellerSession.csrfToken, body: { status: 'shipped' },
+    assert.equal(legacyStatus.status, 403, 'sellers cannot use the general order status endpoint');
+    const unauthorizedAction = await request(port, `/api/seller/cod-fulfillments/${fulfillment.id}`, {
+      method: 'PATCH', cookies: otherSellerSession.cookies, csrfToken: otherSellerSession.csrfToken, body: { action: 'confirm' },
     });
-    assert.equal(shipped.status, 200, 'selected FINDit seller can mark the COD order shipped');
-    const delivered = await request(port, `/api/orders/${order.id}/status`, {
-      method: 'PATCH', cookies: sellerSession.cookies, csrfToken: sellerSession.csrfToken, body: { status: 'delivered' },
+    assert.equal(unauthorizedAction.status, 400, 'unrelated sellers cannot fulfil a FINDit order');
+    const confirmed = await request(port, `/api/seller/cod-fulfillments/${fulfillment.id}`, {
+      method: 'PATCH', cookies: sellerSession.cookies, csrfToken: sellerSession.csrfToken, body: { action: 'confirm' },
     });
-    assert.equal(delivered.status, 200, 'selected FINDit seller can record delivery before courier settlement');
+    assert.equal(confirmed.status, 200, 'selected FINDit seller can confirm the COD order');
+    const dispatched = await request(port, `/api/seller/cod-fulfillments/${fulfillment.id}`, {
+      method: 'PATCH', cookies: sellerSession.cookies, csrfToken: sellerSession.csrfToken,
+      body: { action: 'dispatch', carrierName: 'Test Carrier', trackingNumber: 'TRACK-FINDIT-1001' },
+    });
+    assert.equal(dispatched.status, 200, 'selected FINDit seller must attach tracking before dispatching');
+    const badCollection = await request(port, `/api/admin/cod-fulfillments/${fulfillment.id}/record-collection`, {
+      method: 'POST', cookies: financeSession.cookies, csrfToken: financeSession.csrfToken,
+      body: { carrierReference: 'COL-FINDIT-1001', collectedAmount: 2000, carrierDeliveryFee: 50, carrierReturnFee: 0 },
+    });
+    assert.equal(badCollection.status, 400, 'finance cannot record an under-collected COD amount');
+    const collection = await request(port, `/api/admin/cod-fulfillments/${fulfillment.id}/record-collection`, {
+      method: 'POST', cookies: financeSession.cookies, csrfToken: financeSession.csrfToken,
+      body: { carrierReference: 'COL-FINDIT-1001', collectedAmount: 2050, carrierDeliveryFee: 50, carrierReturnFee: 0 },
+    });
+    assert.equal(collection.status, 200, 'finance records carrier collection separately from seller payout');
+    const badSettlement = await request(port, `/api/admin/cod-fulfillments/${fulfillment.id}/settle`, {
+      method: 'POST', cookies: financeSession.cookies, csrfToken: financeSession.csrfToken,
+      body: { settlementReference: 'SET-FINDIT-1001', remittedAmount: 1999 },
+    });
+    assert.equal(badSettlement.status, 400, 'seller payout requires the exact carrier remittance amount');
+    const settlement = await request(port, `/api/admin/cod-fulfillments/${fulfillment.id}/settle`, {
+      method: 'POST', cookies: financeSession.cookies, csrfToken: financeSession.csrfToken,
+      body: { settlementReference: 'SET-FINDIT-1001', remittedAmount: 2000 },
+    });
+    assert.equal(settlement.status, 200, 'finance can reconcile carrier remittance and credit the seller');
+    const settledFulfillment = await getRow('SELECT settlement_status, remitted_amount_minor FROM cod_fulfillments WHERE id = ?', [fulfillment.id]);
+    assert.equal(settledFulfillment.settlement_status, 'settled');
+    assert.equal(settledFulfillment.remitted_amount_minor, 200_000);
+    const sellerWallet = await getRow('SELECT available_balance_minor FROM wallets WHERE user_id = ?', [seller.lastID]);
+    assert.equal(sellerWallet.available_balance_minor, 190_000, 'seller wallet is credited only after remittance reconciliation');
 
     const details = await request(port, `/api/orders/${order.id}`, { cookies: buyerSession.cookies });
     const detailsPayload = await details.json();
     assert.equal(details.status, 200);
     assert.equal(detailsPayload.order.order_type, 'findit');
     assert.equal(detailsPayload.order.items[0].title, 'Compatible original left headlight', 'buyer order page uses the immutable FINDit item snapshot');
+    assert.equal(detailsPayload.order.fulfillments[0].tracking_number, 'TRACK-FINDIT-1001', 'buyer can see the carrier tracking number');
     const sellerOrders = await request(port, '/api/seller/orders', { cookies: sellerSession.cookies });
-    assert.equal((await sellerOrders.json()).orders.some((item) => item.id === order.id && item.fulfillment_source === 'findit'), true, 'seller dashboard includes FINDit orders');
+    assert.equal((await sellerOrders.json()).orders.some((item) => item.order_id === order.id && item.fulfillment_source === 'findit'), true, 'seller dashboard includes FINDit orders');
     const bookingEndpoint = await request(port, '/api/bookings');
     assert.equal(bookingEndpoint.status, 404, 'retired booking API is no longer mounted');
   } finally { await stopServer(server); }

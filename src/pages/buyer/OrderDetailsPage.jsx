@@ -106,6 +106,17 @@ const OrderDetailsPage = () => {
     }
   };
 
+  const getPaymentStatusText = (status) => {
+    const labels = {
+      pending: 'Pay on delivery',
+      collected: 'Cash collected',
+      settled: 'Payment settled',
+      paid: 'Paid',
+      cancelled: 'Cancelled',
+    };
+    return labels[status] || 'Pending';
+  };
+
   if (loading) {
     return (
       <div className="container text-center py-16">
@@ -128,6 +139,7 @@ const OrderDetailsPage = () => {
   const isFindItOrder = order.order_type === 'findit';
   const deliveryFee = isFindItOrder ? Number(order.items?.[0]?.delivery_fee || 0) : 0;
   const subtotal = order.items?.reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity)), 0) || Math.max(0, Number(order.total) - deliveryFee);
+  const fulfillments = order.fulfillments || [];
 
   return (
     <div className="order-details-page">
@@ -149,6 +161,19 @@ const OrderDetailsPage = () => {
               </div>
             ))}
           </div>
+          {fulfillments.some((fulfillment) => fulfillment.carrier_name && fulfillment.tracking_number) && (
+            <div className="carrier-tracking">
+              {fulfillments.filter((fulfillment) => fulfillment.carrier_name && fulfillment.tracking_number).map((fulfillment) => (
+                <div key={fulfillment.id} className="carrier-tracking-row">
+                  <TruckIcon aria-hidden="true" />
+                  <div>
+                    <strong>{fulfillment.carrier_name}</strong>
+                    <span>Tracking number: {fulfillment.tracking_number}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="details-grid">
@@ -176,7 +201,7 @@ const OrderDetailsPage = () => {
             </div>
             <div className="info-row">
               <span className="info-label">Payment Status:</span>
-              <span className={`payment-status ${order.payment_status}`}>{order.payment_status === 'paid' ? '✓ Paid' : 'Pending'}</span>
+              <span className={`payment-status ${order.payment_status}`}>{getPaymentStatusText(order.payment_status)}</span>
             </div>
             {/* Cancel button - only for pending orders */}
             {order.status === 'pending' && (
@@ -361,6 +386,28 @@ const OrderDetailsPage = () => {
           background: #e5e7eb; 
           z-index: 1; 
         }
+
+        .carrier-tracking {
+          display: grid;
+          gap: .65rem;
+          margin-top: 1.5rem;
+          padding-top: 1rem;
+          border-top: 1px solid #e8eef4;
+        }
+
+        .carrier-tracking-row {
+          display: flex;
+          align-items: center;
+          gap: .65rem;
+          padding: .75rem;
+          border-radius: .65rem;
+          background: #f4fbff;
+          color: #1a4a70;
+        }
+
+        .carrier-tracking-row svg { width: 1.2rem; color: #168dd9; }
+        .carrier-tracking-row div { display: grid; gap: .12rem; }
+        .carrier-tracking-row span { color: #52708a; font-size: .86rem; }
         
         .tracking-step.completed ~ .tracking-step .step-line { 
           background: #10b981; 
