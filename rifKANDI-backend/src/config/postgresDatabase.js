@@ -29,6 +29,13 @@ const TABLES_WITHOUT_NUMERIC_ID = new Set([
   'phone_verification_challenges',
 ]);
 
+// The SQLite schema historically used `profilePicture`. PostgreSQL preserves
+// that exact mixed-case name because the reviewed baseline migration creates
+// it as a quoted identifier. Keep that compatibility in one place so every
+// existing SQL query remains valid on both engines, rather than allowing
+// PostgreSQL to silently fold it to the nonexistent `profilepicture` column.
+const POSTGRES_CASE_SENSITIVE_IDENTIFIERS = new Set(['profilePicture']);
+
 function getDatabaseEngine(value = process.env.DATABASE_ENGINE) {
   const engine = String(value || 'sqlite').trim().toLowerCase();
   if (!['sqlite', 'postgres'].includes(engine)) {
@@ -67,6 +74,50 @@ function replaceQuestionMarkPlaceholders(sql) {
     } else {
       output += character;
     }
+  }
+
+  return output;
+}
+
+function quoteCaseSensitiveIdentifiers(sql) {
+  let quote = null;
+  let output = '';
+
+  for (let index = 0; index < sql.length; index += 1) {
+    const character = sql[index];
+
+    if (quote) {
+      output += character;
+      if (character === quote) {
+        if (sql[index + 1] === quote && quote === "'") {
+          output += sql[index + 1];
+          index += 1;
+        } else {
+          quote = null;
+        }
+      }
+      continue;
+    }
+
+    if (character === "'" || character === '"') {
+      quote = character;
+      output += character;
+      continue;
+    }
+
+    const identifier = [...POSTGRES_CASE_SENSITIVE_IDENTIFIERS]
+      .find((candidate) => sql.startsWith(candidate, index));
+    const previous = sql[index - 1] || '';
+    const next = identifier ? (sql[index + identifier.length] || '') : '';
+    const isIdentifierBoundary = (value) => !/[A-Za-z0-9_$]/.test(value);
+
+    if (identifier && isIdentifierBoundary(previous) && isIdentifierBoundary(next)) {
+      output += `"${identifier}"`;
+      index += identifier.length - 1;
+      continue;
+    }
+
+    output += character;
   }
 
   return output;
@@ -122,7 +173,7 @@ function translateSql(sql) {
     translateBooleanLiterals(
       translateDateTimeFunctions(
         translateInsertOrIgnore(
-          replaceQuestionMarkPlaceholders(sql)
+          quoteCaseSensitiveIdentifiers(replaceQuestionMarkPlaceholders(sql))
         )
       )
     )
@@ -317,6 +368,7 @@ module.exports = {
   createPostgresDatabase,
   getDatabaseEngine,
   prepareRunStatement,
+  quoteCaseSensitiveIdentifiers,
   replaceQuestionMarkPlaceholders,
   translateSql,
   validatePostgresSchema,

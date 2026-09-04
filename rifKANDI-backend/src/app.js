@@ -658,7 +658,7 @@ app.post('/api/auth/phone/register/verify', authRateLimit, async (req, res) => {
     const passwordHash = await bcrypt.hash(crypto.randomBytes(32).toString('base64url'), 12);
     const internalEmail = `phone-${phone.slice(1)}@phone.rifkando.invalid`;
     const created = await runStatement(
-      'INSERT INTO users (name, email, password, phone, is_verified) VALUES (?, ?, ?, ?, 1)',
+      'INSERT INTO users (name, email, password, phone, is_verified) VALUES (?, ?, ?, ?, TRUE)',
       [name, internalEmail, passwordHash, phone]
     );
     const user = await getUserById(created.lastID);
@@ -772,7 +772,7 @@ app.post('/api/auth/verify-email', authRateLimit, (req, res) => {
       return res.status(400).json({ error: 'Verification code is invalid or expired.' });
     }
 
-    db.run('INSERT INTO users (name, email, password, phone, is_verified) VALUES (?, ?, ?, ?, 1)', [registration.name, email, registration.password_hash, registration.phone], async function (createError) {
+    db.run('INSERT INTO users (name, email, password, phone, is_verified) VALUES (?, ?, ?, ?, TRUE)', [registration.name, email, registration.password_hash, registration.phone], async function (createError) {
       if (createError) return res.status(409).json({ error: 'An account already exists for this email.' });
       const user = { id: this.lastID, name: registration.name, email, phone: registration.phone, role: 'buyer', seller_type: null, bio: '', city: '', country: 'Morocco', profilePicture: '', is_verified_seller: 0 };
       db.run('DELETE FROM pending_registrations WHERE email = ?', [email]);
@@ -923,6 +923,30 @@ app.post('/api/auth/logout-all', protect, async (req, res) => {
     sessionService.clearSessionCookies(res);
   }
   return res.status(204).end();
+});
+
+// Startup uses this endpoint to discover an existing cookie session without
+// treating an anonymous visitor as an API error. Keep /auth/me protected for
+// callers that explicitly require an authenticated principal.
+app.get('/api/auth/session', optionalProtect, (req, res) => {
+  if (!req.user || !req.authSession) {
+    return res.json({ success: true, authenticated: false });
+  }
+
+  const csrfToken = sessionService.readCookies(req)[sessionService.CSRF_COOKIE];
+  if (!sessionService.hasValidCsrfToken(req.authSession, csrfToken)) {
+    sessionService.clearSessionCookies(res);
+    return res.json({ success: true, authenticated: false });
+  }
+
+  return res.json({
+    success: true,
+    authenticated: true,
+    csrfToken,
+    data: {
+      user: sessionService.publicUser(req.user)
+    }
+  });
 });
 
 // Get current user and the per-session CSRF token required for unsafe requests.
@@ -1441,8 +1465,21 @@ app.post('/api/auth/reset-password', authRateLimit, async (req, res) => {
 
 // Google OAuth
 app.post('/api/auth/google', authRateLimit, async (req, res) => {
+  let payload;
   try {
-    const payload = await verifyGoogleCredential(req.body.credential);
+    payload = await verifyGoogleCredential(req.body.credential);
+  } catch (error) {
+    const audienceMismatch = /audience|recipient|client.?id/i.test(error.message || '');
+    console.error('Google credential verification failed:', error.message);
+    return res.status(error.statusCode || 401).json({
+      error: audienceMismatch
+        ? 'Google OAuth client ID does not match the client that issued this credential'
+        : 'Google credential is invalid or has expired',
+      code: audienceMismatch ? 'GOOGLE_CLIENT_ID_MISMATCH' : 'GOOGLE_CREDENTIAL_INVALID'
+    });
+  }
+
+  try {
     const { email, name, picture } = payload;
     const existingRecord = await getRow('SELECT id FROM users WHERE email = ?', [email]);
     if (existingRecord) {
@@ -1453,19 +1490,16 @@ app.post('/api/auth/google', authRateLimit, async (req, res) => {
     const bcrypt = require('bcryptjs');
     const passwordHash = await bcrypt.hash(crypto.randomBytes(32).toString('base64url'), 12);
     const created = await runStatement(
-      'INSERT INTO users (name, email, password, is_verified, profilePicture) VALUES (?, ?, ?, 1, ?)',
+      'INSERT INTO users (name, email, password, is_verified, profilePicture) VALUES (?, ?, ?, TRUE, ?)',
       [name || email, email, passwordHash, picture || '']
     );
     const user = await getUserById(created.lastID);
     return res.status(201).json(await createAuthenticatedResponse(req, res, user));
   } catch (error) {
-    const audienceMismatch = /audience|recipient|client.?id/i.test(error.message || '');
-    console.error('Google token verification failed:', error.message);
-    res.status(401).json({
-      error: audienceMismatch
-        ? 'Google OAuth client ID does not match the client that issued this credential'
-        : 'Google credential is invalid or has expired',
-      code: audienceMismatch ? 'GOOGLE_CLIENT_ID_MISMATCH' : 'GOOGLE_CREDENTIAL_INVALID'
+    console.error('Google sign-in persistence failed:', error.message);
+    return res.status(500).json({
+      error: 'Could not complete Google sign-in. Please try again.',
+      code: 'GOOGLE_SIGN_IN_UNAVAILABLE'
     });
   }
 });
