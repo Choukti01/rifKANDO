@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import api, { clearCsrfToken, getAuthMethods, getMe, setCsrfToken } from '../services/api';
+import api, { clearCsrfToken, getAuthMethods, getSession, setCsrfToken } from '../services/api';
 import toast from 'react-hot-toast';
 import AuthContext from './authStore';
 
@@ -28,7 +28,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('user');
 
     const initializeSession = async () => {
-      const [sessionResult, methodsResult] = await Promise.allSettled([getMe(), getAuthMethods()]);
+      const [sessionResult, methodsResult] = await Promise.allSettled([getSession(), getAuthMethods()]);
       try {
         if (methodsResult.status === 'fulfilled' && methodsResult.value.data?.methods) {
           setAuthMethods({
@@ -36,7 +36,9 @@ export const AuthProvider = ({ children }) => {
             phone: Boolean(methodsResult.value.data.methods.phone),
           });
         }
-        if (sessionResult.status !== 'fulfilled') throw sessionResult.reason;
+        if (sessionResult.status !== 'fulfilled' || !sessionResult.value.data?.authenticated) {
+          throw sessionResult.reason || new Error('No active session');
+        }
         const response = sessionResult.value;
         const userData = response.data.data?.user || response.data.user;
         if (!userData || !response.data.csrfToken) throw new Error('Invalid session response');

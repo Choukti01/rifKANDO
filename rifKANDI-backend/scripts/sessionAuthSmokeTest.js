@@ -115,6 +115,10 @@ const run = async () => {
   const server = await startServer();
   const port = server.address().port;
   try {
+    const anonymousSession = await readJson(await request(port, '/api/auth/session'));
+    assert.equal(anonymousSession.response.status, 200, 'anonymous session discovery must not return an error');
+    assert.equal(anonymousSession.body.authenticated, false, 'anonymous visitors must be represented explicitly');
+
     const passwordLogin = await request(port, '/api/auth/login', {
       method: 'POST',
       body: { email: 'session-test@example.test', password: sessionPassword },
@@ -127,6 +131,12 @@ const run = async () => {
     assert.equal(passwordRegistration.status, 410, 'password registration must remain disabled at launch');
 
     const session = await establishSession(userIds['session-test@example.test']);
+
+    const discoveredSession = await readJson(await request(port, '/api/auth/session', { jar: session.jar }));
+    assert.equal(discoveredSession.response.status, 200, 'cookie session discovery must succeed');
+    assert.equal(discoveredSession.body.authenticated, true, 'valid cookie sessions must be discovered');
+    assert.equal(discoveredSession.body.data.user.email, 'session-test@example.test');
+    assert.equal(discoveredSession.body.csrfToken, session.csrfToken, 'session discovery returns the matching CSRF token');
 
     const me = await readJson(await request(port, '/api/auth/me', { jar: session.jar }));
     assert.equal(me.response.status, 200, 'access cookie must authenticate /auth/me');

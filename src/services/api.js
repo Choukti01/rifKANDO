@@ -7,6 +7,7 @@ const nonRefreshableAuthPaths = [
   '/auth/register',
   '/auth/verify-email',
   '/auth/google',
+  '/auth/session',
   '/auth/phone/register/request-code',
   '/auth/phone/register/verify',
   '/auth/phone/login/request-code',
@@ -94,6 +95,7 @@ api.interceptors.response.use(
 
 // ==================== AUTH APIs ====================
 export const getMe = () => api.get('/auth/me');
+export const getSession = () => api.get('/auth/session');
 export const getAuthMethods = () => api.get('/auth/methods');
 
 // ==================== PRODUCT APIs ====================

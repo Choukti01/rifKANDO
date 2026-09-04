@@ -3,6 +3,7 @@ const {
   createPostgresDatabase,
   getDatabaseEngine,
   prepareRunStatement,
+  quoteCaseSensitiveIdentifiers,
   replaceQuestionMarkPlaceholders,
   translateSql,
 } = require('../src/config/postgresDatabase');
@@ -51,6 +52,10 @@ async function main() {
   assert.throws(() => getDatabaseEngine('mysql'), /DATABASE_ENGINE/);
   assert.strictEqual(replaceQuestionMarkPlaceholders("SELECT '?' AS literal, id = ?"), "SELECT '?' AS literal, id = $1");
   assert.strictEqual(
+    quoteCaseSensitiveIdentifiers("SELECT 'profilePicture' AS literal, profilePicture FROM users"),
+    "SELECT 'profilePicture' AS literal, \"profilePicture\" FROM users"
+  );
+  assert.strictEqual(
     translateSql("SELECT * FROM password_resets WHERE used = 0 AND expires_at > datetime('now', '-7 days')"),
     "SELECT * FROM password_resets WHERE used = FALSE AND expires_at > CURRENT_TIMESTAMP + INTERVAL '-7 days'"
   );
@@ -61,6 +66,10 @@ async function main() {
   assert.strictEqual(
     prepareRunStatement('INSERT OR IGNORE INTO wallets (user_id) VALUES (?)'),
     'INSERT INTO wallets (user_id) VALUES ($1) ON CONFLICT DO NOTHING RETURNING id'
+  );
+  assert.strictEqual(
+    prepareRunStatement('INSERT INTO users (name, is_verified, profilePicture) VALUES (?, TRUE, ?)'),
+    'INSERT INTO users (name, is_verified, "profilePicture") VALUES ($1, TRUE, $2) RETURNING id'
   );
 
   const pool = createFakePool();
