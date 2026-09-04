@@ -21,6 +21,7 @@ fsSync.mkdirSync(testDirectory, { recursive: true });
 
 const db = require('../src/config/database');
 const app = require('../src/app');
+const { establishTestSessionForEmail } = require('./helpers/testSession');
 
 const runStatement = (sql, params = []) => new Promise((resolve, reject) => {
   db.run(sql, params, function onComplete(error) {
@@ -40,12 +41,7 @@ const request = (port, pathname, { method = 'GET', cookies = [], csrfToken, body
   if (body !== undefined) requestHeaders['Content-Type'] = 'application/json';
   return fetch(`http://127.0.0.1:${port}${pathname}`, { method, headers: requestHeaders, body: body === undefined ? undefined : JSON.stringify(body) });
 };
-const login = async (port, email, password) => {
-  const response = await request(port, '/api/auth/login', { method: 'POST', body: { email, password } });
-  assert.equal(response.status, 200, 'test login must succeed');
-  const body = await response.json();
-  return { cookies: cookiesFrom(response), csrfToken: body.csrfToken };
-};
+const login = async (_port, email, _password) => establishTestSessionForEmail(db, email);
 
 const shippingAddress = {
   fullName: 'FINDit Buyer', email: 'buyer@example.test', phone: '+212600000000',

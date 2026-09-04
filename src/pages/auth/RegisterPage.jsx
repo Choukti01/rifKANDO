@@ -8,7 +8,7 @@ import { useTranslation } from 'react-i18next';
 const RegisterPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { googleLogin, requestPhoneRegistrationCode, verifyPhoneRegistration } = useAuth();
+  const { authMethods, googleLogin, requestPhoneRegistrationCode, verifyPhoneRegistration } = useAuth();
   const { t } = useTranslation();
   const [formData, setFormData] = useState({ name: '', phone: '' });
   const [code, setCode] = useState('');
@@ -45,7 +45,7 @@ const RegisterPage = () => {
       <section className="auth-card" aria-labelledby="register-title">
         <span className="auth-eyebrow">{t('auth.account')}</span>
         <h1 id="register-title">{pending ? t('auth.confirmPhone') : t('auth.join')}</h1>
-        <p>{pending ? t('auth.codeRegistration') : t('auth.createLead')}</p>
+        <p>{pending ? t('auth.codeRegistration') : (authMethods.phone ? t('auth.createLead') : t('auth.googleOnlyCreateLead'))}</p>
 
         {pending ? (
           <form onSubmit={verifyCode}>
@@ -59,7 +59,7 @@ const RegisterPage = () => {
           </form>
         ) : (
           <>
-            <form onSubmit={requestCode}>
+            {authMethods.phone && <form onSubmit={requestCode}>
               <label>
                 {t('auth.fullName')}
                 <input autoComplete="name" name="name" onChange={update} required value={formData.name} />
@@ -70,9 +70,10 @@ const RegisterPage = () => {
               </label>
               <small>{t('auth.phoneHint')}</small>
               <button disabled={submitting} type="submit">{submitting ? t('auth.sendingSms') : t('auth.continuePhone')}</button>
-            </form>
-            <div className="divider"><span>{t('auth.or')}</span></div>
-            <div className="google"><GoogleLogin onError={() => toast.error(t('auth.googleSignUpFailed'))} onSuccess={handleGoogleSuccess} theme="outline" width="320" /></div>
+            </form>}
+            {authMethods.phone && <div className="divider"><span>{t('auth.or')}</span></div>}
+            {!authMethods.phone && <p className="auth-note">{t('auth.phoneUnavailable')}</p>}
+            {authMethods.google && <div className="google"><GoogleLogin onError={() => toast.error(t('auth.googleSignUpFailed'))} onSuccess={handleGoogleSuccess} theme="outline" width="320" /></div>}
           </>
         )}
 

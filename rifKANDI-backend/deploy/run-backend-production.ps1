@@ -3,5 +3,5 @@ $ErrorActionPreference = 'Stop'
 # Task Scheduler starts in a system directory. Use the backend directory so
 # dotenv always loads the production environment beside server.js.
 Set-Location (Split-Path -Parent $PSScriptRoot)
-& 'C:\Program Files\nodejs\node.exe' 'server.js'
+& 'C:\Program Files\nodejs\node.exe' '--dns-result-order=ipv4first' '--use-system-ca' 'server.js'
 exit $LASTEXITCODE

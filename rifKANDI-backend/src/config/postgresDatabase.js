@@ -26,6 +26,7 @@ const SQLITE_BOOLEAN_COLUMNS = new Set([
 const TABLES_WITHOUT_NUMERIC_ID = new Set([
   'google_verifications',
   'pending_registrations',
+  'phone_verification_challenges',
 ]);
 
 function getDatabaseEngine(value = process.env.DATABASE_ENGINE) {

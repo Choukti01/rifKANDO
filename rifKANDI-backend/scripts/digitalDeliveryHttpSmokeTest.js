@@ -21,6 +21,7 @@ fsSync.mkdirSync(testDirectory, { recursive: true });
 
 const db = require('../src/config/database');
 const app = require('../src/app');
+const { establishTestSessionForEmail } = require('./helpers/testSession');
 const storage = require('../src/services/storageService');
 const { createUploadReceipt, fileSha256 } = require('../src/services/digitalFileService');
 
@@ -42,12 +43,7 @@ const request = (port, pathname, { method = 'GET', cookies = [], csrfToken, body
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   return fetch(`http://127.0.0.1:${port}${pathname}`, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
 };
-const login = async (port, email, password) => {
-  const response = await request(port, '/api/auth/login', { method: 'POST', body: { email, password } });
-  assert.equal(response.status, 200, 'test login must succeed');
-  const body = await response.json();
-  return { cookies: cookiesFrom(response), csrfToken: body.csrfToken };
-};
+const login = async (_port, email, _password) => establishTestSessionForEmail(db, email);
 const uploadReceipt = (sellerId, contents, name) => {
   const key = storage.createKey('private', `digital-files-user-${sellerId}`, 'pdf');
   return storage.put(key, contents, { contentType: 'application/pdf' }).then(() => {

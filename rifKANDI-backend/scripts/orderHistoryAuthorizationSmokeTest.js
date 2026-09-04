@@ -16,6 +16,7 @@ fsSync.mkdirSync(testDirectory, { recursive: true });
 
 const db = require('../src/config/database');
 const app = require('../src/app');
+const { establishTestSessionForEmail } = require('./helpers/testSession');
 
 const runStatement = (sql, params = []) => new Promise((resolve, reject) => {
   db.run(sql, params, function onComplete(error) {
@@ -60,15 +61,9 @@ const createUser = async (name, role) => {
   return { id: result.lastID, email };
 };
 
-const loginAs = async (port, user) => {
-  const response = await fetch(`http://127.0.0.1:${port}/api/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Origin: 'https://www.rifkando.test' },
-    body: JSON.stringify({ email: user.email, password: testPassword }),
-  });
-  assert.equal(response.status, 200, `test login for ${user.email} must succeed`);
-  const cookies = readSetCookies(response).map((value) => value.split(';')[0]);
-  return cookies.join('; ');
+const loginAs = async (_port, user) => {
+  const session = await establishTestSessionForEmail(db, user.email);
+  return session.cookies.join('; ');
 };
 
 const run = async () => {

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import api, { clearCsrfToken, getMe, setCsrfToken } from '../services/api';
+import api, { clearCsrfToken, getAuthMethods, getMe, setCsrfToken } from '../services/api';
 import toast from 'react-hot-toast';
 import AuthContext from './authStore';
 
@@ -8,9 +8,12 @@ const normalizeUser = (user) => ({
   sellerType: user.sellerType || user.seller_type || null,
 });
 
+const googleClientConfigured = Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim());
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [authMethods, setAuthMethods] = useState({ google: googleClientConfigured, phone: false });
 
   const clearSessionState = useCallback(() => {
     clearCsrfToken();
@@ -25,8 +28,16 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('user');
 
     const initializeSession = async () => {
+      const [sessionResult, methodsResult] = await Promise.allSettled([getMe(), getAuthMethods()]);
       try {
-        const response = await getMe();
+        if (methodsResult.status === 'fulfilled' && methodsResult.value.data?.methods) {
+          setAuthMethods({
+            google: googleClientConfigured && Boolean(methodsResult.value.data.methods.google),
+            phone: Boolean(methodsResult.value.data.methods.phone),
+          });
+        }
+        if (sessionResult.status !== 'fulfilled') throw sessionResult.reason;
+        const response = sessionResult.value;
         const userData = response.data.data?.user || response.data.user;
         if (!userData || !response.data.csrfToken) throw new Error('Invalid session response');
         if (!isCurrent) return;
@@ -216,6 +227,7 @@ export const AuthProvider = ({ children }) => {
   const value = useMemo(() => ({
     user,
     loading,
+    authMethods,
     isAuthenticated: Boolean(user),
     login,
     register,
@@ -231,7 +243,7 @@ export const AuthProvider = ({ children }) => {
     logoutAllDevices,
     updateUser,
     updateSellerType,
-  }), [user, loading, login, register, verifyEmail, requestPhoneRegistrationCode, verifyPhoneRegistration, requestPhoneLoginCode, verifyPhoneLogin, googleLogin, verifyGoogleRegistration, resendGoogleVerification, logout, logoutAllDevices, updateUser, updateSellerType]);
+  }), [user, loading, authMethods, login, register, verifyEmail, requestPhoneRegistrationCode, verifyPhoneRegistration, requestPhoneLoginCode, verifyPhoneLogin, googleLogin, verifyGoogleRegistration, resendGoogleVerification, logout, logoutAllDevices, updateUser, updateSellerType]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

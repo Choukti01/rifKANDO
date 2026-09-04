@@ -94,6 +94,7 @@ api.interceptors.response.use(
 
 // ==================== AUTH APIs ====================
 export const getMe = () => api.get('/auth/me');
+export const getAuthMethods = () => api.get('/auth/methods');
 
 // ==================== PRODUCT APIs ====================
 export const getProducts = () => api.get('/products');

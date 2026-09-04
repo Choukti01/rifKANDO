@@ -23,6 +23,7 @@ fsSync.mkdirSync(testDirectory, { recursive: true });
 
 const db = require('../src/config/database');
 const app = require('../src/app');
+const { establishTestSessionForEmail } = require('./helpers/testSession');
 const storage = require('../src/services/storageService');
 const WalletService = require('../src/services/walletService');
 
@@ -68,12 +69,7 @@ const request = async (port, pathname, { method = 'GET', cookies = [], csrfToken
   });
 };
 
-const login = async (port, email, password) => {
-  const response = await request(port, '/api/auth/login', { method: 'POST', body: { email, password } });
-  const body = await response.json();
-  assert.equal(response.status, 200, 'test login must succeed');
-  return { cookies: cookiesFrom(response), csrfToken: body.csrfToken };
-};
+const login = async (_port, email, _password) => establishTestSessionForEmail(db, email);
 
 const signCmiCallback = (callback) => {
   const signed = { ...callback };
