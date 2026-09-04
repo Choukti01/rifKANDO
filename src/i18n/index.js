@@ -356,6 +356,45 @@ Object.assign(resources.en.translation.home, { valueStatement: 'Trusted products
 Object.assign(resources.fr.translation.home, { valueStatement: 'Des produits fiables et des demandes FINDit, du Maroc vers le monde.' });
 Object.assign(resources.ar.translation.home, { valueStatement: '\u0645\u0646\u062a\u062c\u0627\u062a \u0645\u0648\u062b\u0648\u0642\u0629 \u0648\u0637\u0644\u0628\u0627\u062a \u0627\u0639\u062b\u0631 \u0639\u0644\u064a\u0647\u0627 \u0645\u0646 \u0627\u0644\u0645\u063a\u0631\u0628 \u0625\u0644\u0649 \u0627\u0644\u0639\u0627\u0644\u0645.' });
 
+Object.assign(resources.en.translation, {
+  availability: {
+    title: 'Marketplace temporarily unavailable',
+    description: 'We cannot reach the rifKANDO marketplace service right now. No data has been changed. Please try again in a moment.',
+    retry: 'Try again',
+    liveData: 'Live data temporarily unavailable',
+    productsAvailable: 'Products available',
+    openRequests: 'Open FINDit requests',
+    item: 'item',
+    items: 'items',
+  },
+});
+
+Object.assign(resources.fr.translation, {
+  availability: {
+    title: 'Place de marché temporairement indisponible',
+    description: 'Le service de place de marché rifKANDO est momentanément inaccessible. Aucune donnée n’a été modifiée. Réessayez dans un instant.',
+    retry: 'Réessayer',
+    liveData: 'Données en direct temporairement indisponibles',
+    productsAvailable: 'Produits disponibles',
+    openRequests: 'Demandes FINDit ouvertes',
+    item: 'article',
+    items: 'articles',
+  },
+});
+
+Object.assign(resources.ar.translation, {
+  availability: {
+    title: 'سوق rifKANDO غير متاح مؤقتًا',
+    description: 'يتعذر الاتصال بخدمة سوق rifKANDO الآن. لم يتم تغيير أي بيانات. يُرجى المحاولة مرة أخرى بعد قليل.',
+    retry: 'حاول مرة أخرى',
+    liveData: 'البيانات المباشرة غير متاحة مؤقتًا',
+    productsAvailable: 'المنتجات المتاحة',
+    openRequests: 'طلبات FINDit المفتوحة',
+    item: 'عنصر',
+    items: 'عناصر',
+  },
+});
+
 const replaceArabicFinditBrand = (value) => {
   if (typeof value === 'string') return value.replaceAll('FINDit', resources.ar.translation.findit.navigation);
   if (value && typeof value === 'object') Object.values(value).forEach(replaceArabicFinditBrand);

@@ -122,7 +122,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await api.post('/auth/phone/login/request-code', { phone });
       toast.success(response.data.message || 'If an account exists, an SMS code was sent.');
-      return { success: true };
+      return { success: true, verificationRequired: Boolean(response.data.verificationRequired) };
     } catch (error) {
       toast.error(error.response?.data?.error || 'Could not send the SMS code.');
       return { success: false };

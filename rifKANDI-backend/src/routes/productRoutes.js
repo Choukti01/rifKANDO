@@ -49,7 +49,7 @@ const createProductRoutes = ({
     const minRating = req.query.minRating ? parseFloat(req.query.minRating) : null;
     const sortBy = req.query.sortBy || 'newest';
     const condition = req.query.condition || '';
-    let whereClause = 'p.status = "published"';
+    let whereClause = "p.status = 'published'";
     const params = [];
 
     if (condition) {

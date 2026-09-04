@@ -7,7 +7,7 @@ const {
 const trackedNames = [
   'NODE_ENV', 'APP_ENV', 'JWT_SECRET', 'SESSION_SECRET', 'AUDIT_LOG_SECRET', 'PHONE_OTP_SECRET',
   'CLIENT_URL', 'ALLOWED_ORIGINS', 'GOOGLE_CLIENT_ID', 'DATABASE_ENGINE', 'DATABASE_PATH', 'DATABASE_URL', 'POSTGRES_SSL',
-  'OBJECT_STORAGE_DRIVER', 'UPLOADS_DIR', 'CMI_STORE_KEY', 'CMI_CLIENT_ID', 'BACKEND_URL',
+  'OBJECT_STORAGE_DRIVER', 'UPLOADS_DIR', 'PERSISTENT_STORAGE_ROOT', 'CMI_STORE_KEY', 'CMI_CLIENT_ID', 'BACKEND_URL',
   'SMS_PROVIDER', 'TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN', 'TWILIO_MESSAGING_SERVICE_SID', 'TWILIO_FROM_NUMBER',
   'FEATURE_FLAGS',
 ];
@@ -41,6 +41,7 @@ const deploymentEnvironment = (overrides = {}) => ({
   GOOGLE_CLIENT_ID: 'staging-client.apps.googleusercontent.com',
   DATABASE_ENGINE: 'sqlite',
   DATABASE_PATH: '/var/data/rifkandi.db',
+  PERSISTENT_STORAGE_ROOT: '/var/data',
   DATABASE_URL: undefined,
   POSTGRES_SSL: undefined,
   OBJECT_STORAGE_DRIVER: 'local',
@@ -71,7 +72,15 @@ withEnvironment(deploymentEnvironment({ SESSION_SECRET: 'a'.repeat(48) }), () =>
 });
 
 withEnvironment(deploymentEnvironment({ SMS_PROVIDER: undefined }), () => {
+  assert.doesNotThrow(validateEnvironment);
+});
+
+withEnvironment(deploymentEnvironment({ SMS_PROVIDER: 'unsupported' }), () => {
   assert.throws(validateEnvironment, /SMS_PROVIDER/);
+});
+
+withEnvironment(deploymentEnvironment({ TWILIO_ACCOUNT_SID: undefined }), () => {
+  assert.throws(validateEnvironment, /Twilio SMS configuration is incomplete/);
 });
 
 withEnvironment(deploymentEnvironment({ CLIENT_URL: 'http://staging.rifkando.example' }), () => {
@@ -93,6 +102,18 @@ withEnvironment(deploymentEnvironment({
 
 withEnvironment(deploymentEnvironment({ DATABASE_ENGINE: 'postgres', DATABASE_PATH: undefined }), () => {
   assert.throws(validateEnvironment, /DATABASE_URL is required/);
+});
+
+withEnvironment(deploymentEnvironment({
+  PERSISTENT_STORAGE_ROOT: 'C:\\rifkando-data',
+  DATABASE_PATH: 'C:\\rifkando-data\\rifkandi.db',
+  UPLOADS_DIR: 'C:\\rifkando-data\\uploads',
+}), () => {
+  assert.doesNotThrow(validateEnvironment);
+});
+
+withEnvironment(deploymentEnvironment({ UPLOADS_DIR: '/tmp/rifkando-uploads' }), () => {
+  assert.throws(validateEnvironment, /UPLOADS_DIR must be located inside PERSISTENT_STORAGE_ROOT/);
 });
 
 console.log('Environment configuration smoke test passed.');

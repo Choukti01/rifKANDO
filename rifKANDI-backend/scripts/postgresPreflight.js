@@ -104,25 +104,35 @@ async function inspectPostgresTarget() {
 }
 
 function parseArguments(argumentsList) {
-  const parsed = { target: false, json: false, sqlitePath: null };
+  const parsed = { target: false, targetOnly: false, json: false, sqlitePath: null, help: false };
 
   for (let index = 0; index < argumentsList.length; index += 1) {
     const argument = argumentsList[index];
 
-    if (argument === '--sqlite-path') {
+    if (argument === '--help' || argument === '-h') {
+      parsed.help = true;
+    } else if (argument === '--sqlite-path') {
       parsed.sqlitePath = argumentsList[index + 1];
       index += 1;
     } else if (argument === '--target') {
       parsed.target = true;
+    } else if (argument === '--target-only') {
+      parsed.targetOnly = true;
     } else if (argument === '--json') {
       parsed.json = true;
     } else {
-      throw new Error('Usage: node scripts/postgresPreflight.js --sqlite-path <path> [--target] [--json]');
+      throw new Error('Usage: node scripts/postgresPreflight.js --sqlite-path <path> [--target] [--json]\n   or: node scripts/postgresPreflight.js --target-only [--json]');
     }
   }
 
-  if (!parsed.sqlitePath) {
-    throw new Error('Usage: node scripts/postgresPreflight.js --sqlite-path <path> [--target] [--json]');
+  if (parsed.help) return parsed;
+
+  if (parsed.targetOnly && (parsed.sqlitePath || parsed.target)) {
+    throw new Error('--target-only cannot be combined with --sqlite-path or --target.');
+  }
+
+  if (!parsed.targetOnly && !parsed.sqlitePath) {
+    throw new Error('Usage: node scripts/postgresPreflight.js --sqlite-path <path> [--target] [--json]\n   or: node scripts/postgresPreflight.js --target-only [--json]');
   }
 
   return parsed;
@@ -130,10 +140,17 @@ function parseArguments(argumentsList) {
 
 async function main() {
   const options = parseArguments(process.argv.slice(2));
-  const source = await inspectSqliteSource(options.sqlitePath);
-  const result = { source };
+  if (options.help) {
+    console.log('Usage: node scripts/postgresPreflight.js --sqlite-path <path> [--target] [--json]\n   or: node scripts/postgresPreflight.js --target-only [--json]');
+    return;
+  }
+  const result = {};
 
-  if (options.target) {
+  if (!options.targetOnly) {
+    result.source = await inspectSqliteSource(options.sqlitePath);
+  }
+
+  if (options.target || options.targetOnly) {
     result.target = await inspectPostgresTarget();
   }
 
@@ -142,7 +159,9 @@ async function main() {
     return;
   }
 
-  console.log(`SQLite preflight passed: ${source.tables} required tables, ${source.foreignKeyViolations} foreign-key violations.`);
+  if (result.source) {
+    console.log(`SQLite preflight passed: ${result.source.tables} required tables, ${result.source.foreignKeyViolations} foreign-key violations.`);
+  }
   if (result.target) {
     console.log(`PostgreSQL target has ${result.target.expectedTablesPresent}/${EXPECTED_POSTGRES_TABLES.length} expected tables.`);
   }

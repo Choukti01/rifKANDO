@@ -1,6 +1,10 @@
 const dotenv = require('dotenv');
+const dns = require('node:dns');
 
 dotenv.config();
+// Prefer IPv4 when both records are available. The production host currently
+// has no routed IPv6 path, while Neon exposes dual-stack endpoints.
+dns.setDefaultResultOrder('ipv4first');
 
 const { validateEnvironment } = require('./src/config/validateEnv');
 validateEnvironment();

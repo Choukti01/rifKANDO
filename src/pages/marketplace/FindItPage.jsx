@@ -10,6 +10,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { getFinditRequests } from '../../services/api';
 import MarketplaceImage from '../../components/common/MarketplaceImage';
+import ServiceUnavailableState from '../../components/common/ServiceUnavailableState';
 import useAuth from '../../hooks/useAuth';
 import { useTranslation } from 'react-i18next';
 
@@ -25,6 +26,8 @@ const FindItPage = () => {
   const { t, i18n } = useTranslation();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
+  const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
     let current = true;
@@ -33,8 +36,11 @@ const FindItPage = () => {
       .then((response) => {
         if (current) setRequests(response.data.requests || []);
       })
-      .catch(() => {
-        if (current) setRequests([]);
+      .catch((error) => {
+        if (current) {
+          setRequests([]);
+          setLoadError(error);
+        }
       })
       .finally(() => {
         if (current) setLoading(false);
@@ -43,7 +49,13 @@ const FindItPage = () => {
     return () => {
       current = false;
     };
-  }, []);
+  }, [retryKey]);
+
+  const retryFinditRequests = () => {
+    setLoading(true);
+    setLoadError(null);
+    setRetryKey((current) => current + 1);
+  };
 
   const dashboardPath = isAuthenticated ? '/findit/dashboard' : '/login';
 
@@ -94,6 +106,8 @@ const FindItPage = () => {
 
           {loading ? (
             <div className="findit-loading" aria-live="polite">{t('findit.public.loading')}</div>
+          ) : loadError ? (
+            <ServiceUnavailableState onRetry={retryFinditRequests} />
           ) : requests.length === 0 ? (
             <div className="findit-empty">
               <MagnifyingGlassIcon aria-hidden="true" />

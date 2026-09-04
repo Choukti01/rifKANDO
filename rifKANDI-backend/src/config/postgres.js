@@ -24,9 +24,14 @@ function createPostgresPool(connectionString = process.env.DATABASE_URL) {
   return new Pool({
     connectionString,
     max: parsePositiveInteger(process.env.POSTGRES_POOL_MAX, 5, 20),
-    connectionTimeoutMillis: parsePositiveInteger(process.env.POSTGRES_CONNECT_TIMEOUT_MS, 10_000, 60_000),
+    // A managed database may need a few seconds to wake from scale-to-zero.
+    // Do not fail the production API before Neon has had a reasonable chance
+    // to accept the first TLS connection.
+    connectionTimeoutMillis: parsePositiveInteger(process.env.POSTGRES_CONNECT_TIMEOUT_MS, 30_000, 60_000),
     idleTimeoutMillis: parsePositiveInteger(process.env.POSTGRES_IDLE_TIMEOUT_MS, 30_000, 300_000),
-    ssl: shouldUseTls() ? { rejectUnauthorized: false } : false,
+    // Production database traffic must authenticate the server certificate.
+    // Neon provides a publicly trusted certificate for its hosted endpoints.
+    ssl: shouldUseTls() ? { rejectUnauthorized: true } : false,
   });
 }
 
