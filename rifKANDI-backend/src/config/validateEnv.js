@@ -1,3 +1,4 @@
+const path = require('node:path');
 const { validateFeatureFlags } = require('../services/featureFlagService');
 
 const REQUIRED_PRODUCTION_ENV = [
@@ -7,7 +8,6 @@ const REQUIRED_PRODUCTION_ENV = [
   'PHONE_OTP_SECRET',
   'CLIENT_URL',
   'GOOGLE_CLIENT_ID',
-  'SMS_PROVIDER',
 ];
 
 const APPLICATION_ENVIRONMENTS = new Set(['development', 'test', 'staging', 'production']);
@@ -72,6 +72,21 @@ const assertStrongDistinctSecrets = () => {
 
 const isValidBucketName = (value) => /^[a-z0-9](?:[a-z0-9.-]{1,61})[a-z0-9]$/.test(value) && !value.includes('..');
 
+const getPersistentStorageRoot = () => path.resolve(process.env.PERSISTENT_STORAGE_ROOT || '/var/data');
+
+const assertWithinPersistentStorageRoot = (value, variableName) => {
+  const persistentStorageRoot = getPersistentStorageRoot();
+  const resolvedValue = path.resolve(value);
+
+  if (persistentStorageRoot === path.parse(persistentStorageRoot).root) {
+    throw new Error('PERSISTENT_STORAGE_ROOT must not be a filesystem root.');
+  }
+
+  if (resolvedValue !== persistentStorageRoot && !resolvedValue.startsWith(`${persistentStorageRoot}${path.sep}`)) {
+    throw new Error(`${variableName} must be located inside PERSISTENT_STORAGE_ROOT in production.`);
+  }
+};
+
 const getDatabaseEngine = () => {
   const engine = String(process.env.DATABASE_ENGINE || 'sqlite').trim().toLowerCase();
   if (!['sqlite', 'postgres'].includes(engine)) {
@@ -109,8 +124,8 @@ const validateDatabaseConfiguration = () => {
   if (!process.env.DATABASE_PATH) {
     throw new Error('DATABASE_PATH is required when DATABASE_ENGINE=sqlite.');
   }
-  if (process.env.NODE_ENV === 'production' && !process.env.DATABASE_PATH.startsWith('/var/data/')) {
-    throw new Error('DATABASE_PATH must point to the mounted persistent disk in production.');
+  if (process.env.NODE_ENV === 'production') {
+    assertWithinPersistentStorageRoot(process.env.DATABASE_PATH, 'DATABASE_PATH');
   }
   return engine;
 };
@@ -123,8 +138,8 @@ const validateObjectStorage = () => {
 
   if (driver === 'local') {
     const uploadsDir = process.env.UPLOADS_DIR || '/var/data/uploads';
-    if (process.env.NODE_ENV === 'production' && !uploadsDir.startsWith('/var/data/')) {
-      throw new Error('UPLOADS_DIR must point to the mounted persistent disk in production.');
+    if (process.env.NODE_ENV === 'production') {
+      assertWithinPersistentStorageRoot(uploadsDir, 'UPLOADS_DIR');
     }
     return;
   }
@@ -164,7 +179,12 @@ const validateObjectStorage = () => {
 };
 
 const validateSmsConfiguration = () => {
-  if (String(process.env.SMS_PROVIDER || '').toLowerCase() !== 'twilio') {
+  const provider = String(process.env.SMS_PROVIDER || '').trim().toLowerCase();
+  // SMS is optional at launch. Its absence must not take down products,
+  // FINDit, COD, or Google authentication; the phone endpoints return a
+  // clear 503 until a real provider is configured.
+  if (!provider) return;
+  if (provider !== 'twilio') {
     throw new Error('SMS_PROVIDER must be twilio for phone authentication.');
   }
   const required = ['TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN'];
@@ -229,4 +249,5 @@ module.exports = {
   validateDatabaseConfiguration,
   validateObjectStorage,
   validateSmsConfiguration,
+  assertWithinPersistentStorageRoot,
 };

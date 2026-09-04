@@ -22,6 +22,8 @@ services:
         value: sqlite
       - key: DATABASE_PATH
         value: /var/data/rifkandi.db
+      - key: PERSISTENT_STORAGE_ROOT
+        value: /var/data
       # Provision this only for the PostgreSQL cutover. It has no effect while
       # DATABASE_ENGINE remains sqlite.
       - key: DATABASE_URL
@@ -69,7 +71,7 @@ services:
       - key: PHONE_OTP_SECRET
         generateValue: true
       - key: SMS_PROVIDER
-        value: twilio
+        sync: false
       - key: TWILIO_ACCOUNT_SID
         sync: false
       - key: TWILIO_AUTH_TOKEN

@@ -22,7 +22,7 @@ const LoginPage = () => {
     setSubmitting(true);
     const result = await requestPhoneLoginCode(phone);
     setSubmitting(false);
-    if (result.success) setPending(true);
+    if (result.success && result.verificationRequired) setPending(true);
   };
 
   const verifyCode = async (event) => {

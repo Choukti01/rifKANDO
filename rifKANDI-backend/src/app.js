@@ -535,6 +535,10 @@ const getRow = (sql, parameters = []) => new Promise((resolve, reject) => {
   db.get(sql, parameters, (error, row) => (error ? reject(error) : resolve(row)));
 });
 
+const getRows = (sql, parameters = []) => new Promise((resolve, reject) => {
+  db.all(sql, parameters, (error, rows) => (error ? reject(error) : resolve(rows)));
+});
+
 const runStatement = (sql, parameters = []) => new Promise((resolve, reject) => {
   db.run(sql, parameters, function onRun(error) {
     if (error) reject(error);
@@ -655,8 +659,16 @@ app.post('/api/auth/phone/register/verify', authRateLimit, async (req, res) => {
 app.post('/api/auth/phone/login/request-code', authRateLimit, phoneCodeRateLimit, async (req, res) => {
   try {
     const phone = normalizePhoneNumber(req.body?.phone);
-    const user = await getRow('SELECT id FROM users WHERE phone = ?', [phone]);
-    if (!user) return res.status(202).json({ success: true, message: 'If an account exists for this phone number, an SMS code has been sent.' });
+    const users = await getRows('SELECT id FROM users WHERE phone = ? LIMIT 2', [phone]);
+    // A previous development version allowed duplicate phone values. Do not
+    // issue a code that could be applied to an arbitrary one of those accounts.
+    if (users.length !== 1) {
+      return res.status(202).json({
+        success: true,
+        verificationRequired: false,
+        message: 'If an account exists for this phone number, an SMS code has been sent.',
+      });
+    }
 
     await issuePhoneChallenge(phone, 'login');
     return res.status(202).json({ success: true, verificationRequired: true, message: 'An SMS code was sent to your phone.' });
@@ -668,8 +680,9 @@ app.post('/api/auth/phone/login/request-code', authRateLimit, phoneCodeRateLimit
 app.post('/api/auth/phone/login/verify', authRateLimit, async (req, res) => {
   try {
     const phone = normalizePhoneNumber(req.body?.phone);
-    const user = await getRow('SELECT * FROM users WHERE phone = ?', [phone]);
-    if (!user) throw new PhoneAuthError('The SMS code is invalid or expired.');
+    const users = await getRows('SELECT * FROM users WHERE phone = ? LIMIT 2', [phone]);
+    if (users.length !== 1) throw new PhoneAuthError('The SMS code is invalid or expired.');
+    const [user] = users;
     await consumePhoneChallenge(phone, 'login', req.body?.code);
     const response = await createAuthenticatedResponse(req, res, user);
     if (!isPhoneIdentityEmail(user.email)) {
@@ -2112,7 +2125,7 @@ app.patch('/api/users/update-seller-type', protect, validateSellerType, (req, re
     return res.status(400).json({ error: 'Invalid seller type' });
   }
   db.run(
-    'UPDATE users SET seller_type = ?, role = "seller", seller_started_at = COALESCE(seller_started_at, CURRENT_TIMESTAMP) WHERE id = ?',
+    "UPDATE users SET seller_type = ?, role = 'seller', seller_started_at = COALESCE(seller_started_at, CURRENT_TIMESTAMP) WHERE id = ?",
     [sellerType, req.user.id],
     function(err) {
       if (err) return res.status(500).json({ error: err.message });
@@ -2133,7 +2146,7 @@ app.get('/api/users/:id', (req, res) => {
 });
 
 app.get('/api/users/:id/products', (req, res) => {
-  db.all('SELECT p.*, u.name as seller_name FROM products p JOIN users u ON p.seller_id = u.id WHERE p.seller_id = ? AND p.status = "published" ORDER BY p.created_at DESC', [req.params.id], (err, rows) => {
+  db.all("SELECT p.*, u.name as seller_name FROM products p JOIN users u ON p.seller_id = u.id WHERE p.seller_id = ? AND p.status = 'published' ORDER BY p.created_at DESC", [req.params.id], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     if (!rows.length) return res.json({ success: true, products: [] });
     let completed = 0;
@@ -3036,11 +3049,11 @@ app.get('/api/admin/stats', protect, requireAdmin, async (req, res) => {
   let completed = 0;
   
   db.get('SELECT COUNT(*) as total FROM users', [], (err, row) => { stats.totalUsers = row?.total || 0; completed++; checkComplete(); });
-  db.get('SELECT COUNT(*) as total FROM products WHERE status = "published"', [], (err, row) => { stats.totalProducts = row?.total || 0; completed++; checkComplete(); });
+  db.get("SELECT COUNT(*) as total FROM products WHERE status = 'published'", [], (err, row) => { stats.totalProducts = row?.total || 0; completed++; checkComplete(); });
   db.get('SELECT COUNT(*) as total FROM orders', [], (err, row) => { stats.totalOrders = row?.total || 0; completed++; checkComplete(); });
-  db.get('SELECT COALESCE(SUM(total), 0) as totalRevenue FROM orders WHERE status != "cancelled"', [], (err, row) => { stats.totalRevenue = row?.totalRevenue || 0; completed++; checkComplete(); });
-  db.get('SELECT COUNT(*) as total FROM orders WHERE status = "pending"', [], (err, row) => { stats.pendingOrders = row?.total || 0; completed++; checkComplete(); });
-  db.get('SELECT COUNT(*) as total FROM withdrawal_requests WHERE status = "pending"', [], (err, row) => { stats.pendingWithdrawals = row?.total || 0; completed++; checkComplete(); });
+  db.get("SELECT COALESCE(SUM(total), 0) as totalRevenue FROM orders WHERE status != 'cancelled'", [], (err, row) => { stats.totalRevenue = row?.totalRevenue || 0; completed++; checkComplete(); });
+  db.get("SELECT COUNT(*) as total FROM orders WHERE status = 'pending'", [], (err, row) => { stats.pendingOrders = row?.total || 0; completed++; checkComplete(); });
+  db.get("SELECT COUNT(*) as total FROM withdrawal_requests WHERE status = 'pending'", [], (err, row) => { stats.pendingWithdrawals = row?.total || 0; completed++; checkComplete(); });
   
   function checkComplete() {
     if (completed === 6) {
@@ -3241,7 +3254,7 @@ app.post('/api/admin/cod-orders/:id/confirm', protect, requireFinance, async (re
       return res.status(404).json({ error: 'Order not found or not eligible' });
     }
 
-    db.get('SELECT id FROM payment_splits WHERE order_id = ? AND party_type = "seller" AND status = "completed"', [orderId], (err, existing) => {
+    db.get("SELECT id FROM payment_splits WHERE order_id = ? AND party_type = 'seller' AND status = 'completed'", [orderId], (err, existing) => {
       if (existing) {
         return res.status(400).json({ error: 'Seller already paid for this order' });
       }
@@ -3431,7 +3444,7 @@ app.post('/api/products/:id/offers', protect, validateIdParams('id'), validateOf
       return res.status(400).json({ error: `Offer cannot exceed the original price of ${Money.fromMinor(productPriceMinor)} MAD` });
     }
 
-    db.get('SELECT id FROM product_offers WHERE product_id = ? AND buyer_id = ? AND status = "pending"',
+    db.get("SELECT id FROM product_offers WHERE product_id = ? AND buyer_id = ? AND status = 'pending'",
       [productId, buyerId], (err, existing) => {
         if (existing) {
           return res.status(400).json({ error: 'You already have a pending offer for this product' });

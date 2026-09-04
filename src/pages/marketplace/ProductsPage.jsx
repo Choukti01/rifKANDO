@@ -9,6 +9,7 @@ import { getImageUrl } from '../../utils/imageUtils';
 import EmptyState from '../../components/common/EmptyState';
 import LoadingSkeleton from '../../components/common/LoadingSkeleton';
 import MarketplaceImage from '../../components/common/MarketplaceImage';
+import ServiceUnavailableState from '../../components/common/ServiceUnavailableState';
 
 const ProductsPage = () => {
   const [products, setProducts] = useState([]);
@@ -29,6 +30,8 @@ const ProductsPage = () => {
   const [searchInput, setSearchInput] = useState('');
   const [verifiedOnly, setVerifiedOnly] = useState(false);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [loadError, setLoadError] = useState(null);
+  const [retryKey, setRetryKey] = useState(0);
 
   const categories = ['electronics', 'fashion', 'handicrafts', 'books', 'home'];
 
@@ -52,6 +55,8 @@ const ProductsPage = () => {
     let isCurrent = true;
 
     const loadProducts = async () => {
+      setLoading(true);
+      setLoadError(null);
       try {
         const data = await fetchProducts();
         if (!isCurrent) return;
@@ -63,7 +68,7 @@ const ProductsPage = () => {
         if (!isCurrent) return;
 
         console.error('Error fetching products:', error);
-        toast.error('Failed to load products');
+        setLoadError(error);
       } finally {
         if (isCurrent) setLoading(false);
       }
@@ -74,7 +79,7 @@ const ProductsPage = () => {
     return () => {
       isCurrent = false;
     };
-  }, [fetchProducts]);
+  }, [fetchProducts, retryKey]);
 
   const handleAddToCart = (product) => {
     if (!isAuthenticated) { toast.error('Please login'); return; }
@@ -171,10 +176,10 @@ const conditionLabels = {
               {verifiedOnly && <button type="button" className="filter-chip" onClick={() => { setVerifiedOnly(false); setCurrentPage(1); }}>Verified sellers <span aria-hidden="true">×</span></button>}
             </div>
           )}
-          <div className="results-count" aria-live="polite">{totalProducts} products found{hasActiveFilters ? ` with ${activeFilterCount} active filter${activeFilterCount === 1 ? '' : 's'}` : ''}</div>
+          {!loadError && <div className="results-count" aria-live="polite">{totalProducts} products found{hasActiveFilters ? ` with ${activeFilterCount} active filter${activeFilterCount === 1 ? '' : 's'}` : ''}</div>}
         </div>
 
-        <div className="products-grid">
+        {loadError ? <ServiceUnavailableState onRetry={() => setRetryKey((current) => current + 1)} /> : <div className="products-grid">
           {products.length === 0 ? (
             <div className="col-span-full">
               <EmptyState
@@ -227,9 +232,9 @@ const conditionLabels = {
               </div>
             ))
           )}
-        </div>
+        </div>}
 
-        {totalPages > 1 && (
+        {!loadError && totalPages > 1 && (
           <div className="pagination">
             <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} className="page-btn">← Previous</button>
             <span className="page-info">Page {currentPage} of {totalPages}</span>

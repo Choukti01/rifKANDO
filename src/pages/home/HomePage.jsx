@@ -5,6 +5,7 @@ import { getProducts, getFinditRequests } from '/src/services/api';
 import MediaGallery from '../../components/MediaGallery';
 import { getImageUrl } from '../../utils/imageUtils';
 import MarketplaceImage from '../../components/common/MarketplaceImage';
+import ServiceUnavailableState from '../../components/common/ServiceUnavailableState';
 import { useTranslation } from 'react-i18next';
 
 const HomePage = () => {
@@ -12,6 +13,9 @@ const HomePage = () => {
   const [featuredItems, setFeaturedItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [galleryItem, setGalleryItem] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0);
+  const [productDataAvailable, setProductDataAvailable] = useState(true);
+  const [finditDataAvailable, setFinditDataAvailable] = useState(true);
   const [stats, setStats] = useState({
     productsCount: 0,
     finditRequestsCount: 0
@@ -21,6 +25,7 @@ const HomePage = () => {
     let isCurrent = true;
 
     const loadHomeData = async () => {
+      setLoading(true);
       const [productsResult, finditResult] = await Promise.allSettled([
         getProducts(),
         getFinditRequests({ limit: 1 })
@@ -28,13 +33,20 @@ const HomePage = () => {
 
       if (!isCurrent) return;
 
-      const products = productsResult.status === 'fulfilled' ? productsResult.value.data.products || [] : [];
-      const finditTotal = finditResult.status === 'fulfilled'
+      const productDataLoaded = productsResult.status === 'fulfilled';
+      const finditDataLoaded = finditResult.status === 'fulfilled';
+      const products = productDataLoaded ? productsResult.value.data.products || [] : [];
+      const productsTotal = productDataLoaded
+        ? Number(productsResult.value.data.pagination?.total ?? products.length)
+        : 0;
+      const finditTotal = finditDataLoaded
         ? Number(finditResult.value.data.pagination?.total || finditResult.value.data.requests?.length || 0)
         : 0;
 
+      setProductDataAvailable(productDataLoaded);
+      setFinditDataAvailable(finditDataLoaded);
       setStats({
-        productsCount: products.length,
+        productsCount: productsTotal,
         finditRequestsCount: finditTotal
       });
 
@@ -49,14 +61,17 @@ const HomePage = () => {
     return () => {
       isCurrent = false;
     };
-  }, []);
+  }, [reloadKey]);
+
+  const retryHomeData = () => setReloadKey((current) => current + 1);
+  const hasUnavailableLiveData = !productDataAvailable || !finditDataAvailable;
 
   const categories = [
-    { name: t('nav.products'), icon: ShoppingBagIcon, path: '/products', color: 'var(--color-brand-blue)', count: stats.productsCount },
+    { name: t('nav.products'), icon: ShoppingBagIcon, path: '/products', color: 'var(--color-brand-blue)', count: stats.productsCount, available: productDataAvailable },
     { name: t('nav.courses'), icon: AcademicCapIcon, path: '/courses', color: '#64748b', underDevelopment: true },
     { name: t('nav.services'), icon: WrenchScrewdriverIcon, path: '/services', color: '#64748b', underDevelopment: true },
     { name: t('nav.digital'), icon: ComputerDesktopIcon, path: '/digital', color: '#64748b', underDevelopment: true },
-    { name: t('findit.navigation'), icon: MagnifyingGlassIcon, path: '/findit', color: 'var(--color-brand-blue)', count: stats.finditRequestsCount, countLabel: 'open requests' },
+    { name: t('findit.navigation'), icon: MagnifyingGlassIcon, path: '/findit', color: 'var(--color-brand-blue)', count: stats.finditRequestsCount, countLabel: t('availability.openRequests'), available: finditDataAvailable },
   ];
 
   const getItemUrl = (item) => {
@@ -120,6 +135,12 @@ const HomePage = () => {
         </div>
       </section>
 
+      {hasUnavailableLiveData && (
+        <section className="section home-service-status">
+          <div className="container"><ServiceUnavailableState compact onRetry={retryHomeData} /></div>
+        </section>
+      )}
+
       {/* Categories Section */}
       <section className="section">
         <div className="container">
@@ -136,7 +157,7 @@ const HomePage = () => {
                   </div>
                   <h3 className="category-name">{cat.name}</h3>
                   <p className={`category-count ${cat.underDevelopment ? 'category-count-coming' : ''}`}>
-                    {cat.underDevelopment ? t('launch.shortLabel') : `${cat.count.toLocaleString()} ${cat.countLabel || (cat.count === 1 ? 'item' : 'items')}`}
+                    {cat.underDevelopment ? t('launch.shortLabel') : cat.available === false ? t('availability.liveData') : `${cat.count.toLocaleString()} ${cat.countLabel || (cat.count === 1 ? t('availability.item') : t('availability.items'))}`}
                   </p>
                 </Link>
               )
@@ -154,8 +175,9 @@ const HomePage = () => {
               {t('home.viewAll')} <ArrowRightIcon className="view-all-icon" />
             </Link>
           </div>
-          <div className="featured-grid">
-            {featuredItems.map(item => {
+          {productDataAvailable ? (
+            <div className="featured-grid">
+              {featuredItems.map(item => {
               const itemImage = getItemImage(item);
               const isImageUrl = typeof itemImage === 'string' && itemImage.startsWith('http');
               const itemHasMedia = hasMedia(item);
@@ -200,8 +222,9 @@ const HomePage = () => {
                   </div>
                 </div>
               );
-            })}
-          </div>
+              })}
+            </div>
+          ) : <ServiceUnavailableState compact onRetry={retryHomeData} />}
         </div>
       </section>
 
@@ -210,16 +233,16 @@ const HomePage = () => {
         <div className="container">
           <div className="stats-grid">
             <div className="stat-item">
-              <div className="stat-number">{stats.productsCount}</div>
-              <div className="stat-label">Products Available</div>
+              <div className="stat-number">{productDataAvailable ? stats.productsCount : '—'}</div>
+              <div className="stat-label">{productDataAvailable ? t('availability.productsAvailable') : t('availability.liveData')}</div>
             </div>
             <div className="stat-item">
               <div className="stat-number">COD</div>
               <div className="stat-label">Payment at Delivery</div>
             </div>
             <div className="stat-item">
-              <div className="stat-number">{stats.finditRequestsCount}</div>
-              <div className="stat-label">Open FINDit Requests</div>
+              <div className="stat-number">{finditDataAvailable ? stats.finditRequestsCount : '—'}</div>
+              <div className="stat-label">{finditDataAvailable ? t('availability.openRequests') : t('availability.liveData')}</div>
             </div>
             <div className="stat-item">
               <div className="stat-number">2</div>

@@ -1,0 +1,9 @@
+# Locally managed production tunnel configuration. The credentials file is
+# intentionally kept outside the repository in C:\ProgramData\cloudflared.
+tunnel: 38d23175-9257-428f-a40d-f3e0e0d568c7
+credentials-file: C:\ProgramData\cloudflared\38d23175-9257-428f-a40d-f3e0e0d568c7.json
+
+ingress:
+  - hostname: api.rifkando.com
+    service: http://127.0.0.1:5000
+  - service: http_status:404

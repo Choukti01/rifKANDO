@@ -1211,6 +1211,22 @@ db.serialize(() => {
   db.run("UPDATE bookings SET timezone = 'Africa/Casablanca' WHERE timezone IS NULL OR timezone = ''");
   db.run("UPDATE bookings SET confirmation_mode = 'instant' WHERE confirmation_mode IS NULL OR confirmation_mode = ''");
   db.run("UPDATE appointments SET booking_timezone = 'Africa/Casablanca' WHERE booking_timezone IS NULL OR booking_timezone = ''");
+
+  // `CREATE TABLE IF NOT EXISTS` does not evolve an existing local SQLite
+  // table. Keep older development databases compatible before backfilling the
+  // centime mirror below; this is intentionally additive and never changes
+  // existing financial records.
+  const codFulfillmentCompatibilityColumns = [
+    ['remitted_amount', 'REAL'],
+  ];
+  for (const [column, definition] of codFulfillmentCompatibilityColumns) {
+    db.run(`ALTER TABLE cod_fulfillments ADD COLUMN ${column} ${definition}`, (err) => {
+      if (err && !err.message.includes('duplicate column name')) {
+        console.error(`Error adding ${column} to cod_fulfillments:`, err.message);
+      }
+    });
+  }
+
   db.run(`
     CREATE TRIGGER IF NOT EXISTS prevent_audit_log_deletes
     BEFORE DELETE ON audit_logs

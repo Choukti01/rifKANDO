@@ -1,5 +1,61 @@
 # Production deployment
 
+## Current live status
+
+The Netlify frontend is reachable, but the former Render API is suspended and
+cannot serve application requests. Its suspension is a hosting-account state,
+not a frontend defect. Do not point a production frontend at it while it is
+suspended: API failures must be shown as unavailable, never as empty catalog
+data.
+
+The local PostgreSQL cutover must also remain paused until `DATABASE_URL`
+points to an externally reachable PostgreSQL hostname or provider pooler. A
+literal IPv6 address is not a deployable endpoint from this Windows host when
+the network has no IPv6 route. Do not set `DATABASE_ENGINE=postgres` until the
+target-only preflight and migration steps below pass.
+
+## Self-hosted API with Cloudflare Tunnel
+
+This is a temporary availability path while Render is unavailable. It exposes
+the API without opening an inbound router port, but the Windows machine must
+remain powered on, connected, and running the API. It is not horizontal
+scaling; move the API to managed compute before a public-scale launch.
+
+Before creating the tunnel, use a dedicated, non-root data directory and keep
+every value out of Git:
+
+```env
+NODE_ENV=production
+APP_ENV=production
+DATABASE_ENGINE=postgres
+PERSISTENT_STORAGE_ROOT=C:\\rifkando-data
+UPLOADS_DIR=C:\\rifkando-data\\uploads
+CLIENT_URL=https://www.rifkando.com
+ALLOWED_ORIGINS=https://www.rifkando.com,https://rifkando.com
+BACKEND_URL=https://api.rifkando.com
+```
+
+Keep the existing distinct 32+ character `JWT_SECRET`, `SESSION_SECRET`,
+`AUDIT_LOG_SECRET`, and `PHONE_OTP_SECRET`; generate any missing values before
+starting. Leave `SMS_PROVIDER` empty until a real Twilio sender is configured.
+Use the PostgreSQL provider's hostname/pooler URL for `DATABASE_URL`, never a
+raw database IP address.
+
+After the provider endpoint is reachable, run these backend commands in order:
+
+```powershell
+npm run db:postgres:preflight -- --target-only --json
+$env:POSTGRES_MIGRATION_CONFIRM='apply-postgres-schema'; npm run db:postgres:migrate
+npm run db:postgres:preflight -- --target-only --json
+```
+
+Only when the second preflight reports every expected table and the migration
+history is current, start the API with the production environment above. Then
+install and authenticate `cloudflared`, create a named tunnel, map
+`api.rifkando.com` to `http://localhost:5000`, and set Netlify's build-time
+variable to `VITE_API_URL=https://api.rifkando.com/api` before redeploying.
+Never commit a tunnel token, Cloudflare credentials, or any `.env` file.
+
 ## Backend (Render)
 
 The included `render.yaml` provisions the API and mounts a persistent disk at
