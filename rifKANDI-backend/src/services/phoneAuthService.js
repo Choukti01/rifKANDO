@@ -66,6 +66,15 @@ function twilioConfiguration() {
   return { accountSid, authToken, messagingServiceSid, from };
 }
 
+function isPhoneAuthConfigured() {
+  try {
+    twilioConfiguration();
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
 async function sendVerificationCode(phone, code) {
   const config = twilioConfiguration();
   const body = new URLSearchParams({
@@ -102,6 +111,7 @@ module.exports = {
   PhoneAuthError,
   generateCode,
   hashCode,
+  isPhoneAuthConfigured,
   normalizePhoneNumber,
   sendVerificationCode,
   timingSafeCodeMatch,

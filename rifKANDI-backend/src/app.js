@@ -78,6 +78,7 @@ const {
   PhoneAuthError,
   generateCode: generatePhoneCode,
   hashCode: hashPhoneCode,
+  isPhoneAuthConfigured,
   normalizePhoneNumber,
   sendVerificationCode: sendPhoneVerificationCode,
   timingSafeCodeMatch,
@@ -472,9 +473,14 @@ app.patch('/api/orders/:id/status', protect, requireAdmin, validateIdParams('id'
 
 // ==================== AUTH ENDPOINTS ====================
 
-// Legacy verification and password-reset routes remain disabled so the secure
-// registration and login handlers below are the only active local auth flow.
+// Password authentication is deliberately not part of the focused launch.
+// Google and, once an SMS provider is configured, phone-code authentication
+// are the only browser login methods. Keep the legacy routes unreachable even
+// though their historical implementation remains lower in this monolith.
 const disabledPasswordAuthPaths = new Set([
+  '/register',
+  '/verify-email',
+  '/login',
   '/send-verification',
   '/verify-and-register',
   '/resend-verification',
@@ -485,7 +491,7 @@ const disabledPasswordAuthPaths = new Set([
 app.use('/api/auth', (req, res, next) => {
   if (disabledPasswordAuthPaths.has(req.path)) {
     return res.status(410).json({
-      error: 'This legacy authentication endpoint is no longer available.'
+      error: 'Email and password authentication is not available. Continue with Google or a configured phone number.'
     });
   }
   next();
@@ -530,6 +536,11 @@ const hasTrustedBrowserOrigin = (req) => {
   const origin = req.get('origin');
   return !origin || allowedOrigins.has(origin);
 };
+
+const phoneAuthenticationUnavailable = () => new PhoneAuthError(
+  'Phone sign-in is not available yet. Please continue with Google.',
+  503,
+);
 
 const getRow = (sql, parameters = []) => new Promise((resolve, reject) => {
   db.get(sql, parameters, (error, row) => (error ? reject(error) : resolve(row)));
@@ -617,6 +628,7 @@ function respondPhoneAuthError(res, error) {
 
 app.post('/api/auth/phone/register/request-code', authRateLimit, phoneCodeRateLimit, async (req, res) => {
   try {
+    if (!isPhoneAuthConfigured()) throw phoneAuthenticationUnavailable();
     const name = String(req.body?.name || '').trim();
     const phone = normalizePhoneNumber(req.body?.phone);
     if (name.length < 2 || name.length > 120) {
@@ -658,6 +670,7 @@ app.post('/api/auth/phone/register/verify', authRateLimit, async (req, res) => {
 
 app.post('/api/auth/phone/login/request-code', authRateLimit, phoneCodeRateLimit, async (req, res) => {
   try {
+    if (!isPhoneAuthConfigured()) throw phoneAuthenticationUnavailable();
     const phone = normalizePhoneNumber(req.body?.phone);
     const users = await getRows('SELECT id FROM users WHERE phone = ? LIMIT 2', [phone]);
     // A previous development version allowed duplicate phone values. Do not
@@ -675,6 +688,18 @@ app.post('/api/auth/phone/login/request-code', authRateLimit, phoneCodeRateLimit
   } catch (error) {
     return respondPhoneAuthError(res, error);
   }
+});
+
+// The browser uses this to present only authentication methods that can
+// actually complete in the current deployment. It exposes no credentials.
+app.get('/api/auth/methods', (_req, res) => {
+  res.json({
+    success: true,
+    methods: {
+      google: Boolean(String(process.env.GOOGLE_CLIENT_ID || '').trim()),
+      phone: isPhoneAuthConfigured(),
+    },
+  });
 });
 
 app.post('/api/auth/phone/login/verify', authRateLimit, async (req, res) => {

@@ -18,6 +18,7 @@ fsSync.mkdirSync(testDirectory, { recursive: true });
 
 const db = require('../src/config/database');
 const app = require('../src/app');
+const sessionService = require('../src/services/sessionService');
 
 const runStatement = (sql, params = []) => new Promise((resolve, reject) => {
   db.run(sql, params, function onComplete(error) {
@@ -72,22 +73,23 @@ const request = async (port, pathname, { method = 'GET', jar, csrfToken, body, h
 
 const readJson = async (response) => ({ response, body: await response.json() });
 
-const login = async (port, email, password) => {
+const establishSession = async (userId) => {
   const jar = new Map();
-  const { response, body } = await readJson(await request(port, '/api/auth/login', {
-    method: 'POST',
-    body: { email, password },
-  }));
-  assert.equal(response.status, 200, 'login must succeed');
-  assert.equal(body.token, undefined, 'login must never return a browser-readable bearer token');
-  assert.equal(typeof body.csrfToken, 'string');
-  assert.equal(body.csrfToken.length >= 32, true);
-  updateCookieJar(jar, response);
-  const cookies = readSetCookies(response).join('\n');
-  assert.match(cookies, /rifkando_access=.*HttpOnly/i);
-  assert.match(cookies, /rifkando_refresh=.*HttpOnly/i);
-  assert.match(cookies, /rifkando_csrf=/i);
-  return { jar, csrfToken: body.csrfToken };
+  const cookieOptions = new Map();
+  const session = await sessionService.createSession({ userId, userAgent: 'rifkando-session-smoke-test', ip: '127.0.0.1' });
+  sessionService.setSessionCookies({
+    cookie(name, value, options) {
+      jar.set(name, value);
+      cookieOptions.set(name, options);
+    },
+  }, session);
+  assert.equal(typeof jar.get('rifkando_access'), 'string');
+  assert.equal(typeof jar.get('rifkando_refresh'), 'string');
+  assert.equal(typeof jar.get('rifkando_csrf'), 'string');
+  assert.equal(cookieOptions.get('rifkando_access').httpOnly, true);
+  assert.equal(cookieOptions.get('rifkando_refresh').httpOnly, true);
+  assert.equal(cookieOptions.get('rifkando_csrf').httpOnly, false);
+  return { jar, csrfToken: session.csrfToken };
 };
 
 const run = async () => {
@@ -101,22 +103,37 @@ const run = async () => {
     ['Admin Test User', 'admin-test@example.test', 'admin'],
     ['Super Admin Test User', 'super-admin-test@example.test', 'super_admin'],
   ];
-  await Promise.all(testUsers.map(([name, email, role]) => runStatement(
-    'INSERT INTO users (name, email, password, role, is_verified) VALUES (?, ?, ?, ?, 1)',
-    [name, email, passwordHash, role]
-  )));
+  const userIds = {};
+  for (const [name, email, role] of testUsers) {
+    const created = await runStatement(
+      'INSERT INTO users (name, email, password, role, is_verified) VALUES (?, ?, ?, ?, 1)',
+      [name, email, passwordHash, role]
+    );
+    userIds[email] = created.lastID;
+  }
 
   const server = await startServer();
   const port = server.address().port;
   try {
-    const session = await login(port, 'session-test@example.test', sessionPassword);
+    const passwordLogin = await request(port, '/api/auth/login', {
+      method: 'POST',
+      body: { email: 'session-test@example.test', password: sessionPassword },
+    });
+    assert.equal(passwordLogin.status, 410, 'password login must remain disabled at launch');
+    const passwordRegistration = await request(port, '/api/auth/register', {
+      method: 'POST',
+      body: { name: 'New User', email: 'new-user@example.test', password: sessionPassword },
+    });
+    assert.equal(passwordRegistration.status, 410, 'password registration must remain disabled at launch');
+
+    const session = await establishSession(userIds['session-test@example.test']);
 
     const me = await readJson(await request(port, '/api/auth/me', { jar: session.jar }));
     assert.equal(me.response.status, 200, 'access cookie must authenticate /auth/me');
     assert.equal(me.body.data.user.email, 'session-test@example.test');
     assert.equal(me.body.csrfToken, session.csrfToken, 'CSRF token is available only through the authenticated session');
 
-    const otherDevice = await login(port, 'session-test@example.test', sessionPassword);
+    const otherDevice = await establishSession(userIds['session-test@example.test']);
     const updatedPassword = 'an even stronger horse battery staple';
     const passwordChange = await request(port, '/api/users/update-password', {
       method: 'PATCH',
@@ -149,7 +166,7 @@ const run = async () => {
     const loggedOut = await request(port, '/api/auth/me', { jar: session.jar });
     assert.equal(loggedOut.status, 401, 'revoked sessions must not authenticate');
 
-    const rotatingSession = await login(port, 'session-test@example.test', sessionPassword);
+    const rotatingSession = await establishSession(userIds['session-test@example.test']);
     const oldRefreshToken = rotatingSession.jar.get('rifkando_refresh');
     const refresh = await readJson(await request(port, '/api/auth/refresh', {
       method: 'POST',
@@ -177,10 +194,10 @@ const run = async () => {
     assert.equal(preflight.headers.get('access-control-allow-credentials'), 'true');
     assert.match(preflight.headers.get('access-control-allow-headers') || '', /X-CSRF-Token/i);
 
-    const buyer = await login(port, 'session-test@example.test', sessionPassword);
-    const finance = await login(port, 'finance-test@example.test', seedPassword);
-    const admin = await login(port, 'admin-test@example.test', seedPassword);
-    const superAdmin = await login(port, 'super-admin-test@example.test', seedPassword);
+    const buyer = await establishSession(userIds['session-test@example.test']);
+    const finance = await establishSession(userIds['finance-test@example.test']);
+    const admin = await establishSession(userIds['admin-test@example.test']);
+    const superAdmin = await establishSession(userIds['super-admin-test@example.test']);
 
     const buyerDeniedFinance = await request(port, '/api/admin/withdrawals', { jar: buyer.jar });
     assert.equal(buyerDeniedFinance.status, 403, 'buyers must not access finance operations');

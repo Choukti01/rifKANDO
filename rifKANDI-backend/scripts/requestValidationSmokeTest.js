@@ -19,6 +19,7 @@ fsSync.mkdirSync(testDirectory, { recursive: true });
 
 const db = require('../src/config/database');
 const app = require('../src/app');
+const { establishTestSessionForEmail } = require('./helpers/testSession');
 
 const runStatement = (sql, params = []) => new Promise((resolve, reject) => {
   db.run(sql, params, function onComplete(error) {
@@ -58,12 +59,7 @@ const request = async (port, pathname, { method = 'GET', cookies = [], csrfToken
   });
 };
 
-const login = async (port, email, password) => {
-  const response = await request(port, '/api/auth/login', { method: 'POST', body: { email, password } });
-  const body = await response.json();
-  assert.equal(response.status, 200, 'test login must succeed');
-  return { cookies: cookiesFrom(response), csrfToken: body.csrfToken };
-};
+const login = async (_port, email, _password) => establishTestSessionForEmail(db, email);
 
 const assertValidationError = async (response, message) => {
   assert.equal(response.status, 422, message);

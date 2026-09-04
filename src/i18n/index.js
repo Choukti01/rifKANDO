@@ -395,6 +395,18 @@ Object.assign(resources.ar.translation, {
   },
 });
 
+Object.assign(resources.en.translation.auth, {
+  googleOnlyLead: 'Sign in securely with your Google account.',
+  googleOnlyCreateLead: 'Create your account securely with Google.',
+  phoneUnavailable: 'Phone sign-in will appear here once SMS delivery is available.',
+});
+
+Object.assign(resources.ar.translation.auth, {
+  googleOnlyLead: 'سجّل الدخول بأمان باستخدام حساب Google.',
+  googleOnlyCreateLead: 'أنشئ حسابك بأمان باستخدام Google.',
+  phoneUnavailable: 'سيظهر تسجيل الدخول بالهاتف هنا عند توفر إرسال رسائل SMS.',
+});
+
 const replaceArabicFinditBrand = (value) => {
   if (typeof value === 'string') return value.replaceAll('FINDit', resources.ar.translation.findit.navigation);
   if (value && typeof value === 'object') Object.values(value).forEach(replaceArabicFinditBrand);
