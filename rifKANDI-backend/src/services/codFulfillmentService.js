@@ -93,11 +93,12 @@ class CodFulfillmentService {
 
   static async cancelFinancialSplitsIfTerminalTx(tx, orderId) {
     const active = await tx.get(
-      WalletService.lockForUpdate(`
-        SELECT COUNT(*) AS count
-        FROM cod_fulfillments
-        WHERE order_id = ? AND settlement_status NOT IN ('settled', 'void')
-      `),
+      // PostgreSQL cannot apply FOR UPDATE to an aggregate query. This
+      // transaction already runs at SERIALIZABLE isolation, so the aggregate
+      // read remains safe and concurrent state changes cause a retry.
+      `SELECT COUNT(*) AS count
+       FROM cod_fulfillments
+       WHERE order_id = ? AND settlement_status NOT IN ('settled', 'void')`,
       [orderId]
     );
     if (Number(active?.count || 0) !== 0) return;
