@@ -1647,8 +1647,9 @@ app.post('/api/cart', protect, validateCartItem, (req, res) => {
       db.run(`
         INSERT INTO cart (user_id, product_id, quantity)
         VALUES (?, ?, ?)
-        ON CONFLICT(user_id, product_id) DO UPDATE SET quantity = quantity + ?
-      `, [req.user.id, product_id, quantity, quantity], function onCartUpsert(insertError) {
+        ON CONFLICT(user_id, product_id)
+        DO UPDATE SET quantity = cart.quantity + EXCLUDED.quantity
+      `, [req.user.id, product_id, quantity], function onCartUpsert(insertError) {
         if (insertError) {
           res.status(400).json({ error: insertError.message });
         } else {
