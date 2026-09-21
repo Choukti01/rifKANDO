@@ -429,11 +429,12 @@ class CodFulfillmentService {
       );
 
       const unsettled = await tx.get(
-        WalletService.lockForUpdate(`
-          SELECT COUNT(*) AS count
-          FROM cod_fulfillments
-          WHERE order_id = ? AND settlement_status != 'settled'
-        `),
+        // Aggregate rows cannot be locked with FOR UPDATE in PostgreSQL.
+        // This surrounding SERIALIZABLE transaction retries if a concurrent
+        // fulfilment state change invalidates the aggregate result.
+        `SELECT COUNT(*) AS count
+         FROM cod_fulfillments
+         WHERE order_id = ? AND settlement_status != 'settled'`,
         [fulfillment.order_id]
       );
       if (Number(unsettled?.count || 0) === 0) {
