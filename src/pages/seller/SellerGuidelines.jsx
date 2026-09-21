@@ -8,7 +8,7 @@ import {
   ShieldCheckIcon,
   UserPlusIcon,
 } from '@heroicons/react/24/outline'
-import { formatCommissionRate, WITHDRAWAL_HOLD_DAYS } from '../../config/commissionPolicy'
+import { formatCommissionRate } from '../../config/commissionPolicy'
 
 const feeCategories = [
   { type: 'product', label: 'Physical products' },
@@ -91,8 +91,8 @@ const SellerGuidelines = () => {
             <div className="seller-guide-section-heading">
               <span>03</span>
               <div>
-                <h2>Fees and your rifKANDO wallet</h2>
-                <p>Commission is calculated by the category of the completed sale and recorded before seller funds enter the wallet.</p>
+                <h2>Fees and COD settlement</h2>
+                <p>Commission is calculated only from the delivered item amount. Delivery fees are separate and are never part of the rifKANDO commission.</p>
               </div>
             </div>
             <div className="seller-guide-fee-grid">
@@ -105,7 +105,7 @@ const SellerGuidelines = () => {
             </div>
             <div className="seller-guide-wallet-note">
               <CurrencyDollarIcon aria-hidden="true" />
-              <p>For COD orders, confirm the order and add the carrier tracking number. rifKANDO credits your wallet after the carrier collection and remittance are reconciled. New sellers can request a withdrawal after {WITHDRAWAL_HOLD_DAYS} days.</p>
+              <p>For COD orders, confirm the order and add your carrier tracking number. After rifKANDO confirms delivery, pay the 5% commission using the reference in your order workspace within three days. Unpaid overdue commissions stop new sales until finance verifies payment.</p>
             </div>
           </section>
 

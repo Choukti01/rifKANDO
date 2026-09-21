@@ -93,6 +93,7 @@ db.serialize(() => {
       description TEXT,
       price REAL NOT NULL,
       old_price REAL,
+      delivery_fee REAL NOT NULL DEFAULT 50,
       seller_id INTEGER,
       image TEXT,
       category TEXT,
@@ -295,6 +296,7 @@ db.serialize(() => {
   `, (err) => {
     if (err) console.error('Error creating unique user phone index:', err.message);
   });
+  db.run("ALTER TABLE products ADD COLUMN delivery_fee REAL NOT NULL DEFAULT 50", () => {});
 
   // Password resets table
   db.run(`
@@ -881,6 +883,14 @@ db.serialize(() => {
       collection_note TEXT,
       settlement_note TEXT,
       exception_note TEXT,
+      commission_payment_status TEXT NOT NULL DEFAULT 'not_due',
+      commission_reference TEXT,
+      commission_due_at DATETIME,
+      commission_payment_reference TEXT,
+      commission_payment_note TEXT,
+      commission_submitted_at DATETIME,
+      commission_verified_at DATETIME,
+      commission_verified_by INTEGER,
       confirmed_at DATETIME,
       dispatched_at DATETIME,
       delivered_at DATETIME,
@@ -1218,6 +1228,14 @@ db.serialize(() => {
   // existing financial records.
   const codFulfillmentCompatibilityColumns = [
     ['remitted_amount', 'REAL'],
+    ['commission_payment_status', "TEXT NOT NULL DEFAULT 'not_due'"],
+    ['commission_reference', 'TEXT'],
+    ['commission_due_at', 'DATETIME'],
+    ['commission_payment_reference', 'TEXT'],
+    ['commission_payment_note', 'TEXT'],
+    ['commission_submitted_at', 'DATETIME'],
+    ['commission_verified_at', 'DATETIME'],
+    ['commission_verified_by', 'INTEGER'],
   ];
   for (const [column, definition] of codFulfillmentCompatibilityColumns) {
     db.run(`ALTER TABLE cod_fulfillments ADD COLUMN ${column} ${definition}`, (err) => {
@@ -1241,6 +1259,7 @@ db.serialize(() => {
   const minorColumns = [
     ['products', 'price_minor', 'price'],
     ['products', 'old_price_minor', 'old_price'],
+    ['products', 'delivery_fee_minor', 'delivery_fee'],
     ['orders', 'total_minor', 'total'],
     ['order_items', 'price_minor', 'price'],
     ['courses', 'price_minor', 'price'],
@@ -1335,6 +1354,7 @@ db.serialize(() => {
     ['idx_cod_fulfillments_finance', 'cod_fulfillments(settlement_status, status, created_at ASC)'],
     ['idx_cod_fulfillments_order', 'cod_fulfillments(order_id, seller_id)'],
     ['idx_cod_fulfillments_tracking', 'cod_fulfillments(carrier_name, tracking_number)'],
+    ['idx_cod_fulfillments_commission_due', 'cod_fulfillments(seller_id, commission_payment_status, commission_due_at)'],
   ];
   for (const [name, definition] of queryIndexes) {
     db.run(`CREATE INDEX IF NOT EXISTS ${name} ON ${definition}`, (err) => {
@@ -1347,6 +1367,14 @@ db.serialize(() => {
      WHERE carrier_collection_reference IS NOT NULL`,
     (err) => {
       if (err) console.error('Error creating COD collection reference index:', err.message);
+    }
+  );
+  db.run(
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_cod_fulfillments_commission_payment_reference
+     ON cod_fulfillments(commission_payment_reference)
+     WHERE commission_payment_reference IS NOT NULL`,
+    (err) => {
+      if (err) console.error('Error creating COD commission payment reference index:', err.message);
     }
   );
   db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_appointments_idempotency_key ON appointments(idempotency_key)', (err) => {

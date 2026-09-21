@@ -5,9 +5,9 @@ import useCart from '../../hooks/useCart'
 import MarketplaceImage from '../../components/common/MarketplaceImage'
 
 const CartPage = () => {
-  const { cart, removeFromCart, updateQuantity, getCartTotal, getCartCount, isEmpty } = useCart()
+  const { cart, removeFromCart, updateQuantity, getCartTotal, getCartShipping, getCartCount, isEmpty } = useCart()
   const subtotal = getCartTotal()
-  const shipping = subtotal > 500 ? 0 : 50
+  const shipping = getCartShipping()
   const total = subtotal + shipping
 
   const getProductImage = (item) => {
@@ -112,7 +112,7 @@ const CartPage = () => {
               <span>Total</span>
               <span>{formatAmount(total)}</span>
             </div>
-            {shipping > 0 && <p className="shipping-note">Free delivery applies to orders over 500 MAD.</p>}
+            <p className="shipping-note">Delivery is set by each seller and confirmed in your COD order.</p>
             <Link to="/checkout" className="checkout-link">Continue to checkout</Link>
             <p className="cart-secure-note"><ShieldCheckIcon aria-hidden="true" />Delivery and payment details are reviewed at checkout.</p>
           </div>

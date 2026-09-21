@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import {
   ArrowRightIcon,
   CameraIcon,
@@ -26,15 +27,20 @@ const FindItPage = () => {
   const { t, i18n } = useTranslation();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [loadError, setLoadError] = useState(null);
   const [retryKey, setRetryKey] = useState(0);
+  const [pagination, setPagination] = useState({ page: 1, hasNextPage: false });
 
   useEffect(() => {
     let current = true;
 
     getFinditRequests({ page: 1, limit: 24 })
       .then((response) => {
-        if (current) setRequests(response.data.requests || []);
+        if (current) {
+          setRequests(response.data.requests || []);
+          setPagination(response.data.pagination || { page: 1, hasNextPage: false });
+        }
       })
       .catch((error) => {
         if (current) {
@@ -55,6 +61,24 @@ const FindItPage = () => {
     setLoading(true);
     setLoadError(null);
     setRetryKey((current) => current + 1);
+  };
+
+  const loadMore = async () => {
+    if (loadingMore || !pagination.hasNextPage) return;
+    setLoadingMore(true);
+    try {
+      const response = await getFinditRequests({ page: Number(pagination.page || 1) + 1, limit: 24 });
+      const nextRequests = response.data.requests || [];
+      setRequests((current) => {
+        const seen = new Set(current.map((request) => request.id));
+        return [...current, ...nextRequests.filter((request) => !seen.has(request.id))];
+      });
+      setPagination(response.data.pagination || { page: Number(pagination.page || 1) + 1, hasNextPage: false });
+    } catch {
+      toast.error(t('findit.public.loadMoreError'));
+    } finally {
+      setLoadingMore(false);
+    }
   };
 
   const dashboardPath = isAuthenticated ? '/findit/dashboard' : '/login';
@@ -156,6 +180,13 @@ const FindItPage = () => {
               ))}
             </div>
           )}
+          {!loading && !loadError && pagination.hasNextPage && (
+            <div className="findit-load-more">
+              <button type="button" onClick={loadMore} disabled={loadingMore}>
+                {loadingMore ? t('findit.public.loadingMore') : t('findit.public.loadMore')}
+              </button>
+            </div>
+          )}
         </section>
       </div>
 
@@ -211,6 +242,7 @@ const FindItPage = () => {
         .findit-empty h2 { color: var(--color-brand-ink); font-size: 1.2rem; margin: .6rem 0 .3rem; }
         .findit-empty p { line-height: 1.55; margin: 0 auto 1rem; max-width: 31rem; }
         .findit-empty a { background: var(--color-brand-ink); border-radius: .6rem; color: #fff; display: inline-block; font-size: .8rem; font-weight: 800; padding: .68rem .82rem; text-decoration: none; }
+        .findit-load-more { display:flex; justify-content:center; margin-top:1.35rem; }.findit-load-more button { background:#fff; border:1px solid #cbdbe7; border-radius:.65rem; color:var(--color-brand-ink); cursor:pointer; font:inherit; font-size:.84rem; font-weight:800; min-height:44px; padding:.68rem 1rem; }.findit-load-more button:hover:not(:disabled),.findit-load-more button:focus-visible { border-color:var(--color-brand-blue); box-shadow:0 0 0 3px rgba(65,173,255,.16); outline:none; }.findit-load-more button:disabled { cursor:not-allowed; opacity:.6; }
         @media (max-width: 900px) { .findit-hero { grid-template-columns: 1fr; } .findit-process-card { grid-template-columns: auto minmax(0, 1fr); } .findit-process-card ul { grid-column: 1 / -1; } .findit-request-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
         @media (max-width: 640px) { .findit-page { padding-top: 1rem; } .findit-hero { border-radius: .85rem; padding: 1.2rem; } .findit-hero h1 { font-size: 2.2rem; } .findit-hero-actions, .findit-list-heading { align-items: stretch; flex-direction: column; } .findit-primary-action, .findit-secondary-action, .findit-dashboard-link { justify-content: center; } .findit-list-heading { align-items: flex-start; } .findit-request-grid { grid-template-columns: 1fr; } .findit-process-card { display: block; } .findit-process-card > div + div { margin-top: .75rem; } .findit-process-card ul { margin-top: .85rem; } }
       `}</style>

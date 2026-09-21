@@ -24,18 +24,28 @@ const createProductRoutes = ({
   const attachMedia = (products, done) => {
     if (!products.length) return done(products);
 
-    let completed = 0;
-    products.forEach((product) => {
-      db.all(
-        'SELECT * FROM product_media WHERE product_id = ? ORDER BY display_order, id',
-        [product.id],
-        (error, media) => {
-          if (!error) product.media = media || [];
-          completed += 1;
-          if (completed === products.length) done(products);
-        },
-      );
-    });
+    // Fetch media for one catalogue page in a single query. The former
+    // per-product queries became an N+1 bottleneck as listings increased.
+    const productIds = products.map((product) => product.id);
+    db.all(
+      `SELECT * FROM product_media
+       WHERE product_id IN (${productIds.map(() => '?').join(', ')})
+       ORDER BY product_id, display_order, id`,
+      productIds,
+      (error, media) => {
+        if (error) return done(products.map((product) => ({ ...product, media: [] })));
+        const mediaByProduct = new Map();
+        for (const item of media || []) {
+          const collection = mediaByProduct.get(item.product_id) || [];
+          collection.push(item);
+          mediaByProduct.set(item.product_id, collection);
+        }
+        return done(products.map((product) => ({
+          ...product,
+          media: mediaByProduct.get(product.id) || [],
+        })));
+      },
+    );
   };
 
   router.get('/products', validateProductQuery, (req, res) => {
@@ -49,7 +59,14 @@ const createProductRoutes = ({
     const minRating = req.query.minRating ? parseFloat(req.query.minRating) : null;
     const sortBy = req.query.sortBy || 'newest';
     const condition = req.query.condition || '';
-    let whereClause = "p.status = 'published'";
+    // A seller with an overdue, verified-delivery COD commission cannot accept
+    // new sales. This is enforced in the catalogue and again at checkout.
+    let whereClause = `p.status = 'published' AND NOT EXISTS (
+      SELECT 1 FROM cod_fulfillments debt
+      WHERE debt.seller_id = p.seller_id
+        AND debt.commission_payment_status = 'due'
+        AND debt.commission_due_at <= CURRENT_TIMESTAMP
+    )`;
     const params = [];
 
     if (condition) {
@@ -118,7 +135,13 @@ const createProductRoutes = ({
       `SELECT p.*, u.name as seller_name, u.id as seller_id
        FROM products p
        JOIN users u ON p.seller_id = u.id
-       WHERE p.id = ?`,
+       WHERE p.id = ? AND p.status = 'published'
+         AND NOT EXISTS (
+           SELECT 1 FROM cod_fulfillments debt
+           WHERE debt.seller_id = p.seller_id
+             AND debt.commission_payment_status = 'due'
+             AND debt.commission_due_at <= CURRENT_TIMESTAMP
+         )`,
       [req.params.id],
       (error, product) => {
         if (error) return res.status(500).json({ error: error.message });
@@ -131,14 +154,15 @@ const createProductRoutes = ({
   });
 
   router.post('/products', protect, requireSeller, validateProductCreate, (req, res) => {
-    const { title, description, price, old_price: oldPrice, category, stock, media, condition } = req.body;
+    const { title, description, price, old_price: oldPrice, delivery_fee: deliveryFee, category, stock, media, condition } = req.body;
     const priceMinor = Money.toMinor(price);
     const oldPriceMinor = oldPrice === undefined ? null : Money.toMinor(oldPrice);
+    const deliveryFeeMinor = Money.toMinor(deliveryFee, { allowZero: true });
 
     db.run(
       `INSERT INTO products
-       (title, description, price, old_price, price_minor, old_price_minor, category, stock, seller_id, condition)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (title, description, price, old_price, price_minor, old_price_minor, delivery_fee, delivery_fee_minor, category, stock, seller_id, condition)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         title,
         description,
@@ -146,6 +170,8 @@ const createProductRoutes = ({
         oldPriceMinor === null ? null : Money.fromMinor(oldPriceMinor),
         priceMinor,
         oldPriceMinor,
+        Money.fromMinor(deliveryFeeMinor),
+        deliveryFeeMinor,
         category,
         stock,
         req.user.id,
@@ -177,9 +203,10 @@ const createProductRoutes = ({
   });
 
   router.put('/products/:id', protect, requireSeller, validateIdParams('id'), validateProductUpdate, (req, res) => {
-    const { title, description, price, old_price: oldPrice, category, stock, media, condition } = req.body;
+    const { title, description, price, old_price: oldPrice, delivery_fee: deliveryFee, category, stock, media, condition } = req.body;
     const priceMinor = price === undefined ? undefined : Money.toMinor(price);
     const oldPriceMinor = oldPrice === undefined ? undefined : Money.toMinor(oldPrice);
+    const deliveryFeeMinor = deliveryFee === undefined ? undefined : Money.toMinor(deliveryFee, { allowZero: true });
 
     db.get('SELECT seller_id FROM products WHERE id = ?', [req.params.id], (lookupError, product) => {
       if (lookupError || !product) return res.status(404).json({ error: 'Product not found' });
@@ -195,6 +222,8 @@ const createProductRoutes = ({
            old_price = COALESCE(?, old_price),
            price_minor = COALESCE(?, price_minor),
            old_price_minor = COALESCE(?, old_price_minor),
+           delivery_fee = COALESCE(?, delivery_fee),
+           delivery_fee_minor = COALESCE(?, delivery_fee_minor),
            category = COALESCE(?, category),
            stock = COALESCE(?, stock),
            condition = COALESCE(?, condition)
@@ -206,6 +235,8 @@ const createProductRoutes = ({
           oldPriceMinor === undefined ? undefined : Money.fromMinor(oldPriceMinor),
           priceMinor,
           oldPriceMinor,
+          deliveryFeeMinor === undefined ? undefined : Money.fromMinor(deliveryFeeMinor),
+          deliveryFeeMinor,
           category,
           stock,
           condition,
@@ -213,16 +244,31 @@ const createProductRoutes = ({
         ],
         (updateError) => {
           if (updateError) return res.status(400).json({ error: updateError.message });
-          db.run('DELETE FROM product_media WHERE product_id = ?', [req.params.id], () => {
-            if (media && media.length) {
-              media.forEach((item, index) => {
-                db.run(
-                  'INSERT INTO product_media (product_id, media_type, media_url, display_order, is_primary) VALUES (?, ?, ?, ?, ?)',
-                  [req.params.id, item.type, item.url, index, index === 0 ? 1 : 0],
-                );
-              });
-            }
-            res.json({ success: true, message: 'Product updated' });
+          // Omitted media means a normal partial edit. Do not erase existing
+          // images unless the seller explicitly supplied a replacement list.
+          if (media === undefined) return res.json({ success: true, message: 'Product updated' });
+
+          db.run('DELETE FROM product_media WHERE product_id = ?', [req.params.id], (deleteError) => {
+            if (deleteError) return res.status(500).json({ error: 'Unable to update product media.' });
+            if (!media.length) return res.json({ success: true, message: 'Product updated' });
+
+            let inserted = 0;
+            let failed = false;
+            media.forEach((item, index) => {
+              db.run(
+                'INSERT INTO product_media (product_id, media_type, media_url, display_order, is_primary) VALUES (?, ?, ?, ?, ?)',
+                [req.params.id, item.type, item.url, index, index === 0 ? 1 : 0],
+                (mediaError) => {
+                  if (failed) return;
+                  if (mediaError) {
+                    failed = true;
+                    return res.status(500).json({ error: 'Unable to save product media.' });
+                  }
+                  inserted += 1;
+                  if (inserted === media.length) return res.json({ success: true, message: 'Product updated' });
+                },
+              );
+            });
           });
         },
       );
@@ -281,7 +327,7 @@ const createProductRoutes = ({
     }
 
     db.get(
-      'SELECT * FROM order_items oi JOIN orders o ON oi.order_id = o.id WHERE oi.product_id = ? AND o.user_id = ?',
+      "SELECT * FROM order_items oi JOIN orders o ON oi.order_id = o.id WHERE oi.product_id = ? AND o.user_id = ? AND o.status = 'delivered'",
       [productId, req.user.id],
       (purchaseError, purchase) => {
         if (purchaseError || !purchase) {

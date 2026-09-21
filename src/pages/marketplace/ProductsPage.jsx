@@ -28,7 +28,6 @@ const ProductsPage = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalProducts, setTotalProducts] = useState(0);
   const [searchInput, setSearchInput] = useState('');
-  const [verifiedOnly, setVerifiedOnly] = useState(false);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [loadError, setLoadError] = useState(null);
   const [retryKey, setRetryKey] = useState(0);
@@ -45,11 +44,10 @@ const ProductsPage = () => {
     params.append('page', currentPage);
     params.append('limit', 20);
     params.append('condition', activeCondition);
-    if (verifiedOnly) params.append('verified', 'true');
 
     const response = await api.get(`/products?${params.toString()}`);
     return response.data;
-  }, [activeCondition, currentPage, maxPrice, minPrice, searchTerm, selectedCategory, sortBy, verifiedOnly]);
+  }, [activeCondition, currentPage, maxPrice, minPrice, searchTerm, selectedCategory, sortBy]);
 
   useEffect(() => {
     let isCurrent = true;
@@ -97,8 +95,8 @@ const conditionLabels = {
   joutiya: 'Joutiya (Haggle)'
 };
 
-  const hasActiveFilters = Boolean(searchTerm || selectedCategory || minPrice || maxPrice || verifiedOnly);
-  const activeFilterCount = [searchTerm, selectedCategory, minPrice, maxPrice, verifiedOnly].filter(Boolean).length;
+  const hasActiveFilters = Boolean(searchTerm || selectedCategory || minPrice || maxPrice);
+  const activeFilterCount = [searchTerm, selectedCategory, minPrice, maxPrice].filter(Boolean).length;
 
   const clearFilters = () => {
     setSearchInput('');
@@ -106,7 +104,6 @@ const conditionLabels = {
     setSelectedCategory('');
     setMinPrice('');
     setMaxPrice('');
-    setVerifiedOnly(false);
     setCurrentPage(1);
     setShowMobileFilters(false);
   };
@@ -160,12 +157,6 @@ const conditionLabels = {
                 <option value="popular">Most Popular</option>
               </select>
             </div>
-            <div className="filter-verified">
-              <label>
-                <input type="checkbox" checked={verifiedOnly} onChange={(e) => { setVerifiedOnly(e.target.checked); setCurrentPage(1); }} />
-                <span>Verified sellers only</span>
-              </label>
-            </div>
           </div>
           {hasActiveFilters && (
             <div className="active-filters" aria-label="Active filters">
@@ -173,7 +164,6 @@ const conditionLabels = {
               {selectedCategory && <button type="button" className="filter-chip" onClick={() => { setSelectedCategory(''); setCurrentPage(1); }}>{selectedCategory} <span aria-hidden="true">×</span></button>}
               {minPrice && <button type="button" className="filter-chip" onClick={() => { setMinPrice(''); setCurrentPage(1); }}>From {minPrice} MAD <span aria-hidden="true">×</span></button>}
               {maxPrice && <button type="button" className="filter-chip" onClick={() => { setMaxPrice(''); setCurrentPage(1); }}>Up to {maxPrice} MAD <span aria-hidden="true">×</span></button>}
-              {verifiedOnly && <button type="button" className="filter-chip" onClick={() => { setVerifiedOnly(false); setCurrentPage(1); }}>Verified sellers <span aria-hidden="true">×</span></button>}
             </div>
           )}
           {!loadError && <div className="results-count" aria-live="polite">{totalProducts} products found{hasActiveFilters ? ` with ${activeFilterCount} active filter${activeFilterCount === 1 ? '' : 's'}` : ''}</div>}

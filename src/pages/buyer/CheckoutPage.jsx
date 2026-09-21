@@ -9,7 +9,7 @@ import toast from 'react-hot-toast'
 
 const CheckoutPage = () => {
   const navigate = useNavigate()
-  const { cart, getCartTotal, clearCart } = useCart()
+  const { cart, getCartTotal, getCartShipping, clearCart } = useCart()
   const { user } = useAuth()
   const [loading, setLoading] = useState(false)
   const checkoutRequestIdRef = useRef(null)
@@ -27,7 +27,7 @@ const CheckoutPage = () => {
   })
 
   const subtotal = getCartTotal()
-  const shipping = subtotal > 500 ? 0 : 50
+  const shipping = getCartShipping()
   const total = subtotal + shipping
   const requiredAddressFields = ['fullName', 'email', 'phone', 'address', 'city']
   const formatAmount = (amount) => `${Number(amount || 0).toLocaleString()} MAD`

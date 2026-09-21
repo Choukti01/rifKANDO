@@ -5,9 +5,9 @@ import api from '../../services/api';
 const money = (value) => `${Number(value || 0).toLocaleString()} MAD`;
 
 const stageLabel = (item) => ({
-  awaiting_delivery: item.status === 'shipped' ? 'Awaiting carrier collection' : 'In fulfilment',
-  awaiting_remittance: 'Collection recorded, reconcile remittance',
-  settled: 'Settled to seller wallet',
+  awaiting_delivery: item.status === 'shipped' ? 'Awaiting delivery confirmation' : 'In fulfilment',
+  awaiting_remittance: item.commission_payment_status === 'submitted' ? 'Commission awaiting bank verification' : 'Commission due from seller',
+  settled: 'Commission verified',
   void: 'Voided',
 }[item.settlement_status] || item.settlement_status);
 
@@ -48,12 +48,7 @@ const CODReconciliation = () => {
     return () => { isCurrent = false; };
   }, []);
 
-  const formFor = (item) => forms[item.fulfillment_id] || {
-    collectedAmount: String(item.expected_cod_amount || ''),
-    carrierDeliveryFee: String(item.customer_delivery_fee || 0),
-    carrierReturnFee: '0',
-    remittedAmount: String(Math.max(0, Number(item.expected_cod_amount || 0) - Number(item.carrier_delivery_fee ?? item.customer_delivery_fee ?? 0))),
-  };
+  const formFor = (item) => forms[item.fulfillment_id] || {};
 
   const updateForm = (item, field, value) => {
     const id = item.fulfillment_id;
@@ -68,22 +63,12 @@ const CODReconciliation = () => {
     const id = item.fulfillment_id;
     let path;
     let payload;
-    if (action === 'collection') {
-      path = `/admin/cod-fulfillments/${id}/record-collection`;
-      payload = {
-        carrierReference: form.carrierReference || '',
-        collectedAmount: Number(form.collectedAmount),
-        carrierDeliveryFee: Number(form.carrierDeliveryFee),
-        carrierReturnFee: Number(form.carrierReturnFee),
-        note: form.collectionNote || '',
-      };
-    } else if (action === 'settle') {
-      path = `/admin/cod-fulfillments/${id}/settle`;
-      payload = {
-        settlementReference: form.settlementReference || '',
-        remittedAmount: Number(form.remittedAmount),
-        note: form.settlementNote || '',
-      };
+    if (action === 'delivery') {
+      path = `/admin/cod-fulfillments/${id}/confirm-delivery`;
+      payload = { note: form.deliveryNote || '' };
+    } else if (action === 'verify') {
+      path = `/admin/cod-fulfillments/${id}/verify-commission`;
+      payload = { note: form.verificationNote || '' };
     } else {
       path = `/admin/cod-fulfillments/${id}/exception`;
       payload = { status: form.exceptionStatus || 'refused', note: form.exceptionNote || '' };
@@ -92,7 +77,7 @@ const CODReconciliation = () => {
     setProcessing(`${id}:${action}`);
     try {
       await api.post(path, payload);
-      toast.success(action === 'collection' ? 'Carrier collection recorded.' : action === 'settle' ? 'Remittance reconciled and seller credited.' : 'Carrier exception recorded.');
+      toast.success(action === 'delivery' ? 'Delivery confirmed and commission invoice created.' : action === 'verify' ? 'Attijari commission payment verified.' : 'Carrier exception recorded.');
       await loadFulfillments();
     } catch (error) {
       toast.error(error.response?.data?.error || 'The financial record could not be updated.');
@@ -109,7 +94,7 @@ const CODReconciliation = () => {
         <div>
           <span>Finance control</span>
           <h1>COD reconciliation</h1>
-          <p>Credit a seller only after a carrier collection and its matching remittance are both recorded.</p>
+          <p>For seller-managed COD, confirm carrier delivery first. The seller then pays rifKANDO's 5% commission directly; verify it only against your real Attijari transaction.</p>
         </div>
         <button type="button" onClick={() => void loadFulfillments()}>Refresh</button>
       </header>
@@ -120,11 +105,12 @@ const CODReconciliation = () => {
         <div className="cod-finance__list">
           {fulfillments.map((item) => {
             const form = formFor(item);
-            const collectionBusy = processing === `${item.fulfillment_id}:collection`;
-            const settlementBusy = processing === `${item.fulfillment_id}:settle`;
+            const deliveryBusy = processing === `${item.fulfillment_id}:delivery`;
+            const verifyBusy = processing === `${item.fulfillment_id}:verify`;
             const exceptionBusy = processing === `${item.fulfillment_id}:exception`;
             const isShipped = item.status === 'shipped';
-            const awaitingRemittance = item.status === 'delivered' && item.settlement_status === 'awaiting_remittance';
+            const commissionDue = item.status === 'delivered' && item.commission_payment_status === 'due';
+            const commissionSubmitted = item.status === 'delivered' && item.commission_payment_status === 'submitted';
             return (
               <article className="cod-finance__card" key={item.fulfillment_id}>
                 <div className="cod-finance__topline">
@@ -136,25 +122,22 @@ const CODReconciliation = () => {
                 </div>
 
                 <dl className="cod-finance__amounts">
-                  <div><dt>Expected COD</dt><dd>{money(item.expected_cod_amount)}</dd></div>
-                  <div><dt>Seller payout</dt><dd>{money(item.seller_amount)}</dd></div>
+                  <div><dt>Buyer pays on delivery</dt><dd>{money(item.expected_cod_amount)}</dd></div>
+                  <div><dt>Seller receives from carrier</dt><dd>{money(item.expected_cod_amount)}</dd></div>
                   <div><dt>rifKANDO commission</dt><dd>{money(item.commission)}</dd></div>
-                  <div><dt>Carrier delivery fee</dt><dd>{item.carrier_delivery_fee == null ? 'Not recorded' : money(item.carrier_delivery_fee)}</dd></div>
+                  <div><dt>Commission status</dt><dd>{item.commission_payment_status || 'Not due'}</dd></div>
                 </dl>
 
                 {item.carrier_name && <p className="cod-finance__tracking">{item.carrier_name} · {item.tracking_number}</p>}
 
                 {isShipped && (
                   <div className="cod-finance__workflow">
-                    <h2>1. Record carrier collection</h2>
-                    <p>The collection must exactly match the customer COD total. Record the real carrier fee, not an estimate.</p>
+                    <h2>1. Confirm delivery</h2>
+                    <p>Check the carrier tracking and any available delivery evidence. This action creates the seller's 5% rifKANDO commission invoice; it does not credit a wallet.</p>
                     <div className="cod-finance__fields">
-                      <label>Carrier collection reference<input value={form.carrierReference || ''} onChange={(event) => updateForm(item, 'carrierReference', event.target.value)} /></label>
-                      <label>Collected amount (MAD)<input inputMode="decimal" value={form.collectedAmount} onChange={(event) => updateForm(item, 'collectedAmount', event.target.value)} /></label>
-                      <label>Carrier delivery fee (MAD)<input inputMode="decimal" value={form.carrierDeliveryFee} onChange={(event) => updateForm(item, 'carrierDeliveryFee', event.target.value)} /></label>
-                      <label>Carrier return fee (MAD)<input inputMode="decimal" value={form.carrierReturnFee} onChange={(event) => updateForm(item, 'carrierReturnFee', event.target.value)} /></label>
+                      <label>Verification note (optional)<input value={form.deliveryNote || ''} onChange={(event) => updateForm(item, 'deliveryNote', event.target.value)} placeholder="Carrier tracking checked" /></label>
                     </div>
-                    <button disabled={collectionBusy} onClick={() => submit(item, 'collection')}>{collectionBusy ? 'Recording…' : 'Record collection'}</button>
+                    <button disabled={deliveryBusy} onClick={() => submit(item, 'delivery')}>{deliveryBusy ? 'Confirming…' : 'Confirm delivery'}</button>
                     <div className="cod-finance__exception">
                       <select value={form.exceptionStatus || 'refused'} onChange={(event) => updateForm(item, 'exceptionStatus', event.target.value)}><option value="refused">Customer refused</option><option value="returned">Returned to seller</option></select>
                       <input placeholder="Carrier exception note" value={form.exceptionNote || ''} onChange={(event) => updateForm(item, 'exceptionNote', event.target.value)} />
@@ -163,19 +146,23 @@ const CODReconciliation = () => {
                   </div>
                 )}
 
-                {awaitingRemittance && (
+                {commissionDue && (
                   <div className="cod-finance__workflow">
-                    <h2>2. Reconcile carrier remittance</h2>
-                    <p>Expected remittance: <strong>{money(Number(item.collected_amount || 0) - Number(item.carrier_delivery_fee || 0))}</strong>. The seller is credited only after this check.</p>
-                    <div className="cod-finance__fields">
-                      <label>Carrier remittance reference<input value={form.settlementReference || ''} onChange={(event) => updateForm(item, 'settlementReference', event.target.value)} /></label>
-                      <label>Remitted amount (MAD)<input inputMode="decimal" value={form.remittedAmount} onChange={(event) => updateForm(item, 'remittedAmount', event.target.value)} /></label>
-                    </div>
-                    <button disabled={settlementBusy} onClick={() => submit(item, 'settle')}>{settlementBusy ? 'Reconciling…' : 'Reconcile and credit seller'}</button>
+                    <h2>2. Await seller commission payment</h2>
+                    <p>Reference: <strong>{item.commission_reference}</strong>. Amount due: <strong>{money(item.commission)}</strong>. Due {item.commission_due_at ? new Date(item.commission_due_at).toLocaleDateString() : 'within three days'}.</p>
                   </div>
                 )}
 
-                {item.settlement_status === 'settled' && <p className="cod-finance__success">Settled {item.settled_at ? new Date(item.settled_at).toLocaleDateString() : ''}. Remittance: {item.carrier_settlement_reference}.</p>}
+                {commissionSubmitted && (
+                  <div className="cod-finance__workflow">
+                    <h2>3. Verify Attijari transfer</h2>
+                    <p>Check your real bank transaction before approving. Seller submitted reference: <strong>{item.commission_payment_reference}</strong>.</p>
+                    <div className="cod-finance__fields"><label>Verification note (optional)<input value={form.verificationNote || ''} onChange={(event) => updateForm(item, 'verificationNote', event.target.value)} placeholder="Matched with Attijari transaction" /></label></div>
+                    <button disabled={verifyBusy} onClick={() => submit(item, 'verify')}>{verifyBusy ? 'Verifying…' : 'Verify commission payment'}</button>
+                  </div>
+                )}
+
+                {item.commission_payment_status === 'paid' && <p className="cod-finance__success">Commission verified {item.commission_verified_at ? new Date(item.commission_verified_at).toLocaleDateString() : ''}. The seller remains eligible to sell.</p>}
                 {item.settlement_status === 'void' && <p className="cod-finance__void">{item.exception_note || 'This COD fulfilment was voided and cannot credit a seller.'}</p>}
               </article>
             );

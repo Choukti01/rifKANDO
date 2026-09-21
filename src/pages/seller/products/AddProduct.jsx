@@ -13,6 +13,7 @@ const AddProduct = () => {
     description: '',
     price: '',
     old_price: '',
+    delivery_fee: '50',
     category: 'electronics',
     stock: '',
     condition: 'new',
@@ -30,6 +31,7 @@ const AddProduct = () => {
         ...formData,
         price: parseFloat(formData.price),
         old_price: formData.old_price ? parseFloat(formData.old_price) : null,
+        delivery_fee: parseFloat(formData.delivery_fee || '0'),
         stock: parseInt(formData.stock) || 0,
         condition: formData.condition,
         media: media.map((m, idx) => ({ ...m, order: idx, isPrimary: idx === 0 }))
@@ -97,6 +99,11 @@ const AddProduct = () => {
               className="form-input"
             />
           </div>
+        </div>
+        <div className="form-group">
+          <label>Delivery price paid by buyer (MAD) *</label>
+          <input type="number" name="delivery_fee" min="0" step="0.01" value={formData.delivery_fee} onChange={handleChange} className="form-input" required />
+          <small className="form-hint">Set the COD delivery price for your preferred carrier. rifKANDO does not take commission from delivery.</small>
         </div>
 
         <div className="form-row">
