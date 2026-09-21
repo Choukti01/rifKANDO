@@ -158,31 +158,29 @@ async function run() {
       body: { action: 'dispatch', carrierName: 'Test Carrier', trackingNumber: 'TRACK-FINDIT-1001' },
     });
     assert.equal(dispatched.status, 200, 'selected FINDit seller must attach tracking before dispatching');
-    const badCollection = await request(port, `/api/admin/cod-fulfillments/${fulfillment.id}/record-collection`, {
+    const delivery = await request(port, `/api/admin/cod-fulfillments/${fulfillment.id}/confirm-delivery`, {
       method: 'POST', cookies: financeSession.cookies, csrfToken: financeSession.csrfToken,
-      body: { carrierReference: 'COL-FINDIT-1001', collectedAmount: 2000, carrierDeliveryFee: 50, carrierReturnFee: 0 },
+      body: { note: 'Carrier tracking confirmed as delivered.' },
     });
-    assert.equal(badCollection.status, 400, 'finance cannot record an under-collected COD amount');
-    const collection = await request(port, `/api/admin/cod-fulfillments/${fulfillment.id}/record-collection`, {
+    assert.equal(delivery.status, 200, 'finance confirms delivery before commission is payable');
+    const dueFulfillment = await getRow('SELECT commission_payment_status, commission_reference FROM cod_fulfillments WHERE id = ?', [fulfillment.id]);
+    assert.equal(dueFulfillment.commission_payment_status, 'due');
+    assert.ok(dueFulfillment.commission_reference, 'delivery creates an immutable commission reference');
+    const payment = await request(port, `/api/seller/cod-fulfillments/${fulfillment.id}/submit-commission`, {
+      method: 'POST', cookies: sellerSession.cookies, csrfToken: sellerSession.csrfToken,
+      body: { paymentReference: 'ATW-FINDIT-1001', note: 'Sent from Attijari.' },
+    });
+    assert.equal(payment.status, 200, 'seller can submit a commission transfer reference');
+    const verified = await request(port, `/api/admin/cod-fulfillments/${fulfillment.id}/verify-commission`, {
       method: 'POST', cookies: financeSession.cookies, csrfToken: financeSession.csrfToken,
-      body: { carrierReference: 'COL-FINDIT-1001', collectedAmount: 2050, carrierDeliveryFee: 50, carrierReturnFee: 0 },
+      body: { note: 'Matched with Attijari transaction.' },
     });
-    assert.equal(collection.status, 200, 'finance records carrier collection separately from seller payout');
-    const badSettlement = await request(port, `/api/admin/cod-fulfillments/${fulfillment.id}/settle`, {
-      method: 'POST', cookies: financeSession.cookies, csrfToken: financeSession.csrfToken,
-      body: { settlementReference: 'SET-FINDIT-1001', remittedAmount: 1999 },
-    });
-    assert.equal(badSettlement.status, 400, 'seller payout requires the exact carrier remittance amount');
-    const settlement = await request(port, `/api/admin/cod-fulfillments/${fulfillment.id}/settle`, {
-      method: 'POST', cookies: financeSession.cookies, csrfToken: financeSession.csrfToken,
-      body: { settlementReference: 'SET-FINDIT-1001', remittedAmount: 2000 },
-    });
-    assert.equal(settlement.status, 200, 'finance can reconcile carrier remittance and credit the seller');
-    const settledFulfillment = await getRow('SELECT settlement_status, remitted_amount_minor FROM cod_fulfillments WHERE id = ?', [fulfillment.id]);
+    assert.equal(verified.status, 200, 'finance verifies the actual commission transfer');
+    const settledFulfillment = await getRow('SELECT settlement_status, commission_payment_status FROM cod_fulfillments WHERE id = ?', [fulfillment.id]);
     assert.equal(settledFulfillment.settlement_status, 'settled');
-    assert.equal(settledFulfillment.remitted_amount_minor, 200_000);
+    assert.equal(settledFulfillment.commission_payment_status, 'paid');
     const sellerWallet = await getRow('SELECT available_balance_minor FROM wallets WHERE user_id = ?', [seller.lastID]);
-    assert.equal(sellerWallet.available_balance_minor, 190_000, 'seller wallet is credited only after remittance reconciliation');
+    assert.equal(sellerWallet?.available_balance_minor ?? 0, 0, 'seller-managed COD never credits a rifKANDO wallet');
 
     const details = await request(port, `/api/orders/${order.id}`, { cookies: buyerSession.cookies });
     const detailsPayload = await details.json();

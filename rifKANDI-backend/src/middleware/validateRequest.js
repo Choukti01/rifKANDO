@@ -254,6 +254,23 @@ const validateCodException = validate((req) => {
   };
 });
 
+const validateCodCommissionPayment = validate((req) => {
+  const body = object(req.body);
+  onlyKeys(body, ['paymentReference', 'note']);
+  return {
+    body: {
+      paymentReference: text(body.paymentReference, 'paymentReference', { required: true, min: 2, max: 256 }),
+      note: optionalText(body.note, 'note', 1_000),
+    },
+  };
+});
+
+const validateCodDeliveryConfirmation = validate((req) => {
+  const body = object(req.body);
+  onlyKeys(body, ['note']);
+  return { body: { note: optionalText(body.note, 'note', 1_000) } };
+});
+
 const validateCmiInitiation = validate((req) => {
   const body = object(req.body);
   onlyKeys(body, ['orderId']);
@@ -315,13 +332,14 @@ const publicMedia = (value, field = 'media', maxItems = 10) => {
 
 const productPayload = (body, { partial }) => {
   object(body);
-  onlyKeys(body, ['title', 'description', 'price', 'old_price', 'category', 'stock', 'media', 'condition']);
+  onlyKeys(body, ['title', 'description', 'price', 'old_price', 'delivery_fee', 'category', 'stock', 'media', 'condition']);
   const required = !partial;
   const result = {
     title: text(body.title, 'title', { required, min: 2, max: 160 }),
     description: text(body.description, 'description', { required, min: 10, max: 5_000 }),
     price: required ? money(body.price, 'price', { min: 0.01 }) : optionalMoney(body.price, 'price', { min: 0.01 }),
     old_price: optionalMoney(body.old_price, 'old_price', { min: 0.01 }),
+    delivery_fee: required ? money(body.delivery_fee, 'delivery_fee', { min: 0, max: 10_000 }) : optionalMoney(body.delivery_fee, 'delivery_fee', { min: 0, max: 10_000 }),
     category: text(body.category, 'category', { required, min: 2, max: 64 }),
     stock: body.stock === undefined ? undefined : integer(body.stock, 'stock', { min: 0, max: 1_000_000 }),
     media: publicMedia(body.media),
@@ -771,7 +789,7 @@ const validateProductQuery = validate((req) => {
       minPrice,
       maxPrice,
       minRating: query.minRating === undefined || query.minRating === '' ? undefined : money(Number(query.minRating), 'query.minRating', { min: 0, max: 5 }),
-      sortBy: query.sortBy === undefined || query.sortBy === '' ? 'newest' : enumValue(query.sortBy, 'query.sortBy', ['newest', 'price_asc', 'price_desc', 'rating']),
+      sortBy: query.sortBy === undefined || query.sortBy === '' ? 'newest' : enumValue(query.sortBy, 'query.sortBy', ['newest', 'price_asc', 'price_desc', 'rating', 'popular']),
       condition: query.condition === undefined || query.condition === '' ? '' : enumValue(query.condition, 'query.condition', ['new', 'used_as_new', 'joutiya']),
     },
   };
@@ -790,6 +808,8 @@ module.exports = {
   validateCodCollection,
   validateCodSettlement,
   validateCodException,
+  validateCodCommissionPayment,
+  validateCodDeliveryConfirmation,
   validateCmiInitiation,
   validateOffer,
   validateOfferResponse,

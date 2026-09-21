@@ -263,6 +263,13 @@ const createFindItRoutes = ({
       const priceMinor = Money.toMinor(req.body.price);
       const deliveryFeeMinor = Money.toMinor(req.body.delivery_fee, { allowZero: true });
       const { offer, request } = await WalletService.withFinancialTransaction(async (transaction) => {
+        const debt = await get(transaction, WalletService.lockForUpdate(`
+          SELECT id FROM cod_fulfillments
+          WHERE seller_id = ? AND commission_payment_status = 'due'
+            AND commission_due_at <= CURRENT_TIMESTAMP
+          LIMIT 1
+        `), [req.user.id]);
+        if (debt) throw new FindItError('Settle your overdue rifKANDO commission before sending new FINDit offers.', 423);
         const request = await get(transaction,
           WalletService.lockForUpdate('SELECT * FROM findit_requests WHERE id = ?'),
           [req.params.id]
@@ -398,6 +405,12 @@ const createFindItRoutes = ({
           FROM findit_offers fo
           JOIN findit_requests r ON r.id = fo.request_id
           WHERE fo.id = ?
+            AND NOT EXISTS (
+              SELECT 1 FROM cod_fulfillments debt
+              WHERE debt.seller_id = fo.seller_id
+                AND debt.commission_payment_status = 'due'
+                AND debt.commission_due_at <= CURRENT_TIMESTAMP
+            )
         `), [req.params.id]);
         if (!offer || Number(offer.buyer_id) !== Number(req.user.id)) throw new FindItError('FINDit offer not found.', 404);
         if (offer.status !== 'active' || effectiveStatus({ status: offer.request_status, expires_at: offer.request_expires_at }) !== 'active') {

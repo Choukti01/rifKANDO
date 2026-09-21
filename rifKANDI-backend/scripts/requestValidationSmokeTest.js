@@ -94,6 +94,8 @@ const run = async () => {
 
     const usedAsNewQuery = await request(port, '/api/products?condition=used_as_new');
     assert.equal(usedAsNewQuery.status, 200, 'the Used as New product filter must be accepted');
+    const popularQuery = await request(port, '/api/products?sortBy=popular');
+    assert.equal(popularQuery.status, 200, 'the public Most Popular sort option must be accepted');
     await assertValidationError(await request(port, '/api/products?limit=101'), 'oversized pagination must be rejected');
     await assertValidationError(await request(port, '/api/cart/1', {
       method: 'PUT', cookies: buyer.cookies, csrfToken: buyer.csrfToken, body: { quantity: '2' },

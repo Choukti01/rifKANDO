@@ -14,6 +14,7 @@ const PHYSICAL_STATUSES = new Set([
 const TERMINAL_STATUSES = new Set(['delivered', 'refused', 'returned', 'cancelled']);
 
 const cleanText = (value, maxLength = 1_000) => String(value || '').trim().slice(0, maxLength);
+const commissionReference = (fulfillment) => `RKC-${String(fulfillment.order_number).replace(/[^A-Za-z0-9]/g, '').slice(-18)}-${fulfillment.id}`;
 
 const getAmountMinor = (row, minorColumn, decimalColumn) => {
   if (Number.isSafeInteger(row?.[minorColumn])) {
@@ -236,6 +237,118 @@ class CodFulfillmentService {
       const orderState = await this.syncOrderStateTx(tx, fulfillment.order_id);
       const updated = await this.getFulfillmentTx(tx, safeFulfillmentId);
       return { fulfillment: updated, orderState };
+    });
+  }
+
+  // Seller-managed COD deliberately has no carrier-to-platform remittance.
+  // A finance reviewer confirms delivery from the carrier tracking evidence;
+  // only then is the seller's independently collected commission payable.
+  static async confirmSellerManagedDelivery({ fulfillmentId, financeUserId, note = '' }) {
+    const safeFulfillmentId = WalletService.positiveInteger(fulfillmentId, 'Fulfillment ID');
+    const safeFinanceUserId = WalletService.positiveInteger(financeUserId, 'Finance user ID');
+    return WalletService.withFinancialTransaction(async (tx) => {
+      const fulfillment = await this.getFulfillmentTx(tx, safeFulfillmentId);
+      if (!fulfillment) throw new Error('COD fulfilment was not found.');
+      if (fulfillment.status !== 'shipped') {
+        throw new Error('Only a shipped COD fulfilment can be confirmed as delivered.');
+      }
+      if (!cleanText(fulfillment.carrier_name, 120) || !cleanText(fulfillment.tracking_number, 128)) {
+        throw new Error('Carrier and tracking evidence are required before delivery can be confirmed.');
+      }
+      const reference = commissionReference(fulfillment);
+      const update = await tx.run(
+        `UPDATE cod_fulfillments
+         SET status = 'delivered', settlement_status = 'awaiting_remittance',
+             commission_payment_status = 'due', commission_reference = ?,
+             commission_due_at = datetime('now', '+3 days'), collection_note = ?,
+             delivered_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+         WHERE id = ? AND status = 'shipped' AND commission_payment_status = 'not_due'`,
+        [reference, cleanText(note) || 'Delivery confirmed by rifKANDO finance from carrier evidence.', fulfillment.id]
+      );
+      if (update.changes !== 1) throw new Error('COD fulfilment changed before delivery confirmation.');
+      await this.addHistoryTx(
+        tx,
+        fulfillment.order_id,
+        'delivered',
+        `Delivery confirmed. rifKANDO commission ${reference} is due within three days.`,
+        safeFinanceUserId
+      );
+      const orderState = await this.syncOrderStateTx(tx, fulfillment.order_id);
+      return { fulfillment: await this.getFulfillmentTx(tx, safeFulfillmentId), orderState };
+    });
+  }
+
+  static async submitSellerManagedCommission({ fulfillmentId, sellerId, paymentReference, note = '' }) {
+    const safeFulfillmentId = WalletService.positiveInteger(fulfillmentId, 'Fulfillment ID');
+    const safeSellerId = WalletService.positiveInteger(sellerId, 'Seller ID');
+    const safeReference = cleanText(paymentReference, 256);
+    if (!safeReference) throw new Error('Your Attijari transfer reference is required.');
+
+    return WalletService.withFinancialTransaction(async (tx) => {
+      const fulfillment = await this.getFulfillmentTx(tx, safeFulfillmentId, safeSellerId);
+      if (!fulfillment) throw new Error('COD fulfilment was not found.');
+      if (!['due', 'submitted'].includes(fulfillment.commission_payment_status)) {
+        throw new Error('This COD commission is not awaiting payment.');
+      }
+      if (fulfillment.commission_payment_status === 'submitted') {
+        if (fulfillment.commission_payment_reference === safeReference) return { fulfillment, alreadySubmitted: true };
+        throw new Error('A commission payment is already awaiting finance verification.');
+      }
+      const duplicate = await tx.get(
+        WalletService.lockForUpdate('SELECT id FROM cod_fulfillments WHERE commission_payment_reference = ?'),
+        [safeReference]
+      );
+      if (duplicate && Number(duplicate.id) !== Number(fulfillment.id)) {
+        throw new Error('This transfer reference is already linked to another commission payment.');
+      }
+      const update = await tx.run(
+        `UPDATE cod_fulfillments
+         SET commission_payment_status = 'submitted', commission_payment_reference = ?,
+             commission_payment_note = ?, commission_submitted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+         WHERE id = ? AND seller_id = ? AND commission_payment_status = 'due'`,
+        [safeReference, cleanText(note), fulfillment.id, safeSellerId]
+      );
+      if (update.changes !== 1) throw new Error('The commission payment state changed before it could be submitted.');
+      await this.addHistoryTx(tx, fulfillment.order_id, 'commission_submitted', `Seller submitted commission payment reference: ${safeReference}.`, safeSellerId);
+      return { fulfillment: await this.getFulfillmentTx(tx, safeFulfillmentId, safeSellerId), alreadySubmitted: false };
+    });
+  }
+
+  static async verifySellerManagedCommission({ fulfillmentId, financeUserId, note = '' }) {
+    const safeFulfillmentId = WalletService.positiveInteger(fulfillmentId, 'Fulfillment ID');
+    const safeFinanceUserId = WalletService.positiveInteger(financeUserId, 'Finance user ID');
+    return WalletService.withFinancialTransaction(async (tx) => {
+      const fulfillment = await this.getFulfillmentTx(tx, safeFulfillmentId);
+      if (!fulfillment) throw new Error('COD fulfilment was not found.');
+      if (fulfillment.commission_payment_status === 'paid') return { fulfillment, alreadyProcessed: true };
+      if (fulfillment.commission_payment_status !== 'submitted') {
+        throw new Error('Verify the seller\'s actual Attijari transfer only after they submit its reference.');
+      }
+      const operation = await WalletService.createOperationTx(tx, {
+        operationKey: `seller-managed-cod-commission:${safeFulfillmentId}`,
+        operationType: 'seller_managed_cod_commission',
+        referenceType: 'cod_fulfilment',
+        referenceId: safeFulfillmentId,
+        metadata: { financeUserId: safeFinanceUserId, paymentReference: fulfillment.commission_payment_reference },
+      });
+      if (operation.alreadyProcessed) return { fulfillment: await this.getFulfillmentTx(tx, safeFulfillmentId), alreadyProcessed: true };
+      const update = await tx.run(
+        `UPDATE cod_fulfillments
+         SET commission_payment_status = 'paid', settlement_status = 'settled',
+             commission_verified_at = CURRENT_TIMESTAMP, commission_verified_by = ?,
+             settlement_note = ?, settled_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+         WHERE id = ? AND commission_payment_status = 'submitted'`,
+        [safeFinanceUserId, cleanText(note) || 'Attijari commission transfer verified by rifKANDO finance.', fulfillment.id]
+      );
+      if (update.changes !== 1) throw new Error('The commission payment state changed before verification.');
+      await tx.run(
+        `UPDATE payment_splits SET status = 'completed', completed_at = CURRENT_TIMESTAMP
+         WHERE order_id = ? AND status = 'pending' AND party_type IN ('seller', 'platform', 'delivery')`,
+        [fulfillment.order_id]
+      );
+      await this.addHistoryTx(tx, fulfillment.order_id, 'settled', `rifKANDO commission ${fulfillment.commission_reference} verified.`, safeFinanceUserId);
+      const orderState = await this.syncOrderStateTx(tx, fulfillment.order_id);
+      return { fulfillment: await this.getFulfillmentTx(tx, safeFulfillmentId), orderState, alreadyProcessed: false };
     });
   }
 

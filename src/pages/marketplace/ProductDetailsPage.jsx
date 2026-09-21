@@ -114,7 +114,7 @@ const ProductDetailsPage = () => {
     }
     setSubmittingReview(true);
     try {
-      await api.post(`/products/${id}/review`, {
+      await api.post(`/products/${id}/reviews`, {
         rating: reviewRating,
         comment: reviewComment
       });

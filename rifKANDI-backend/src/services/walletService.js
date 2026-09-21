@@ -18,8 +18,6 @@ const WALLET_ACCOUNT_MINOR_COLUMNS = Object.freeze({
   escrow_balance: 'escrow_balance_minor',
   pending_withdrawal: 'pending_withdrawal_minor',
 });
-const DELIVERY_FEE_MINOR = 5000;
-const FREE_DELIVERY_THRESHOLD_MINOR = 50000;
 
 class WalletService {
   // SQLite uses one shared connection in this application. Serialising financial
@@ -829,9 +827,15 @@ class WalletService {
       let subtotal = 0;
       for (const [productId, quantity] of requestedQuantities) {
         const product = await tx.get(
-          this.lockForUpdate(`SELECT id, seller_id, title, image, price, price_minor, stock, status
+          this.lockForUpdate(`SELECT id, seller_id, title, image, price, price_minor, delivery_fee, delivery_fee_minor, stock, status
            FROM products
-           WHERE id = ?`),
+           WHERE id = ?
+             AND NOT EXISTS (
+               SELECT 1 FROM cod_fulfillments debt
+               WHERE debt.seller_id = products.seller_id
+                 AND debt.commission_payment_status = 'due'
+                 AND debt.commission_due_at <= CURRENT_TIMESTAMP
+             )`),
           [productId]
         );
         if (!product || product.status !== 'published') throw new Error('A product in your cart is no longer available.');
@@ -853,8 +857,10 @@ class WalletService {
           lineTotal,
         };
         orderItems.push(orderItem);
-        const group = sellerGroups.get(product.seller_id) || { grossAmount: 0, items: [] };
+        const productDeliveryFee = this.minorFromRow(product, 'delivery_fee_minor', 'delivery_fee');
+        const group = sellerGroups.get(product.seller_id) || { grossAmount: 0, deliveryFee: 0, items: [] };
         group.grossAmount = this.minor(group.grossAmount + lineTotal, { allowZero: true });
+        group.deliveryFee = Math.max(group.deliveryFee, productDeliveryFee);
         group.items.push(orderItem);
         sellerGroups.set(product.seller_id, group);
       }
@@ -867,7 +873,10 @@ class WalletService {
         throw new Error('COD checkout currently supports items from one seller at a time. Please place separate orders for each seller.');
       }
 
-      const deliveryFee = subtotal > FREE_DELIVERY_THRESHOLD_MINOR ? 0 : DELIVERY_FEE_MINOR;
+      const deliveryFee = this.minor(
+        [...sellerGroups.values()].reduce((amount, group) => amount + group.deliveryFee, 0),
+        { allowZero: true }
+      );
       const total = this.minor(subtotal + deliveryFee);
       if (expectedTotal !== undefined && expectedTotal !== null && expectedTotal !== '') {
         const clientTotal = this.money(expectedTotal);
@@ -929,7 +938,7 @@ class WalletService {
             sellerId,
             source: 'product',
             grossAmount,
-            customerDeliveryFee: deliveryFee,
+            customerDeliveryFee: group.deliveryFee,
             commission,
             sellerAmount,
           });

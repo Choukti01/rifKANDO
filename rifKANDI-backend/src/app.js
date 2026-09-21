@@ -31,6 +31,8 @@ const {
   validateCodCollection,
   validateCodSettlement,
   validateCodException,
+  validateCodCommissionPayment,
+  validateCodDeliveryConfirmation,
   validateCmiInitiation,
   validateOffer,
   validateOfferResponse,
@@ -1597,6 +1599,8 @@ app.get('/api/cart', protect, (req, res) => {
       c.quantity,
       p.title,
       p.price,
+      p.delivery_fee,
+      p.seller_id,
       p.image,
       p.stock,
       p.status,
@@ -2898,6 +2902,8 @@ app.get('/api/seller/orders', protect, requireSeller, (req, res) => {
       f.gross_amount, f.gross_amount_minor, f.customer_delivery_fee, f.customer_delivery_fee_minor,
       f.expected_cod_amount, f.expected_cod_amount_minor, f.commission, f.commission_minor,
       f.seller_amount, f.seller_amount_minor, f.carrier_name, f.tracking_number,
+      f.commission_payment_status, f.commission_reference, f.commission_due_at,
+      f.commission_payment_reference, f.commission_payment_note, f.commission_submitted_at,
       f.confirmed_at, f.dispatched_at, f.delivered_at, f.settled_at, f.created_at AS fulfillment_created_at,
       o.id AS order_id, o.order_number, o.order_type, o.total, o.total_minor,
       o.status AS order_status, o.payment_status, o.payment_method, o.shipping_address, o.notes,
@@ -2935,6 +2941,37 @@ app.patch('/api/seller/cod-fulfillments/:id', protect, requireSeller, validateId
       metadata: { orderId: result.fulfillment.order_id, status: result.fulfillment.status },
     });
     return res.json({ success: true, fulfillment: result.fulfillment, order: result.orderState });
+  } catch (error) {
+    return res.status(400).json({ error: error.message, requestId: req.requestId });
+  }
+});
+
+app.get('/api/seller/cod-commission-instructions', protect, requireSeller, (req, res) => {
+  const rib = String(process.env.SELLER_COMMISSION_RIB || '').replace(/\s+/g, '');
+  const accountHolder = String(process.env.SELLER_COMMISSION_ACCOUNT_HOLDER || '').trim();
+  const bankName = String(process.env.SELLER_COMMISSION_BANK_NAME || 'Attijariwafa Bank').trim();
+  const supportContact = String(process.env.SELLER_COMMISSION_SUPPORT_CONTACT || '').trim();
+  return res.json({
+    success: true,
+    configured: Boolean(rib && accountHolder),
+    instructions: rib && accountHolder ? { rib, accountHolder, bankName, supportContact } : null,
+  });
+});
+
+app.post('/api/seller/cod-fulfillments/:id/submit-commission', protect, requireSeller, validateIdParams('id'), validateCodCommissionPayment, async (req, res) => {
+  try {
+    const result = await CodFulfillmentService.submitSellerManagedCommission({
+      fulfillmentId: req.params.id,
+      sellerId: req.user.id,
+      ...req.body,
+    });
+    await AuditService.recordFromRequest(req, {
+      action: 'seller_managed_cod.commission_submitted',
+      resourceType: 'cod_fulfillment',
+      resourceId: req.params.id,
+      metadata: { orderId: result.fulfillment.order_id, commissionReference: result.fulfillment.commission_reference },
+    });
+    return res.json({ success: true, fulfillment: result.fulfillment, alreadySubmitted: result.alreadySubmitted });
   } catch (error) {
     return res.status(400).json({ error: error.message, requestId: req.requestId });
   }
@@ -3171,6 +3208,9 @@ app.get('/api/admin/cod-fulfillments', protect, requireFinance, async (req, res)
         f.carrier_return_fee, f.carrier_return_fee_minor, f.carrier_collection_reference,
         f.remitted_amount, f.remitted_amount_minor,
         f.carrier_settlement_reference, f.collection_note, f.settlement_note, f.exception_note,
+        f.commission_payment_status, f.commission_reference, f.commission_due_at,
+        f.commission_payment_reference, f.commission_payment_note, f.commission_submitted_at,
+        f.commission_verified_at,
         f.confirmed_at, f.dispatched_at, f.delivered_at, f.refused_at, f.returned_at, f.cancelled_at,
         f.settled_at, f.created_at,
         o.id AS order_id, o.order_number, o.order_type, o.shipping_address, o.notes, o.created_at AS order_created_at,
@@ -3207,15 +3247,15 @@ app.get('/api/admin/cod-fulfillments', protect, requireFinance, async (req, res)
   }
 });
 
-app.post('/api/admin/cod-fulfillments/:id/record-collection', protect, requireFinance, validateIdParams('id'), validateCodCollection, async (req, res) => {
+app.post('/api/admin/cod-fulfillments/:id/confirm-delivery', protect, requireFinance, validateIdParams('id'), validateCodDeliveryConfirmation, async (req, res) => {
   try {
-    const result = await CodFulfillmentService.recordCollection({
+    const result = await CodFulfillmentService.confirmSellerManagedDelivery({
       fulfillmentId: req.params.id,
       financeUserId: req.user.id,
       ...req.body,
     });
     await AuditService.recordFromRequest(req, {
-      action: 'finance.cod_collection_recorded',
+      action: 'seller_managed_cod.delivery_confirmed',
       resourceType: 'cod_fulfillment',
       resourceId: req.params.id,
       metadata: { orderId: result.fulfillment.order_id, status: result.fulfillment.status },
@@ -3226,15 +3266,15 @@ app.post('/api/admin/cod-fulfillments/:id/record-collection', protect, requireFi
   }
 });
 
-app.post('/api/admin/cod-fulfillments/:id/settle', protect, requireFinance, validateIdParams('id'), validateCodSettlement, async (req, res) => {
+app.post('/api/admin/cod-fulfillments/:id/verify-commission', protect, requireFinance, validateIdParams('id'), validateCodDeliveryConfirmation, async (req, res) => {
   try {
-    const result = await CodFulfillmentService.settle({
+    const result = await CodFulfillmentService.verifySellerManagedCommission({
       fulfillmentId: req.params.id,
       financeUserId: req.user.id,
       ...req.body,
     });
     await AuditService.recordFromRequest(req, {
-      action: 'finance.cod_remittance_reconciled',
+      action: 'seller_managed_cod.commission_verified',
       resourceType: 'cod_fulfillment',
       resourceId: req.params.id,
       metadata: { orderId: result.fulfillment.order_id, alreadyProcessed: result.alreadyProcessed },
@@ -3243,6 +3283,15 @@ app.post('/api/admin/cod-fulfillments/:id/settle', protect, requireFinance, vali
   } catch (error) {
     return res.status(400).json({ error: error.message, requestId: req.requestId });
   }
+});
+
+// The former carrier-to-rifKANDO settlement endpoints would credit seller
+// wallets. Seller-managed COD must never use them.
+app.post('/api/admin/cod-fulfillments/:id/record-collection', protect, requireFinance, validateIdParams('id'), (_req, res) => {
+  return res.status(410).json({ error: 'Carrier-to-rifKANDO collection is disabled for seller-managed COD.' });
+});
+app.post('/api/admin/cod-fulfillments/:id/settle', protect, requireFinance, validateIdParams('id'), (_req, res) => {
+  return res.status(410).json({ error: 'Carrier-to-rifKANDO settlement is disabled for seller-managed COD.' });
 });
 
 app.post('/api/admin/cod-fulfillments/:id/exception', protect, requireFinance, validateIdParams('id'), validateCodException, async (req, res) => {

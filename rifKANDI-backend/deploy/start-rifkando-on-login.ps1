@@ -8,6 +8,14 @@ $backendErrorLog = 'C:\rifkando-data\backend.error.log'
 $tunnelLog = 'C:\rifkando-data\cloudflared-api.log'
 $tunnelErrorLog = 'C:\rifkando-data\cloudflared-api.error.log'
 $tunnelConfig = 'C:\ProgramData\cloudflared\rifkando-api-origin.yml'
+$watchdogMutex = New-Object System.Threading.Mutex($false, 'Global\rifKANDOProductionWatchdog')
+
+# The scheduled task can occasionally be launched more than once (for example
+# after sign-in and a task retry). Only one watchdog may manage the API, or two
+# Node processes can race to bind port 5000 and leave misleading EADDRINUSE logs.
+if (-not $watchdogMutex.WaitOne(0, $false)) {
+  exit 0
+}
 
 function Ensure-rifKANDOProductionProcesses {
   if (-not (Get-NetTCPConnection -LocalPort 5000 -State Listen -ErrorAction SilentlyContinue)) {
@@ -31,8 +39,13 @@ function Ensure-rifKANDOProductionProcesses {
   }
 }
 
-do {
-  Ensure-rifKANDOProductionProcesses
-  if (-not $Watch) { break }
-  Start-Sleep -Seconds 20
-} while ($true)
+try {
+  do {
+    Ensure-rifKANDOProductionProcesses
+    if (-not $Watch) { break }
+    Start-Sleep -Seconds 20
+  } while ($true)
+} finally {
+  $watchdogMutex.ReleaseMutex()
+  $watchdogMutex.Dispose()
+}

@@ -68,33 +68,30 @@ async function run() {
     carrierName: 'Test Carrier',
     trackingNumber: 'COD-TRACK-1001',
   });
-  await assert.rejects(
-    CodFulfillmentService.recordCollection({
-      fulfillmentId: fulfillment.id, financeUserId: flow.financeId, carrierReference: 'COD-COL-1001',
-      collectedAmount: 149, carrierDeliveryFee: 50,
-    }),
-    /Collected COD must equal the expected amount/
-  );
-  await CodFulfillmentService.recordCollection({
-    fulfillmentId: fulfillment.id, financeUserId: flow.financeId, carrierReference: 'COD-COL-1001',
-    collectedAmount: 150, carrierDeliveryFee: 50,
+  const delivered = await CodFulfillmentService.confirmSellerManagedDelivery({
+    fulfillmentId: fulfillment.id, financeUserId: flow.financeId, note: 'Carrier tracking confirms delivery.',
   });
+  assert.equal(delivered.fulfillment.commission_payment_status, 'due');
+  assert.ok(delivered.fulfillment.commission_reference);
   await assert.rejects(
-    CodFulfillmentService.settle({
-      fulfillmentId: fulfillment.id, financeUserId: flow.financeId, settlementReference: 'COD-SET-1001', remittedAmount: 99,
+    CodFulfillmentService.submitSellerManagedCommission({
+      fulfillmentId: fulfillment.id, sellerId: flow.sellerId, paymentReference: '',
     }),
-    /Carrier remittance must equal 100\.00 MAD/
+    /transfer reference is required/
   );
-  const settled = await CodFulfillmentService.settle({
-    fulfillmentId: fulfillment.id, financeUserId: flow.financeId, settlementReference: 'COD-SET-1001', remittedAmount: 100,
+  await CodFulfillmentService.submitSellerManagedCommission({
+    fulfillmentId: fulfillment.id, sellerId: flow.sellerId, paymentReference: 'ATW-COD-1001',
+  });
+  const settled = await CodFulfillmentService.verifySellerManagedCommission({
+    fulfillmentId: fulfillment.id, financeUserId: flow.financeId, note: 'Matched with Attijari transaction.',
   });
   assert.equal(settled.alreadyProcessed, false);
-  const replay = await CodFulfillmentService.settle({
-    fulfillmentId: fulfillment.id, financeUserId: flow.financeId, settlementReference: 'COD-SET-1001', remittedAmount: 100,
+  const replay = await CodFulfillmentService.verifySellerManagedCommission({
+    fulfillmentId: fulfillment.id, financeUserId: flow.financeId,
   });
-  assert.equal(replay.alreadyProcessed, true, 'carrier settlement is idempotent');
+  assert.equal(replay.alreadyProcessed, true, 'commission verification is idempotent');
   const wallet = await WalletService.getWallet(flow.sellerId);
-  assert.equal(wallet.available_balance_minor, 9_500, 'seller receives only the 95% payout once');
+  assert.equal(wallet.available_balance_minor, 0, 'seller-managed COD never credits a rifKANDO wallet');
 
   const returnFlow = await createUsersAndProduct('Returned COD product');
   const returnCheckout = await WalletService.createMarketplaceOrder({
