@@ -19,6 +19,7 @@ const { pipeline } = require('node:stream/promises');
 const { securityHeaders, createRateLimiter } = require('./middleware/security');
 const errorHandler = require('./middleware/errorHandler');
 const requestObservability = require('./middleware/requestObservability');
+const { marketplaceOperatingHours } = require('./middleware/operatingHours');
 const {
   validateIdParams,
   validateCheckout,
@@ -202,6 +203,10 @@ app.use(express.urlencoded({
   extended: true,
   limit: '50kb'
 }));
+
+// Enforce business hours for marketplace writes even if a client bypasses the UI.
+// Keep authentication, support, and payment callbacks available independently.
+app.use(['/api/cart', '/api/orders', '/api/products', '/api/findit', '/api/seller/cod-fulfillments', '/api/admin/cod-fulfillments'], marketplaceOperatingHours);
 
 
 // Serve static files for uploads
