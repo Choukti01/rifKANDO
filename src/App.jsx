@@ -76,6 +76,7 @@ import PageTransition from './components/common/PageTransition'
 import UnderDevelopment from './components/common/UnderDevelopment'
 import MarketplaceClosed from './components/common/MarketplaceClosed'
 import { getMarketplaceHours } from './config/operatingHours'
+import { API_ORIGIN } from './config/apiUrl'
 
 const PageLoadingFallback = () => (
   <div
@@ -105,6 +106,7 @@ function App() {
 function AppContent() {
   const location = useLocation()
   const [marketplaceOpen, setMarketplaceOpen] = useState(() => getMarketplaceHours().isOpen)
+  const [apiAvailable, setApiAvailable] = useState(false)
 
   useEffect(() => {
     const refreshHours = () => setMarketplaceOpen(getMarketplaceHours().isOpen)
@@ -112,7 +114,26 @@ function AppContent() {
     return () => window.clearInterval(timer)
   }, [])
 
-  if (!marketplaceOpen) return <MarketplaceClosed />
+  useEffect(() => {
+    if (!marketplaceOpen) return undefined
+    let active = true
+    const checkAvailability = async () => {
+      try {
+        const response = await fetch(`${API_ORIGIN}/health`, {
+          cache: 'no-store',
+          signal: AbortSignal.timeout(5000),
+        })
+        if (active) setApiAvailable(response.ok)
+      } catch {
+        if (active) setApiAvailable(false)
+      }
+    }
+    checkAvailability()
+    const timer = window.setInterval(checkAvailability, 30_000)
+    return () => { active = false; window.clearInterval(timer) }
+  }, [marketplaceOpen])
+
+  if (!marketplaceOpen || !apiAvailable) return <MarketplaceClosed offline={marketplaceOpen} />
 
   return (
       <AuthProvider>
