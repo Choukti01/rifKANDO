@@ -1,4 +1,5 @@
-const MARKETPLACE_TIME_ZONE = 'Africa/Casablanca';
+// Keep aligned with the storefront's temporary fixed UTC schedule.
+const MARKETPLACE_TIME_ZONE = 'UTC';
 const OPEN_HOUR = 10;
 const CLOSE_HOUR = 22;
 
@@ -16,7 +17,7 @@ const marketplaceOperatingHours = (req, res, next) => {
   if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method) || isMarketplaceOpen()) return next();
   res.set('Retry-After', String(60 * 30));
   return res.status(503).json({
-    error: 'rifKANDO marketplace is closed. We are open daily from 10:00 to 22:00 Morocco time.',
+    error: 'rifKANDO marketplace is closed. We are open daily from 10:00 to 22:00 Nador time (UTC).',
     code: 'MARKETPLACE_CLOSED',
     hours: { timeZone: MARKETPLACE_TIME_ZONE, opensAt: '10:00', closesAt: '22:00' },
   });
