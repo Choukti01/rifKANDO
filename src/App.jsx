@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { AnimatePresence } from 'framer-motion'
@@ -74,6 +74,8 @@ import { FavoritesProvider } from './contexts/FavoritesContext'
 import ProtectedRoute from './components/common/ProtectedRoute'
 import PageTransition from './components/common/PageTransition'
 import UnderDevelopment from './components/common/UnderDevelopment'
+import MarketplaceClosed from './components/common/MarketplaceClosed'
+import { getMarketplaceHours } from './config/operatingHours'
 
 const PageLoadingFallback = () => (
   <div
@@ -102,6 +104,15 @@ function App() {
 
 function AppContent() {
   const location = useLocation()
+  const [marketplaceOpen, setMarketplaceOpen] = useState(() => getMarketplaceHours().isOpen)
+
+  useEffect(() => {
+    const refreshHours = () => setMarketplaceOpen(getMarketplaceHours().isOpen)
+    const timer = window.setInterval(refreshHours, 30_000)
+    return () => window.clearInterval(timer)
+  }, [])
+
+  if (!marketplaceOpen) return <MarketplaceClosed />
 
   return (
       <AuthProvider>
