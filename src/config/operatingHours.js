@@ -1,4 +1,5 @@
-export const MARKETPLACE_TIME_ZONE = 'Africa/Casablanca';
+// Temporary marketplace schedule uses the owner's chosen fixed UTC clock.
+export const MARKETPLACE_TIME_ZONE = 'UTC';
 export const MARKETPLACE_OPEN_HOUR = 10;
 export const MARKETPLACE_CLOSE_HOUR = 22;
 
