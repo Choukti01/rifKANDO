@@ -1,7 +1,7 @@
 const Money = require('./moneyService');
 const WalletService = require('./walletService');
 
-const SELLER_ACTIONS = new Set(['confirm', 'dispatch', 'cancel']);
+const SELLER_ACTIONS = new Set(['confirm', 'request_handoff', 'dispatch', 'cancel']);
 const PHYSICAL_STATUSES = new Set([
   'pending_confirmation',
   'confirmed',
@@ -46,7 +46,7 @@ class CodFulfillmentService {
 
   static async syncOrderStateTx(tx, orderId) {
     const fulfillments = await tx.all(
-      WalletService.lockForUpdate('SELECT status, settlement_status FROM cod_fulfillments WHERE order_id = ? ORDER BY id ASC'),
+      WalletService.lockForUpdate('SELECT status, settlement_status, seller_payout_status FROM cod_fulfillments WHERE order_id = ? ORDER BY id ASC'),
       [orderId]
     );
     if (fulfillments.length === 0) return null;
@@ -59,7 +59,11 @@ class CodFulfillmentService {
     else if (statuses.some((status) => status === 'shipped')) nextStatus = 'shipped';
     else if (statuses.some((status) => status === 'confirmed')) nextStatus = 'processing';
 
-    const allSettled = fulfillments.every((item) => item.settlement_status === 'settled');
+    // A delivery partner remittance settles the cash collection, but the
+    // order is not financially complete until rifKANDO has recorded the
+    // seller's separate manual payout.
+    const allSettled = fulfillments.every((item) => item.settlement_status === 'settled'
+      && (!item.seller_payout_status || item.seller_payout_status === 'paid'));
     const allVoid = fulfillments.every((item) => item.settlement_status === 'void');
     const someCollected = fulfillments.some((item) => item.status === 'delivered');
     const paymentStatus = allSettled ? 'settled' : allVoid ? 'cancelled' : someCollected ? 'collected' : 'pending';
@@ -133,6 +137,29 @@ class CodFulfillmentService {
         await this.addHistoryTx(tx, fulfillment.order_id, 'processing', 'Seller confirmed the COD order.', safeSellerId);
       }
 
+      if (action === 'request_handoff') {
+        if (fulfillment.status !== 'confirmed') {
+          throw new Error('Confirm the COD order before requesting a delivery-partner pickup.');
+        }
+        if (!fulfillment.delivery_partner_contacted_at) {
+          const update = await tx.run(
+            `UPDATE cod_fulfillments
+             SET delivery_partner_name = 'Toufiq Zariohi', delivery_partner_contacted_at = CURRENT_TIMESTAMP,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = ? AND status = 'confirmed' AND delivery_partner_contacted_at IS NULL`,
+            [fulfillment.id]
+          );
+          if (update.changes !== 1) throw new Error('The delivery handoff changed before it could be recorded.');
+          await this.addHistoryTx(
+            tx,
+            fulfillment.order_id,
+            'processing',
+            'Seller requested a Toufiq Zariohi delivery-partner pickup.',
+            safeSellerId
+          );
+        }
+      }
+
       if (action === 'dispatch') {
         if (fulfillment.status !== 'confirmed') {
           throw new Error('Confirm the COD order before handing it to a carrier.');
@@ -177,6 +204,44 @@ class CodFulfillmentService {
       const orderState = await this.syncOrderStateTx(tx, fulfillment.order_id);
       const updated = await this.getFulfillmentTx(tx, safeFulfillmentId, safeSellerId);
       return { fulfillment: updated, orderState };
+    });
+  }
+
+  static async confirmDeliveryPartnerPickup({ fulfillmentId, financeUserId, carrierName, trackingNumber, note = '' }) {
+    const safeFulfillmentId = WalletService.positiveInteger(fulfillmentId, 'Fulfillment ID');
+    const safeFinanceUserId = WalletService.positiveInteger(financeUserId, 'Finance user ID');
+    const safeCarrier = cleanText(carrierName, 120);
+    const safeTracking = cleanText(trackingNumber, 128);
+    if (!safeCarrier || !safeTracking) throw new Error('Carrier name and tracking number are required to confirm pickup.');
+
+    return WalletService.withFinancialTransaction(async (tx) => {
+      const fulfillment = await this.getFulfillmentTx(tx, safeFulfillmentId);
+      if (!fulfillment) throw new Error('COD fulfilment was not found.');
+      if (fulfillment.status !== 'confirmed') {
+        throw new Error('Only a confirmed COD order can be handed to the delivery partner.');
+      }
+      if (!fulfillment.delivery_partner_contacted_at) {
+        throw new Error('Wait for the seller to request Toufiq pickup before confirming handoff.');
+      }
+
+      const update = await tx.run(
+        `UPDATE cod_fulfillments
+         SET status = 'shipped', delivery_partner_name = 'Toufiq Zariohi',
+             delivery_partner_pickup_at = CURRENT_TIMESTAMP, carrier_name = ?, tracking_number = ?,
+             collection_note = ?, dispatched_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+         WHERE id = ? AND status = 'confirmed'`,
+        [safeCarrier, safeTracking, cleanText(note), fulfillment.id]
+      );
+      if (update.changes !== 1) throw new Error('The COD fulfilment changed before pickup could be confirmed.');
+      await this.addHistoryTx(
+        tx,
+        fulfillment.order_id,
+        'shipped',
+        `Toufiq Zariohi collected the parcel for ${safeCarrier}. Tracking: ${safeTracking}.`,
+        safeFinanceUserId
+      );
+      const orderState = await this.syncOrderStateTx(tx, fulfillment.order_id);
+      return { fulfillment: await this.getFulfillmentTx(tx, safeFulfillmentId), orderState };
     });
   }
 
@@ -455,6 +520,133 @@ class CodFulfillmentService {
       const orderState = await this.syncOrderStateTx(tx, fulfillment.order_id);
       const updated = await this.getFulfillmentTx(tx, safeFulfillmentId);
       return { fulfillment: updated, orderState, alreadyProcessed: false };
+    });
+  }
+
+  // The launch model is deliberately manual: Toufiq remits the collected cash
+  // to rifKANDO, then rifKANDO sends the already-calculated seller amount by
+  // an external bank transfer. No wallet is credited until a real automated
+  // payout provider exists.
+  static async recordDeliveryPartnerRemittance({ fulfillmentId, financeUserId, settlementReference, remittedAmount, note = '' }) {
+    const safeFulfillmentId = WalletService.positiveInteger(fulfillmentId, 'Fulfillment ID');
+    const safeFinanceUserId = WalletService.positiveInteger(financeUserId, 'Finance user ID');
+    const safeReference = cleanText(settlementReference, 256);
+    const remittedMinor = Money.toMinor(remittedAmount, { allowZero: true });
+    if (!safeReference) throw new Error('A Toufiq remittance reference is required.');
+
+    return WalletService.withFinancialTransaction(async (tx) => {
+      const fulfillment = await this.getFulfillmentTx(tx, safeFulfillmentId);
+      if (!fulfillment) throw new Error('COD fulfilment was not found.');
+      if (fulfillment.settlement_status === 'settled') return { fulfillment, alreadyProcessed: true };
+      if (fulfillment.status !== 'delivered' || fulfillment.settlement_status !== 'awaiting_remittance') {
+        throw new Error('Only a delivered COD fulfilment awaiting remittance can be reconciled.');
+      }
+      const collectedMinor = getAmountMinor(fulfillment, 'collected_amount_minor', 'collected_amount');
+      const deliveryFeeMinor = getAmountMinor(fulfillment, 'carrier_delivery_fee_minor', 'carrier_delivery_fee');
+      const expectedRemittanceMinor = Money.assertMinor(collectedMinor - deliveryFeeMinor, { allowZero: true });
+      if (remittedMinor !== expectedRemittanceMinor) {
+        throw new Error(`Toufiq remittance must equal ${Money.formatMinor(expectedRemittanceMinor)} MAD after the recorded delivery fee.`);
+      }
+
+      const operationKey = `toufiq-cod-remittance:${safeFulfillmentId}`;
+      const operation = await WalletService.createOperationTx(tx, {
+        operationKey,
+        operationType: 'delivery_partner_cod_remittance',
+        referenceType: 'cod_fulfilment',
+        referenceId: safeFulfillmentId,
+        metadata: { financeUserId: safeFinanceUserId, settlementReference: safeReference },
+      });
+      if (operation.alreadyProcessed) {
+        return { fulfillment: await this.getFulfillmentTx(tx, safeFulfillmentId), alreadyProcessed: true };
+      }
+
+      const update = await tx.run(
+        `UPDATE cod_fulfillments
+         SET settlement_status = 'settled', carrier_settlement_reference = ?,
+             remitted_amount = ?, remitted_amount_minor = ?, settlement_note = ?,
+             seller_payout_status = 'due', seller_payout_due_at = CURRENT_TIMESTAMP,
+             settled_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+         WHERE id = ? AND settlement_status = 'awaiting_remittance'`,
+        [safeReference, Money.fromMinor(remittedMinor), remittedMinor, cleanText(note), fulfillment.id]
+      );
+      if (update.changes !== 1) throw new Error('The COD remittance changed before it could be recorded.');
+      await tx.run(
+        `UPDATE payment_splits SET status = 'completed', completed_at = CURRENT_TIMESTAMP
+         WHERE order_id = ? AND party_type IN ('platform', 'delivery') AND status = 'pending'`,
+        [fulfillment.order_id]
+      );
+      await this.addHistoryTx(
+        tx,
+        fulfillment.order_id,
+        'remitted',
+        `Toufiq remittance received. Reference: ${safeReference}. Seller payout is now due.`,
+        safeFinanceUserId
+      );
+      const orderState = await this.syncOrderStateTx(tx, fulfillment.order_id);
+      return { fulfillment: await this.getFulfillmentTx(tx, safeFulfillmentId), orderState, alreadyProcessed: false };
+    });
+  }
+
+  static async recordManualSellerPayout({ fulfillmentId, financeUserId, payoutReference, note = '' }) {
+    const safeFulfillmentId = WalletService.positiveInteger(fulfillmentId, 'Fulfillment ID');
+    const safeFinanceUserId = WalletService.positiveInteger(financeUserId, 'Finance user ID');
+    const safeReference = cleanText(payoutReference, 256);
+    if (!safeReference) throw new Error('The seller bank-transfer reference is required.');
+
+    return WalletService.withFinancialTransaction(async (tx) => {
+      const fulfillment = await this.getFulfillmentTx(tx, safeFulfillmentId);
+      if (!fulfillment) throw new Error('COD fulfilment was not found.');
+      if (fulfillment.seller_payout_status === 'paid') return { fulfillment, alreadyProcessed: true };
+      if (fulfillment.settlement_status !== 'settled' || fulfillment.seller_payout_status !== 'due') {
+        throw new Error('Record the Toufiq remittance before recording the seller payout.');
+      }
+      const duplicate = await tx.get(
+        WalletService.lockForUpdate('SELECT id FROM cod_fulfillments WHERE seller_payout_reference = ?'),
+        [safeReference]
+      );
+      if (duplicate && Number(duplicate.id) !== Number(fulfillment.id)) {
+        throw new Error('This seller payout reference is already linked to another COD fulfilment.');
+      }
+
+      const operationKey = `manual-seller-payout:${safeFulfillmentId}`;
+      const operation = await WalletService.createOperationTx(tx, {
+        operationKey,
+        operationType: 'manual_cod_seller_payout',
+        referenceType: 'cod_fulfilment',
+        referenceId: safeFulfillmentId,
+        metadata: { financeUserId: safeFinanceUserId, payoutReference: safeReference },
+      });
+      if (operation.alreadyProcessed) {
+        return { fulfillment: await this.getFulfillmentTx(tx, safeFulfillmentId), alreadyProcessed: true };
+      }
+
+      const split = await tx.get(
+        WalletService.lockForUpdate(`SELECT * FROM payment_splits WHERE order_id = ? AND party_type = 'seller' AND party_id = ?`),
+        [fulfillment.order_id, fulfillment.seller_id]
+      );
+      if (!split || split.status !== 'pending') throw new Error('Seller payout is not pending for this COD fulfilment.');
+      const update = await tx.run(
+        `UPDATE cod_fulfillments
+         SET seller_payout_status = 'paid', seller_payout_reference = ?, seller_payout_note = ?,
+             seller_payout_at = CURRENT_TIMESTAMP, seller_payout_by = ?, updated_at = CURRENT_TIMESTAMP
+         WHERE id = ? AND seller_payout_status = 'due'`,
+        [safeReference, cleanText(note), safeFinanceUserId, fulfillment.id]
+      );
+      if (update.changes !== 1) throw new Error('The seller payout state changed before it could be recorded.');
+      await tx.run(
+        `UPDATE payment_splits SET status = 'completed', completed_at = CURRENT_TIMESTAMP
+         WHERE id = ? AND status = 'pending'`,
+        [split.id]
+      );
+      await this.addHistoryTx(
+        tx,
+        fulfillment.order_id,
+        'seller_paid',
+        `Manual seller payout recorded. Reference: ${safeReference}.`,
+        safeFinanceUserId
+      );
+      const orderState = await this.syncOrderStateTx(tx, fulfillment.order_id);
+      return { fulfillment: await this.getFulfillmentTx(tx, safeFulfillmentId), orderState, alreadyProcessed: false };
     });
   }
 

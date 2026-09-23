@@ -1228,6 +1228,15 @@ db.serialize(() => {
   // existing financial records.
   const codFulfillmentCompatibilityColumns = [
     ['remitted_amount', 'REAL'],
+    ['delivery_partner_name', 'TEXT'],
+    ['delivery_partner_contacted_at', 'DATETIME'],
+    ['delivery_partner_pickup_at', 'DATETIME'],
+    ["seller_payout_status", "TEXT NOT NULL DEFAULT 'not_due'"],
+    ['seller_payout_due_at', 'DATETIME'],
+    ['seller_payout_reference', 'TEXT'],
+    ['seller_payout_note', 'TEXT'],
+    ['seller_payout_at', 'DATETIME'],
+    ['seller_payout_by', 'INTEGER'],
     ['commission_payment_status', "TEXT NOT NULL DEFAULT 'not_due'"],
     ['commission_reference', 'TEXT'],
     ['commission_due_at', 'DATETIME'],
@@ -1355,6 +1364,7 @@ db.serialize(() => {
     ['idx_cod_fulfillments_order', 'cod_fulfillments(order_id, seller_id)'],
     ['idx_cod_fulfillments_tracking', 'cod_fulfillments(carrier_name, tracking_number)'],
     ['idx_cod_fulfillments_commission_due', 'cod_fulfillments(seller_id, commission_payment_status, commission_due_at)'],
+    ['idx_cod_fulfillments_seller_payout', 'cod_fulfillments(seller_payout_status, settlement_status, created_at ASC)'],
   ];
   for (const [name, definition] of queryIndexes) {
     db.run(`CREATE INDEX IF NOT EXISTS ${name} ON ${definition}`, (err) => {
@@ -1367,6 +1377,14 @@ db.serialize(() => {
      WHERE carrier_collection_reference IS NOT NULL`,
     (err) => {
       if (err) console.error('Error creating COD collection reference index:', err.message);
+    }
+  );
+  db.run(
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_cod_fulfillments_seller_payout_reference
+     ON cod_fulfillments(seller_payout_reference)
+     WHERE seller_payout_reference IS NOT NULL`,
+    (err) => {
+      if (err) console.error('Error creating COD seller payout reference index:', err.message);
     }
   );
   db.run(

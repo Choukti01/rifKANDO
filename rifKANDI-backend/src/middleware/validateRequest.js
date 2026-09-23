@@ -203,7 +203,7 @@ const validateOrderStatus = validate((req) => {
 const validateCodSellerAction = validate((req) => {
   const body = object(req.body);
   onlyKeys(body, ['action', 'carrierName', 'trackingNumber', 'note']);
-  const action = enumValue(body.action, 'action', ['confirm', 'dispatch', 'cancel']);
+  const action = enumValue(body.action, 'action', ['confirm', 'request_handoff', 'dispatch', 'cancel']);
   const carrierName = optionalText(body.carrierName, 'carrierName', 120);
   const trackingNumber = optionalText(body.trackingNumber, 'trackingNumber', 128);
   if (action === 'dispatch') {
@@ -211,6 +211,18 @@ const validateCodSellerAction = validate((req) => {
     if (!trackingNumber) fail('trackingNumber', 'is required when dispatching a COD order.');
   }
   return { body: { action, carrierName, trackingNumber, note: optionalText(body.note, 'note', 1_000) } };
+});
+
+const validateCodPartnerPickup = validate((req) => {
+  const body = object(req.body);
+  onlyKeys(body, ['carrierName', 'trackingNumber', 'note']);
+  return {
+    body: {
+      carrierName: text(body.carrierName, 'carrierName', { required: true, min: 2, max: 120 }),
+      trackingNumber: text(body.trackingNumber, 'trackingNumber', { required: true, min: 2, max: 128 }),
+      note: optionalText(body.note, 'note', 1_000),
+    },
+  };
 });
 
 const validateCodCollection = validate((req) => {
@@ -269,6 +281,17 @@ const validateCodDeliveryConfirmation = validate((req) => {
   const body = object(req.body);
   onlyKeys(body, ['note']);
   return { body: { note: optionalText(body.note, 'note', 1_000) } };
+});
+
+const validateCodSellerPayout = validate((req) => {
+  const body = object(req.body);
+  onlyKeys(body, ['payoutReference', 'note']);
+  return {
+    body: {
+      payoutReference: text(body.payoutReference, 'payoutReference', { required: true, min: 2, max: 256 }),
+      note: optionalText(body.note, 'note', 1_000),
+    },
+  };
 });
 
 const validateCmiInitiation = validate((req) => {
@@ -805,11 +828,13 @@ module.exports = {
   validateRefundCompletion,
   validateOrderStatus,
   validateCodSellerAction,
+  validateCodPartnerPickup,
   validateCodCollection,
   validateCodSettlement,
   validateCodException,
   validateCodCommissionPayment,
   validateCodDeliveryConfirmation,
+  validateCodSellerPayout,
   validateCmiInitiation,
   validateOffer,
   validateOfferResponse,

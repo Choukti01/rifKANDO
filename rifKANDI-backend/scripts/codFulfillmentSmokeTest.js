@@ -62,36 +62,33 @@ async function run() {
 
   await CodFulfillmentService.sellerAction({ fulfillmentId: fulfillment.id, sellerId: flow.sellerId, action: 'confirm' });
   await CodFulfillmentService.sellerAction({
-    fulfillmentId: fulfillment.id,
-    sellerId: flow.sellerId,
-    action: 'dispatch',
-    carrierName: 'Test Carrier',
-    trackingNumber: 'COD-TRACK-1001',
+    fulfillmentId: fulfillment.id, sellerId: flow.sellerId, action: 'request_handoff',
   });
-  const delivered = await CodFulfillmentService.confirmSellerManagedDelivery({
-    fulfillmentId: fulfillment.id, financeUserId: flow.financeId, note: 'Carrier tracking confirms delivery.',
-  });
-  assert.equal(delivered.fulfillment.commission_payment_status, 'due');
-  assert.ok(delivered.fulfillment.commission_reference);
-  await assert.rejects(
-    CodFulfillmentService.submitSellerManagedCommission({
-      fulfillmentId: fulfillment.id, sellerId: flow.sellerId, paymentReference: '',
-    }),
-    /transfer reference is required/
-  );
-  await CodFulfillmentService.submitSellerManagedCommission({
-    fulfillmentId: fulfillment.id, sellerId: flow.sellerId, paymentReference: 'ATW-COD-1001',
-  });
-  const settled = await CodFulfillmentService.verifySellerManagedCommission({
-    fulfillmentId: fulfillment.id, financeUserId: flow.financeId, note: 'Matched with Attijari transaction.',
-  });
-  assert.equal(settled.alreadyProcessed, false);
-  const replay = await CodFulfillmentService.verifySellerManagedCommission({
+  const pickedUp = await CodFulfillmentService.confirmDeliveryPartnerPickup({
     fulfillmentId: fulfillment.id, financeUserId: flow.financeId,
+    carrierName: 'Najm Chamal', trackingNumber: 'COD-TRACK-1001', note: 'Toufiq collected the parcel.',
   });
-  assert.equal(replay.alreadyProcessed, true, 'commission verification is idempotent');
+  assert.equal(pickedUp.fulfillment.status, 'shipped');
+  const collected = await CodFulfillmentService.recordCollection({
+    fulfillmentId: fulfillment.id, financeUserId: flow.financeId,
+    carrierReference: 'NAJM-COLLECT-1001', collectedAmount: 150, carrierDeliveryFee: 50,
+  });
+  assert.equal(collected.fulfillment.status, 'delivered');
+  const remitted = await CodFulfillmentService.recordDeliveryPartnerRemittance({
+    fulfillmentId: fulfillment.id, financeUserId: flow.financeId,
+    settlementReference: 'TOUFIQ-REM-1001', remittedAmount: 100,
+  });
+  assert.equal(remitted.fulfillment.seller_payout_status, 'due');
+  const paid = await CodFulfillmentService.recordManualSellerPayout({
+    fulfillmentId: fulfillment.id, financeUserId: flow.financeId, payoutReference: 'ATW-SELLER-1001',
+  });
+  assert.equal(paid.fulfillment.seller_payout_status, 'paid');
+  const replay = await CodFulfillmentService.recordManualSellerPayout({
+    fulfillmentId: fulfillment.id, financeUserId: flow.financeId, payoutReference: 'ATW-SELLER-1001',
+  });
+  assert.equal(replay.alreadyProcessed, true, 'seller payout recording is idempotent');
   const wallet = await WalletService.getWallet(flow.sellerId);
-  assert.equal(wallet.available_balance_minor, 0, 'seller-managed COD never credits a rifKANDO wallet');
+  assert.equal(wallet.available_balance_minor, 0, 'manual COD seller payout never credits a rifKANDO wallet');
 
   const returnFlow = await createUsersAndProduct('Returned COD product');
   const returnCheckout = await WalletService.createMarketplaceOrder({

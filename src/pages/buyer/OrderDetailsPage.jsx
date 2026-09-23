@@ -174,6 +174,12 @@ const OrderDetailsPage = () => {
               ))}
             </div>
           )}
+          {fulfillments.some((fulfillment) => fulfillment.delivery_partner_name) && (
+            <div className="delivery-coordinator-note">
+              <TruckIcon aria-hidden="true" />
+              <p><strong>{fulfillments.find((fulfillment) => fulfillment.delivery_partner_name)?.delivery_partner_name}</strong> coordinates this COD delivery and will contact you to arrange delivery and collect payment only when the parcel arrives.</p>
+            </div>
+          )}
         </div>
 
         <div className="details-grid">
@@ -408,6 +414,10 @@ const OrderDetailsPage = () => {
         .carrier-tracking-row svg { width: 1.2rem; color: #168dd9; }
         .carrier-tracking-row div { display: grid; gap: .12rem; }
         .carrier-tracking-row span { color: #52708a; font-size: .86rem; }
+
+        .delivery-coordinator-note { display:flex; gap:.65rem; align-items:flex-start; margin-top:.8rem; padding:.75rem; border-radius:.65rem; background:#f7fbfe; color:#425d75; font-size:.88rem; line-height:1.45; }
+        .delivery-coordinator-note svg { flex:0 0 auto; width:1.2rem; color:#168dd9; margin-top:.1rem; }
+        .delivery-coordinator-note p { margin:0; }
         
         .tracking-step.completed ~ .tracking-step .step-line { 
           background: #10b981; 
