@@ -29,11 +29,13 @@ const {
   validateRefundCompletion,
   validateOrderStatus,
   validateCodSellerAction,
+  validateCodPartnerPickup,
   validateCodCollection,
   validateCodSettlement,
   validateCodException,
   validateCodCommissionPayment,
   validateCodDeliveryConfirmation,
+  validateCodSellerPayout,
   validateCmiInitiation,
   validateOffer,
   validateOfferResponse,
@@ -72,6 +74,7 @@ const sessionService = require('./services/sessionService');
 const AuditService = require('./services/auditService');
 const Money = require('./services/moneyService');
 const CodFulfillmentService = require('./services/codFulfillmentService');
+const { getCodDeliveryPartner, createSellerHandoffLink } = require('./services/deliveryPartnerService');
 const FeatureFlags = require('./services/featureFlagService');
 const { snapshot: getObservabilitySnapshot } = require('./services/observabilityService');
 const {
@@ -1716,6 +1719,7 @@ app.get('/api/orders/:id', protect, (req, res) => {
         } else {
           db.all(`
             SELECT id, source, status, settlement_status, carrier_name, tracking_number,
+                   delivery_partner_name, delivery_partner_contacted_at, delivery_partner_pickup_at,
                    confirmed_at, dispatched_at, delivered_at, refused_at, returned_at, cancelled_at, settled_at
             FROM cod_fulfillments
             WHERE order_id = ?
@@ -2908,6 +2912,9 @@ app.get('/api/seller/orders', protect, requireSeller, (req, res) => {
       f.gross_amount, f.gross_amount_minor, f.customer_delivery_fee, f.customer_delivery_fee_minor,
       f.expected_cod_amount, f.expected_cod_amount_minor, f.commission, f.commission_minor,
       f.seller_amount, f.seller_amount_minor, f.carrier_name, f.tracking_number,
+      f.delivery_partner_name, f.delivery_partner_contacted_at, f.delivery_partner_pickup_at,
+      f.seller_payout_status, f.seller_payout_due_at, f.seller_payout_reference, f.seller_payout_note,
+      f.seller_payout_at,
       f.commission_payment_status, f.commission_reference, f.commission_due_at,
       f.commission_payment_reference, f.commission_payment_note, f.commission_submitted_at,
       f.confirmed_at, f.dispatched_at, f.delivered_at, f.settled_at, f.created_at AS fulfillment_created_at,
@@ -2931,6 +2938,40 @@ app.get('/api/seller/orders', protect, requireSeller, (req, res) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json({ success: true, orders: rows });
   });
+});
+
+app.get('/api/seller/cod-delivery-partner', protect, requireSeller, (req, res) => {
+  const partner = getCodDeliveryPartner();
+  return res.json({ success: true, partner });
+});
+
+app.get('/api/seller/cod-fulfillments/:id/delivery-handoff', protect, requireSeller, validateIdParams('id'), async (req, res) => {
+  try {
+    const fulfillment = await getDatabaseRow(`
+      SELECT f.id, f.status, f.delivery_partner_contacted_at, o.order_number,
+             COALESCE(
+               fo.item_title,
+               (SELECT COALESCE(NULLIF(oi.product_title, ''), p.title)
+                FROM order_items oi LEFT JOIN products p ON p.id = oi.product_id
+                WHERE oi.order_id = o.id ORDER BY oi.id ASC LIMIT 1)
+             ) AS item_title
+      FROM cod_fulfillments f
+      JOIN orders o ON o.id = f.order_id
+      LEFT JOIN findit_orders fo ON fo.order_id = o.id AND f.source = 'findit'
+      WHERE f.id = ? AND f.seller_id = ?
+    `, [req.params.id, req.user.id]);
+    if (!fulfillment) return res.status(404).json({ error: 'COD fulfilment was not found.' });
+    if (fulfillment.status !== 'confirmed') return res.status(409).json({ error: 'A delivery handoff can be requested only after confirming this COD order.' });
+    const partner = getCodDeliveryPartner();
+    return res.json({
+      success: true,
+      partner,
+      handoffRequestedAt: fulfillment.delivery_partner_contacted_at || null,
+      whatsappUrl: createSellerHandoffLink({ orderNumber: fulfillment.order_number, itemTitle: fulfillment.item_title }),
+    });
+  } catch (error) {
+    return res.status(500).json({ error: 'Unable to prepare the delivery handoff.', requestId: req.requestId });
+  }
 });
 
 app.patch('/api/seller/cod-fulfillments/:id', protect, requireSeller, validateIdParams('id'), validateCodSellerAction, async (req, res) => {
@@ -3210,6 +3251,9 @@ app.get('/api/admin/cod-fulfillments', protect, requireFinance, async (req, res)
         f.gross_amount, f.gross_amount_minor, f.customer_delivery_fee, f.customer_delivery_fee_minor,
         f.expected_cod_amount, f.expected_cod_amount_minor, f.commission, f.commission_minor,
         f.seller_amount, f.seller_amount_minor, f.carrier_name, f.tracking_number,
+        f.delivery_partner_name, f.delivery_partner_contacted_at, f.delivery_partner_pickup_at,
+        f.seller_payout_status, f.seller_payout_due_at, f.seller_payout_reference, f.seller_payout_note,
+        f.seller_payout_at,
         f.collected_amount, f.collected_amount_minor, f.carrier_delivery_fee, f.carrier_delivery_fee_minor,
         f.carrier_return_fee, f.carrier_return_fee_minor, f.carrier_collection_reference,
         f.remitted_amount, f.remitted_amount_minor,
@@ -3272,6 +3316,25 @@ app.post('/api/admin/cod-fulfillments/:id/confirm-delivery', protect, requireFin
   }
 });
 
+app.post('/api/admin/cod-fulfillments/:id/confirm-pickup', protect, requireFinance, validateIdParams('id'), validateCodPartnerPickup, async (req, res) => {
+  try {
+    const result = await CodFulfillmentService.confirmDeliveryPartnerPickup({
+      fulfillmentId: req.params.id,
+      financeUserId: req.user.id,
+      ...req.body,
+    });
+    await AuditService.recordFromRequest(req, {
+      action: 'toufiq_cod.pickup_confirmed',
+      resourceType: 'cod_fulfillment',
+      resourceId: req.params.id,
+      metadata: { orderId: result.fulfillment.order_id, carrier: result.fulfillment.carrier_name },
+    });
+    return res.json({ success: true, fulfillment: result.fulfillment, order: result.orderState });
+  } catch (error) {
+    return res.status(400).json({ error: error.message, requestId: req.requestId });
+  }
+});
+
 app.post('/api/admin/cod-fulfillments/:id/verify-commission', protect, requireFinance, validateIdParams('id'), validateCodDeliveryConfirmation, async (req, res) => {
   try {
     const result = await CodFulfillmentService.verifySellerManagedCommission({
@@ -3291,13 +3354,61 @@ app.post('/api/admin/cod-fulfillments/:id/verify-commission', protect, requireFi
   }
 });
 
-// The former carrier-to-rifKANDO settlement endpoints would credit seller
-// wallets. Seller-managed COD must never use them.
-app.post('/api/admin/cod-fulfillments/:id/record-collection', protect, requireFinance, validateIdParams('id'), (_req, res) => {
-  return res.status(410).json({ error: 'Carrier-to-rifKANDO collection is disabled for seller-managed COD.' });
+app.post('/api/admin/cod-fulfillments/:id/record-collection', protect, requireFinance, validateIdParams('id'), validateCodCollection, async (req, res) => {
+  try {
+    const result = await CodFulfillmentService.recordCollection({
+      fulfillmentId: req.params.id,
+      financeUserId: req.user.id,
+      ...req.body,
+    });
+    await AuditService.recordFromRequest(req, {
+      action: 'toufiq_cod.collection_recorded',
+      resourceType: 'cod_fulfillment',
+      resourceId: req.params.id,
+      metadata: { orderId: result.fulfillment.order_id, carrierReference: result.fulfillment.carrier_collection_reference },
+    });
+    return res.json({ success: true, fulfillment: result.fulfillment, order: result.orderState });
+  } catch (error) {
+    return res.status(400).json({ error: error.message, requestId: req.requestId });
+  }
 });
-app.post('/api/admin/cod-fulfillments/:id/settle', protect, requireFinance, validateIdParams('id'), (_req, res) => {
-  return res.status(410).json({ error: 'Carrier-to-rifKANDO settlement is disabled for seller-managed COD.' });
+
+app.post('/api/admin/cod-fulfillments/:id/record-remittance', protect, requireFinance, validateIdParams('id'), validateCodSettlement, async (req, res) => {
+  try {
+    const result = await CodFulfillmentService.recordDeliveryPartnerRemittance({
+      fulfillmentId: req.params.id,
+      financeUserId: req.user.id,
+      ...req.body,
+    });
+    await AuditService.recordFromRequest(req, {
+      action: 'toufiq_cod.remittance_recorded',
+      resourceType: 'cod_fulfillment',
+      resourceId: req.params.id,
+      metadata: { orderId: result.fulfillment.order_id, remittanceReference: result.fulfillment.carrier_settlement_reference },
+    });
+    return res.json({ success: true, fulfillment: result.fulfillment, order: result.orderState, alreadyProcessed: result.alreadyProcessed });
+  } catch (error) {
+    return res.status(400).json({ error: error.message, requestId: req.requestId });
+  }
+});
+
+app.post('/api/admin/cod-fulfillments/:id/record-seller-payout', protect, requireFinance, validateIdParams('id'), validateCodSellerPayout, async (req, res) => {
+  try {
+    const result = await CodFulfillmentService.recordManualSellerPayout({
+      fulfillmentId: req.params.id,
+      financeUserId: req.user.id,
+      ...req.body,
+    });
+    await AuditService.recordFromRequest(req, {
+      action: 'toufiq_cod.seller_payout_recorded',
+      resourceType: 'cod_fulfillment',
+      resourceId: req.params.id,
+      metadata: { orderId: result.fulfillment.order_id, payoutReference: result.fulfillment.seller_payout_reference },
+    });
+    return res.json({ success: true, fulfillment: result.fulfillment, order: result.orderState, alreadyProcessed: result.alreadyProcessed });
+  } catch (error) {
+    return res.status(400).json({ error: error.message, requestId: req.requestId });
+  }
 });
 
 app.post('/api/admin/cod-fulfillments/:id/exception', protect, requireFinance, validateIdParams('id'), validateCodException, async (req, res) => {
