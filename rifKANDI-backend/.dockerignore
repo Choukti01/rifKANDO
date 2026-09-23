@@ -1,0 +1,19 @@
+# Never send developer state, credentials, or customer files into a deployment image.
+node_modules
+.env
+.env.*
+!.env.example
+.git
+.gitignore
+coverage
+logs
+uploads
+backups
+*.log
+*.db
+*.db-*
+rifkandi*.db
+test-results
+playwright-report
+npm-debug.log*
+
