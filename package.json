@@ -15,6 +15,7 @@
     "test:e2e": "playwright test",
     "test:repository-hygiene": "node scripts/verifyRepositoryHygiene.cjs",
     "build": "vite build",
+    "postbuild": "node scripts/removeCloudflareRedirect.cjs",
     "preview": "vite preview"
   },
   "dependencies": {
