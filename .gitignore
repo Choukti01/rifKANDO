@@ -24,6 +24,7 @@ rifKANDI-backend/uploads/
 !rifKANDI-backend/uploads/.gitkeep
 dist
 dist-ssr
+.wrangler/
 *.local
 playwright-report/
 test-results/
