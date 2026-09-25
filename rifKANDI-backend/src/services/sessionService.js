@@ -66,6 +66,7 @@ const publicUser = (user) => ({
   email: isPhoneIdentityEmail(user.email) || isPasskeyIdentityEmail(user.email) ? null : user.email,
   phone: user.phone,
   role: user.role,
+  roles: Array.isArray(user.roles) ? user.roles : [user.role].filter(Boolean),
   sellerType: user.seller_type,
   bio: user.bio,
   city: user.city,
@@ -120,7 +121,7 @@ const loadActiveSession = async (sessionId, userId) => {
     SELECT
       s.id AS session_id, s.user_id AS session_user_id, s.csrf_token_hash,
       s.expires_at, s.revoked_at,
-      u.id, u.name, u.email, u.password, u.phone, u.role, u.seller_type,
+      u.id, u.name, u.email, u.password, u.phone, u.role, u.seller_type, u.seller_started_at,
       u.bio, u.city, u.country, u.profilePicture
     FROM auth_sessions s
     JOIN users u ON u.id = s.user_id
@@ -141,6 +142,13 @@ const loadActiveSession = async (sessionId, userId) => {
   delete user.csrf_token_hash;
   delete user.expires_at;
   delete user.revoked_at;
+  // A founder account can retain its pre-existing seller capability without
+  // weakening the single primary role stored in the database. This is limited
+  // to admin roles that already have a seller activation timestamp.
+  user.roles = [user.role].filter(Boolean);
+  if (['admin', 'super_admin'].includes(user.role) && user.seller_started_at) {
+    user.roles.push('seller');
+  }
   return { session, user };
 };
 
