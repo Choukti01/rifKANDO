@@ -8,6 +8,8 @@ import Navbar from './components/layout/Navbar'
 import Footer from './components/layout/Footer'
 
 import HomePage from './pages/home/HomePage'
+import LoginPage from './pages/auth/LoginPage'
+import RegisterPage from './pages/auth/RegisterPage'
 const ChatPage = lazy(() => import('./pages/messages/ChatPage'))
 const MessagesInbox = lazy(() => import('./pages/messages/MessagesInbox'))
 const ProductsPage = lazy(() => import('./pages/marketplace/ProductsPage'))
@@ -27,8 +29,6 @@ const OrdersPage = lazy(() => import('./pages/buyer/OrdersPage'))
 const OrderDetailsPage = lazy(() => import('./pages/buyer/OrderDetailsPage'))
 // const MyPurchasesPage = lazy(() => import('./pages/buyer/MyPurchasesPage'))
 const FindItDashboardPage = lazy(() => import('./pages/buyer/FindItDashboardPage'))
-const LoginPage = lazy(() => import('./pages/auth/LoginPage'))
-const RegisterPage = lazy(() => import('./pages/auth/RegisterPage'))
 const SellerTypePage = lazy(() => import('./pages/seller/SellerTypePage'))
 const ProfilePage = lazy(() => import('./pages/profile/ProfilePage'))
 const PublicProfilePage = lazy(() => import('./pages/profile/PublicProfilePage'))

@@ -277,13 +277,55 @@ const createProductRoutes = ({
 
   router.delete('/products/:id', protect, requireSeller, validateIdParams('id'), (req, res) => {
     db.get('SELECT seller_id FROM products WHERE id = ?', [req.params.id], (lookupError, product) => {
-      if (lookupError || !product) return res.status(404).json({ error: 'Product not found' });
+      if (lookupError) return res.status(500).json({ error: 'Could not find this product.' });
+      if (!product) return res.status(404).json({ error: 'Product not found' });
       if (product.seller_id !== req.user.id && !isAdmin(req.user)) {
         return res.status(403).json({ error: 'Not authorized' });
       }
-      db.run('DELETE FROM products WHERE id = ?', [req.params.id], function onProductDeleted(error) {
-        if (error) return res.status(400).json({ error: error.message });
-        return res.json({ success: true, message: 'Product deleted' });
+
+      const endProduct = (message) => db.run(
+        "UPDATE products SET status = 'ended', stock = 0 WHERE id = ?",
+        [req.params.id],
+        (endError) => {
+          if (endError) return res.status(500).json({ error: 'Could not end this listing.' });
+          return res.json({ success: true, archived: true, message });
+        },
+      );
+
+      // Order items are an immutable record of what was sold. Removing their
+      // product would corrupt accounting, COD reconciliation, and buyer order
+      // history. End the listing instead, which immediately removes it from
+      // the catalogue and prevents a new checkout.
+      db.get('SELECT COUNT(*) AS count FROM order_items WHERE product_id = ?', [req.params.id], (orderError, result) => {
+        if (orderError) return res.status(500).json({ error: 'Could not check this product history.' });
+        if (Number(result?.count || 0) > 0) {
+          return endProduct('Product removed from sale. Its completed order history was kept safely.');
+        }
+
+        // Stop new purchases first, then clear transient cart entries before
+        // the physical delete. This keeps both SQLite and PostgreSQL foreign
+        // key rules satisfied without touching historical transactions.
+        db.run("UPDATE products SET status = 'ended', stock = 0 WHERE id = ?", [req.params.id], (endError) => {
+          if (endError) return res.status(500).json({ error: 'Could not prepare this product for deletion.' });
+          db.run('DELETE FROM cart WHERE product_id = ?', [req.params.id], (cartError) => {
+            if (cartError) return res.status(500).json({ error: 'Could not clear active carts for this product.' });
+            db.run('DELETE FROM products WHERE id = ?', [req.params.id], function onProductDeleted(deleteError) {
+              if (!deleteError) return res.json({ success: true, deleted: true, message: 'Product deleted.' });
+
+              // A checkout can complete between the history check and this
+              // delete. The product is already ended, so retain it safely
+              // rather than surfacing a misleading deletion failure.
+              if (/foreign key|constraint/i.test(deleteError.message || '')) {
+                return res.json({
+                  success: true,
+                  archived: true,
+                  message: 'Product removed from sale. Its order history was kept safely.',
+                });
+              }
+              return res.status(500).json({ error: 'Could not delete this product.' });
+            });
+          });
+        });
       });
     });
   });
