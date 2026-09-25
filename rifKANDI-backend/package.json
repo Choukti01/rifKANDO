@@ -43,7 +43,7 @@
     "db:postgres:configure-neon": "node scripts/configureNeonDatabaseFromClipboard.js",
     "db:postgres:plan": "node scripts/migratePostgres.js --dry-run",
     "db:postgres:migrate": "node scripts/migratePostgres.js --apply",
-    "db:postgres:preflight": "node scripts/postgresPreflight.js",
+    "db:postgres:preflight": "node scripts/postgresPreflight.js --target-only",
     "db:postgres:import-sqlite": "node scripts/importSqliteToPostgres.js",
     "backup:db": "node scripts/backupDatabase.js"
   },

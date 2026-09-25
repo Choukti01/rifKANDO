@@ -1,0 +1,19 @@
+name: Production readiness monitor
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  api-readiness:
+    name: API readiness
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Check public API readiness
+        run: |
+          curl --fail --silent --show-error --max-time 20 --retry 2 --retry-delay 5 https://api.rifkando.com/ready
