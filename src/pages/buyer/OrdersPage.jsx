@@ -15,8 +15,10 @@ import {
 } from '@heroicons/react/24/outline'
 import EmptyState from '../../components/common/EmptyState'
 import LoadingSkeleton from '../../components/common/LoadingSkeleton'
+import { useTranslation } from 'react-i18next'
 
 const OrdersPage = () => {
+  const { t, i18n } = useTranslation()
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
   const [downloading, setDownloading] = useState(null)
@@ -34,7 +36,7 @@ const OrdersPage = () => {
       } catch (error) {
         if (isCurrent) {
           console.error('Failed to fetch orders:', error)
-          toast.error('Failed to load orders')
+          toast.error(t('buyer.orders.loadFailed'))
         }
       } finally {
         if (isCurrent) setLoading(false)
@@ -46,15 +48,15 @@ const OrdersPage = () => {
     return () => {
       isCurrent = false
     }
-  }, [isAuthenticated])
+  }, [isAuthenticated, t])
 
   const getStatusConfig = (status) => {
     const configs = {
-      pending: { icon: ClockIcon, text: 'Pending', color: '#f59e0b', bg: '#fef3c7' },
-      processing: { icon: CubeIcon, text: 'Processing', color: '#3b82f6', bg: '#dbeafe' },
-      shipped: { icon: TruckIcon, text: 'Shipped', color: '#8b5cf6', bg: '#ede9fe' },
-      delivered: { icon: CheckCircleIcon, text: 'Delivered', color: '#10b981', bg: '#d1fae5' },
-      cancelled: { icon: CubeIcon, text: 'Cancelled', color: '#ef4444', bg: '#fee2e2' }
+      pending: { icon: ClockIcon, text: t('buyer.orders.status.pending'), color: '#f59e0b', bg: '#fef3c7' },
+      processing: { icon: CubeIcon, text: t('buyer.orders.status.processing'), color: '#3b82f6', bg: '#dbeafe' },
+      shipped: { icon: TruckIcon, text: t('buyer.orders.status.shipped'), color: '#8b5cf6', bg: '#ede9fe' },
+      delivered: { icon: CheckCircleIcon, text: t('buyer.orders.status.delivered'), color: '#10b981', bg: '#d1fae5' },
+      cancelled: { icon: CubeIcon, text: t('buyer.orders.status.cancelled'), color: '#ef4444', bg: '#fee2e2' }
     }
     return configs[status] || configs.pending
   }
@@ -70,10 +72,10 @@ const OrdersPage = () => {
 
   const getPaymentText = (method) => {
     switch (method) {
-      case 'cash': return 'Cash on Delivery'
-      case 'cmi': return 'Credit Card'
-      case 'wallet': return 'Wallet'
-      default: return method || 'Unknown'
+      case 'cash': return t('buyer.cashOnDelivery')
+      case 'cmi': return t('buyer.orders.creditCard')
+      case 'wallet': return t('buyer.orders.wallet')
+      default: return method || t('buyer.orders.unknown')
     }
   }
 
@@ -89,10 +91,10 @@ const OrdersPage = () => {
       link.click()
       link.remove()
       window.URL.revokeObjectURL(url)
-      toast.success('Invoice downloaded')
+      toast.success(t('buyer.orders.invoiceDownloaded'))
     } catch (error) {
       console.error('Failed to download invoice:', error)
-      toast.error('Failed to download invoice')
+      toast.error(t('buyer.orders.invoiceFailed'))
     } finally {
       setDownloading(null)
     }
@@ -101,7 +103,7 @@ const OrdersPage = () => {
   if (loading) {
     return (
       <div className="container" style={{ padding: '3rem 0' }}>
-        <LoadingSkeleton variant="list" count={4} label="Loading orders" />
+        <LoadingSkeleton variant="list" count={4} label={t('buyer.orders.loading')} />
       </div>
     )
   }
@@ -111,9 +113,9 @@ const OrdersPage = () => {
       <div className="container py-16">
         <EmptyState
           icon={<CubeIcon style={{ width: '1.5rem' }} />}
-          title="No orders yet"
-          description="When you place an order, its status and invoice will appear here."
-          action={<Link to="/products" className="btn btn-primary">Start shopping</Link>}
+          title={t('buyer.orders.emptyTitle')}
+          description={t('buyer.orders.emptyLead')}
+          action={<Link to="/products" className="btn btn-primary">{t('buyer.orders.startShopping')}</Link>}
         />
       </div>
     )
@@ -123,21 +125,21 @@ const OrdersPage = () => {
     <div className="orders-page">
       <div className="container">
         <div className="orders-header">
-          <h1>My Orders</h1>
-          <p className="orders-count">{orders.length} {orders.length === 1 ? 'order' : 'orders'}</p>
+          <h1>{t('buyer.orders.title')}</h1>
+          <p className="orders-count">{t('buyer.orders.count', { count: orders.length })}</p>
         </div>
 
         <div className="orders-table-container">
           <table className="orders-table">
             <thead>
               <tr>
-                <th>Order ID</th>
-                <th>Items</th>
-                <th>Total</th>
-                <th>Payment</th>
-                <th>Status</th>
-                <th>Date</th>
-                <th>Action</th>
+                <th>{t('buyer.orders.orderId')}</th>
+                <th>{t('buyer.orders.items')}</th>
+                <th>{t('buyer.total')}</th>
+                <th>{t('buyer.payment')}</th>
+                <th>{t('buyer.orders.statusLabel')}</th>
+                <th>{t('buyer.orders.date')}</th>
+                <th>{t('buyer.orders.action')}</th>
               </tr>
             </thead>
             <tbody>
@@ -151,10 +153,10 @@ const OrdersPage = () => {
                       {order.order_type === 'findit' && <span className="findit-order-label">FINDit</span>}
                     </td>
                     <td className="order-items">
-                      <span className="items-count">{order.item_count || 1} item(s)</span>
+                      <span className="items-count">{t('buyer.items', { count: order.item_count || 1 })}</span>
                     </td>
                     <td className="order-amount">
-                      <span className="amount">{order.total} MAD</span>
+                      <span className="amount">{Number(order.total || 0).toLocaleString(i18n.language === 'ar' ? 'ar-MA' : i18n.language === 'fr' ? 'fr-MA' : 'en-MA')} MAD</span>
                     </td>
                     <td className="payment-method">
                       <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
@@ -169,12 +171,12 @@ const OrdersPage = () => {
                       </span>
                     </td>
                     <td className="order-date">
-                      {new Date(order.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                      {new Date(order.created_at).toLocaleDateString(i18n.language === 'ar' ? 'ar-MA' : i18n.language === 'fr' ? 'fr-MA' : 'en-MA', { year: 'numeric', month: 'short', day: 'numeric' })}
                     </td>
                     <td className="order-action">
                       <Link to={`/orders/${order.id}`} className="view-order-btn">
                         <EyeIcon style={{ width: '1rem', height: '1rem' }} />
-                        View
+                        {t('buyer.orders.view')}
                       </Link>
                       <button 
                         onClick={() => downloadInvoice(order.id, order.order_number)} 

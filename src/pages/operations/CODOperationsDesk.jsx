@@ -1,17 +1,18 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
 
-const money = (value) => `${Number(value || 0).toLocaleString('en-MA', { maximumFractionDigits: 2 })} MAD`;
+const money = (value, language) => `${Number(value || 0).toLocaleString(language === 'ar' ? 'ar-MA' : language === 'fr' ? 'fr-MA' : 'en-MA', { maximumFractionDigits: 2 })} MAD`;
 const digits = (value) => String(value || '').replace(/\D/g, '');
 const toWhatsApp = (value, message) => {
   const raw = digits(value);
   const number = raw.startsWith('0') ? `212${raw.slice(1)}` : raw;
   return number ? `https://wa.me/${number}?text=${encodeURIComponent(message)}` : null;
 };
-const displayAddress = (value) => {
-  if (!value) return 'Address not provided';
-  if (typeof value === 'object') return Object.values(value).filter(Boolean).join(', ') || 'Address not provided';
+const displayAddress = (value, unavailable) => {
+  if (!value) return unavailable;
+  if (typeof value === 'object') return Object.values(value).filter(Boolean).join(', ') || unavailable;
   try {
     const parsed = JSON.parse(value);
     return typeof parsed === 'object' && parsed ? Object.values(parsed).filter(Boolean).join(', ') : String(value);
@@ -19,15 +20,16 @@ const displayAddress = (value) => {
     return String(value);
   }
 };
-const stageFor = (item) => {
-  if (item.status === 'confirmed') return item.delivery_partner_contacted_at ? 'Pickup requested' : 'Waiting for seller handoff';
-  if (item.status === 'shipped' && item.delivery_reported_at) return `Reported: ${item.delivery_report_outcome}`;
-  if (item.status === 'shipped') return 'In delivery';
-  if (item.status === 'delivered') return 'Delivered — finance follow-up';
+const stageFor = (item, t) => {
+  if (item.status === 'confirmed') return item.delivery_partner_contacted_at ? t('codOps.stages.pickupRequested') : t('codOps.stages.waitingHandoff');
+  if (item.status === 'shipped' && item.delivery_reported_at) return t('codOps.stages.reported', { outcome: t(`codOps.outcomes.${item.delivery_report_outcome}`) });
+  if (item.status === 'shipped') return t('codOps.stages.inDelivery');
+  if (item.status === 'delivered') return t('codOps.stages.deliveredFollowup');
   return item.status;
 };
 
 const CODOperationsDesk = () => {
+  const { t, i18n } = useTranslation();
   const [fulfillments, setFulfillments] = useState([]);
   const [partner, setPartner] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -41,11 +43,11 @@ const CODOperationsDesk = () => {
       setFulfillments(response.data.fulfillments || []);
       setPartner(response.data.deliveryPartner || null);
     } catch (error) {
-      toast.error(error.response?.data?.error || 'Unable to load the COD operations desk.');
+      toast.error(error.response?.data?.error || t('codOps.errors.load'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => { void loadQueue(); }, 0);
@@ -84,57 +86,57 @@ const CODOperationsDesk = () => {
     setProcessing(`${item.fulfillment_id}:${action}`);
     try {
       await api.post(path, payload);
-      toast.success(isPickup ? 'Pickup and tracking recorded.' : 'Delivery outcome reported to rifKANDO finance.');
+      toast.success(isPickup ? t('codOps.success.pickup') : t('codOps.success.delivery'));
       await loadQueue();
     } catch (error) {
-      toast.error(error.response?.data?.error || 'The COD task could not be updated.');
+      toast.error(error.response?.data?.error || t('codOps.errors.update'));
     } finally {
       setProcessing(null);
     }
   };
 
-  if (loading) return <main className="cod-ops"><div className="cod-ops__empty">Loading COD operations…</div></main>;
+  if (loading) return <main className="cod-ops"><div className="cod-ops__empty">{t('codOps.loading')}</div></main>;
 
   return (
     <main className="cod-ops">
       <header className="cod-ops__header">
         <div>
-          <span>Internal team workspace</span>
-          <h1>COD Operations Desk</h1>
-          <p>Coordinate seller handoffs, carrier tracking, and delivery reports. Cash collection, rifKANDO commission, and seller payouts stay in the finance control.</p>
+          <span>{t('codOps.eyebrow')}</span>
+          <h1>{t('codOps.title')}</h1>
+          <p>{t('codOps.lead')}</p>
         </div>
-        <button type="button" onClick={() => void loadQueue()}>Refresh queue</button>
+        <button type="button" onClick={() => void loadQueue()}>{t('codOps.refresh')}</button>
       </header>
 
       <section className="cod-ops__partner" aria-label="Delivery partner">
         <div><strong>{partner?.name || 'Toufiq Zariohi'}</strong><span>COD delivery partner · {partner?.carrierNetwork || 'Najm Chamal and Ghazala'}</span></div>
-        <a href={`https://wa.me/${partner?.whatsappNumber || '212601805095'}`} target="_blank" rel="noreferrer">WhatsApp operations</a>
+        <a href={`https://wa.me/${partner?.whatsappNumber || '212601805095'}`} target="_blank" rel="noreferrer">{t('codOps.whatsapp')}</a>
       </section>
 
       <nav className="cod-ops__filters" aria-label="COD task filters">
         {[
-          ['active', 'Active work', queueCounts.active],
-          ['pickup', 'Pickup requested', queueCounts.pickup],
-          ['delivery', 'Delivery reports', queueCounts.delivery],
-          ['closed', 'History', queueCounts.closed],
+          ['active', t('codOps.filters.active'), queueCounts.active],
+          ['pickup', t('codOps.filters.pickup'), queueCounts.pickup],
+          ['delivery', t('codOps.filters.delivery'), queueCounts.delivery],
+          ['closed', t('codOps.filters.closed'), queueCounts.closed],
         ].map(([key, label, count]) => <button key={key} type="button" onClick={() => setFilter(key)} className={filter === key ? 'active' : ''}>{label}<b>{count}</b></button>)}
       </nav>
 
-      {visibleFulfillments.length === 0 ? <div className="cod-ops__empty">No COD tasks in this view.</div> : <div className="cod-ops__list">
+      {visibleFulfillments.length === 0 ? <div className="cod-ops__empty">{t('codOps.empty')}</div> : <div className="cod-ops__list">
         {visibleFulfillments.map((item) => {
           const form = formFor(item);
-          const buyerMessage = `Hello ${item.buyer_name || ''}, this is the rifKANDO delivery team about order ${item.order_number}. We are arranging your COD delivery.`;
-          const sellerMessage = `Hello ${item.seller_name || ''}, this is Toufiq from rifKANDO delivery about order ${item.order_number}. Please confirm the parcel handoff details.`;
+          const buyerMessage = t('codOps.buyerMessage', { name: item.buyer_name || '', order: item.order_number });
+          const sellerMessage = t('codOps.sellerMessage', { name: item.seller_name || '', order: item.order_number });
           const buyerWhatsApp = toWhatsApp(item.buyer_phone, buyerMessage);
           const sellerWhatsApp = toWhatsApp(item.seller_phone, sellerMessage);
           const canConfirmPickup = item.status === 'confirmed' && item.delivery_partner_contacted_at;
           const canReportDelivery = item.status === 'shipped' && !item.delivery_reported_at;
           return <article className="cod-ops__card" key={item.fulfillment_id}>
-            <div className="cod-ops__topline"><div><div className="cod-ops__order">{item.order_number}<span>{item.source === 'findit' ? 'FINDit' : 'Product'}</span></div><h2>{item.item_title || 'Order item'}</h2></div><strong className={`cod-ops__stage ${item.status}`}>{stageFor(item)}</strong></div>
+            <div className="cod-ops__topline"><div><div className="cod-ops__order">{item.order_number}<span>{item.source === 'findit' ? 'FINDit' : t('codOps.product')}</span></div><h2>{item.item_title || t('codOps.orderItem')}</h2></div><strong className={`cod-ops__stage ${item.status}`}>{stageFor(item, t)}</strong></div>
             <div className="cod-ops__details">
-              <section><small>Buyer and destination</small><strong>{item.buyer_name || 'Buyer'}</strong><p>{item.buyer_phone || 'No phone recorded'}<br />{displayAddress(item.shipping_address)}</p>{buyerWhatsApp && <a href={buyerWhatsApp} target="_blank" rel="noreferrer">Message buyer</a>}</section>
-              <section><small>Seller and parcel</small><strong>{item.seller_name || 'Seller'}</strong><p>{item.seller_phone || 'No phone recorded'}<br />{item.notes || 'No seller note provided'}</p>{sellerWhatsApp && <a href={sellerWhatsApp} target="_blank" rel="noreferrer">Message seller</a>}</section>
-              <section><small>COD collection target</small><strong>{money(item.expected_cod_amount)}</strong><p>This is a delivery reference only. Finance records any real cash evidence separately.</p></section>
+              <section><small>{t('codOps.buyerDestination')}</small><strong>{item.buyer_name || t('codOps.buyer')}</strong><p>{item.buyer_phone || t('codOps.noPhone')}<br />{displayAddress(item.shipping_address, t('codOps.noAddress'))}</p>{buyerWhatsApp && <a href={buyerWhatsApp} target="_blank" rel="noreferrer">{t('codOps.messageBuyer')}</a>}</section>
+              <section><small>{t('codOps.sellerParcel')}</small><strong>{item.seller_name || t('codOps.seller')}</strong><p>{item.seller_phone || t('codOps.noPhone')}<br />{item.notes || t('codOps.noSellerNote')}</p>{sellerWhatsApp && <a href={sellerWhatsApp} target="_blank" rel="noreferrer">{t('codOps.messageSeller')}</a>}</section>
+              <section><small>{t('codOps.codTarget')}</small><strong>{money(item.expected_cod_amount, i18n.language)}</strong><p>{t('codOps.codReference')}</p></section>
             </div>
 
             {item.carrier_name && <div className="cod-ops__tracking"><b>Carrier:</b> {item.carrier_name} <b>Tracking:</b> {item.tracking_number || 'Not recorded'}</div>}
