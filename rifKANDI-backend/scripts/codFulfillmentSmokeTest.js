@@ -31,11 +31,21 @@ const createUsersAndProduct = async (title, price = 100) => WalletService.withFi
     "INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, 'finance')",
     [`${title} finance`, `${title.replaceAll(' ', '-')}@finance.test`, 'x']
   );
+  const operations = await tx.run(
+    "INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, 'operations')",
+    [`${title} operations`, `${title.replaceAll(' ', '-')}@operations.test`, 'x']
+  );
   const product = await tx.run(
     "INSERT INTO products (title, price, seller_id, stock, status) VALUES (?, ?, ?, ?, 'published')",
     [title, price, seller.lastID, 3]
   );
-  return { buyerId: buyer.lastID, sellerId: seller.lastID, financeId: finance.lastID, productId: product.lastID };
+  return {
+    buyerId: buyer.lastID,
+    sellerId: seller.lastID,
+    financeId: finance.lastID,
+    operationsId: operations.lastID,
+    productId: product.lastID,
+  };
 });
 
 const address = (email) => ({
@@ -65,10 +75,16 @@ async function run() {
     fulfillmentId: fulfillment.id, sellerId: flow.sellerId, action: 'request_handoff',
   });
   const pickedUp = await CodFulfillmentService.confirmDeliveryPartnerPickup({
-    fulfillmentId: fulfillment.id, financeUserId: flow.financeId,
+    fulfillmentId: fulfillment.id, operationsUserId: flow.operationsId,
     carrierName: 'Najm Chamal', trackingNumber: 'COD-TRACK-1001', note: 'Toufiq collected the parcel.',
   });
   assert.equal(pickedUp.fulfillment.status, 'shipped');
+  const reported = await CodFulfillmentService.reportDeliveryOutcome({
+    fulfillmentId: fulfillment.id, operationsUserId: flow.operationsId,
+    outcome: 'delivered', note: 'Buyer accepted the parcel. Carrier collection is awaiting finance evidence.',
+  });
+  assert.equal(reported.fulfillment.status, 'shipped', 'an operations report must not settle or collect COD money');
+  assert.equal(reported.fulfillment.delivery_report_outcome, 'delivered');
   const collected = await CodFulfillmentService.recordCollection({
     fulfillmentId: fulfillment.id, financeUserId: flow.financeId,
     carrierReference: 'NAJM-COLLECT-1001', collectedAmount: 150, carrierDeliveryFee: 50,

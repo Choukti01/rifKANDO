@@ -67,6 +67,7 @@ const Navbar = () => {
     { name: t('findit.navigation'), path: '/findit' },
   ];
   const isSeller = user?.role === 'seller';
+  const isOperationsTeam = ['operations', 'finance', 'admin', 'super_admin'].includes(user?.role);
   const accountPath = isSeller ? '/seller/dashboard' : '/profile';
   const accountLabel = isSeller ? t('common.sellerDashboard') : t('common.profile');
 
@@ -130,6 +131,7 @@ const Navbar = () => {
                         <Link to={accountPath} className="dropdown-item" onClick={() => setIsProfileOpen(false)}>{accountLabel}</Link>
                         <Link to="/orders" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>{t('common.myOrders')}</Link>
                         <Link to="/findit/dashboard" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>{t('common.myFinditRequests')}</Link>
+                        {isOperationsTeam && <Link to="/operations/cod" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>COD Operations Desk</Link>}
                         {!isSeller && <>
                           <Link to="/favorites" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>{t('common.savedItems')}</Link>
                           <Link to="/cart" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>{t('nav.cart')}</Link>
@@ -182,6 +184,7 @@ const Navbar = () => {
                 <Link to={accountPath} className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>{accountLabel}</Link>
                 <Link to="/orders" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>{t('common.myOrders')}</Link>
                 <Link to="/findit/dashboard" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>{t('common.myFinditRequests')}</Link>
+                {isOperationsTeam && <Link to="/operations/cod" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>COD Operations Desk</Link>}
                 {!isSeller && <>
                   <Link to="/favorites" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>{t('common.savedItems')}</Link>
                   <Link to="/cart" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>{t('nav.cart')}</Link>

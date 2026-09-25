@@ -6,6 +6,7 @@ const ROLES = Object.freeze({
   BUYER: 'buyer',
   SELLER: 'seller',
   SUPPORT: 'support',
+  OPERATIONS: 'operations',
   FINANCE: 'finance',
   ADMIN: 'admin',
   SUPER_ADMIN: 'super_admin',
@@ -13,6 +14,9 @@ const ROLES = Object.freeze({
 
 const ADMIN_ROLES = Object.freeze([ROLES.ADMIN, ROLES.SUPER_ADMIN]);
 const FINANCE_ROLES = Object.freeze([ROLES.FINANCE, ...ADMIN_ROLES]);
+// Operations can coordinate parcels and record non-financial delivery facts.
+// They intentionally cannot reconcile cash, commission, or seller payouts.
+const OPERATIONS_ROLES = Object.freeze([ROLES.OPERATIONS, ...FINANCE_ROLES]);
 
 const hasAnyRole = (user, roles) => Boolean(user && roles.includes(user.role));
 const isAdmin = (user) => hasAnyRole(user, ADMIN_ROLES);
@@ -70,4 +74,5 @@ module.exports = {
   ROLES,
   ADMIN_ROLES,
   FINANCE_ROLES,
+  OPERATIONS_ROLES,
 };

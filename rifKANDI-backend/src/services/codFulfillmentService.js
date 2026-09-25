@@ -207,9 +207,9 @@ class CodFulfillmentService {
     });
   }
 
-  static async confirmDeliveryPartnerPickup({ fulfillmentId, financeUserId, carrierName, trackingNumber, note = '' }) {
+  static async confirmDeliveryPartnerPickup({ fulfillmentId, operationsUserId, carrierName, trackingNumber, note = '' }) {
     const safeFulfillmentId = WalletService.positiveInteger(fulfillmentId, 'Fulfillment ID');
-    const safeFinanceUserId = WalletService.positiveInteger(financeUserId, 'Finance user ID');
+    const safeOperationsUserId = WalletService.positiveInteger(operationsUserId, 'Operations user ID');
     const safeCarrier = cleanText(carrierName, 120);
     const safeTracking = cleanText(trackingNumber, 128);
     if (!safeCarrier || !safeTracking) throw new Error('Carrier name and tracking number are required to confirm pickup.');
@@ -238,7 +238,7 @@ class CodFulfillmentService {
         fulfillment.order_id,
         'shipped',
         `Toufiq Zariohi collected the parcel for ${safeCarrier}. Tracking: ${safeTracking}.`,
-        safeFinanceUserId
+        safeOperationsUserId
       );
       const orderState = await this.syncOrderStateTx(tx, fulfillment.order_id);
       return { fulfillment: await this.getFulfillmentTx(tx, safeFulfillmentId), orderState };
@@ -303,6 +303,47 @@ class CodFulfillmentService {
       const orderState = await this.syncOrderStateTx(tx, fulfillment.order_id);
       const updated = await this.getFulfillmentTx(tx, safeFulfillmentId);
       return { fulfillment: updated, orderState };
+    });
+  }
+
+  // Delivery partners may report the real-world outcome, but reporting is not
+  // a financial event. Finance must still independently record cash collection
+  // or a return/refusal, with its real receipt/reference.
+  static async reportDeliveryOutcome({ fulfillmentId, operationsUserId, outcome, note }) {
+    const safeFulfillmentId = WalletService.positiveInteger(fulfillmentId, 'Fulfillment ID');
+    const safeOperationsUserId = WalletService.positiveInteger(operationsUserId, 'Operations user ID');
+    const safeOutcome = cleanText(outcome, 32);
+    const safeNote = cleanText(note);
+    if (!['delivered', 'refused', 'returned'].includes(safeOutcome)) {
+      throw new Error('Unsupported delivery outcome.');
+    }
+    if (!safeNote) throw new Error('A delivery report note is required.');
+
+    return WalletService.withFinancialTransaction(async (tx) => {
+      const fulfillment = await this.getFulfillmentTx(tx, safeFulfillmentId);
+      if (!fulfillment) throw new Error('COD fulfilment was not found.');
+      if (fulfillment.status !== 'shipped') {
+        throw new Error('Only a shipped COD fulfilment can receive a delivery report.');
+      }
+      if (fulfillment.delivery_reported_at) {
+        throw new Error('A delivery outcome has already been reported. Finance must now record the final evidence.');
+      }
+      const update = await tx.run(
+        `UPDATE cod_fulfillments
+         SET delivery_report_outcome = ?, delivery_report_note = ?,
+             delivery_reported_at = CURRENT_TIMESTAMP, delivery_reported_by = ?, updated_at = CURRENT_TIMESTAMP
+         WHERE id = ? AND status = 'shipped' AND delivery_reported_at IS NULL`,
+        [safeOutcome, safeNote, safeOperationsUserId, fulfillment.id]
+      );
+      if (update.changes !== 1) throw new Error('The delivery report changed before it could be recorded.');
+      await this.addHistoryTx(
+        tx,
+        fulfillment.order_id,
+        'delivery_reported',
+        `Toufiq operations reported ${safeOutcome}: ${safeNote}`,
+        safeOperationsUserId
+      );
+      return { fulfillment: await this.getFulfillmentTx(tx, safeFulfillmentId) };
     });
   }
 

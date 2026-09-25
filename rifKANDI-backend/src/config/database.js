@@ -1281,6 +1281,10 @@ db.serialize(() => {
     ['commission_submitted_at', 'DATETIME'],
     ['commission_verified_at', 'DATETIME'],
     ['commission_verified_by', 'INTEGER'],
+    ['delivery_report_outcome', 'TEXT'],
+    ['delivery_report_note', 'TEXT'],
+    ['delivery_reported_at', 'DATETIME'],
+    ['delivery_reported_by', 'INTEGER'],
   ];
   for (const [column, definition] of codFulfillmentCompatibilityColumns) {
     db.run(`ALTER TABLE cod_fulfillments ADD COLUMN ${column} ${definition}`, (err) => {

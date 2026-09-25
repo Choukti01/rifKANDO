@@ -56,6 +56,11 @@ const AdminDashboard = () => {
       </div>
 
       <div className="admin-actions">
+        <Link to="/admin/operations-team" className="action-card">
+          <div className="action-icon">◉</div>
+          <h3>COD operations team</h3>
+          <p>Give Toufiq a restricted workspace for pickup, tracking, and delivery reports.</p>
+        </Link>
         <Link to="/admin/cod-reconciliation" className="action-card">
           <div className="action-icon">◈</div>
           <h3>COD reconciliation</h3>

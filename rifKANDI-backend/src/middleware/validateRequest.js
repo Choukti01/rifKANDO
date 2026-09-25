@@ -294,6 +294,26 @@ const validateCodSellerPayout = validate((req) => {
   };
 });
 
+const validateCodDeliveryReport = validate((req) => {
+  const body = object(req.body);
+  onlyKeys(body, ['outcome', 'note']);
+  return {
+    body: {
+      outcome: enumValue(body.outcome, 'outcome', ['delivered', 'refused', 'returned']),
+      note: text(body.note, 'note', { required: true, min: 3, max: 1_000 }),
+    },
+  };
+});
+
+// Operations access is intentionally a narrow, dedicated role.  An admin can
+// add or remove an operations account, but cannot use this endpoint to grant
+// finance or administrator privileges.
+const validateOperationsMember = validate((req) => {
+  const body = object(req.body);
+  onlyKeys(body, ['email']);
+  return { body: { email: email(body.email, 'email') } };
+});
+
 const validateCmiInitiation = validate((req) => {
   const body = object(req.body);
   onlyKeys(body, ['orderId']);
@@ -835,6 +855,8 @@ module.exports = {
   validateCodCommissionPayment,
   validateCodDeliveryConfirmation,
   validateCodSellerPayout,
+  validateCodDeliveryReport,
+  validateOperationsMember,
   validateCmiInitiation,
   validateOffer,
   validateOfferResponse,
