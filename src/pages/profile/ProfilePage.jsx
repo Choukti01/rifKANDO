@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import useAuth from '../../hooks/useAuth';
-import { UserIcon, EnvelopeIcon, PhoneIcon, MapPinIcon, BellIcon, PencilIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { UserIcon, EnvelopeIcon, PhoneIcon, MapPinIcon, BellIcon, PencilIcon, MagnifyingGlassIcon, KeyIcon } from '@heroicons/react/24/outline';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 import ProfilePictureUpload from '../../components/ProfilePictureUpload';
@@ -16,12 +16,13 @@ const getProfileFormData = (user) => ({
 });
 
 const ProfilePage = () => {
-  const { user, updateUser } = useAuth();
+  const { user, updateUser, addPasskey } = useAuth();
   const userId = user?.id;
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('profile');
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [addingPasskey, setAddingPasskey] = useState(false);
   const [formData, setFormData] = useState(() => getProfileFormData(user));
   const [stats, setStats] = useState({
     productsCount: 0,
@@ -100,6 +101,12 @@ const ProfilePage = () => {
     updateUser({ ...user, profilePicture: newImageUrl });
   };
 
+  const handleAddPasskey = async () => {
+    setAddingPasskey(true);
+    await addPasskey();
+    setAddingPasskey(false);
+  };
+
   const startEditing = () => {
     setFormData(getProfileFormData(user));
     setIsEditing(true);
@@ -107,6 +114,7 @@ const ProfilePage = () => {
 
   const tabs = [
     { id: 'profile', name: 'Profile Information', icon: UserIcon },
+    { id: 'security', name: 'Sign-in & Security', icon: KeyIcon },
     { id: 'notifications', name: 'Notifications', icon: BellIcon },
   ];
 
@@ -132,7 +140,7 @@ const ProfilePage = () => {
                 onUploadSuccess={handleProfilePictureUpdate}
               />
               <h3>{user.name}</h3>
-              <p className="profile-email">{user.email}</p>
+              <p className="profile-email">{user.email || 'Passwordless passkey account'}</p>
               <div className="profile-badge">
                 {user?.sellerType && user.sellerType !== null && user.sellerType !== '' ? (
                   <span className="badge-seller">
@@ -213,11 +221,11 @@ const ProfilePage = () => {
                       <label>Full Name</label>
                       <input type="text" name="name" value={formData.name} onChange={handleChange} className="form-input" />
                     </div>
-                    <div className="form-group">
+                    {user.email && <div className="form-group">
                       <label>Email</label>
                       <input type="email" name="email" value={formData.email} onChange={handleChange} className="form-input" disabled />
                       <small>Email cannot be changed</small>
-                    </div>
+                    </div>}
                     <div className="form-group">
                       <label>Phone Number</label>
                       <input type="tel" name="phone" value={formData.phone} onChange={handleChange} className="form-input" />
@@ -243,10 +251,10 @@ const ProfilePage = () => {
                       <div className="info-label"><UserIcon className="info-icon" />Full Name</div>
                       <div className="info-value">{user.name}</div>
                     </div>
-                    <div className="info-row">
+                    {user.email && <div className="info-row">
                       <div className="info-label"><EnvelopeIcon className="info-icon" />Email</div>
                       <div className="info-value">{user.email}</div>
-                    </div>
+                    </div>}
                     <div className="info-row">
                       <div className="info-label"><PhoneIcon className="info-icon" />Phone</div>
                       <div className="info-value">{user.phone || 'Not provided'}</div>
@@ -261,6 +269,22 @@ const ProfilePage = () => {
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+
+            {activeTab === 'security' && (
+              <div className="profile-card security-card">
+                <h2>Sign-in & Security</h2>
+                <p>rifKANDO uses passkeys instead of passwords. Your fingerprint, face, or device PIN never leaves your device.</p>
+                <div className="security-action">
+                  <div>
+                    <h3>Add a backup passkey</h3>
+                    <p>Add one on a second device or password manager so you can still sign in if this device is unavailable.</p>
+                  </div>
+                  <button className="btn btn-primary" disabled={addingPasskey} onClick={handleAddPasskey} type="button">
+                    {addingPasskey ? 'Adding passkey...' : 'Add passkey'}
+                  </button>
+                </div>
               </div>
             )}
 
@@ -328,6 +352,12 @@ const ProfilePage = () => {
         .bio-row { flex-direction: column; }
         .bio-row .info-label { margin-bottom: 0.5rem; }
         .notification-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 0; cursor: pointer; }
+        .security-card > p { color: #52606d; line-height: 1.6; margin: 0.5rem 0 1.5rem; }
+        .security-action { align-items: center; background: #f5faff; border: 1px solid #d8eaf6; border-radius: 0.75rem; display: flex; gap: 1rem; justify-content: space-between; padding: 1rem; }
+        .security-action h3, .security-action p { margin: 0; }
+        .security-action h3 { color: #0A1B35; font-size: 1rem; }
+        .security-action p { color: #52606d; font-size: 0.875rem; line-height: 1.45; margin-top: 0.35rem; }
+        @media (max-width: 600px) { .security-action { align-items: stretch; flex-direction: column; } .security-action .btn { width: 100%; } }
         .btn-primary { background: #1a1a1a; color: white; padding: 0.625rem 1.25rem; border: none; border-radius: 0.5rem; cursor: pointer; }
         small { font-size: 0.7rem; color: #9ca3af; }
       `}</style>

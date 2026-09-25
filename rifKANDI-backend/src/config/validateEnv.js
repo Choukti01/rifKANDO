@@ -7,7 +7,6 @@ const REQUIRED_PRODUCTION_ENV = [
   'AUDIT_LOG_SECRET',
   'PHONE_OTP_SECRET',
   'CLIENT_URL',
-  'GOOGLE_CLIENT_ID',
 ];
 
 const APPLICATION_ENVIRONMENTS = new Set(['development', 'test', 'staging', 'production']);

@@ -19,7 +19,6 @@ const { pipeline } = require('node:stream/promises');
 const { securityHeaders, createRateLimiter } = require('./middleware/security');
 const errorHandler = require('./middleware/errorHandler');
 const requestObservability = require('./middleware/requestObservability');
-const { marketplaceOperatingHours } = require('./middleware/operatingHours');
 const {
   validateIdParams,
   validateCheckout,
@@ -76,6 +75,7 @@ const Money = require('./services/moneyService');
 const CodFulfillmentService = require('./services/codFulfillmentService');
 const { getCodDeliveryPartner, createSellerHandoffLink } = require('./services/deliveryPartnerService');
 const FeatureFlags = require('./services/featureFlagService');
+const PasskeyService = require('./services/passkeyService');
 const { snapshot: getObservabilitySnapshot } = require('./services/observabilityService');
 const {
   OTP_MAX_ATTEMPTS,
@@ -206,11 +206,6 @@ app.use(express.urlencoded({
   extended: true,
   limit: '50kb'
 }));
-
-// Enforce business hours for marketplace writes even if a client bypasses the UI.
-// Keep authentication, support, and payment callbacks available independently.
-app.use(['/api/cart', '/api/orders', '/api/products', '/api/findit', '/api/seller/cod-fulfillments', '/api/admin/cod-fulfillments'], marketplaceOperatingHours);
-
 
 // Serve static files for uploads
 
@@ -547,6 +542,30 @@ const hasTrustedBrowserOrigin = (req) => {
   return !origin || allowedOrigins.has(origin);
 };
 
+const requirePasskeyBrowserOrigin = (req, res, next) => {
+  if (!allowedOrigins.has(req.get('origin'))) {
+    return res.status(403).json({ error: 'Passkeys can only be used from the rifKANDO website.' });
+  }
+  return next();
+};
+
+const recordPasskeyAudit = (req, action, outcome, resourceId = null, metadata = {}) => {
+  AuditService.recordFromRequest(req, {
+    action,
+    resourceType: 'passkey',
+    resourceId,
+    outcome,
+    metadata,
+  }).catch((error) => console.error('Passkey audit logging failed:', error.message));
+};
+
+const respondPasskeyError = (req, res, error, action) => {
+  const statusCode = error.statusCode || 400;
+  recordPasskeyAudit(req, action, 'failed', null, { statusCode });
+  console.error(`Passkey ${action} failed:`, error.message);
+  return res.status(statusCode).json({ error: error.message || 'Passkey request could not be completed.' });
+};
+
 const phoneAuthenticationUnavailable = () => new PhoneAuthError(
   'Phone sign-in is not available yet. Please continue with Google.',
   503,
@@ -708,8 +727,137 @@ app.get('/api/auth/methods', (_req, res) => {
     methods: {
       google: Boolean(String(process.env.GOOGLE_CLIENT_ID || '').trim()),
       phone: isPhoneAuthConfigured(),
+      passkey: true,
     },
   });
+});
+
+// Passkey registration starts with the browser's WebAuthn ceremony. The
+// authenticator proves device possession; biometric data never reaches this API.
+app.post('/api/auth/passkeys/register/options', authRateLimit, requirePasskeyBrowserOrigin, async (req, res) => {
+  try {
+    const name = String(req.body?.name || '').trim();
+    if (name.length < 2 || name.length > 120) return res.status(400).json({ error: 'Enter your full name.' });
+    const options = await PasskeyService.registrationOptions({
+      response: res,
+      registration: { name },
+      allowedOrigins: [...allowedOrigins],
+    });
+    return res.json({ success: true, options });
+  } catch (error) {
+    return respondPasskeyError(req, res, error, 'registration_options');
+  }
+});
+
+app.post('/api/auth/passkeys/register/verify', authRateLimit, requirePasskeyBrowserOrigin, async (req, res) => {
+  try {
+    const verified = await PasskeyService.verifyRegistration({
+      request: req,
+      response: res,
+      credential: req.body?.credential,
+      allowedOrigins: [...allowedOrigins],
+    });
+    if (verified.userId || !verified.registrationName || verified.registrationName.length < 2) {
+      throw new Error('The passkey registration request is invalid.');
+    }
+
+    const bcrypt = require('bcryptjs');
+    const passwordHash = await bcrypt.hash(crypto.randomBytes(32).toString('base64url'), 12);
+    const internalEmail = `passkey-${verified.webauthnUserId}@passkey.rifkando.invalid`;
+    const created = await runStatement(
+      'INSERT INTO users (name, email, password, is_verified) VALUES (?, ?, ?, FALSE)',
+      [verified.registrationName, internalEmail, passwordHash]
+    );
+    try {
+      await PasskeyService.storeCredential({
+        userId: created.lastID,
+        webauthnUserId: verified.webauthnUserId,
+        credential: verified.credential,
+      });
+    } catch (storeError) {
+      await runStatement('DELETE FROM users WHERE id = ?', [created.lastID]).catch(() => undefined);
+      throw storeError;
+    }
+    const user = await getUserById(created.lastID);
+    recordPasskeyAudit(req, 'registration_verified', 'success', verified.credential.id, { userId: user.id });
+    return res.status(201).json(await createAuthenticatedResponse(req, res, user));
+  } catch (error) {
+    return respondPasskeyError(req, res, error, 'registration_verified');
+  }
+});
+
+app.post('/api/auth/passkeys/login/options', authRateLimit, requirePasskeyBrowserOrigin, async (req, res) => {
+  try {
+    const options = await PasskeyService.authenticationOptions({ response: res, allowedOrigins: [...allowedOrigins] });
+    return res.json({ success: true, options });
+  } catch (error) {
+    return respondPasskeyError(req, res, error, 'login_options');
+  }
+});
+
+app.post('/api/auth/passkeys/login/verify', authRateLimit, requirePasskeyBrowserOrigin, async (req, res) => {
+  try {
+    const verified = await PasskeyService.verifyAuthentication({
+      request: req,
+      response: res,
+      credential: req.body?.credential,
+      allowedOrigins: [...allowedOrigins],
+    });
+    const user = await getUserById(verified.userId);
+    if (!user) throw new Error('Your account is no longer available.');
+    recordPasskeyAudit(req, 'login_verified', 'success', verified.credentialId, { userId: user.id });
+    return res.json(await createAuthenticatedResponse(req, res, user));
+  } catch (error) {
+    return respondPasskeyError(req, res, error, 'login_verified');
+  }
+});
+
+app.get('/api/auth/passkeys', protect, async (req, res) => {
+  try {
+    return res.json({ success: true, passkeys: await PasskeyService.listPublicCredentialsForUser(req.user.id) });
+  } catch (error) {
+    return res.status(500).json({ error: 'Could not load your passkeys.' });
+  }
+});
+
+app.post('/api/auth/passkeys/options', protect, async (req, res) => {
+  try {
+    const options = await PasskeyService.registrationOptions({ response: res, user: req.user, allowedOrigins: [...allowedOrigins] });
+    return res.json({ success: true, options });
+  } catch (error) {
+    return respondPasskeyError(req, res, error, 'add_options');
+  }
+});
+
+app.post('/api/auth/passkeys/verify', protect, async (req, res) => {
+  try {
+    const verified = await PasskeyService.verifyRegistration({
+      request: req,
+      response: res,
+      credential: req.body?.credential,
+      allowedOrigins: [...allowedOrigins],
+    });
+    if (verified.userId !== Number(req.user.id)) throw new Error('This passkey request belongs to a different account.');
+    await PasskeyService.storeCredential({
+      userId: req.user.id,
+      webauthnUserId: verified.webauthnUserId,
+      credential: verified.credential,
+    });
+    recordPasskeyAudit(req, 'added', 'success', verified.credential.id);
+    return res.status(201).json({ success: true, passkey: { id: verified.credential.id, name: 'Passkey' } });
+  } catch (error) {
+    return respondPasskeyError(req, res, error, 'add_verified');
+  }
+});
+
+app.delete('/api/auth/passkeys/:credentialId', protect, async (req, res) => {
+  try {
+    await PasskeyService.deleteCredential({ userId: req.user.id, credentialId: req.params.credentialId });
+    recordPasskeyAudit(req, 'removed', 'success', req.params.credentialId);
+    return res.status(204).end();
+  } catch (error) {
+    return respondPasskeyError(req, res, error, 'removed');
+  }
 });
 
 app.post('/api/auth/phone/login/verify', authRateLimit, async (req, res) => {

@@ -22,6 +22,7 @@
     "@heroicons/react": "^2.2.0",
     "@react-oauth/google": "^0.13.5",
     "@react-pdf/renderer": "^4.5.1",
+    "@simplewebauthn/browser": "14.0.0",
     "axios": "^1.17.0",
     "date-fns": "^2.30.0",
     "framer-motion": "^10.18.0",

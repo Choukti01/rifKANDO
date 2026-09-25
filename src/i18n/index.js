@@ -402,12 +402,52 @@ Object.assign(resources.en.translation.auth, {
   googleOnlyLead: 'Sign in securely with your Google account.',
   googleOnlyCreateLead: 'Create your account securely with Google.',
   phoneUnavailable: 'Phone sign-in will appear here once SMS delivery is available.',
+  email: 'Email address',
+  passkeyWelcome: 'Welcome back',
+  passkeyJoin: 'Create your account',
+  passkeyLoginLead: 'Choose the passkey saved on this device or another device.',
+  passkeyRegisterLead: 'Use your device lock to create a password-free rifKANDO account.',
+  passkeyHint: 'Approve with your fingerprint, face, or device PIN. No password or email is required.',
+  passkeyPrivacy: 'Your fingerprint, face, and device PIN stay on your device. rifKANDO receives only a public cryptographic key.',
+  continuePasskey: 'Continue with passkey',
+  createPasskey: 'Create secure passkey',
+  passkeyChecking: 'Checking your passkey...',
+  passkeyCreating: 'Creating your passkey...',
+  passkeyUnavailable: 'Passkeys are not available in this browser or device.',
 });
 
 Object.assign(resources.ar.translation.auth, {
   googleOnlyLead: 'سجّل الدخول بأمان باستخدام حساب Google.',
   googleOnlyCreateLead: 'أنشئ حسابك بأمان باستخدام Google.',
   phoneUnavailable: 'سيظهر تسجيل الدخول بالهاتف هنا عند توفر إرسال رسائل SMS.',
+  email: 'البريد الإلكتروني',
+  passkeyWelcome: 'مرحبًا بعودتك',
+  passkeyJoin: 'أنشئ حسابك',
+  passkeyLoginLead: 'اختر مفتاح المرور المحفوظ على هذا الجهاز أو على جهاز آخر.',
+  passkeyRegisterLead: 'استخدم قفل جهازك لإنشاء حساب rifKANDO آمن بدون كلمة مرور.',
+  passkeyHint: 'وافق ببصمة الإصبع أو الوجه أو رمز الجهاز. لا تحتاج إلى كلمة مرور أو بريد إلكتروني.',
+  passkeyPrivacy: 'تبقى بصمتك ووجهك ورمز جهازك على جهازك. يستلم rifKANDO مفتاحًا عامًا مشفرًا فقط.',
+  continuePasskey: 'المتابعة باستخدام مفتاح المرور',
+  createPasskey: 'إنشاء مفتاح مرور آمن',
+  passkeyChecking: 'جارٍ التحقق من مفتاح المرور...',
+  passkeyCreating: 'جارٍ إنشاء مفتاح المرور...',
+  passkeyUnavailable: 'مفاتيح المرور غير متاحة في هذا المتصفح أو الجهاز.',
+});
+
+resources.fr.translation.auth ||= {};
+Object.assign(resources.fr.translation.auth, {
+  email: 'Adresse e-mail',
+  passkeyWelcome: 'Bon retour',
+  passkeyJoin: 'Créez votre compte',
+  passkeyLoginLead: 'Choisissez la clé d’accès enregistrée sur cet appareil ou sur un autre appareil.',
+  passkeyRegisterLead: 'Utilisez le verrouillage de votre appareil pour créer un compte rifKANDO sans mot de passe.',
+  passkeyHint: 'Validez avec votre empreinte, votre visage ou le code de votre appareil. Aucun mot de passe ni e-mail n’est nécessaire.',
+  passkeyPrivacy: 'Votre empreinte, votre visage et le code de votre appareil restent sur votre appareil. rifKANDO reçoit uniquement une clé cryptographique publique.',
+  continuePasskey: 'Continuer avec une clé d’accès',
+  createPasskey: 'Créer une clé d’accès sécurisée',
+  passkeyChecking: 'Vérification de votre clé d’accès...',
+  passkeyCreating: 'Création de votre clé d’accès...',
+  passkeyUnavailable: 'Les clés d’accès ne sont pas disponibles dans ce navigateur ou sur cet appareil.',
 });
 
 const replaceArabicFinditBrand = (value) => {

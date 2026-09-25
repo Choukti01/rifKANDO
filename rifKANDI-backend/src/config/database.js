@@ -237,6 +237,42 @@ db.serialize(() => {
   db.run('CREATE INDEX IF NOT EXISTS idx_auth_sessions_expiry ON auth_sessions(expires_at)');
   db.run("DELETE FROM auth_sessions WHERE expires_at < datetime('now', '-7 days')");
 
+  // Passkeys use WebAuthn public keys only. Device biometrics never leave the
+  // user's authenticator, and short-lived challenges are bound to HttpOnly cookies.
+  db.run(`
+    CREATE TABLE IF NOT EXISTS passkey_challenges (
+      token_hash TEXT PRIMARY KEY,
+      purpose TEXT NOT NULL CHECK (purpose IN ('registration', 'authentication')),
+      user_id INTEGER,
+      webauthn_user_id TEXT,
+      registration_name TEXT,
+      registration_email TEXT,
+      expires_at DATETIME NOT NULL,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `);
+  db.run('ALTER TABLE passkey_challenges ADD COLUMN registration_name TEXT', () => {});
+  db.run('ALTER TABLE passkey_challenges ADD COLUMN registration_email TEXT', () => {});
+  db.run('CREATE INDEX IF NOT EXISTS idx_passkey_challenges_expiry ON passkey_challenges(expires_at)');
+  db.run(`
+    CREATE TABLE IF NOT EXISTS passkey_credentials (
+      credential_id TEXT PRIMARY KEY,
+      user_id INTEGER NOT NULL,
+      webauthn_user_id TEXT NOT NULL,
+      public_key TEXT NOT NULL,
+      counter INTEGER NOT NULL DEFAULT 0,
+      transports TEXT NOT NULL DEFAULT '[]',
+      device_type TEXT NOT NULL,
+      backed_up BOOLEAN NOT NULL DEFAULT 0,
+      name TEXT NOT NULL DEFAULT 'Passkey',
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      last_used_at DATETIME,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `);
+  db.run('CREATE INDEX IF NOT EXISTS idx_passkey_credentials_user ON passkey_credentials(user_id, created_at)');
+
   // Invoices are immutable snapshots. The object reference is private and is
   // only streamed after the buyer/admin authorization check in app.js.
   db.run(`

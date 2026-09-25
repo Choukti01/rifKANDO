@@ -25,6 +25,8 @@ const SQLITE_BOOLEAN_COLUMNS = new Set([
 
 const TABLES_WITHOUT_NUMERIC_ID = new Set([
   'google_verifications',
+  'passkey_challenges',
+  'passkey_credentials',
   'pending_registrations',
   'phone_verification_challenges',
 ]);

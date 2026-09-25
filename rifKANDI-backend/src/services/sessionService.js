@@ -58,11 +58,12 @@ const readCookies = (request) => Object.fromEntries(
 );
 
 const isPhoneIdentityEmail = (email) => String(email || '').endsWith('@phone.rifkando.invalid');
+const isPasskeyIdentityEmail = (email) => String(email || '').endsWith('@passkey.rifkando.invalid');
 
 const publicUser = (user) => ({
   id: user.id,
   name: user.name,
-  email: isPhoneIdentityEmail(user.email) ? null : user.email,
+  email: isPhoneIdentityEmail(user.email) || isPasskeyIdentityEmail(user.email) ? null : user.email,
   phone: user.phone,
   role: user.role,
   sellerType: user.seller_type,
