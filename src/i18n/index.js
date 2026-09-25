@@ -401,6 +401,8 @@ Object.assign(resources.ar.translation, {
 Object.assign(resources.en.translation.auth, {
   googleOnlyLead: 'Sign in securely with your Google account.',
   googleOnlyCreateLead: 'Create your account securely with Google.',
+  googlePasskeyLoginLead: 'Sign in securely with Google or a passkey.',
+  googlePasskeyRegisterLead: 'Create your account securely with Google or a passkey.',
   phoneUnavailable: 'Phone sign-in will appear here once SMS delivery is available.',
   email: 'Email address',
   passkeyWelcome: 'Welcome back',
@@ -419,6 +421,8 @@ Object.assign(resources.en.translation.auth, {
 Object.assign(resources.ar.translation.auth, {
   googleOnlyLead: 'سجّل الدخول بأمان باستخدام حساب Google.',
   googleOnlyCreateLead: 'أنشئ حسابك بأمان باستخدام Google.',
+  googlePasskeyLoginLead: 'سجّل الدخول بأمان باستخدام Google أو مفتاح مرور.',
+  googlePasskeyRegisterLead: 'أنشئ حسابك بأمان باستخدام Google أو مفتاح مرور.',
   phoneUnavailable: 'سيظهر تسجيل الدخول بالهاتف هنا عند توفر إرسال رسائل SMS.',
   email: 'البريد الإلكتروني',
   passkeyWelcome: 'مرحبًا بعودتك',
@@ -437,6 +441,8 @@ Object.assign(resources.ar.translation.auth, {
 resources.fr.translation.auth ||= {};
 Object.assign(resources.fr.translation.auth, {
   email: 'Adresse e-mail',
+  googlePasskeyLoginLead: 'Connectez-vous en toute sécurité avec Google ou une clé d’accès.',
+  googlePasskeyRegisterLead: 'Créez votre compte en toute sécurité avec Google ou une clé d’accès.',
   passkeyWelcome: 'Bon retour',
   passkeyJoin: 'Créez votre compte',
   passkeyLoginLead: 'Choisissez la clé d’accès enregistrée sur cet appareil ou sur un autre appareil.',
