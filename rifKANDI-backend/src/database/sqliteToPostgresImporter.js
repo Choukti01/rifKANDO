@@ -106,6 +106,7 @@ const TIMESTAMPTZ_COLUMNS = new Set([
   'cart.created_at', 'favorites.created_at',
   'cod_fulfillments.confirmed_at', 'cod_fulfillments.dispatched_at', 'cod_fulfillments.delivered_at',
   'cod_fulfillments.refused_at', 'cod_fulfillments.returned_at', 'cod_fulfillments.cancelled_at',
+  'cod_fulfillments.delivery_reported_at',
   'cod_fulfillments.settled_at', 'cod_fulfillments.created_at', 'cod_fulfillments.updated_at',
   'findit_requests.expires_at', 'findit_requests.created_at', 'findit_requests.updated_at',
   'findit_request_media.created_at', 'findit_offers.created_at', 'findit_offers.updated_at',

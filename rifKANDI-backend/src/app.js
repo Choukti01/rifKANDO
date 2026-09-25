@@ -9,6 +9,7 @@ const {
   ROLES,
   ADMIN_ROLES,
   FINANCE_ROLES,
+  OPERATIONS_ROLES,
 } = require('./middleware/auth');
 const path = require('path');
 const fs = require('fs');
@@ -35,6 +36,8 @@ const {
   validateCodCommissionPayment,
   validateCodDeliveryConfirmation,
   validateCodSellerPayout,
+  validateCodDeliveryReport,
+  validateOperationsMember,
   validateCmiInitiation,
   validateOffer,
   validateOfferResponse,
@@ -103,6 +106,7 @@ const app = express();
 const requireSeller = authorize(ROLES.SELLER);
 const requireAdmin = authorize(...ADMIN_ROLES);
 const requireFinance = authorize(...FINANCE_ROLES);
+const requireOperations = authorize(...OPERATIONS_ROLES);
 const requireFeature = FeatureFlags.requireFeature;
 const allowedOrigins = new Set(getAllowedOrigins());
 
@@ -3390,7 +3394,162 @@ app.get('/api/admin/audit-logs', protect, authorize(ROLES.SUPER_ADMIN), async (r
   }
 });
 
-// ==================== COD ADMIN PANEL ====================
+// ==================== OPERATIONS TEAM ACCESS ====================
+// This is deliberately limited to the operations role. It cannot grant
+// finance, admin, or seller permissions, and avoids the risk of a team member
+// changing their own privileges.
+app.get('/api/admin/operations-members', protect, requireAdmin, async (req, res) => {
+  try {
+    const members = await getDatabaseRows(
+      `SELECT id, name, email, role, created_at
+       FROM users
+       WHERE role = 'operations'
+       ORDER BY created_at ASC, id ASC`,
+      []
+    );
+    await AuditService.recordFromRequest(req, {
+      action: 'admin.operations_members_viewed',
+      resourceType: 'user',
+      metadata: { resultCount: members.length },
+    });
+    return res.json({ success: true, members });
+  } catch (error) {
+    return res.status(500).json({ error: 'Unable to load operations team members.', requestId: req.requestId });
+  }
+});
+
+app.post('/api/admin/operations-members', protect, requireAdmin, validateOperationsMember, async (req, res) => {
+  try {
+    const member = await getDatabaseRow(
+      'SELECT id, name, email, role FROM users WHERE LOWER(email) = LOWER(?)',
+      [req.body.email]
+    );
+    if (!member) return res.status(404).json({ error: 'No rifKANDO account exists for that email.', requestId: req.requestId });
+    if (Number(member.id) === Number(req.user.id)) {
+      return res.status(400).json({ error: 'Your own administrative account cannot be changed here.', requestId: req.requestId });
+    }
+    if (member.role === ROLES.OPERATIONS) return res.json({ success: true, member, alreadyMember: true });
+    if (![ROLES.BUYER].includes(member.role)) {
+      return res.status(400).json({ error: 'Use a dedicated buyer account for operations access. Seller, finance, and administrator accounts cannot be changed here.', requestId: req.requestId });
+    }
+    const update = await runDatabaseStatement("UPDATE users SET role = 'operations' WHERE id = ? AND role = 'buyer'", [member.id]);
+    if (update.changes !== 1) return res.status(409).json({ error: 'This account changed before operations access could be granted.', requestId: req.requestId });
+    await AuditService.recordFromRequest(req, {
+      action: 'admin.operations_member_added',
+      resourceType: 'user',
+      resourceId: member.id,
+      metadata: { previousRole: member.role },
+    });
+    return res.status(201).json({ success: true, member: { ...member, role: ROLES.OPERATIONS }, alreadyMember: false });
+  } catch (error) {
+    return res.status(500).json({ error: 'Unable to grant operations access.', requestId: req.requestId });
+  }
+});
+
+app.delete('/api/admin/operations-members/:id', protect, requireAdmin, validateIdParams('id'), async (req, res) => {
+  try {
+    if (Number(req.params.id) === Number(req.user.id)) {
+      return res.status(400).json({ error: 'Your own administrative account cannot be changed here.', requestId: req.requestId });
+    }
+    const member = await getDatabaseRow('SELECT id, name, email, role FROM users WHERE id = ?', [req.params.id]);
+    if (!member || member.role !== ROLES.OPERATIONS) {
+      return res.status(404).json({ error: 'Operations team member not found.', requestId: req.requestId });
+    }
+    const update = await runDatabaseStatement("UPDATE users SET role = 'buyer' WHERE id = ? AND role = 'operations'", [member.id]);
+    if (update.changes !== 1) return res.status(409).json({ error: 'This account changed before operations access could be removed.', requestId: req.requestId });
+    await AuditService.recordFromRequest(req, {
+      action: 'admin.operations_member_removed',
+      resourceType: 'user',
+      resourceId: member.id,
+    });
+    return res.json({ success: true });
+  } catch (error) {
+    return res.status(500).json({ error: 'Unable to remove operations access.', requestId: req.requestId });
+  }
+});
+
+// ==================== COD OPERATIONS DESK ====================
+// The operations workspace is deliberately narrower than finance: it gives
+// Toufiq the parcel, buyer, seller, carrier, and status information needed to
+// do delivery work, without exposing settlement or bank-transfer controls.
+app.get('/api/operations/cod-fulfillments', protect, requireOperations, async (req, res) => {
+  try {
+    const fulfillments = await getDatabaseRows(`
+      SELECT
+        f.id AS fulfillment_id, f.source, f.status, f.carrier_name, f.tracking_number,
+        f.delivery_partner_name, f.delivery_partner_contacted_at, f.delivery_partner_pickup_at,
+        f.delivery_report_outcome, f.delivery_report_note, f.delivery_reported_at,
+        f.confirmed_at, f.dispatched_at, f.created_at,
+        f.expected_cod_amount, f.expected_cod_amount_minor,
+        o.id AS order_id, o.order_number, o.shipping_address, o.notes, o.created_at AS order_created_at,
+        buyer.name AS buyer_name, buyer.phone AS buyer_phone,
+        seller.name AS seller_name, seller.phone AS seller_phone,
+        COALESCE(
+          fo.item_title,
+          (SELECT COALESCE(NULLIF(oi.product_title, ''), p.title)
+           FROM order_items oi LEFT JOIN products p ON p.id = oi.product_id
+           WHERE oi.order_id = o.id ORDER BY oi.id ASC LIMIT 1)
+        ) AS item_title
+      FROM cod_fulfillments f
+      JOIN orders o ON o.id = f.order_id
+      JOIN users buyer ON buyer.id = o.user_id
+      JOIN users seller ON seller.id = f.seller_id
+      LEFT JOIN findit_orders fo ON fo.order_id = o.id AND f.source = 'findit'
+      WHERE f.status IN ('confirmed', 'shipped', 'delivered', 'refused', 'returned')
+      ORDER BY
+        CASE f.status WHEN 'confirmed' THEN 0 WHEN 'shipped' THEN 1 ELSE 2 END,
+        f.created_at ASC
+    `, []);
+    await AuditService.recordFromRequest(req, {
+      action: 'operations.cod_fulfillments_viewed',
+      resourceType: 'cod_fulfillment',
+      metadata: { resultCount: fulfillments.length },
+    });
+    return res.json({ success: true, fulfillments, deliveryPartner: getCodDeliveryPartner() });
+  } catch (error) {
+    return res.status(500).json({ error: 'Unable to load the COD operations queue.', requestId: req.requestId });
+  }
+});
+
+app.post('/api/operations/cod-fulfillments/:id/confirm-pickup', protect, requireOperations, validateIdParams('id'), validateCodPartnerPickup, async (req, res) => {
+  try {
+    const result = await CodFulfillmentService.confirmDeliveryPartnerPickup({
+      fulfillmentId: req.params.id,
+      operationsUserId: req.user.id,
+      ...req.body,
+    });
+    await AuditService.recordFromRequest(req, {
+      action: 'operations.cod_pickup_confirmed',
+      resourceType: 'cod_fulfillment',
+      resourceId: req.params.id,
+      metadata: { orderId: result.fulfillment.order_id, carrier: result.fulfillment.carrier_name },
+    });
+    return res.json({ success: true, fulfillment: result.fulfillment, order: result.orderState });
+  } catch (error) {
+    return res.status(400).json({ error: error.message, requestId: req.requestId });
+  }
+});
+
+app.post('/api/operations/cod-fulfillments/:id/report-delivery', protect, requireOperations, validateIdParams('id'), validateCodDeliveryReport, async (req, res) => {
+  try {
+    const result = await CodFulfillmentService.reportDeliveryOutcome({
+      fulfillmentId: req.params.id,
+      operationsUserId: req.user.id,
+      ...req.body,
+    });
+    await AuditService.recordFromRequest(req, {
+      action: 'operations.cod_delivery_reported',
+      resourceType: 'cod_fulfillment',
+      resourceId: req.params.id,
+      metadata: { orderId: result.fulfillment.order_id, outcome: result.fulfillment.delivery_report_outcome },
+    });
+    return res.json({ success: true, fulfillment: result.fulfillment });
+  } catch (error) {
+    return res.status(400).json({ error: error.message, requestId: req.requestId });
+  }
+});
+
+// ==================== COD FINANCE CONTROL ====================
 app.get('/api/admin/cod-fulfillments', protect, requireFinance, async (req, res) => {
   try {
     const fulfillments = await getDatabaseRows(`
@@ -3468,7 +3627,7 @@ app.post('/api/admin/cod-fulfillments/:id/confirm-pickup', protect, requireFinan
   try {
     const result = await CodFulfillmentService.confirmDeliveryPartnerPickup({
       fulfillmentId: req.params.id,
-      financeUserId: req.user.id,
+      operationsUserId: req.user.id,
       ...req.body,
     });
     await AuditService.recordFromRequest(req, {
