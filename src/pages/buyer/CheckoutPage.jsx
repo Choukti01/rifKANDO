@@ -5,9 +5,11 @@ import useCart from '../../hooks/useCart'
 import useAuth from '../../hooks/useAuth'
 import api from '../../services/api'
 import toast from 'react-hot-toast'
+import { useTranslation } from 'react-i18next'
 
 
 const CheckoutPage = () => {
+  const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const { cart, getCartTotal, getCartShipping, clearCart } = useCart()
   const { user } = useAuth()
@@ -30,7 +32,7 @@ const CheckoutPage = () => {
   const shipping = getCartShipping()
   const total = subtotal + shipping
   const requiredAddressFields = ['fullName', 'email', 'phone', 'address', 'city']
-  const formatAmount = (amount) => `${Number(amount || 0).toLocaleString()} MAD`
+  const formatAmount = (amount) => `${Number(amount || 0).toLocaleString(i18n.language === 'ar' ? 'ar-MA' : i18n.language === 'fr' ? 'fr-MA' : 'en-MA')} MAD`
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value })
@@ -39,7 +41,7 @@ const CheckoutPage = () => {
   const validateShippingInformation = () => {
     const missingField = requiredAddressFields.some((field) => !String(formData[field] || '').trim())
     if (missingField) {
-      toast.error('Please complete your delivery details before continuing')
+      toast.error(t('buyer.checkout.deliveryDetailsRequired'))
       return false
     }
     return true
@@ -115,12 +117,12 @@ const CheckoutPage = () => {
 
       const response = await api.post('/orders', orderData, requestConfig)
       if (!response.data.success) throw new Error('Could not place your COD order')
-      toast.success('COD order placed. Thank you for shopping with rifKANDO!')
+      toast.success(t('buyer.checkout.orderPlaced'))
       await clearCart()
       navigate('/orders')
     } catch (error) {
       console.error('Order failed:', error)
-      toast.error(error.response?.data?.error || 'Failed to place order')
+      toast.error(error.response?.data?.error || t('buyer.checkout.orderFailed'))
     } finally {
       setLoading(false)
     }
@@ -130,10 +132,10 @@ const CheckoutPage = () => {
     return (
       <div className="container text-center py-16">
         <div className="text-6xl mb-4">🛒</div>
-        <h2 className="text-2xl font-bold mb-2">Your cart is empty</h2>
-        <p className="text-gray-500 mb-6">Add items to your cart before checking out</p>
+        <h2 className="text-2xl font-bold mb-2">{t('buyer.cart.emptyTitle')}</h2>
+        <p className="text-gray-500 mb-6">{t('buyer.checkout.emptyLead')}</p>
         <button onClick={() => navigate('/products')} className="btn btn-primary">
-          Continue Shopping
+          {t('buyer.cart.continueShopping')}
         </button>
       </div>
     )
@@ -144,27 +146,27 @@ const CheckoutPage = () => {
       <div className="container">
         <div className="checkout-heading">
           <div>
-            <p className="checkout-eyebrow">Secure checkout</p>
-            <h1 className="checkout-title">Complete your order</h1>
+            <p className="checkout-eyebrow">{t('buyer.checkout.eyebrow')}</p>
+            <h1 className="checkout-title">{t('buyer.checkout.title')}</h1>
           </div>
-          <p>Review delivery and payment details before placing your order.</p>
+          <p>{t('buyer.checkout.lead')}</p>
         </div>
 
         {/* Progress Steps */}
         <div className="checkout-steps">
           <div className="step-item">
             <div className={`step-circle ${step >= 1 ? 'active' : ''}`}>1</div>
-            <span>Shipping</span>
+            <span>{t('buyer.shipping')}</span>
           </div>
           <div className={`step-line ${step >= 2 ? 'active' : ''}`}></div>
           <div className="step-item">
             <div className={`step-circle ${step >= 2 ? 'active' : ''}`}>2</div>
-            <span>Payment</span>
+            <span>{t('buyer.payment')}</span>
           </div>
           <div className={`step-line ${step >= 3 ? 'active' : ''}`}></div>
           <div className="step-item">
             <div className={`step-circle ${step >= 3 ? 'active' : ''}`}>3</div>
-            <span>Confirm</span>
+            <span>{t('buyer.confirm')}</span>
           </div>
         </div>
 
@@ -172,52 +174,52 @@ const CheckoutPage = () => {
           <div className="checkout-form-container">
             {step === 1 && (
               <div className="checkout-form">
-                <h2>Shipping Information</h2>
+                <h2>{t('buyer.checkout.shippingInformation')}</h2>
                 <div className="form-row">
                   <div className="form-field">
-                    <label htmlFor="checkout-full-name">Full name *</label>
+                    <label htmlFor="checkout-full-name">{t('buyer.checkout.fullName')} *</label>
                     <input id="checkout-full-name" autoComplete="name" type="text" name="fullName" value={formData.fullName} onChange={handleChange} required />
                   </div>
                   <div className="form-field">
-                    <label htmlFor="checkout-email">Email *</label>
+                    <label htmlFor="checkout-email">{t('buyer.checkout.email')} *</label>
                     <input id="checkout-email" autoComplete="email" type="email" name="email" value={formData.email} onChange={handleChange} required />
                   </div>
                 </div>
                 <div className="form-row">
                   <div className="form-field">
-                    <label htmlFor="checkout-phone">Phone *</label>
+                    <label htmlFor="checkout-phone">{t('buyer.checkout.phone')} *</label>
                     <input id="checkout-phone" autoComplete="tel" type="tel" name="phone" value={formData.phone} onChange={handleChange} required />
                   </div>
                   <div className="form-field">
-                    <label htmlFor="checkout-city">City *</label>
+                    <label htmlFor="checkout-city">{t('buyer.checkout.city')} *</label>
                     <input id="checkout-city" autoComplete="address-level2" type="text" name="city" value={formData.city} onChange={handleChange} required />
                   </div>
                 </div>
                 <div className="form-field">
-                  <label htmlFor="checkout-address">Address *</label>
+                  <label htmlFor="checkout-address">{t('buyer.checkout.address')} *</label>
                   <input id="checkout-address" autoComplete="street-address" type="text" name="address" value={formData.address} onChange={handleChange} required />
                 </div>
                 <div className="form-field">
-                  <label htmlFor="checkout-postal-code">Postal code</label>
+                  <label htmlFor="checkout-postal-code">{t('buyer.checkout.postalCode')}</label>
                   <input id="checkout-postal-code" autoComplete="postal-code" type="text" name="postalCode" value={formData.postalCode} onChange={handleChange} />
                 </div>
                 <div className="form-field">
-                  <label htmlFor="checkout-notes">Order notes (optional)</label>
-                  <textarea id="checkout-notes" rows="3" name="notes" value={formData.notes} onChange={handleChange} placeholder="Special delivery instructions..."></textarea>
+                  <label htmlFor="checkout-notes">{t('buyer.checkout.orderNotes')}</label>
+                  <textarea id="checkout-notes" rows="3" name="notes" value={formData.notes} onChange={handleChange} placeholder={t('buyer.checkout.notesPlaceholder')}></textarea>
                 </div>
-                <button type="button" onClick={handleContinueToPayment} className="next-btn">Continue to payment</button>
+                <button type="button" onClick={handleContinueToPayment} className="next-btn">{t('buyer.checkout.continuePayment')}</button>
               </div>
             )}
 
             {step === 2 && (
               <div className="checkout-form">
-                <h2>Payment Method</h2>
+                <h2>{t('buyer.checkout.paymentMethod')}</h2>
                 <div className="payment-options">
                   <div className="payment-option active" role="status">
                     <TruckIcon className="payment-icon" />
                     <div>
-                      <strong>Cash on Delivery</strong>
-                      <p>Pay when your order is delivered.</p>
+                      <strong>{t('buyer.cashOnDelivery')}</strong>
+                      <p>{t('buyer.checkout.codLead')}</p>
                     </div>
                   </div>
 
@@ -240,17 +242,17 @@ const CheckoutPage = () => {
                   */}
                 </div>
                 <div className="form-buttons">
-                  <button type="button" onClick={() => setStep(1)} className="back-btn">Back</button>
-                  <button type="button" onClick={() => setStep(3)} className="next-btn">Review order</button>
+                  <button type="button" onClick={() => setStep(1)} className="back-btn">{t('buyer.back')}</button>
+                  <button type="button" onClick={() => setStep(3)} className="next-btn">{t('buyer.checkout.reviewOrder')}</button>
                 </div>
               </div>
             )}
 
             {step === 3 && (
               <div className="checkout-form">
-                <h2>Review Your Order</h2>
+                <h2>{t('buyer.checkout.reviewTitle')}</h2>
                 <div className="review-section">
-                  <h3>Shipping Address</h3>
+                  <h3>{t('buyer.checkout.shippingAddress')}</h3>
                   <p>
                     {formData.fullName}<br />
                     {formData.address}<br />
@@ -260,11 +262,11 @@ const CheckoutPage = () => {
                   </p>
                 </div>
                 <div className="review-section">
-                  <h3>Payment Method</h3>
-                  <p>Cash on Delivery</p>
+                  <h3>{t('buyer.checkout.paymentMethod')}</h3>
+                  <p>{t('buyer.cashOnDelivery')}</p>
                 </div>
                 <div className="review-section">
-                  <h3>Order Items</h3>
+                  <h3>{t('buyer.checkout.orderItems')}</h3>
                   {cart.map(item => (
                     <div key={`${item.type}-${item.id}`} className="review-item">
                       <span>{item.title} x {item.quantity}</span>
@@ -273,18 +275,18 @@ const CheckoutPage = () => {
                   ))}
                 </div>
                 <div className="review-total">
-                  <span>Order total</span>
+                  <span>{t('buyer.checkout.orderTotal')}</span>
                   <strong>{formatAmount(total)}</strong>
                 </div>
                 <div className="form-buttons">
-                  <button type="button" onClick={() => setStep(2)} className="back-btn">Back</button>
+                  <button type="button" onClick={() => setStep(2)} className="back-btn">{t('buyer.back')}</button>
                   <button 
                     type="button" 
                     onClick={handlePlaceOrder} 
                     className="place-order-btn"
                     disabled={loading}
                   >
-                    {loading ? 'Processing...' : 'Place COD order'}
+                    {loading ? t('buyer.checkout.processing') : t('buyer.checkout.placeCodOrder')}
                   </button>
                 </div>
               </div>
@@ -292,22 +294,22 @@ const CheckoutPage = () => {
           </div>
 
           <div className="order-summary">
-            <h3>Order Summary</h3>
+            <h3>{t('buyer.orderSummary')}</h3>
             <div className="summary-row">
-              <span>Subtotal</span>
+              <span>{t('buyer.subtotal')}</span>
               <span>{formatAmount(subtotal)}</span>
             </div>
             <div className="summary-row">
-              <span>Shipping</span>
-              <span>{shipping === 0 ? 'Free' : formatAmount(shipping)}</span>
+              <span>{t('buyer.shipping')}</span>
+              <span>{shipping === 0 ? t('buyer.free') : formatAmount(shipping)}</span>
             </div>
             <div className="summary-total">
-              <span>Total</span>
+              <span>{t('buyer.total')}</span>
               <span>{formatAmount(total)}</span>
             </div>
             <div className="secure-badge">
               <ShieldCheckIcon className="shield-icon" />
-              <span>Payment and delivery details are confirmed before your order is created.</span>
+              <span>{t('buyer.checkout.secureNote')}</span>
             </div>
           </div>
         </div>

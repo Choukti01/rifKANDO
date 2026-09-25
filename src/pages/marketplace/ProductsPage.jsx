@@ -1,17 +1,18 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import useCart from '../../hooks/useCart';
 import useAuth from '../../hooks/useAuth';
 import toast from 'react-hot-toast';
 import MediaGallery from '../../components/MediaGallery';
 import api from '../../services/api';
 import { getImageUrl } from '../../utils/imageUtils';
-import EmptyState from '../../components/common/EmptyState';
 import LoadingSkeleton from '../../components/common/LoadingSkeleton';
 import MarketplaceImage from '../../components/common/MarketplaceImage';
 import ServiceUnavailableState from '../../components/common/ServiceUnavailableState';
 
 const ProductsPage = () => {
+  const { t } = useTranslation();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [galleryProduct, setGalleryProduct] = useState(null);
@@ -80,7 +81,7 @@ const ProductsPage = () => {
   }, [fetchProducts, retryKey]);
 
   const handleAddToCart = (product) => {
-    if (!isAuthenticated) { toast.error('Please login'); return; }
+    if (!isAuthenticated) { toast.error(t('products.signInRequired')); return; }
     addToCart(product, 1, 'product');
   };
 
@@ -89,11 +90,12 @@ const ProductsPage = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-const conditionLabels = {
-  new: 'New',
-  used_as_new: 'Used as New',
-  joutiya: 'Joutiya (Haggle)'
-};
+  const conditionLabels = {
+    new: t('products.conditions.new'),
+    used_as_new: t('products.conditions.usedAsNew'),
+    joutiya: t('products.conditions.joutiya'),
+  };
+  const categoryLabel = (category) => t(`products.categories.${category}`);
 
   const hasActiveFilters = Boolean(searchTerm || selectedCategory || minPrice || maxPrice);
   const activeFilterCount = [searchTerm, selectedCategory, minPrice, maxPrice].filter(Boolean).length;
@@ -114,78 +116,69 @@ const conditionLabels = {
     setCurrentPage(1);
   };
 
-  if (loading) return <div className="container py-16"><LoadingSkeleton label="Loading products" /></div>;
+  if (loading) return <div className="container py-16"><LoadingSkeleton label={t('products.loading')} /></div>;
 
   return (
     <div className="products-page">
       <div className="container">
         <div className="products-header">
-          <h1>Products</h1>
-          <p>Discover the best products from Moroccan sellers</p>
+          <h1>{t('products.title')}</h1>
+          <p>{t('products.lead')}</p>
         </div>
 
         <div className="condition-tabs">
-          <button className={`tab-btn ${activeCondition === 'new' ? 'active' : ''}`} onClick={() => { setActiveCondition('new'); setCurrentPage(1); }}>New</button>
-          <button className={`tab-btn ${activeCondition === 'used_as_new' ? 'active' : ''}`} onClick={() => { setActiveCondition('used_as_new'); setCurrentPage(1); }}>Used as New</button>
-          <button className={`tab-btn ${activeCondition === 'joutiya' ? 'active' : ''}`} onClick={() => { setActiveCondition('joutiya'); setCurrentPage(1); }}>Joutiya (Haggle)</button>
+          <button className={`tab-btn ${activeCondition === 'new' ? 'active' : ''}`} onClick={() => { setActiveCondition('new'); setCurrentPage(1); }}>{t('products.conditions.new')}</button>
+          <button className={`tab-btn ${activeCondition === 'used_as_new' ? 'active' : ''}`} onClick={() => { setActiveCondition('used_as_new'); setCurrentPage(1); }}>{t('products.conditions.usedAsNew')}</button>
+          <button className={`tab-btn ${activeCondition === 'joutiya' ? 'active' : ''}`} onClick={() => { setActiveCondition('joutiya'); setCurrentPage(1); }}>{t('products.conditions.joutiya')}</button>
         </div>
 
         <div className="filters-bar">
           <form className="product-search-form" onSubmit={applySearch}>
-            <input type="search" placeholder="Search products..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} className="product-search-input" aria-label="Search products" />
-            <button type="submit" className="product-search-btn">Search</button>
+            <input type="search" placeholder={t('products.searchPlaceholder')} value={searchInput} onChange={(e) => setSearchInput(e.target.value)} className="product-search-input" aria-label={t('products.search')} />
+            <button type="submit" className="product-search-btn">{t('products.search')}</button>
           </form>
           <div className="filter-toolbar">
             <button type="button" className="filters-toggle" onClick={() => setShowMobileFilters((isOpen) => !isOpen)} aria-controls="product-filter-fields" aria-expanded={showMobileFilters}>
-              Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
+              {t('products.filters')}{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
             </button>
-            {hasActiveFilters && <button type="button" className="clear-filters-btn" onClick={clearFilters}>Clear filters</button>}
+            {hasActiveFilters && <button type="button" className="clear-filters-btn" onClick={clearFilters}>{t('products.clearFilters')}</button>}
           </div>
           <div id="product-filter-fields" className={`filter-fields ${showMobileFilters ? 'filter-fields-open' : ''}`}>
             <div className="filters">
-              <select value={selectedCategory} onChange={(e) => { setSelectedCategory(e.target.value); setCurrentPage(1); }} className="filter-select" aria-label="Category">
-                <option value="">All Categories</option>
-                {categories.map(cat => <option key={cat} value={cat}>{cat.charAt(0).toUpperCase() + cat.slice(1)}</option>)}
+              <select value={selectedCategory} onChange={(e) => { setSelectedCategory(e.target.value); setCurrentPage(1); }} className="filter-select" aria-label={t('products.category')}>
+                <option value="">{t('products.allCategories')}</option>
+                {categories.map(cat => <option key={cat} value={cat}>{categoryLabel(cat)}</option>)}
               </select>
-              <input type="number" min="0" placeholder="Min Price" value={minPrice} onChange={(e) => { setMinPrice(e.target.value); setCurrentPage(1); }} className="price-input" aria-label="Minimum price" />
-              <input type="number" min="0" placeholder="Max Price" value={maxPrice} onChange={(e) => { setMaxPrice(e.target.value); setCurrentPage(1); }} className="price-input" aria-label="Maximum price" />
-              <select value={sortBy} onChange={(e) => { setSortBy(e.target.value); setCurrentPage(1); }} className="filter-select" aria-label="Sort products">
-                <option value="newest">Newest First</option>
-                <option value="price_asc">Price: Low to High</option>
-                <option value="price_desc">Price: High to Low</option>
-                <option value="rating">Top Rated</option>
-                <option value="popular">Most Popular</option>
+              <input type="number" min="0" placeholder={t('products.minPrice')} value={minPrice} onChange={(e) => { setMinPrice(e.target.value); setCurrentPage(1); }} className="price-input" aria-label={t('products.minPrice')} />
+              <input type="number" min="0" placeholder={t('products.maxPrice')} value={maxPrice} onChange={(e) => { setMaxPrice(e.target.value); setCurrentPage(1); }} className="price-input" aria-label={t('products.maxPrice')} />
+              <select value={sortBy} onChange={(e) => { setSortBy(e.target.value); setCurrentPage(1); }} className="filter-select" aria-label={t('products.sort')}>
+                <option value="newest">{t('products.sortNewest')}</option>
+                <option value="price_asc">{t('products.sortPriceAsc')}</option>
+                <option value="price_desc">{t('products.sortPriceDesc')}</option>
+                <option value="rating">{t('products.sortRating')}</option>
+                <option value="popular">{t('products.sortPopular')}</option>
               </select>
             </div>
           </div>
           {hasActiveFilters && (
-            <div className="active-filters" aria-label="Active filters">
-              {searchTerm && <button type="button" className="filter-chip" onClick={() => { setSearchInput(''); setSearchTerm(''); setCurrentPage(1); }}>Search: {searchTerm} <span aria-hidden="true">×</span></button>}
+            <div className="active-filters" aria-label={t('products.activeFilters')}>
+              {searchTerm && <button type="button" className="filter-chip" onClick={() => { setSearchInput(''); setSearchTerm(''); setCurrentPage(1); }}>{t('products.search')}: {searchTerm} <span aria-hidden="true">×</span></button>}
               {selectedCategory && <button type="button" className="filter-chip" onClick={() => { setSelectedCategory(''); setCurrentPage(1); }}>{selectedCategory} <span aria-hidden="true">×</span></button>}
-              {minPrice && <button type="button" className="filter-chip" onClick={() => { setMinPrice(''); setCurrentPage(1); }}>From {minPrice} MAD <span aria-hidden="true">×</span></button>}
-              {maxPrice && <button type="button" className="filter-chip" onClick={() => { setMaxPrice(''); setCurrentPage(1); }}>Up to {maxPrice} MAD <span aria-hidden="true">×</span></button>}
+              {minPrice && <button type="button" className="filter-chip" onClick={() => { setMinPrice(''); setCurrentPage(1); }}>{t('products.from')} {minPrice} MAD <span aria-hidden="true">×</span></button>}
+              {maxPrice && <button type="button" className="filter-chip" onClick={() => { setMaxPrice(''); setCurrentPage(1); }}>{t('products.upTo')} {maxPrice} MAD <span aria-hidden="true">×</span></button>}
             </div>
           )}
-          {!loadError && <div className="results-count" aria-live="polite">{totalProducts} products found{hasActiveFilters ? ` with ${activeFilterCount} active filter${activeFilterCount === 1 ? '' : 's'}` : ''}</div>}
+          {!loadError && <div className="results-count" aria-live="polite">{t('products.results', { count: totalProducts, filters: hasActiveFilters ? ` ${t('products.withFilters', { count: activeFilterCount })}` : '' })}</div>}
         </div>
 
         {loadError ? <ServiceUnavailableState onRetry={() => setRetryKey((current) => current + 1)} /> : <div className="products-grid">
-          {products.length === 0 ? (
-            <div className="col-span-full">
-              <EmptyState
-                title="No products found"
-                description="Try a different search or clear a filter to see more listings."
-                action={<button type="button" className="btn btn-outline" onClick={clearFilters}>Clear filters</button>}
-              />
-            </div>
-          ) : (
-            products.map(product => (
+          {products.map(product => (
               <div key={product.id} className="product-card">
                 <div
                   className="product-image"
                   role={product.media?.length ? 'button' : undefined}
                   tabIndex={product.media?.length ? 0 : undefined}
-                  aria-label={product.media?.length ? `View media for ${product.title}` : undefined}
+                  aria-label={product.media?.length ? t('products.viewMedia', { title: product.title }) : undefined}
                   onClick={() => product.media?.length && setGalleryProduct(product)}
                   onKeyDown={(event) => {
                     if (product.media?.length && (event.key === 'Enter' || event.key === ' ')) {
@@ -196,9 +189,9 @@ const conditionLabels = {
                 >
                   {product.media && product.media.length > 0 ? (
                     <>
-                      {product.media[0].media_type === 'video' && <div className="video-badge">🎬 Video</div>}
+                      {product.media[0].media_type === 'video' && <div className="video-badge">🎬 {t('products.video')}</div>}
                       <MarketplaceImage source={product.media[0].media_url} alt={product.title} />
-                      {product.media.length > 1 && <div className="media-count">{product.media.length} items</div>}
+                      {product.media.length > 1 && <div className="media-count">{t('products.itemCount', { count: product.media.length })}</div>}
                     </>
                   ) : (
                     <div className="image-placeholder">📦</div>
@@ -207,28 +200,27 @@ const conditionLabels = {
                 </div>
                 <Link to={`/product/${product.id}`}><h3>{product.title}</h3></Link>
                 <p>
-                  by <Link to={`/profile/${product.seller_id}`} className="seller-link">{product.seller_name || 'Unknown Seller'}</Link>
+                  {t('products.by')} <Link to={`/profile/${product.seller_id}`} className="seller-link">{product.seller_name || t('products.unknownSeller')}</Link>
                 </p>
-                <div className="product-rating">⭐ {product.rating || 0} ({product.reviews_count || 0} reviews)</div>
+                <div className="product-rating">⭐ {product.rating || 0} ({t('products.reviewCount', { count: product.reviews_count || 0 })})</div>
                 <div className="product-price">
                   <span className="current-price">{product.price} MAD</span>
                   {product.old_price && <span className="old-price">{product.old_price} MAD</span>}
                 </div>
                 {product.condition === 'joutiya' ? (
-                  <Link to={`/product/${product.id}`} className="product-btn negotiate-btn">Make an Offer</Link>
+                  <Link to={`/product/${product.id}`} className="product-btn negotiate-btn">{t('products.makeOffer')}</Link>
                 ) : (
-                  <button onClick={() => handleAddToCart(product)} className="product-btn">Add to Cart</button>
+                  <button onClick={() => handleAddToCart(product)} className="product-btn">{t('products.addToCart')}</button>
                 )}
               </div>
-            ))
-          )}
+          ))}
         </div>}
 
         {!loadError && totalPages > 1 && (
           <div className="pagination">
-            <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} className="page-btn">← Previous</button>
-            <span className="page-info">Page {currentPage} of {totalPages}</span>
-            <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages} className="page-btn">Next →</button>
+            <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} className="page-btn">← {t('products.previous')}</button>
+            <span className="page-info">{t('products.pageOf', { current: currentPage, total: totalPages })}</span>
+            <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages} className="page-btn">{t('products.next')} →</button>
           </div>
         )}
       </div>

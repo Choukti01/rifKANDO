@@ -3,8 +3,10 @@ import { Link } from 'react-router-dom'
 import { TrashIcon, PlusIcon, MinusIcon, ShoppingCartIcon, ArrowLeftIcon, ShieldCheckIcon } from '@heroicons/react/24/outline'
 import useCart from '../../hooks/useCart'
 import MarketplaceImage from '../../components/common/MarketplaceImage'
+import { useTranslation } from 'react-i18next'
 
 const CartPage = () => {
+  const { t, i18n } = useTranslation()
   const { cart, removeFromCart, updateQuantity, getCartTotal, getCartShipping, getCartCount, isEmpty } = useCart()
   const subtotal = getCartTotal()
   const shipping = getCartShipping()
@@ -17,15 +19,15 @@ const CartPage = () => {
     return item.image || null;
   }
 
-  const formatAmount = (amount) => `${Number(amount || 0).toLocaleString()} MAD`
+  const formatAmount = (amount) => `${Number(amount || 0).toLocaleString(i18n.language === 'ar' ? 'ar-MA' : i18n.language === 'fr' ? 'fr-MA' : 'en-MA')} MAD`
 
   if (isEmpty) {
     return (
       <div className="empty-cart">
         <ShoppingCartIcon className="empty-cart-icon" aria-hidden="true" />
-        <h2>Your cart is empty</h2>
-        <p>Looks like you haven't added anything to your cart yet</p>
-        <Link to="/products" className="btn btn-primary">Continue Shopping</Link>
+        <h2>{t('buyer.cart.emptyTitle')}</h2>
+        <p>{t('buyer.cart.emptyLead')}</p>
+        <Link to="/products" className="btn btn-primary">{t('buyer.cart.continueShopping')}</Link>
         <style>{`
           .empty-cart {
             text-align: center;
@@ -56,10 +58,10 @@ const CartPage = () => {
       <div className="container">
         <div className="cart-heading">
           <div>
-            <p className="cart-eyebrow">Your basket</p>
-            <h1 className="cart-title">Shopping cart <span>({getCartCount()} {getCartCount() === 1 ? 'item' : 'items'})</span></h1>
+            <p className="cart-eyebrow">{t('buyer.cart.eyebrow')}</p>
+            <h1 className="cart-title">{t('buyer.cart.title')} <span>({t('buyer.items', { count: getCartCount() })})</span></h1>
           </div>
-          <p className="cart-heading-note">Review your items before checkout.</p>
+          <p className="cart-heading-note">{t('buyer.cart.headingNote')}</p>
         </div>
 
         <div className="cart-grid">
@@ -74,47 +76,47 @@ const CartPage = () => {
                   </div>
                   <div className="cart-item-info">
                     <Link to={`/${item.type}/${item.id}`} className="cart-item-title">{item.title}</Link>
-                    <p className="cart-item-seller">Sold by {item.seller || 'Seller'}</p>
+                    <p className="cart-item-seller">{t('buyer.cart.soldBy', { seller: item.seller || t('buyer.seller') })}</p>
                     <div className="cart-item-price">{formatAmount(item.price)}</div>
                   </div>
-                  <div className="cart-item-quantity" role="group" aria-label={`Quantity for ${item.title}`}>
-                    <button type="button" onClick={() => updateQuantity(item.id, item.type, item.quantity - 1)} disabled={item.quantity <= 1} aria-label={`Decrease quantity for ${item.title}`}>
+                  <div className="cart-item-quantity" role="group" aria-label={t('buyer.cart.quantityFor', { title: item.title })}>
+                    <button type="button" onClick={() => updateQuantity(item.id, item.type, item.quantity - 1)} disabled={item.quantity <= 1} aria-label={t('buyer.cart.decreaseQuantity', { title: item.title })}>
                       <MinusIcon className="w-4 h-4" />
                     </button>
                     <span aria-live="polite">{item.quantity}</span>
-                    <button type="button" onClick={() => updateQuantity(item.id, item.type, item.quantity + 1)} disabled={atStockLimit} aria-label={`Increase quantity for ${item.title}`}>
+                    <button type="button" onClick={() => updateQuantity(item.id, item.type, item.quantity + 1)} disabled={atStockLimit} aria-label={t('buyer.cart.increaseQuantity', { title: item.title })}>
                       <PlusIcon className="w-4 h-4" />
                     </button>
                   </div>
-                  <div className="cart-item-total"><span>Line total</span>{formatAmount(item.price * item.quantity)}</div>
-                  <button type="button" onClick={() => removeFromCart(item.id, item.type)} className="cart-item-remove" aria-label={`Remove ${item.title} from cart`}>
+                  <div className="cart-item-total"><span>{t('buyer.cart.lineTotal')}</span>{formatAmount(item.price * item.quantity)}</div>
+                  <button type="button" onClick={() => removeFromCart(item.id, item.type)} className="cart-item-remove" aria-label={t('buyer.cart.removeItem', { title: item.title })}>
                     <TrashIcon className="w-5 h-5" />
                   </button>
                 </div>
               )
             })}
             <div className="cart-continue">
-              <Link to="/products"><ArrowLeftIcon aria-hidden="true" />Continue shopping</Link>
+              <Link to="/products"><ArrowLeftIcon aria-hidden="true" />{t('buyer.cart.continueShopping')}</Link>
             </div>
           </div>
 
           <div className="cart-summary">
-            <h3>Order summary</h3>
+            <h3>{t('buyer.orderSummary')}</h3>
             <div className="summary-row">
-              <span>Subtotal</span>
+              <span>{t('buyer.subtotal')}</span>
               <span>{formatAmount(subtotal)}</span>
             </div>
             <div className="summary-row">
-              <span>Shipping</span>
-              <span>{shipping === 0 ? 'Free' : formatAmount(shipping)}</span>
+              <span>{t('buyer.shipping')}</span>
+              <span>{shipping === 0 ? t('buyer.free') : formatAmount(shipping)}</span>
             </div>
             <div className="summary-total">
-              <span>Total</span>
+              <span>{t('buyer.total')}</span>
               <span>{formatAmount(total)}</span>
             </div>
-            <p className="shipping-note">Delivery is set by each seller and confirmed in your COD order.</p>
-            <Link to="/checkout" className="checkout-link">Continue to checkout</Link>
-            <p className="cart-secure-note"><ShieldCheckIcon aria-hidden="true" />Delivery and payment details are reviewed at checkout.</p>
+            <p className="shipping-note">{t('buyer.cart.shippingNote')}</p>
+            <Link to="/checkout" className="checkout-link">{t('buyer.cart.continueCheckout')}</Link>
+            <p className="cart-secure-note"><ShieldCheckIcon aria-hidden="true" />{t('buyer.cart.secureNote')}</p>
           </div>
         </div>
       </div>

@@ -43,6 +43,59 @@ html[dir='rtl'] .findit-dashboard-heading > span {
   text-align: left;
 }
 
+html[dir='rtl'] .products-page .results-count {
+  text-align: left;
+}
+
+html[dir='rtl'] .products-page .condition-badge {
+  left: 0.5rem;
+  right: auto;
+}
+
+html[dir='rtl'] .products-page .video-badge {
+  left: auto;
+  right: 0.5rem;
+}
+
+html[dir='rtl'] .products-page .media-count {
+  left: 0.5rem;
+  right: auto;
+}
+
+html[dir='rtl'] .cod-ops__order span,
+html[dir='rtl'] .cod-finance__order span {
+  margin-left: 0;
+  margin-right: 0.5rem;
+}
+
+html[dir='rtl'] .cart-heading,
+html[dir='rtl'] .checkout-heading,
+html[dir='rtl'] .orders-header {
+  text-align: right;
+}
+
+html[dir='rtl'] .checkout-heading > p {
+  text-align: left;
+}
+
+html[dir='rtl'] .cart-item-total {
+  align-items: flex-start;
+  text-align: right;
+}
+
+html[dir='rtl'] .cart-continue svg {
+  transform: scaleX(-1);
+}
+
+html[dir='rtl'] .orders-table thead th {
+  text-align: right;
+}
+
+html[dir='rtl'] .findit-order-label {
+  margin-left: 0;
+  margin-right: 0.4rem;
+}
+
 html[dir='rtl'] .dashboard-sidebar {
   border-left: 1px solid #e5e7eb;
   border-right: 0;
