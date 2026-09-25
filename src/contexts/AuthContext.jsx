@@ -3,18 +3,17 @@ import { browserSupportsPasskeys, startAuthentication, startRegistration } from 
 import api, { clearCsrfToken, getAuthMethods, getSession, setCsrfToken } from '../services/api';
 import toast from 'react-hot-toast';
 import AuthContext from './authStore';
+import { GOOGLE_CLIENT_CONFIGURED } from '../config/googleAuth';
 
 const normalizeUser = (user) => ({
   ...user,
   sellerType: user.sellerType || user.seller_type || null,
 });
 
-const googleClientConfigured = Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim());
-
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [authMethods, setAuthMethods] = useState({ google: googleClientConfigured, phone: false, passkey: true });
+  const [authMethods, setAuthMethods] = useState({ google: GOOGLE_CLIENT_CONFIGURED, phone: false, passkey: true });
 
   const clearSessionState = useCallback(() => {
     clearCsrfToken();
@@ -33,7 +32,7 @@ export const AuthProvider = ({ children }) => {
       try {
         if (methodsResult.status === 'fulfilled' && methodsResult.value.data?.methods) {
           setAuthMethods({
-            google: googleClientConfigured && Boolean(methodsResult.value.data.methods.google),
+            google: GOOGLE_CLIENT_CONFIGURED && Boolean(methodsResult.value.data.methods.google),
             phone: Boolean(methodsResult.value.data.methods.phone),
             passkey: Boolean(methodsResult.value.data.methods.passkey),
           });
