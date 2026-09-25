@@ -90,8 +90,8 @@ const ProductsDashboard = () => {
   const handleDelete = async (productId) => {
     if (window.confirm('Are you sure you want to delete this product?')) {
       try {
-        await deleteProduct(productId);
-        toast.success('Product deleted successfully');
+        const response = await deleteProduct(productId);
+        toast.success(response.data?.message || 'Product deleted successfully');
         fetchProducts();
       } catch {
         toast.error('Failed to delete product');
