@@ -7,6 +7,7 @@ const nonRefreshableAuthPaths = [
   '/auth/register',
   '/auth/verify-email',
   '/auth/google',
+  '/auth/passkeys/',
   '/auth/session',
   '/auth/phone/register/request-code',
   '/auth/phone/register/verify',

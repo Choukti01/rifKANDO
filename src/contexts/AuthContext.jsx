@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { browserSupportsPasskeys, startAuthentication, startRegistration } from '@simplewebauthn/browser';
 import api, { clearCsrfToken, getAuthMethods, getSession, setCsrfToken } from '../services/api';
 import toast from 'react-hot-toast';
 import AuthContext from './authStore';
@@ -13,7 +14,7 @@ const googleClientConfigured = Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID?.tr
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [authMethods, setAuthMethods] = useState({ google: googleClientConfigured, phone: false });
+  const [authMethods, setAuthMethods] = useState({ google: googleClientConfigured, phone: false, passkey: true });
 
   const clearSessionState = useCallback(() => {
     clearCsrfToken();
@@ -34,6 +35,7 @@ export const AuthProvider = ({ children }) => {
           setAuthMethods({
             google: googleClientConfigured && Boolean(methodsResult.value.data.methods.google),
             phone: Boolean(methodsResult.value.data.methods.phone),
+            passkey: Boolean(methodsResult.value.data.methods.passkey),
           });
         }
         if (sessionResult.status !== 'fulfilled' || !sessionResult.value.data?.authenticated) {
@@ -163,6 +165,52 @@ export const AuthProvider = ({ children }) => {
     }
   }, [completeAuthentication]);
 
+  const passkeySupported = useCallback(async () => {
+    const supported = await browserSupportsPasskeys();
+    if (!supported) toast.error('Passkeys are not available in this browser or device.');
+    return supported;
+  }, []);
+
+  const registerWithPasskey = useCallback(async ({ name }) => {
+    try {
+      if (!(await passkeySupported())) return { success: false };
+      const optionsResponse = await api.post('/auth/passkeys/register/options', { name });
+      const credential = await startRegistration({ optionsJSON: optionsResponse.data.options });
+      const verified = await api.post('/auth/passkeys/register/verify', { credential });
+      return completeAuthentication(verified, 'Your passkey is ready. Welcome to rifKANDO!');
+    } catch (error) {
+      toast.error(error.response?.data?.error || error.message || 'Passkey registration failed.');
+      return { success: false };
+    }
+  }, [completeAuthentication, passkeySupported]);
+
+  const loginWithPasskey = useCallback(async () => {
+    try {
+      if (!(await passkeySupported())) return { success: false };
+      const optionsResponse = await api.post('/auth/passkeys/login/options');
+      const credential = await startAuthentication({ optionsJSON: optionsResponse.data.options });
+      const verified = await api.post('/auth/passkeys/login/verify', { credential });
+      return completeAuthentication(verified, 'Welcome back to rifKANDO!');
+    } catch (error) {
+      toast.error(error.response?.data?.error || error.message || 'Passkey sign-in failed.');
+      return { success: false };
+    }
+  }, [completeAuthentication, passkeySupported]);
+
+  const addPasskey = useCallback(async () => {
+    try {
+      if (!(await passkeySupported())) return { success: false };
+      const optionsResponse = await api.post('/auth/passkeys/options');
+      const credential = await startRegistration({ optionsJSON: optionsResponse.data.options });
+      await api.post('/auth/passkeys/verify', { credential });
+      toast.success('A new passkey was added.');
+      return { success: true };
+    } catch (error) {
+      toast.error(error.response?.data?.error || error.message || 'Could not add this passkey.');
+      return { success: false };
+    }
+  }, [passkeySupported]);
+
   const verifyGoogleRegistration = useCallback(async (credential, code) => {
     try {
       const response = await api.post('/auth/google/verify', { credential, code });
@@ -239,13 +287,16 @@ export const AuthProvider = ({ children }) => {
     requestPhoneLoginCode,
     verifyPhoneLogin,
     googleLogin,
+    registerWithPasskey,
+    loginWithPasskey,
+    addPasskey,
     verifyGoogleRegistration,
     resendGoogleVerification,
     logout,
     logoutAllDevices,
     updateUser,
     updateSellerType,
-  }), [user, loading, authMethods, login, register, verifyEmail, requestPhoneRegistrationCode, verifyPhoneRegistration, requestPhoneLoginCode, verifyPhoneLogin, googleLogin, verifyGoogleRegistration, resendGoogleVerification, logout, logoutAllDevices, updateUser, updateSellerType]);
+  }), [user, loading, authMethods, login, register, verifyEmail, requestPhoneRegistrationCode, verifyPhoneRegistration, requestPhoneLoginCode, verifyPhoneLogin, googleLogin, registerWithPasskey, loginWithPasskey, addPasskey, verifyGoogleRegistration, resendGoogleVerification, logout, logoutAllDevices, updateUser, updateSellerType]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
