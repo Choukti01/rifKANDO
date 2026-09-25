@@ -1,0 +1,25 @@
+{
+  "name": "rifKANDO",
+  "short_name": "rifKANDO",
+  "description": "Discover products and find what you need with rifKANDO.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#168dd9",
+  "icons": [
+    {
+      "src": "/rifkando-app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "1536x1024",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

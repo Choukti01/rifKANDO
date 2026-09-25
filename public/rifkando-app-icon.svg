@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">rifKANDO</title>
+  <defs>
+    <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#67c5ff"/>
+      <stop offset="1" stop-color="#168dd9"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="#ffffff"/>
+  <path d="M107 257c0-83 67-150 150-150 49 0 93 24 121 60-44 10-77 50-77 97s33 87 77 97c-28 36-72 60-121 60-83 0-150-67-150-150Z" fill="#09213f"/>
+  <path d="M257 107c83 0 150 67 150 150s-67 150-150 150c-31 0-60-9-84-26 38-15 65-52 65-95s-27-80-65-95c24-17 53-26 84-26Z" fill="url(#blue)" opacity=".94"/>
+  <circle cx="257" cy="257" r="35" fill="#ffffff"/>
+  <circle cx="257" cy="257" r="18" fill="#168dd9"/>
+  <path d="M54 212h64M40 257h78M54 302h64" stroke="#67c5ff" stroke-linecap="round" stroke-width="18"/>
+</svg>

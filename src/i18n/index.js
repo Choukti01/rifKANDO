@@ -499,6 +499,7 @@ Object.assign(resources.ar.translation, {
 });
 
 Object.assign(resources.en.translation, {
+  notFound: { title: 'This page is not available', lead: 'The link may be incorrect, or the page may have moved. You can safely return to rifKANDO and keep exploring.', home: 'Go to home', products: 'Browse products' },
   buyer: {
     items_one: '{{count}} item', items_other: '{{count}} items', seller: 'Seller', orderSummary: 'Order summary', subtotal: 'Subtotal', shipping: 'Shipping', total: 'Total', free: 'Free', payment: 'Payment', confirm: 'Confirm', back: 'Back', cashOnDelivery: 'Cash on Delivery',
     cart: { emptyTitle: 'Your cart is empty', emptyLead: "Looks like you haven't added anything to your cart yet.", continueShopping: 'Continue shopping', eyebrow: 'Your basket', title: 'Shopping cart', headingNote: 'Review your items before checkout.', soldBy: 'Sold by {{seller}}', quantityFor: 'Quantity for {{title}}', decreaseQuantity: 'Decrease quantity for {{title}}', increaseQuantity: 'Increase quantity for {{title}}', lineTotal: 'Line total', removeItem: 'Remove {{title}} from cart', shippingNote: 'Delivery is set by each seller and confirmed in your COD order.', continueCheckout: 'Continue to checkout', secureNote: 'Delivery and payment details are reviewed at checkout.' },
@@ -511,6 +512,7 @@ Object.assign(resources.en.translation, {
 });
 
 Object.assign(resources.fr.translation, {
+  notFound: { title: 'Cette page n’est pas disponible', lead: 'Le lien est peut-être incorrect ou la page a été déplacée. Vous pouvez retourner sur rifKANDO et continuer votre navigation.', home: 'Accueil', products: 'Voir les produits' },
   buyer: {
     items_one: '{{count}} article', items_other: '{{count}} articles', seller: 'Vendeur', orderSummary: 'Récapitulatif de commande', subtotal: 'Sous-total', shipping: 'Livraison', total: 'Total', free: 'Gratuite', payment: 'Paiement', confirm: 'Confirmer', back: 'Retour', cashOnDelivery: 'Paiement à la livraison',
     cart: { emptyTitle: 'Votre panier est vide', emptyLead: 'Vous n’avez encore ajouté aucun article à votre panier.', continueShopping: 'Continuer vos achats', eyebrow: 'Votre panier', title: 'Panier', headingNote: 'Vérifiez vos articles avant de passer commande.', soldBy: 'Vendu par {{seller}}', quantityFor: 'Quantité pour {{title}}', decreaseQuantity: 'Diminuer la quantité de {{title}}', increaseQuantity: 'Augmenter la quantité de {{title}}', lineTotal: 'Total de la ligne', removeItem: 'Retirer {{title}} du panier', shippingNote: 'La livraison est définie par chaque vendeur puis confirmée dans votre commande COD.', continueCheckout: 'Passer à la commande', secureNote: 'Les détails de livraison et de paiement sont vérifiés à la commande.' },
@@ -523,6 +525,7 @@ Object.assign(resources.fr.translation, {
 });
 
 Object.assign(resources.ar.translation, {
+  notFound: { title: 'هذه الصفحة غير متاحة', lead: 'قد يكون الرابط غير صحيح أو تم نقل الصفحة. يمكنك العودة بأمان إلى rifKANDO ومتابعة التصفح.', home: 'العودة للرئيسية', products: 'تصفح المنتجات' },
   buyer: {
     items_one: '{{count}} عنصر', items_other: '{{count}} عناصر', seller: 'البائع', orderSummary: 'ملخص الطلب', subtotal: 'المجموع الفرعي', shipping: 'التوصيل', total: 'المجموع', free: 'مجاني', payment: 'الدفع', confirm: 'تأكيد', back: 'رجوع', cashOnDelivery: 'الدفع عند الاستلام',
     cart: { emptyTitle: 'سلة التسوق فارغة', emptyLead: 'لم تضف أي منتجات إلى سلتك بعد.', continueShopping: 'متابعة التسوق', eyebrow: 'سلتك', title: 'سلة التسوق', headingNote: 'راجع منتجاتك قبل إتمام الطلب.', soldBy: 'يباع بواسطة {{seller}}', quantityFor: 'كمية {{title}}', decreaseQuantity: 'تقليل كمية {{title}}', increaseQuantity: 'زيادة كمية {{title}}', lineTotal: 'إجمالي المنتج', removeItem: 'إزالة {{title}} من السلة', shippingNote: 'يحدّد كل بائع التوصيل ثم يتم تأكيده في طلب الدفع عند الاستلام.', continueCheckout: 'متابعة إلى الطلب', secureNote: 'تُراجع تفاصيل التوصيل والدفع عند إتمام الطلب.' },

@@ -77,6 +77,7 @@ import ProtectedRoute from './components/common/ProtectedRoute'
 import PageTransition from './components/common/PageTransition'
 import UnderDevelopment from './components/common/UnderDevelopment'
 import MarketplaceClosed from './components/common/MarketplaceClosed'
+import NotFoundPage from './components/common/NotFoundPage'
 import { API_ORIGIN } from './config/apiUrl'
 
 const PageLoadingFallback = () => (
@@ -267,6 +268,7 @@ function AppContent() {
                     <Route path="favorites" element={<FavoritesPage />} />
                     <Route path="cart" element={<CartPage />} />
                   </Route>
+                  <Route path="*" element={<NotFoundPage />} />
                     </Routes>
                     </Suspense>
                   </PageTransition>
