@@ -288,7 +288,9 @@ class WalletService {
       const safeUserId = this.positiveInteger(userId, 'User ID');
       const wallet = await this.ensureWalletTx(tx, safeUserId);
       const seller = await tx.get('SELECT role, seller_started_at FROM users WHERE id = ?', [safeUserId]);
-      const withdrawalEligibility = seller?.role === 'seller'
+      const sellerCapable = seller?.role === 'seller'
+        || (['admin', 'super_admin'].includes(seller?.role) && Boolean(seller?.seller_started_at));
+      const withdrawalEligibility = sellerCapable
         ? getWithdrawalEligibility(seller.seller_started_at)
         : { eligible: false, availableAt: null, holdDays: WITHDRAWAL_HOLD_DAYS };
       return {
@@ -627,7 +629,9 @@ class WalletService {
         this.lockForUpdate('SELECT role, seller_started_at FROM users WHERE id = ?'),
         [safeUserId]
       );
-      if (!seller || seller.role !== 'seller') {
+      const sellerCapable = seller?.role === 'seller'
+        || (['admin', 'super_admin'].includes(seller?.role) && Boolean(seller?.seller_started_at));
+      if (!sellerCapable) {
         throw new Error('Only sellers can request withdrawals.');
       }
       const withdrawalEligibility = getWithdrawalEligibility(seller.seller_started_at);

@@ -66,7 +66,7 @@ const Navbar = () => {
     { name: t('nav.digital'), path: '/digital' },
     { name: t('findit.navigation'), path: '/findit' },
   ];
-  const isSeller = user?.role === 'seller';
+  const isSeller = user?.role === 'seller' || user?.roles?.includes('seller');
   const isOperationsTeam = ['operations', 'finance', 'admin', 'super_admin'].includes(user?.role);
   const accountPath = isSeller ? '/seller/dashboard' : '/profile';
   const accountLabel = isSeller ? t('common.sellerDashboard') : t('common.profile');

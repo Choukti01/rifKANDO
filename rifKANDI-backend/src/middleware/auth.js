@@ -18,7 +18,9 @@ const FINANCE_ROLES = Object.freeze([ROLES.FINANCE, ...ADMIN_ROLES]);
 // They intentionally cannot reconcile cash, commission, or seller payouts.
 const OPERATIONS_ROLES = Object.freeze([ROLES.OPERATIONS, ...FINANCE_ROLES]);
 
-const hasAnyRole = (user, roles) => Boolean(user && roles.includes(user.role));
+const hasAnyRole = (user, roles) => Boolean(
+  user && [user.role, ...(Array.isArray(user.roles) ? user.roles : [])].some((role) => roles.includes(role))
+);
 const isAdmin = (user) => hasAnyRole(user, ADMIN_ROLES);
 
 const protect = async (req, res, next) => {

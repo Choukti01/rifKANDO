@@ -98,7 +98,7 @@ const FindItPage = () => {
                 {isAuthenticated ? t('findit.public.postRequest') : t('findit.public.signInToPost')}
                 <ArrowRightIcon aria-hidden="true" />
               </Link>
-              {user?.role === 'seller' && (
+              {(user?.role === 'seller' || user?.roles?.includes('seller')) && (
                 <Link to="/seller/dashboard/findit" className="findit-secondary-action">{t('findit.public.viewBuyerRequests')}</Link>
               )}
             </div>
@@ -169,7 +169,7 @@ const FindItPage = () => {
                     </div>
                     <div className="findit-request-footer">
                       <span>{request.preferred_condition === 'any' ? t('findit.public.anyCondition') : t('findit.public.preferredCondition', { condition: request.preferred_condition })}</span>
-                      {user?.role === 'seller' ? (
+                      {(user?.role === 'seller' || user?.roles?.includes('seller')) ? (
                         <Link to="/seller/dashboard/findit">{t('findit.public.sendSolution')} <ArrowRightIcon aria-hidden="true" /></Link>
                       ) : (
                         <Link to={dashboardPath}>{t('findit.public.postRequest')} <ArrowRightIcon aria-hidden="true" /></Link>
