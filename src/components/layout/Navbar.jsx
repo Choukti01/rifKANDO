@@ -68,6 +68,7 @@ const Navbar = () => {
   ];
   const isSeller = user?.role === 'seller' || user?.roles?.includes('seller');
   const isOperationsTeam = ['operations', 'finance', 'admin', 'super_admin'].includes(user?.role);
+  const isFinanceTeam = ['finance', 'admin', 'super_admin'].includes(user?.role);
   const accountPath = isSeller ? '/seller/dashboard' : '/profile';
   const accountLabel = isSeller ? t('common.sellerDashboard') : t('common.profile');
 
@@ -132,6 +133,7 @@ const Navbar = () => {
                         <Link to="/orders" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>{t('common.myOrders')}</Link>
                         <Link to="/findit/dashboard" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>{t('common.myFinditRequests')}</Link>
                         {isOperationsTeam && <Link to="/operations/cod" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>COD Operations Desk</Link>}
+                        {isFinanceTeam && <Link to="/admin/cod-reconciliation" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>COD Reconciliation</Link>}
                         {!isSeller && <>
                           <Link to="/favorites" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>{t('common.savedItems')}</Link>
                           <Link to="/cart" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>{t('nav.cart')}</Link>
@@ -185,6 +187,7 @@ const Navbar = () => {
                 <Link to="/orders" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>{t('common.myOrders')}</Link>
                 <Link to="/findit/dashboard" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>{t('common.myFinditRequests')}</Link>
                 {isOperationsTeam && <Link to="/operations/cod" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>COD Operations Desk</Link>}
+                {isFinanceTeam && <Link to="/admin/cod-reconciliation" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>COD Reconciliation</Link>}
                 {!isSeller && <>
                   <Link to="/favorites" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>{t('common.savedItems')}</Link>
                   <Link to="/cart" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>{t('nav.cart')}</Link>
