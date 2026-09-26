@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rifkando-shell-v1';
+const CACHE_NAME = 'rifkando-shell-v2';
 
 self.addEventListener('install', () => {
   self.skipWaiting();
