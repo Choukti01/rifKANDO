@@ -107,7 +107,8 @@ function App() {
 
 function AppContent() {
   const location = useLocation()
-  const [apiAvailable, setApiAvailable] = useState(false)
+  const [apiAvailable, setApiAvailable] = useState(null)
+  const [availabilityAttempt, setAvailabilityAttempt] = useState(0)
 
   useEffect(() => {
     let active = true
@@ -115,7 +116,9 @@ function AppContent() {
       try {
         const response = await fetch(`${API_ORIGIN}/health`, {
           cache: 'no-store',
-          signal: AbortSignal.timeout(5000),
+          // A tunnel or serverless database can take longer than five seconds
+          // to wake up. Avoid showing a false outage while the API is healthy.
+          signal: AbortSignal.timeout(12_000),
         })
         if (active) setApiAvailable(response.ok)
       } catch {
@@ -123,11 +126,12 @@ function AppContent() {
       }
     }
     checkAvailability()
-    const timer = window.setInterval(checkAvailability, 30_000)
+    const timer = window.setInterval(checkAvailability, 15_000)
     return () => { active = false; window.clearInterval(timer) }
-  }, [])
+  }, [availabilityAttempt])
 
-  if (!apiAvailable) return <MarketplaceClosed offline />
+  if (apiAvailable === null) return <PageLoadingFallback />
+  if (!apiAvailable) return <MarketplaceClosed onRetry={() => { setApiAvailable(null); setAvailabilityAttempt((attempt) => attempt + 1) }} />
 
   return (
       <AuthProvider>
