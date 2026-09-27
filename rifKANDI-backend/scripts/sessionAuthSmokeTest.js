@@ -194,8 +194,18 @@ const run = async () => {
     const revokedAfterReplay = await request(port, '/api/auth/me', { jar: rotatingSession.jar });
     assert.equal(revokedAfterReplay.status, 401, 'refresh-token replay must revoke all user sessions');
 
-    const legacyEndpoint = await request(port, '/api/auth/verify-and-register', { method: 'POST', body: {} });
-    assert.equal(legacyEndpoint.status, 410, 'legacy token-issuing auth routes must remain disabled');
+    const legacyAuthPaths = [
+      '/api/auth/send-verification',
+      '/api/auth/verify-and-register',
+      '/api/auth/resend-verification',
+      '/api/auth/forgot-password',
+      '/api/auth/reset-password',
+    ];
+    for (const pathname of legacyAuthPaths) {
+      const legacyEndpoint = await request(port, pathname, { method: 'POST', body: {} });
+      assert.equal(legacyEndpoint.status, 410, `${pathname} must remain disabled`);
+      assert.equal((await legacyEndpoint.text()).includes('devCode'), false, `${pathname} must never expose a verification code`);
+    }
 
     const preflight = await request(port, '/api/auth/me', {
       method: 'OPTIONS',
