@@ -121,6 +121,31 @@ const run = async () => {
       method: 'POST', cookies: seller.cookies, csrfToken: seller.csrfToken,
       body: { title: 'Valid product', description: 'This description is long enough.', price: -1, category: 'Home', stock: 1, condition: 'new' },
     }), 'seller listings must reject invalid monetary values');
+    const productVideo = await request(port, '/api/products', {
+      method: 'POST', cookies: seller.cookies, csrfToken: seller.csrfToken,
+      body: {
+        title: 'Video product listing', description: 'This description is long enough for a product video listing.',
+        price: 100, delivery_fee: 0, category: 'Home', stock: 1, condition: 'new',
+        media: [{ url: '/uploads/media/product-preview.mp4', type: 'video' }],
+      },
+    });
+    assert.equal(productVideo.status, 200, 'products must accept uploaded MP4 video references');
+    await assertValidationError(await request(port, '/api/products', {
+      method: 'POST', cookies: seller.cookies, csrfToken: seller.csrfToken,
+      body: {
+        title: 'Invalid product media', description: 'This description is long enough for a media validation test.',
+        price: 100, delivery_fee: 0, category: 'Home', stock: 1, condition: 'new',
+        media: [{ url: '/uploads/media/product-preview.mp4', type: 'document' }],
+      },
+    }), 'products must reject unsupported public media types');
+    await assertValidationError(await request(port, '/api/products', {
+      method: 'POST', cookies: seller.cookies, csrfToken: seller.csrfToken,
+      body: {
+        title: 'Mismatched product media', description: 'This description is long enough for a media validation test.',
+        price: 100, delivery_fee: 0, category: 'Home', stock: 1, condition: 'new',
+        media: [{ url: '/uploads/media/product-photo.jpg', type: 'video' }],
+      },
+    }), 'products must reject mismatched public media references');
     await assertValidationError(await request(port, '/api/courses', {
       method: 'POST', cookies: seller.cookies, csrfToken: seller.csrfToken,
       body: { title: 'Valid course', description: 'This description is long enough.', price: 100, category: 'Programming', level: 'expert', duration: 1, what_you_learn: '[]', media: [] },

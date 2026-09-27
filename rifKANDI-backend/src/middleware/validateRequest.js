@@ -359,17 +359,22 @@ const optionalMoney = (value, field, options = {}) => {
   return money(value, field, options);
 };
 
-const publicMedia = (value, field = 'media', maxItems = 10) => {
+const publicMedia = (value, field = 'media', maxItems = 10, allowedTypes = ['image']) => {
   if (value === undefined) return undefined;
-  if (!Array.isArray(value) || value.length > maxItems) fail(field, `must contain at most ${maxItems} uploaded images.`);
+  if (!Array.isArray(value) || value.length > maxItems) fail(field, `must contain at most ${maxItems} uploaded media files.`);
   return value.map((item, index) => {
     object(item, `${field}.${index}`);
     onlyKeys(item, ['url', 'type', 'order', 'isPrimary'], `${field}.${index}`);
     const url = text(item.url, `${field}.${index}.url`, { required: true, max: 2_048 });
-    if (item.type !== 'image' || !storageService.publicKeyFromUrl(url)) {
-      fail(`${field}.${index}`, 'must reference an uploaded public image.');
+    const key = storageService.publicKeyFromUrl(url);
+    const extension = key?.split('.').pop()?.toLowerCase();
+    const validExtensions = item.type === 'video'
+      ? ['mp4', 'webm']
+      : ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+    if (!allowedTypes.includes(item.type) || !key || !validExtensions.includes(extension)) {
+      fail(`${field}.${index}`, `must reference an uploaded public ${allowedTypes.join(' or ')}.`);
     }
-    return { url, type: 'image' };
+    return { url, type: item.type };
   });
 };
 
@@ -385,7 +390,7 @@ const productPayload = (body, { partial }) => {
     delivery_fee: required ? money(body.delivery_fee, 'delivery_fee', { min: 0, max: 10_000 }) : optionalMoney(body.delivery_fee, 'delivery_fee', { min: 0, max: 10_000 }),
     category: text(body.category, 'category', { required, min: 2, max: 64 }),
     stock: body.stock === undefined ? undefined : integer(body.stock, 'stock', { min: 0, max: 1_000_000 }),
-    media: publicMedia(body.media),
+    media: publicMedia(body.media, 'media', 10, ['image', 'video']),
     // Keep this in sync with the storefront and seller listing forms.  The
     // public product state is `used_as_new`, not the legacy `used` value.
     condition: body.condition === undefined ? undefined : enumValue(body.condition, 'condition', ['new', 'used_as_new', 'joutiya']),

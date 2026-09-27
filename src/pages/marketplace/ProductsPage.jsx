@@ -190,7 +190,11 @@ const ProductsPage = () => {
                   {product.media && product.media.length > 0 ? (
                     <>
                       {product.media[0].media_type === 'video' && <div className="video-badge">🎬 {t('products.video')}</div>}
-                      <MarketplaceImage source={product.media[0].media_url} alt={product.title} />
+                      {product.media[0].media_type === 'video' ? (
+                        <video src={getImageUrl(product.media[0].media_url)} muted playsInline preload="metadata" aria-label={`${product.title} video preview`} />
+                      ) : (
+                        <MarketplaceImage source={product.media[0].media_url} alt={product.title} />
+                      )}
                       {product.media.length > 1 && <div className="media-count">{t('products.itemCount', { count: product.media.length })}</div>}
                     </>
                   ) : (
@@ -264,7 +268,7 @@ const ProductsPage = () => {
         .product-card { display: flex; flex-direction: column; background: white; border-radius: 1rem; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); transition: all 0.3s; position: relative; }
         .product-card:hover { transform: translateY(-4px); box-shadow: 0 12px 24px rgba(0,0,0,0.1); }
         .product-image { height: 200px; background: #f3f4f6; cursor: pointer; position: relative; overflow: hidden; }
-        .product-image img { width: 100%; height: 100%; object-fit: cover; }
+        .product-image img, .product-image video { width: 100%; height: 100%; object-fit: cover; display:block; background:#0b1f33; }
         .image-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 4rem; }
         .video-badge { position: absolute; top: 0.5rem; left: 0.5rem; background: rgba(0,0,0,0.6); color: white; padding: 0.25rem 0.5rem; border-radius: 0.5rem; font-size: 0.7rem; }
         .media-count { position: absolute; bottom: 0.5rem; right: 0.5rem; background: rgba(0,0,0,0.6); color: white; padding: 0.25rem 0.5rem; border-radius: 0.5rem; font-size: 0.7rem; }
