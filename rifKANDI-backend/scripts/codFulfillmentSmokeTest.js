@@ -85,6 +85,14 @@ async function run() {
   });
   assert.equal(reported.fulfillment.status, 'shipped', 'an operations report must not settle or collect COD money');
   assert.equal(reported.fulfillment.delivery_report_outcome, 'delivered');
+  await assert.rejects(
+    () => CodFulfillmentService.recordCollection({
+      fulfillmentId: fulfillment.id, financeUserId: flow.financeId,
+      carrierReference: 'INVALID-FEE-1001', collectedAmount: 150, carrierDeliveryFee: 49,
+    }),
+    /delivery fee accepted by the buyer/,
+    'a collection cannot change the delivery fee accepted at checkout'
+  );
   const collected = await CodFulfillmentService.recordCollection({
     fulfillmentId: fulfillment.id, financeUserId: flow.financeId,
     carrierReference: 'NAJM-COLLECT-1001', collectedAmount: 150, carrierDeliveryFee: 50,
@@ -106,6 +114,36 @@ async function run() {
   const wallet = await WalletService.getWallet(flow.sellerId);
   assert.equal(wallet.available_balance_minor, 0, 'manual COD seller payout never credits a rifKANDO wallet');
 
+  const duplicateRemittanceFlow = await createUsersAndProduct('Duplicate remittance COD product');
+  const duplicateRemittanceCheckout = await WalletService.createMarketplaceOrder({
+    buyerId: duplicateRemittanceFlow.buyerId,
+    orderNumber: 'RIF-COD-DUPLICATE-REM-1001',
+    paymentMethod: 'cash',
+    shippingAddress: address('duplicate-remittance@buyer.test'),
+    items: [{ id: duplicateRemittanceFlow.productId, quantity: 1 }],
+    expectedTotal: 150,
+    idempotencyKey: 'cod-fulfillment-duplicate-remittance-1001',
+  });
+  const duplicateRemittanceFulfillment = await WalletService.get('SELECT * FROM cod_fulfillments WHERE order_id = ?', [duplicateRemittanceCheckout.order.id]);
+  await CodFulfillmentService.sellerAction({ fulfillmentId: duplicateRemittanceFulfillment.id, sellerId: duplicateRemittanceFlow.sellerId, action: 'confirm' });
+  await CodFulfillmentService.sellerAction({ fulfillmentId: duplicateRemittanceFulfillment.id, sellerId: duplicateRemittanceFlow.sellerId, action: 'request_handoff' });
+  await CodFulfillmentService.confirmDeliveryPartnerPickup({
+    fulfillmentId: duplicateRemittanceFulfillment.id, operationsUserId: duplicateRemittanceFlow.operationsId,
+    carrierName: 'Najm Chamal', trackingNumber: 'COD-TRACK-DUPLICATE-REM-1001',
+  });
+  await CodFulfillmentService.recordCollection({
+    fulfillmentId: duplicateRemittanceFulfillment.id, financeUserId: duplicateRemittanceFlow.financeId,
+    carrierReference: 'NAJM-COLLECT-DUPLICATE-REM-1001', collectedAmount: 150, carrierDeliveryFee: 50,
+  });
+  await assert.rejects(
+    () => CodFulfillmentService.recordDeliveryPartnerRemittance({
+      fulfillmentId: duplicateRemittanceFulfillment.id, financeUserId: duplicateRemittanceFlow.financeId,
+      settlementReference: 'TOUFIQ-REM-1001', remittedAmount: 100,
+    }),
+    /already linked to another fulfilment/,
+    'a Toufiq remittance reference cannot be reused for another fulfilment'
+  );
+
   const returnFlow = await createUsersAndProduct('Returned COD product');
   const returnCheckout = await WalletService.createMarketplaceOrder({
     buyerId: returnFlow.buyerId,
@@ -120,6 +158,21 @@ async function run() {
   await CodFulfillmentService.sellerAction({ fulfillmentId: returnFulfillment.id, sellerId: returnFlow.sellerId, action: 'confirm' });
   await CodFulfillmentService.sellerAction({
     fulfillmentId: returnFulfillment.id, sellerId: returnFlow.sellerId, action: 'dispatch', carrierName: 'Test Carrier', trackingNumber: 'COD-TRACK-RETURN-1001',
+  });
+  await CodFulfillmentService.reportDeliveryOutcome({
+    fulfillmentId: returnFulfillment.id, operationsUserId: returnFlow.operationsId,
+    outcome: 'refused', note: 'Buyer refused the parcel at delivery.',
+  });
+  await assert.rejects(
+    () => CodFulfillmentService.recordCollection({
+      fulfillmentId: returnFulfillment.id, financeUserId: returnFlow.financeId,
+      carrierReference: 'INVALID-COLLECTION-RETURN-1001', collectedAmount: 150, carrierDeliveryFee: 50,
+    }),
+    /matching delivery exception/,
+    'a refused field report must block cash collection'
+  );
+  await CodFulfillmentService.recordException({
+    fulfillmentId: returnFulfillment.id, financeUserId: returnFlow.financeId, status: 'refused', note: 'Finance verified the carrier refusal evidence.',
   });
   await CodFulfillmentService.recordException({
     fulfillmentId: returnFulfillment.id, financeUserId: returnFlow.financeId, status: 'returned', note: 'Carrier returned the parcel to the seller.',

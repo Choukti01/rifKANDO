@@ -1428,6 +1428,14 @@ db.serialize(() => {
     }
   );
   db.run(
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_cod_fulfillments_settlement_reference
+     ON cod_fulfillments(carrier_settlement_reference)
+     WHERE carrier_settlement_reference IS NOT NULL`,
+    (err) => {
+      if (err) console.error('Error creating COD remittance reference index:', err.message);
+    }
+  );
+  db.run(
     `CREATE UNIQUE INDEX IF NOT EXISTS idx_cod_fulfillments_commission_payment_reference
      ON cod_fulfillments(commission_payment_reference)
      WHERE commission_payment_reference IS NOT NULL`,

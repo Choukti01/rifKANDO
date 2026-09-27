@@ -260,9 +260,16 @@ class CodFulfillmentService {
       if (fulfillment.status !== 'shipped') {
         throw new Error('Only a shipped COD fulfilment can have a carrier collection recorded.');
       }
+      if (fulfillment.delivery_reported_at && fulfillment.delivery_report_outcome !== 'delivered') {
+        throw new Error(`Toufiq reported this parcel as ${fulfillment.delivery_report_outcome}. Record the matching delivery exception instead of a cash collection.`);
+      }
       const expectedAmount = getAmountMinor(fulfillment, 'expected_cod_amount_minor', 'expected_cod_amount');
       if (collectionMinor !== expectedAmount) {
         throw new Error(`Collected COD must equal the expected amount of ${Money.formatMinor(expectedAmount)} MAD.`);
+      }
+      const customerDeliveryFeeMinor = getAmountMinor(fulfillment, 'customer_delivery_fee_minor', 'customer_delivery_fee');
+      if (deliveryFeeMinor !== customerDeliveryFeeMinor) {
+        throw new Error(`Toufiq delivery fee must equal the ${Money.formatMinor(customerDeliveryFeeMinor)} MAD delivery fee accepted by the buyer at checkout.`);
       }
       if (deliveryFeeMinor > collectionMinor) {
         throw new Error('Carrier delivery fee cannot exceed the COD amount collected.');
@@ -589,6 +596,14 @@ class CodFulfillmentService {
         throw new Error(`Toufiq remittance must equal ${Money.formatMinor(expectedRemittanceMinor)} MAD after the recorded delivery fee.`);
       }
 
+      const duplicateReference = await tx.get(
+        WalletService.lockForUpdate('SELECT id FROM cod_fulfillments WHERE carrier_settlement_reference = ?'),
+        [safeReference]
+      );
+      if (duplicateReference && Number(duplicateReference.id) !== Number(fulfillment.id)) {
+        throw new Error('This Toufiq remittance reference is already linked to another fulfilment.');
+      }
+
       const operationKey = `toufiq-cod-remittance:${safeFulfillmentId}`;
       const operation = await WalletService.createOperationTx(tx, {
         operationKey,
@@ -706,6 +721,12 @@ class CodFulfillmentService {
         : ['shipped'];
       if (!allowed.includes(fulfillment.status)) {
         throw new Error('This carrier exception is not allowed for the current fulfilment state.');
+      }
+      if (fulfillment.delivery_reported_at && fulfillment.delivery_report_outcome === 'delivered') {
+        throw new Error('Toufiq reported this parcel as delivered. Resolve the collection record before recording a delivery exception.');
+      }
+      if (fulfillment.status === 'shipped' && fulfillment.delivery_reported_at && fulfillment.delivery_report_outcome !== status) {
+        throw new Error(`Toufiq reported this parcel as ${fulfillment.delivery_report_outcome}. Record the matching delivery exception first.`);
       }
       const update = await tx.run(
         `UPDATE cod_fulfillments
