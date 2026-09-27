@@ -7,7 +7,7 @@ import { getImageUrl } from '../utils/imageUtils';
 const EMPTY_MEDIA = [];
 const MEDIA_RULES = {
   image: {
-    accept: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'],
+    accept: ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif', 'image/heic', 'image/heif'],
     maxBytes: 10 * 1024 * 1024,
     label: 'photo',
   },
