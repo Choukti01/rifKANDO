@@ -84,7 +84,34 @@ They return HTTP 200 only when the API can query its configured database. Every 
 an `X-Request-ID`; use it to find the matching structured error entry in Render
 logs.
 
-## Database backups
+## Database recovery
+
+The production database uses managed PostgreSQL. Its snapshots, retention and
+point-in-time recovery are managed by the database provider, not by this
+repository. Before relying on production recovery, record the provider's
+retention policy and perform a restore-branch drill: restore to an isolated
+branch, run the database preflight, and verify orders, the wallet ledger and
+payment reconciliation. Do not run a restore against the live database.
+
+`npm run backup:db` intentionally exits with an error when
+`DATABASE_ENGINE=postgres`; the older command produces SQLite snapshots only
+and must never be mistaken for a PostgreSQL backup.
+
+### PostgreSQL independent backup to R2
+
+`npm run backup:postgres:r2` creates a custom-format PostgreSQL dump, uploads
+it to the private R2 bucket, logs only the object key/checksum, and applies the
+configured retention period. It requires the official `pg_dump` client tool;
+the backup installer intentionally refuses to create a scheduled task until
+that executable exists. This keeps a missing dependency from producing daily
+false-success backup runs.
+
+On the current Windows origin, install `scripts/windows/installBackendAutostart.ps1`
+from an elevated PowerShell to restart the API after boot or failure. Once the
+PostgreSQL client tools are installed and one manual R2 backup succeeds, install
+`scripts/windows/installPostgresBackupTask.ps1` for the daily 02:30 backup.
+
+### SQLite only
 
 Create a consistent SQLite snapshot with:
 
