@@ -77,11 +77,22 @@ const CODOperationsDesk = () => {
   const submit = async (item, action) => {
     const form = formFor(item);
     const isPickup = action === 'pickup';
+    const carrierName = form.carrierName === 'Other'
+      ? String(form.otherCarrierName || '').trim()
+      : form.carrierName || '';
+    if (isPickup && (!carrierName || !String(form.trackingNumber || '').trim())) {
+      toast.error('Enter the actual carrier name and tracking number before confirming pickup.');
+      return;
+    }
+    if (!isPickup && String(form.deliveryNote || '').trim().length < 3) {
+      toast.error('Add a delivery note with the date, buyer response, and carrier evidence.');
+      return;
+    }
     const path = isPickup
       ? `/operations/cod-fulfillments/${item.fulfillment_id}/confirm-pickup`
       : `/operations/cod-fulfillments/${item.fulfillment_id}/report-delivery`;
     const payload = isPickup
-      ? { carrierName: form.carrierName || '', trackingNumber: form.trackingNumber || '', note: form.pickupNote || '' }
+      ? { carrierName, trackingNumber: String(form.trackingNumber || '').trim(), note: form.pickupNote || '' }
       : { outcome: form.outcome || 'delivered', note: form.deliveryNote || '' };
     setProcessing(`${item.fulfillment_id}:${action}`);
     try {
@@ -140,7 +151,7 @@ const CODOperationsDesk = () => {
             </div>
 
             {item.carrier_name && <div className="cod-ops__tracking"><b>Carrier:</b> {item.carrier_name} <b>Tracking:</b> {item.tracking_number || 'Not recorded'}</div>}
-            {canConfirmPickup && <section className="cod-ops__action"><h3>Confirm parcel pickup</h3><p>The seller requested Toufiq pickup. Record the actual carrier and tracking after you have the parcel.</p><div className="cod-ops__fields"><label>Carrier<select value={form.carrierName || ''} onChange={(event) => updateForm(item, 'carrierName', event.target.value)}><option value="">Select carrier</option><option value="Najm Chamal">Najm Chamal</option><option value="Ghazala">Ghazala</option><option value="Other">Other</option></select></label><label>Tracking number<input value={form.trackingNumber || ''} onChange={(event) => updateForm(item, 'trackingNumber', event.target.value)} placeholder="Carrier tracking" /></label><label>Handoff note<input value={form.pickupNote || ''} onChange={(event) => updateForm(item, 'pickupNote', event.target.value)} placeholder="Optional proof or note" /></label></div><button disabled={processing === `${item.fulfillment_id}:pickup`} onClick={() => void submit(item, 'pickup')}>{processing === `${item.fulfillment_id}:pickup` ? 'Recording…' : 'Confirm pickup'}</button></section>}
+            {canConfirmPickup && <section className="cod-ops__action"><h3>Confirm parcel pickup</h3><p>The seller requested Toufiq pickup. Record the actual carrier and tracking after you have the parcel.</p><div className="cod-ops__fields"><label>Carrier<select value={form.carrierName || ''} onChange={(event) => updateForm(item, 'carrierName', event.target.value)}><option value="">Select carrier</option><option value="Najm Chamal">Najm Chamal</option><option value="Ghazala">Ghazala</option><option value="Other">Other</option></select></label>{form.carrierName === 'Other' && <label>Carrier name<input value={form.otherCarrierName || ''} onChange={(event) => updateForm(item, 'otherCarrierName', event.target.value)} placeholder="Actual carrier name" /></label>}<label>Tracking number<input value={form.trackingNumber || ''} onChange={(event) => updateForm(item, 'trackingNumber', event.target.value)} placeholder="Carrier tracking" /></label><label>Handoff note<input value={form.pickupNote || ''} onChange={(event) => updateForm(item, 'pickupNote', event.target.value)} placeholder="Optional proof or note" /></label></div><button disabled={processing === `${item.fulfillment_id}:pickup`} onClick={() => void submit(item, 'pickup')}>{processing === `${item.fulfillment_id}:pickup` ? 'Recording…' : 'Confirm pickup'}</button></section>}
             {item.status === 'confirmed' && !item.delivery_partner_contacted_at && <p className="cod-ops__notice">Waiting for the seller to request a Toufiq handoff through the seller dashboard.</p>}
             {canReportDelivery && <section className="cod-ops__action"><h3>Report delivery outcome</h3><p>Report what happened in the field. This does not mark cash as collected or release any seller payment.</p><div className="cod-ops__fields"><label>Outcome<select value={form.outcome || 'delivered'} onChange={(event) => updateForm(item, 'outcome', event.target.value)}><option value="delivered">Delivered to buyer</option><option value="refused">Buyer refused</option><option value="returned">Returned to seller</option></select></label><label className="wide">Report note<input value={form.deliveryNote || ''} onChange={(event) => updateForm(item, 'deliveryNote', event.target.value)} placeholder="Required: date, buyer response, and any carrier evidence" /></label></div><button disabled={processing === `${item.fulfillment_id}:delivery`} onClick={() => void submit(item, 'delivery')}>{processing === `${item.fulfillment_id}:delivery` ? 'Reporting…' : 'Report outcome'}</button></section>}
             {item.delivery_reported_at && <p className="cod-ops__notice success">Reported {item.delivery_report_outcome} on {new Date(item.delivery_reported_at).toLocaleString()}: {item.delivery_report_note}</p>}
