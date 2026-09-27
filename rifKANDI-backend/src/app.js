@@ -1414,6 +1414,7 @@ app.post('/api/upload-digital-file', protect, requireSeller, requireFeature('dig
 const disabledLegacyAuthRoutes = new Set([
   '/api/auth/send-verification',
   '/api/auth/verify-and-register',
+  '/api/auth/resend-verification',
   '/api/auth/forgot-password',
   '/api/auth/reset-password',
 ]);

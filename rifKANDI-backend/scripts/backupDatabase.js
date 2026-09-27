@@ -2,10 +2,30 @@ const dotenv = require('dotenv');
 const crypto = require('node:crypto');
 const fs = require('fs');
 const path = require('path');
-const sqlite3 = require('sqlite3').verbose();
 
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
+const { getDatabaseEngine } = require('../src/config/postgresDatabase');
+
+const databaseEngine = getDatabaseEngine();
+
+// A managed PostgreSQL provider such as Neon owns snapshot retention and
+// point-in-time recovery. The former SQLite `VACUUM INTO` implementation is
+// not a PostgreSQL backup, so never pretend it is one. Failing loudly here
+// prevents a scheduled job from creating a false sense of recoverability.
+if (databaseEngine === 'postgres') {
+  console.error(JSON.stringify({
+    level: 'error',
+    event: 'database_backup_requires_provider_recovery',
+    engine: databaseEngine,
+    message: 'This command only creates SQLite snapshots. PostgreSQL recovery must be configured and restore-tested in the managed database provider before treating backups as complete.',
+    nextStep: 'Verify the provider retention policy and perform a restore-branch drill. Do not use DB_BACKUP_DIR as evidence of PostgreSQL backup coverage.',
+  }));
+  process.exitCode = 2;
+  return;
+}
+
+const sqlite3 = require('sqlite3').verbose();
 const db = require('../src/config/database');
 
 const run = (sql) => new Promise((resolve, reject) => {
