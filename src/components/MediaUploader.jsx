@@ -59,7 +59,12 @@ const MediaUploader = ({
       const formData = new FormData();
       formData.append('media', file);
       try {
-        const response = await api.post('/upload-media', formData);
+        // The shared API client defaults to JSON for normal requests. Declare
+        // multipart explicitly so browser uploads retain their boundary and
+        // Multer receives the selected file rather than an empty request.
+        const response = await api.post('/upload-media', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
         if (response.data.success) {
           const newMedia = { url: response.data.url, type: response.data.type };
           nextMedia = [...nextMedia, newMedia];
