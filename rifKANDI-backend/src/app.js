@@ -1249,34 +1249,74 @@ app.delete('/api/users/profile-picture', protect, async (req, res) => {
 
 // ==================== MEDIA UPLOAD FOR PRODUCTS ====================
 
-const allowedPublicMediaTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+// Public catalogue media is deliberately limited to browser-safe images and
+// videos.  Product videos are useful for a buyer, but accepting arbitrary
+// uploads here would turn the marketplace into a file-hosting service.
+const allowedPublicMediaTypes = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+  'video/mp4',
+  'video/webm',
+]);
+const MAX_PUBLIC_IMAGE_BYTES = 10 * 1024 * 1024;
+const MAX_PUBLIC_VIDEO_BYTES = 40 * 1024 * 1024;
 const mediaUpload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024, files: 1, fields: 10, fieldSize: 64 * 1024 },
+  limits: { fileSize: MAX_PUBLIC_VIDEO_BYTES, files: 1, fields: 10, fieldSize: 64 * 1024 },
   fileFilter: (req, file, cb) => {
     if (allowedPublicMediaTypes.has(file.mimetype)) return cb(null, true);
     return cb(new Error('Only JPEG, PNG, WebP, and GIF images are allowed.'));
   }
 });
 
+const hasMp4Signature = (buffer) => buffer.length >= 12 && buffer.subarray(4, 8).toString('ascii') === 'ftyp';
+const hasWebmSignature = (buffer) => (
+  buffer.length >= 4
+  && buffer.subarray(0, 4).equals(Buffer.from([0x1a, 0x45, 0xdf, 0xa3]))
+  && buffer.subarray(0, Math.min(buffer.length, 4096)).includes(Buffer.from('webm'))
+);
+
+const inspectPublicMedia = async (file) => {
+  const imageFormats = {
+    jpeg: { extension: 'jpg', contentType: 'image/jpeg' },
+    png: { extension: 'png', contentType: 'image/png' },
+    webp: { extension: 'webp', contentType: 'image/webp' },
+    gif: { extension: 'gif', contentType: 'image/gif' },
+  };
+
+  if (file.mimetype.startsWith('image/')) {
+    if (file.size > MAX_PUBLIC_IMAGE_BYTES) throw new Error('Images must be 10 MB or smaller.');
+    const metadata = await sharp(file.buffer, { failOn: 'error' }).metadata();
+    const format = imageFormats[metadata.format];
+    if (!format) throw new Error('The uploaded file is not a supported image.');
+    return { type: 'image', ...format };
+  }
+
+  if (file.mimetype === 'video/mp4') {
+    if (!hasMp4Signature(file.buffer)) throw new Error('The uploaded video is not a valid MP4 file.');
+    return { type: 'video', extension: 'mp4', contentType: 'video/mp4' };
+  }
+
+  if (file.mimetype === 'video/webm') {
+    if (!hasWebmSignature(file.buffer)) throw new Error('The uploaded video is not a valid WebM file.');
+    return { type: 'video', extension: 'webm', contentType: 'video/webm' };
+  }
+
+  throw new Error('Only JPEG, PNG, WebP, GIF, MP4, and WebM files are allowed.');
+};
+
 const persistPublicMedia = async (req, res, next) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded.' });
   try {
-    const metadata = await sharp(req.file.buffer, { failOn: 'error' }).metadata();
-    const formats = {
-      jpeg: { extension: 'jpg', contentType: 'image/jpeg' },
-      png: { extension: 'png', contentType: 'image/png' },
-      webp: { extension: 'webp', contentType: 'image/webp' },
-      gif: { extension: 'gif', contentType: 'image/gif' },
-    };
-    const format = formats[metadata.format];
-    if (!format) throw new Error('The uploaded file is not a supported image.');
-    const key = storageService.createKey('public', 'media', format.extension);
+    const media = await inspectPublicMedia(req.file);
+    const key = storageService.createKey('public', 'media', media.extension);
     await storageService.put(key, req.file.buffer, {
-      contentType: format.contentType,
+      contentType: media.contentType,
       cacheControl: 'public, max-age=31536000, immutable',
     });
-    req.publicMedia = { url: storageService.publicUrl(key), type: 'image' };
+    req.publicMedia = { url: storageService.publicUrl(key), type: media.type };
     return next();
   } catch (error) {
     return res.status(400).json({ error: error.message || 'Invalid upload.' });

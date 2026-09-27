@@ -80,7 +80,7 @@ const AddDigitalProduct = () => {
         <section className="digital-editor-section">
           <h2>Listing previews</h2>
           <p className="digital-section-copy">Add up to 10 public preview images. These are separate from the private delivery file.</p>
-          <MediaUploader onMediaUploaded={setMedia} maxFiles={10} />
+          <MediaUploader onMediaUploaded={setMedia} existingMedia={media} maxFiles={10} />
         </section>
 
         <div className="digital-editor-actions">

@@ -115,7 +115,7 @@ const AddCourse = () => {
         {/* Media Upload Section */}
         <div className="form-group">
           <label>Course Images & Videos (max 10)</label>
-          <MediaUploader onMediaUploaded={setMedia} maxFiles={10} />
+          <MediaUploader onMediaUploaded={setMedia} existingMedia={media} maxFiles={10} />
         </div>
 
         <div className="form-actions">

@@ -158,8 +158,8 @@ const AddProduct = () => {
         </div>
 
         <div className="form-group">
-          <label>Product Images & Videos (max 10)</label>
-          <MediaUploader onMediaUploaded={setMedia} maxFiles={10} />
+          <label>Product Photos & Videos (max 10)</label>
+          <MediaUploader onMediaUploaded={setMedia} existingMedia={media} maxFiles={10} allowedTypes={['image', 'video']} />
         </div>
 
         <div className="form-actions">
