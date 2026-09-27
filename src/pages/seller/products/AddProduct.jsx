@@ -25,17 +25,35 @@ const AddProduct = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const title = formData.title.trim();
+    const description = formData.description.trim();
+    const price = Number(formData.price);
+    const deliveryFee = Number(formData.delivery_fee || 0);
+    const stock = Number(formData.stock);
+    const oldPrice = formData.old_price === '' ? undefined : Number(formData.old_price);
+
+    if (title.length < 2) return toast.error('Product title must contain at least 2 characters.');
+    if (description.length < 10) return toast.error('Description must contain at least 10 characters.');
+    if (!Number.isFinite(price) || price <= 0) return toast.error('Enter a valid product price.');
+    if (!Number.isFinite(deliveryFee) || deliveryFee < 0) return toast.error('Enter a valid delivery price.');
+    if (!Number.isInteger(stock) || stock < 0) return toast.error('Stock must be a whole number of 0 or more.');
+    if (oldPrice !== undefined && (!Number.isFinite(oldPrice) || oldPrice < price)) {
+      return toast.error('Original price must be at least the current product price.');
+    }
+
     setLoading(true);
     try {
       const productData = {
-        ...formData,
-        price: parseFloat(formData.price),
-        old_price: formData.old_price ? parseFloat(formData.old_price) : null,
-        delivery_fee: parseFloat(formData.delivery_fee || '0'),
-        stock: parseInt(formData.stock) || 0,
+        title,
+        description,
+        price,
+        delivery_fee: deliveryFee,
+        stock,
+        category: formData.category,
         condition: formData.condition,
-        media: media.map((m, idx) => ({ ...m, order: idx, isPrimary: idx === 0 }))
+        media: media.map(({ url, type }) => ({ url, type })),
       };
+      if (oldPrice !== undefined) productData.old_price = oldPrice;
       const response = await api.post('/products', productData);
       if (response.data.success) {
         toast.success('Product created successfully!');
@@ -43,7 +61,10 @@ const AddProduct = () => {
       }
     } catch (error) {
       console.error('Error creating product:', error);
-      toast.error(error.response?.data?.error || 'Failed to create product');
+      const fieldError = error.response?.data?.fields?.[0];
+      toast.error(fieldError
+        ? `${fieldError.field}: ${fieldError.message}`
+        : (error.response?.data?.error || 'Failed to create product'));
     } finally {
       setLoading(false);
     }
@@ -61,6 +82,7 @@ const AddProduct = () => {
             value={formData.title}
             onChange={handleChange}
             className="form-input"
+            minLength="2"
             required
           />
         </div>
@@ -73,8 +95,10 @@ const AddProduct = () => {
             onChange={handleChange}
             className="form-input"
             rows="4"
+            minLength="10"
             required
           />
+          <small className="form-hint">Use at least 10 characters so buyers understand the listing.</small>
         </div>
 
         <div className="form-row">
@@ -83,6 +107,8 @@ const AddProduct = () => {
             <input
               type="number"
               name="price"
+              min="0.01"
+              step="0.01"
               value={formData.price}
               onChange={handleChange}
               className="form-input"
@@ -94,6 +120,8 @@ const AddProduct = () => {
             <input
               type="number"
               name="old_price"
+              min="0.01"
+              step="0.01"
               value={formData.old_price}
               onChange={handleChange}
               className="form-input"
@@ -128,6 +156,8 @@ const AddProduct = () => {
             <input
               type="number"
               name="stock"
+              min="0"
+              step="1"
               value={formData.stock}
               onChange={handleChange}
               className="form-input"
