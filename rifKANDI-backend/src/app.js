@@ -1257,6 +1257,9 @@ const allowedPublicMediaTypes = new Set([
   'image/png',
   'image/webp',
   'image/gif',
+  'image/avif',
+  'image/heic',
+  'image/heif',
   'video/mp4',
   'video/webm',
 ]);
@@ -1266,8 +1269,11 @@ const mediaUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: MAX_PUBLIC_VIDEO_BYTES, files: 1, fields: 10, fieldSize: 64 * 1024 },
   fileFilter: (req, file, cb) => {
-    if (allowedPublicMediaTypes.has(file.mimetype)) return cb(null, true);
-    return cb(new Error('Only JPEG, PNG, WebP, and GIF images are allowed.'));
+    // Browser MIME labels are not fully consistent for phone photos (for
+    // example image/jpg versus image/jpeg). Sharp still validates the real
+    // image bytes before storage, so accepting the image family here is safe.
+    if (file.mimetype.startsWith('image/') || allowedPublicMediaTypes.has(file.mimetype)) return cb(null, true);
+    return cb(new Error('Only JPEG, PNG, WebP, GIF, AVIF, MP4, and WebM media files are allowed.'));
   }
 });
 
@@ -1290,18 +1296,29 @@ const inspectPublicMedia = async (file) => {
     if (file.size > MAX_PUBLIC_IMAGE_BYTES) throw new Error('Images must be 10 MB or smaller.');
     const metadata = await sharp(file.buffer, { failOn: 'error' }).metadata();
     const format = imageFormats[metadata.format];
-    if (!format) throw new Error('The uploaded file is not a supported image.');
-    return { type: 'image', ...format };
+    if (format) return { type: 'image', buffer: file.buffer, ...format };
+
+    // AVIF/HEIF camera images are converted before public delivery because
+    // JPEG is consistently supported by marketplace browsers and webviews.
+    if (metadata.format === 'heif') {
+      const converted = await sharp(file.buffer, { failOn: 'error' })
+        .rotate()
+        .jpeg({ quality: 90, mozjpeg: true })
+        .toBuffer();
+      return { type: 'image', buffer: converted, extension: 'jpg', contentType: 'image/jpeg' };
+    }
+
+    throw new Error('The uploaded image format is not supported. Use JPG, PNG, WebP, GIF, or AVIF.');
   }
 
   if (file.mimetype === 'video/mp4') {
     if (!hasMp4Signature(file.buffer)) throw new Error('The uploaded video is not a valid MP4 file.');
-    return { type: 'video', extension: 'mp4', contentType: 'video/mp4' };
+    return { type: 'video', buffer: file.buffer, extension: 'mp4', contentType: 'video/mp4' };
   }
 
   if (file.mimetype === 'video/webm') {
     if (!hasWebmSignature(file.buffer)) throw new Error('The uploaded video is not a valid WebM file.');
-    return { type: 'video', extension: 'webm', contentType: 'video/webm' };
+    return { type: 'video', buffer: file.buffer, extension: 'webm', contentType: 'video/webm' };
   }
 
   throw new Error('Only JPEG, PNG, WebP, GIF, MP4, and WebM files are allowed.');
@@ -1312,13 +1329,20 @@ const persistPublicMedia = async (req, res, next) => {
   try {
     const media = await inspectPublicMedia(req.file);
     const key = storageService.createKey('public', 'media', media.extension);
-    await storageService.put(key, req.file.buffer, {
+    await storageService.put(key, media.buffer, {
       contentType: media.contentType,
       cacheControl: 'public, max-age=31536000, immutable',
     });
     req.publicMedia = { url: storageService.publicUrl(key), type: media.type };
     return next();
   } catch (error) {
+    console.warn(JSON.stringify({
+      level: 'warn',
+      event: 'public_media_upload_rejected',
+      mimeType: req.file?.mimetype,
+      sizeBytes: req.file?.size,
+      error: error.message,
+    }));
     return res.status(400).json({ error: error.message || 'Invalid upload.' });
   }
 };
@@ -1327,6 +1351,13 @@ const persistPublicMedia = async (req, res, next) => {
 app.post('/api/upload-media', protect, requireSeller, (req, res, next) => {
   mediaUpload.single('media')(req, res, (err) => {
     if (err) {
+      console.warn(JSON.stringify({
+        level: 'warn',
+        event: 'public_media_upload_rejected',
+        mimeType: req.file?.mimetype,
+        sizeBytes: req.file?.size,
+        error: err.message,
+      }));
       return res.status(400).json({ error: err.message || 'Invalid upload.' });
     }
     return next();
