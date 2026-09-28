@@ -12,12 +12,12 @@ import MarketplaceImage from '../../components/common/MarketplaceImage';
 import ServiceUnavailableState from '../../components/common/ServiceUnavailableState';
 
 const ProductsPage = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [galleryProduct, setGalleryProduct] = useState(null);
   const { addToCart } = useCart();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   
   const [activeCondition, setActiveCondition] = useState('new');
   const [searchTerm, setSearchTerm] = useState('');
@@ -82,8 +82,15 @@ const ProductsPage = () => {
 
   const handleAddToCart = (product) => {
     if (!isAuthenticated) { toast.error(t('products.signInRequired')); return; }
+    if (Number(product.seller_id) === Number(user?.id)) { toast.error(t('products.ownListing')); return; }
+    if (Number(product.stock) < 1) { toast.error(t('products.outOfStock')); return; }
     addToCart(product, 1, 'product');
   };
+
+  const formatAmount = (amount) => new Intl.NumberFormat(
+    i18n.language === 'ar' ? 'ar-MA' : i18n.language === 'fr' ? 'fr-MA' : 'en-MA',
+    { maximumFractionDigits: 2 }
+  ).format(Number(amount || 0));
 
   const handlePageChange = (newPage) => {
     setCurrentPage(newPage);
@@ -172,8 +179,13 @@ const ProductsPage = () => {
         </div>
 
         {loadError ? <ServiceUnavailableState onRetry={() => setRetryKey((current) => current + 1)} /> : <div className="products-grid">
-          {products.map(product => (
-              <div key={product.id} className="product-card">
+          {products.map(product => {
+              const deliveryFee = Number(product.delivery_fee || 0);
+              const productPrice = Number(product.price || 0);
+              const isOwnListing = Number(product.seller_id) === Number(user?.id);
+              const outOfStock = Number(product.stock) < 1;
+
+              return <div key={product.id} className="product-card">
                 <div
                   className="product-image"
                   role={product.media?.length ? 'button' : undefined}
@@ -208,16 +220,25 @@ const ProductsPage = () => {
                 </p>
                 <div className="product-rating">⭐ {product.rating || 0} ({t('products.reviewCount', { count: product.reviews_count || 0 })})</div>
                 <div className="product-price">
-                  <span className="current-price">{product.price} MAD</span>
-                  {product.old_price && <span className="old-price">{product.old_price} MAD</span>}
+                  <span className="current-price">{formatAmount(productPrice)} MAD</span>
+                  {product.old_price && <span className="old-price">{formatAmount(product.old_price)} MAD</span>}
+                </div>
+                <div className="product-cod-summary">
+                  <span>{t('products.delivery')}: <strong>{deliveryFee > 0 ? `${formatAmount(deliveryFee)} MAD` : t('products.freeDelivery')}</strong></span>
+                  {product.condition !== 'joutiya' && <span>{t('products.codTotal')}: <strong>{formatAmount(productPrice + deliveryFee)} MAD</strong></span>}
+                </div>
+                <div className={`product-availability ${outOfStock ? 'is-out-of-stock' : ''}`}>
+                  {outOfStock ? t('products.outOfStock') : t('products.stockAvailable', { count: product.stock })}
                 </div>
                 {product.condition === 'joutiya' ? (
-                  <Link to={`/product/${product.id}`} className="product-btn negotiate-btn">{t('products.makeOffer')}</Link>
+                  outOfStock ? <span className="product-btn negotiate-btn product-btn-disabled">{t('products.outOfStock')}</span> : <Link to={`/product/${product.id}`} className="product-btn negotiate-btn">{t('products.makeOffer')}</Link>
                 ) : (
-                  <button onClick={() => handleAddToCart(product)} className="product-btn">{t('products.addToCart')}</button>
+                  <button onClick={() => handleAddToCart(product)} className="product-btn" disabled={outOfStock || isOwnListing}>
+                    {outOfStock ? t('products.outOfStock') : isOwnListing ? t('products.yourListing') : t('products.addToCart')}
+                  </button>
                 )}
-              </div>
-          ))}
+              </div>;
+          })}
         </div>}
 
         {!loadError && totalPages > 1 && (
@@ -280,7 +301,13 @@ const ProductsPage = () => {
         .product-price { margin: 0 1rem 0.5rem; display: flex; gap: 0.5rem; align-items: baseline; }
         .current-price { font-weight: 700; }
         .old-price { font-size: 0.75rem; color: #9ca3af; text-decoration: line-through; }
+        .product-cod-summary { display: grid; gap: 0.25rem; margin: 0 1rem 0.5rem; padding: 0.6rem 0.7rem; border-radius: 0.6rem; background: #f4fbfd; color: #425466; font-size: 0.76rem; line-height: 1.35; }
+        .product-cod-summary span:last-child { color: #153d4a; }
+        .product-availability { margin: 0 1rem 0.75rem; color: #087a5c; font-size: 0.76rem; font-weight: 700; }
+        .product-availability.is-out-of-stock { color: #b42318; }
         .product-btn { display: inline-flex; width: calc(100% - 2rem); min-height: 44px; margin: auto 1rem 1rem; align-items: center; justify-content: center; padding: 0.6rem; background: #1a1a1a; color: white; border: none; border-radius: 2rem; cursor: pointer; text-decoration: none; }
+        .product-btn:disabled { cursor: not-allowed; opacity: 0.5; }
+        .product-btn-disabled { cursor: not-allowed; opacity: 0.5; }
         .negotiate-btn { background: #f59e0b; color: white; }
         .negotiate-btn:hover { background: #d97706; }
         .pagination { display: flex; justify-content: center; align-items: center; gap: 1rem; margin-top: 2rem; }

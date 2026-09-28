@@ -1864,6 +1864,10 @@ app.post('/api/cart', protect, validateCartItem, (req, res) => {
     if (!product) {
       return res.status(404).json({ error: 'Product not found' });
     }
+
+    if (Number(product.seller_id) === Number(req.user.id)) {
+      return res.status(400).json({ error: 'You cannot add your own product to your cart.' });
+    }
     
     if (product.status && product.status !== 'published') {
       return res.status(400).json({ error: 'This product is not currently available.' });
