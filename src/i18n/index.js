@@ -537,6 +537,30 @@ Object.assign(resources.ar.translation, {
   },
 });
 
+Object.assign(resources.en.translation.products, {
+  price: 'Price', itemPrice: 'Item price', delivery: 'Delivery', freeDelivery: 'Free', codTotal: 'COD total', codBreakdown: 'Cash on delivery total',
+  stockAvailable: '{{count}} available', stockLow: 'Only {{count}} left', outOfStock: 'Out of stock', yourListing: 'Your listing', ownListing: 'You cannot buy your own listing.',
+  codPayNote: 'Pay {{total}} in cash when your order is delivered.', offerDeliveryNote: 'Agree the final price with the seller before the COD order is created.',
+  deliveryCheckoutNote: 'Delivery fee is included in the COD total shown above.', codProtectionNote: 'Review your delivery information before placing the COD order.',
+  orderTrackingNote: 'Follow order progress from your account.', purchaseActions: 'Purchase actions', askingPrice: 'Asking price',
+});
+
+Object.assign(resources.fr.translation.products, {
+  price: 'Prix', itemPrice: 'Prix de l’article', delivery: 'Livraison', freeDelivery: 'Gratuite', codTotal: 'Total à la livraison', codBreakdown: 'Total du paiement à la livraison',
+  stockAvailable: '{{count}} disponible(s)', stockLow: 'Plus que {{count}} disponible(s)', outOfStock: 'Rupture de stock', yourListing: 'Votre annonce', ownListing: 'Vous ne pouvez pas acheter votre propre annonce.',
+  codPayNote: 'Payez {{total}} en espèces lors de la livraison de votre commande.', offerDeliveryNote: 'Convenez du prix final avec le vendeur avant de créer la commande COD.',
+  deliveryCheckoutNote: 'Les frais de livraison sont inclus dans le total COD indiqué.', codProtectionNote: 'Vérifiez vos informations de livraison avant de passer la commande COD.',
+  orderTrackingNote: 'Suivez votre commande depuis votre compte.', purchaseActions: 'Actions d’achat', askingPrice: 'Prix demandé',
+});
+
+Object.assign(resources.ar.translation.products, {
+  price: 'السعر', itemPrice: 'سعر المنتج', delivery: 'التوصيل', freeDelivery: 'مجاني', codTotal: 'إجمالي الدفع عند الاستلام', codBreakdown: 'تفاصيل إجمالي الدفع عند الاستلام',
+  stockAvailable: '{{count}} متاح', stockLow: 'لم يتبق سوى {{count}}', outOfStock: 'غير متوفر حاليًا', yourListing: 'إعلانك', ownListing: 'لا يمكنك شراء إعلانك الخاص.',
+  codPayNote: 'ادفع {{total}} نقدًا عند استلام طلبك.', offerDeliveryNote: 'اتفق مع البائع على السعر النهائي قبل إنشاء طلب الدفع عند الاستلام.',
+  deliveryCheckoutNote: 'رسوم التوصيل مشمولة في إجمالي الدفع عند الاستلام المعروض أعلاه.', codProtectionNote: 'راجع بيانات التوصيل قبل تأكيد طلب الدفع عند الاستلام.',
+  orderTrackingNote: 'تابع تقدم طلبك من حسابك.', purchaseActions: 'إجراءات الشراء', askingPrice: 'السعر المطلوب',
+});
+
 const replaceArabicFinditBrand = (value) => {
   if (typeof value === 'string') return value.replaceAll('FINDit', resources.ar.translation.findit.navigation);
   if (value && typeof value === 'object') Object.values(value).forEach(replaceArabicFinditBrand);

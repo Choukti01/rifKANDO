@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { StarIcon, HeartIcon, TruckIcon, ShieldCheckIcon, ArrowPathIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import useCart from '../../hooks/useCart';
 import useFavorites from '../../hooks/useFavorites';
@@ -12,6 +13,7 @@ import MarketplaceImage from '../../components/common/MarketplaceImage';
 import { getImageUrl } from '../../utils/imageUtils';
 
 const ProductDetailsPage = () => {
+  const { t, i18n } = useTranslation();
   const { id } = useParams();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -139,12 +141,24 @@ const ProductDetailsPage = () => {
       toast.error('Please login to add items to cart');
       return;
     }
+    if (Number(product.seller_id) === Number(user?.id)) {
+      toast.error(t('products.ownListing'));
+      return;
+    }
+    if (Number(product.stock) < 1) {
+      toast.error(t('products.outOfStock'));
+      return;
+    }
     addToCart(product, quantity, 'product');
   };
 
   const handleMakeOffer = () => {
     if (!isAuthenticated) {
       toast.error('Please login to make an offer');
+      return;
+    }
+    if (Number(product.seller_id) === Number(user?.id)) {
+      toast.error(t('products.ownListing'));
       return;
     }
     setOfferAmount('');
@@ -198,10 +212,19 @@ const ProductDetailsPage = () => {
   const totalReviews = product.reviews_count || 0;
   const isJoutiya = product.condition === 'joutiya';
   const stock = Number(product.stock) || 0;
+  const deliveryFee = Number(product.delivery_fee || 0);
+  const productPrice = Number(product.price || 0);
+  const codTotal = productPrice + deliveryFee;
   const categoryLabel = product.category ? product.category.charAt(0).toUpperCase() + product.category.slice(1) : null;
   const canOpenGallery = media.length > 0 && primaryMedia?.media_type !== 'video';
   const conditionLabel = product.condition === 'used_as_new' ? 'Used as New' : product.condition === 'joutiya' ? 'Joutiya (Haggle)' : 'New';
   const isFav = isAuthenticated && isFavorite(product.id, 'product');
+  const isOwnListing = Number(product.seller_id) === Number(user?.id);
+  const isUnavailable = stock < 1 || isOwnListing;
+  const formatAmount = (amount) => new Intl.NumberFormat(
+    i18n.language === 'ar' ? 'ar-MA' : i18n.language === 'fr' ? 'fr-MA' : 'en-MA',
+    { maximumFractionDigits: 2 }
+  ).format(Number(amount || 0));
 
   return (
     <div className="product-details">
@@ -274,9 +297,14 @@ const ProductDetailsPage = () => {
               </div>
             </div>
             <div className="product-purchase-panel">
-              <div className="product-price"><span className="price-label">Price</span><span className="current-price">{product.price} MAD</span>{product.old_price && <span className="old-price">{product.old_price} MAD</span>}</div>
+              <div className="product-price"><span className="price-label">{t('products.price')}</span><span className="current-price">{formatAmount(productPrice)} MAD</span>{product.old_price && <span className="old-price">{formatAmount(product.old_price)} MAD</span>}</div>
+              <div className="cod-price-breakdown" aria-label={t('products.codBreakdown')}>
+                <span><span>{t('products.itemPrice')}</span><strong>{formatAmount(productPrice)} MAD</strong></span>
+                <span><span>{t('products.delivery')}</span><strong>{deliveryFee > 0 ? `${formatAmount(deliveryFee)} MAD` : t('products.freeDelivery')}</strong></span>
+                {!isJoutiya && <span className="cod-total"><span>{t('products.codTotal')}</span><strong>{formatAmount(codTotal)} MAD</strong></span>}
+              </div>
               <div className="product-stock" aria-live="polite">
-                {stock > 0 ? <span className="in-stock">In stock{stock <= 5 ? `, only ${stock} left` : `, ${stock} available`}</span> : <span className="out-of-stock">Out of stock</span>}
+                {stock > 0 ? <span className="in-stock">{stock <= 5 ? t('products.stockLow', { count: stock }) : t('products.stockAvailable', { count: stock })}</span> : <span className="out-of-stock">{t('products.outOfStock')}</span>}
               </div>
               {!isJoutiya && (
                 <div className="product-quantity">
@@ -290,20 +318,32 @@ const ProductDetailsPage = () => {
               )}
               <div className="product-actions">
                 {isJoutiya ? (
-                  <button className="make-offer-btn" onClick={handleMakeOffer} disabled={stock === 0}>Make Offer</button>
+                  <button className="make-offer-btn" onClick={handleMakeOffer} disabled={isUnavailable}>{stock < 1 ? t('products.outOfStock') : isOwnListing ? t('products.yourListing') : t('products.makeOffer')}</button>
                 ) : (
-                  <button className="add-to-cart-btn" onClick={handleAddToCart} disabled={stock === 0}>Add to Cart</button>
+                  <button className="add-to-cart-btn" onClick={handleAddToCart} disabled={isUnavailable}>{stock < 1 ? t('products.outOfStock') : isOwnListing ? t('products.yourListing') : t('products.addToCart')}</button>
                 )}
                 <button type="button" className="favorite-btn" onClick={handleFavorite} aria-label={isFav ? 'Remove from favorites' : 'Add to favorites'} aria-pressed={isFav}><HeartIcon className={`heart-icon ${isFav ? 'text-red-500 fill-current' : ''}`} /></button>
               </div>
-              <p className="purchase-note">Delivery costs and payment options are confirmed at checkout.</p>
+              <p className="purchase-note">{isJoutiya ? t('products.offerDeliveryNote') : t('products.codPayNote', { total: `${formatAmount(codTotal)} MAD` })}</p>
               <div className="product-shipping">
-                <div className="shipping-item"><TruckIcon className="shipping-icon" /><span>Delivery options are shown for your address at checkout</span></div>
-                <div className="shipping-item"><ShieldCheckIcon className="shipping-icon" /><span>Review your order details before placing payment</span></div>
-                <div className="shipping-item"><ArrowPathIcon className="shipping-icon" /><span>Follow your order status from your account</span></div>
+                <div className="shipping-item"><TruckIcon className="shipping-icon" /><span>{t('products.deliveryCheckoutNote')}</span></div>
+                <div className="shipping-item"><ShieldCheckIcon className="shipping-icon" /><span>{t('products.codProtectionNote')}</span></div>
+                <div className="shipping-item"><ArrowPathIcon className="shipping-icon" /><span>{t('products.orderTrackingNote')}</span></div>
               </div>
             </div>
           </div>
+        </div>
+
+        <div className="mobile-purchase-bar" aria-label={t('products.purchaseActions')}>
+          <div>
+            <span>{isJoutiya ? t('products.askingPrice') : t('products.codTotal')}</span>
+            <strong>{formatAmount(isJoutiya ? productPrice : codTotal)} MAD</strong>
+          </div>
+          {isJoutiya ? (
+            <button type="button" onClick={handleMakeOffer} disabled={isUnavailable}>{stock < 1 ? t('products.outOfStock') : isOwnListing ? t('products.yourListing') : t('products.makeOffer')}</button>
+          ) : (
+            <button type="button" onClick={handleAddToCart} disabled={isUnavailable}>{stock < 1 ? t('products.outOfStock') : isOwnListing ? t('products.yourListing') : t('products.addToCart')}</button>
+          )}
         </div>
 
         <div className="product-tabs">
@@ -494,6 +534,10 @@ const ProductDetailsPage = () => {
         .price-label { width: 100%; color: #6b7280; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
         .current-price { font-size: 1.75rem; font-weight: 800; color: #111827; }
         .old-price { font-size: 1rem; color: #9ca3af; text-decoration: line-through; margin-left: 0.5rem; }
+        .cod-price-breakdown { display: grid; gap: 0.4rem; margin-top: 0.9rem; padding: 0.8rem; border: 1px solid #d9edf3; border-radius: 0.75rem; background: #f4fbfd; color: #425466; font-size: 0.82rem; }
+        .cod-price-breakdown > span { display: flex; justify-content: space-between; gap: 1rem; }
+        .cod-price-breakdown strong { color: #173f4c; }
+        .cod-price-breakdown .cod-total { margin-top: 0.2rem; padding-top: 0.55rem; border-top: 1px solid #cfe6ed; color: #173f4c; font-weight: 800; }
         .product-stock { margin-top: 0.35rem; font-size: 0.875rem; }
         .in-stock { color: #087a5c; font-weight: 700; }
         .out-of-stock { color: #b42318; font-weight: 700; }
@@ -517,6 +561,7 @@ const ProductDetailsPage = () => {
         .product-shipping { display: grid; gap: 0.65rem; border-top: 1px solid #e5e7eb; padding-top: 1rem; margin-top: 1rem; }
         .shipping-item { display: flex; align-items: flex-start; gap: 0.55rem; font-size: 0.8rem; color: #4b5563; line-height: 1.4; }
         .shipping-icon { flex: 0 0 auto; width: 1rem; height: 1rem; margin-top: 0.05rem; color: #216275; }
+        .mobile-purchase-bar { display: none; }
         .product-tabs { background: white; border-radius: 1rem; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-top: 2rem; }
         .tabs-header { display: flex; border-bottom: 1px solid #e5e7eb; flex-wrap: wrap; }
         .tab-btn { min-height: 48px; padding: 1rem 2rem; background: none; border: none; cursor: pointer; font-size: 0.875rem; font-weight: 700; transition: all 0.2s; color: #4b5563; }
@@ -562,7 +607,7 @@ const ProductDetailsPage = () => {
         .submit-offer-btn { background: #1a1a1a; color: white; border: none; padding: 0.5rem 1rem; border-radius: 2rem; cursor: pointer; }
         .submit-offer-btn:disabled { opacity: 0.5; cursor: not-allowed; }
         @media (max-width: 640px) {
-          .product-details { padding: 1rem 0; }
+          .product-details { padding: 1rem 0 5.5rem; }
           .product-breadcrumb { margin-bottom: 1rem; font-size: 0.8rem; overflow-x: auto; white-space: nowrap; }
           .product-info { position: static; }
           .main-image { height: min(78vw, 320px); border-radius: 0.75rem; }
@@ -580,6 +625,12 @@ const ProductDetailsPage = () => {
           .spec-item { flex-direction: column; gap: .25rem; }
           .spec-label { width: auto; }
           .offer-container { width: calc(100% - 2rem); max-height: calc(100dvh - 2rem); }
+          .mobile-purchase-bar { position: fixed; z-index: 100; right: 0; bottom: 0; left: 0; display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; padding: 0.7rem max(1rem, env(safe-area-inset-right)) calc(0.7rem + env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left)); border-top: 1px solid #dbe7eb; background: rgba(255,255,255,0.97); box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.12); }
+          .mobile-purchase-bar div { display: grid; gap: 0.12rem; min-width: 0; }
+          .mobile-purchase-bar span { color: #52616b; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; }
+          .mobile-purchase-bar strong { color: #111827; font-size: 1rem; white-space: nowrap; }
+          .mobile-purchase-bar button { flex: 0 0 auto; min-height: 44px; padding: 0.65rem 1rem; border: 0; border-radius: 999px; background: #111827; color: white; font-weight: 800; cursor: pointer; }
+          .mobile-purchase-bar button:disabled { cursor: not-allowed; opacity: 0.5; }
         }
       `}</style>
     </div>
