@@ -25,7 +25,8 @@ const MEDIA_RULES = {
     // empty or generic MIME type even for a valid MP4.
     accept: ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-m4v', '.mp4', '.m4v', '.mov', '.webm'],
     extensions: ['mp4', 'm4v', 'mov', 'webm'],
-    maxBytes: 40 * 1024 * 1024,
+    // Keep below Cloudflare's 100 MB request ceiling after multipart overhead.
+    maxBytes: 90 * 1024 * 1024,
     label: 'video',
   },
 };
@@ -37,6 +38,7 @@ const MediaUploader = ({
   allowedTypes = ['image'],
 }) => {
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(null);
   const fileInputRef = useRef(null);
   const mediaList = Array.isArray(existingMedia) ? existingMedia : EMPTY_MEDIA;
   const acceptedMimeTypes = allowedTypes
@@ -62,6 +64,7 @@ const MediaUploader = ({
     }
 
     setUploading(true);
+    setUploadProgress(0);
     let nextMedia = [...mediaList];
     let uploadedCount = 0;
     for (const file of files) {
@@ -84,6 +87,10 @@ const MediaUploader = ({
         // Multer receives the selected file rather than an empty request.
         const response = await api.post('/upload-media', formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
+          onUploadProgress: (progressEvent) => {
+            if (!progressEvent.total) return;
+            setUploadProgress(Math.min(100, Math.round((progressEvent.loaded / progressEvent.total) * 100)));
+          },
         });
         if (response.data.success) {
           const newMedia = { url: response.data.url, type: response.data.type };
@@ -98,6 +105,7 @@ const MediaUploader = ({
     }
     if (uploadedCount) toast.success(`${uploadedCount} ${uploadedCount === 1 ? 'file' : 'files'} uploaded.`);
     setUploading(false);
+    setUploadProgress(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -149,11 +157,11 @@ const MediaUploader = ({
         {mediaList.length < maxFiles && (
           <button type="button" className="upload-area" onClick={() => !uploading && fileInputRef.current?.click()} disabled={uploading}>
             {uploading ? <div className="spinner"></div> : <ArrowUpTrayIcon className="upload-icon" />}
-            <span>{uploading ? 'Uploading…' : 'Add media'}</span>
+            <span>{uploading ? `Uploading${uploadProgress === null ? '…' : ` ${uploadProgress}%`}` : 'Add media'}</span>
           </button>
         )}
       </div>
-      <div className="media-uploader__help"><PhotoIcon aria-hidden="true" /> <span>The first item is your cover. Reorder with the arrows or use the star to choose a new cover. Add up to {maxFiles} {allowedTypes.includes('video') ? 'photos or videos' : 'photos'}.</span></div>
+      <div className="media-uploader__help"><PhotoIcon aria-hidden="true" /> <span>The first item is your cover. Reorder with the arrows or use the star to choose a new cover. Add up to {maxFiles} {allowedTypes.includes('video') ? 'photos or videos (MP4, MOV, M4V, or WebM; videos up to 90 MB)' : 'photos'}.</span></div>
       <input ref={fileInputRef} type="file" accept={acceptedMimeTypes.join(',')} multiple onChange={handleFileSelect} disabled={uploading} style={{ display: 'none' }} />
       <style>{`
         .media-uploader { width: 100%; }

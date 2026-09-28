@@ -1266,7 +1266,9 @@ const allowedPublicMediaTypes = new Set([
   'video/x-m4v',
 ]);
 const MAX_PUBLIC_IMAGE_BYTES = 10 * 1024 * 1024;
-const MAX_PUBLIC_VIDEO_BYTES = 40 * 1024 * 1024;
+// Cloudflare's free proxy has a 100 MB request limit. Leave multipart headroom
+// while allowing normal phone-recorded product videos without re-encoding.
+const MAX_PUBLIC_VIDEO_BYTES = 90 * 1024 * 1024;
 const mediaUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: MAX_PUBLIC_VIDEO_BYTES, files: 1, fields: 10, fieldSize: 64 * 1024 },
@@ -1375,7 +1377,10 @@ app.post('/api/upload-media', protect, requireSeller, (req, res, next) => {
         sizeBytes: req.file?.size,
         error: err.message,
       }));
-      return res.status(400).json({ error: err.message || 'Invalid upload.' });
+      const message = err.code === 'LIMIT_FILE_SIZE'
+        ? 'Videos must be 90 MB or smaller. Trim or compress the video, then try again.'
+        : (err.message || 'Invalid upload.');
+      return res.status(400).json({ error: message });
     }
     return next();
   });
