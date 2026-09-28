@@ -1943,7 +1943,10 @@ app.get('/api/orders/:id', protect, (req, res) => {
         } else {
           db.all(`
             SELECT id, source, status, settlement_status, carrier_name, tracking_number,
+                   expected_cod_amount, expected_cod_amount_minor,
+                   customer_delivery_fee, customer_delivery_fee_minor,
                    delivery_partner_name, delivery_partner_contacted_at, delivery_partner_pickup_at,
+                   delivery_report_outcome, delivery_reported_at,
                    confirmed_at, dispatched_at, delivered_at, refused_at, returned_at, cancelled_at, settled_at
             FROM cod_fulfillments
             WHERE order_id = ?
@@ -1952,6 +1955,12 @@ app.get('/api/orders/:id', protect, (req, res) => {
             if (fulfillmentError) return res.status(500).json({ error: fulfillmentError.message });
             order.items = items;
             order.fulfillments = fulfillments;
+            // The buyer can contact the launch delivery coordinator only for an
+            // order that has actually entered the Toufiq COD workflow. Finance
+            // references, seller payout state, and internal delivery notes stay private.
+            order.deliveryPartner = fulfillments.some((fulfillment) => fulfillment.delivery_partner_name)
+              ? getCodDeliveryPartner()
+              : null;
             if (order.shipping_address) {
               try {
                 order.shipping_address = JSON.parse(order.shipping_address);

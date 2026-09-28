@@ -174,10 +174,15 @@ async function run() {
   await CodFulfillmentService.recordException({
     fulfillmentId: returnFulfillment.id, financeUserId: returnFlow.financeId, status: 'refused', note: 'Finance verified the carrier refusal evidence.',
   });
+  const refusedOrder = await WalletService.get('SELECT status, payment_status FROM orders WHERE id = ?', [returnCheckout.order.id]);
+  assert.equal(refusedOrder.status, 'refused', 'a fully refused COD order is visible to the buyer as refused');
+  assert.equal(refusedOrder.payment_status, 'cancelled', 'a refused COD order cannot be collected');
   await CodFulfillmentService.recordException({
     fulfillmentId: returnFulfillment.id, financeUserId: returnFlow.financeId, status: 'returned', note: 'Carrier returned the parcel to the seller.',
   });
   const returnedProduct = await WalletService.get('SELECT stock, sold FROM products WHERE id = ?', [returnFlow.productId]);
+  const returnedOrder = await WalletService.get('SELECT status, payment_status FROM orders WHERE id = ?', [returnCheckout.order.id]);
+  assert.equal(returnedOrder.status, 'returned', 'a returned COD order is visible to the buyer as returned');
   assert.equal(returnedProduct.stock, 3, 'a returned parcel restores stock');
   assert.equal(returnedProduct.sold, 0, 'a returned parcel reverses sold count');
 
