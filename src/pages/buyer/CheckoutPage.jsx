@@ -16,6 +16,7 @@ const CheckoutPage = () => {
   const [loading, setLoading] = useState(false)
   const checkoutRequestIdRef = useRef(null)
   const [step, setStep] = useState(1)
+  const [invalidFields, setInvalidFields] = useState([])
   // COD is the only public payment method during the focused launch.
   const paymentMethod = 'cash'
   const [formData, setFormData] = useState({
@@ -31,19 +32,29 @@ const CheckoutPage = () => {
   const subtotal = getCartTotal()
   const shipping = getCartShipping()
   const total = subtotal + shipping
-  const requiredAddressFields = ['fullName', 'email', 'phone', 'address', 'city']
   const formatAmount = (amount) => `${Number(amount || 0).toLocaleString(i18n.language === 'ar' ? 'ar-MA' : i18n.language === 'fr' ? 'fr-MA' : 'en-MA')} MAD`
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value })
+    setInvalidFields((fields) => fields.filter((field) => field !== e.target.name))
   }
 
   const validateShippingInformation = () => {
-    const missingField = requiredAddressFields.some((field) => !String(formData[field] || '').trim())
-    if (missingField) {
+    const invalid = []
+    const normalized = Object.fromEntries(Object.entries(formData).map(([key, value]) => [key, String(value || '').trim()]))
+    if (normalized.fullName.length < 2) invalid.push('fullName')
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized.email)) invalid.push('email')
+    const phoneDigits = normalized.phone.replace(/\D/g, '')
+    if (!/^[+()\-\s\d]+$/.test(normalized.phone) || phoneDigits.length < 8 || phoneDigits.length > 15) invalid.push('phone')
+    if (normalized.address.length < 5) invalid.push('address')
+    if (normalized.city.length < 2) invalid.push('city')
+    if (invalid.length) {
+      setInvalidFields(invalid)
       toast.error(t('buyer.checkout.deliveryDetailsRequired'))
+      document.getElementById(`checkout-${invalid[0].replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}`)?.focus()
       return false
     }
+    setInvalidFields([])
     return true
   }
 
@@ -178,26 +189,26 @@ const CheckoutPage = () => {
                 <div className="form-row">
                   <div className="form-field">
                     <label htmlFor="checkout-full-name">{t('buyer.checkout.fullName')} *</label>
-                    <input id="checkout-full-name" autoComplete="name" type="text" name="fullName" value={formData.fullName} onChange={handleChange} required />
+                    <input id="checkout-full-name" autoComplete="name" type="text" name="fullName" value={formData.fullName} onChange={handleChange} aria-invalid={invalidFields.includes('fullName')} required />
                   </div>
                   <div className="form-field">
                     <label htmlFor="checkout-email">{t('buyer.checkout.email')} *</label>
-                    <input id="checkout-email" autoComplete="email" type="email" name="email" value={formData.email} onChange={handleChange} required />
+                    <input id="checkout-email" autoComplete="email" type="email" name="email" value={formData.email} onChange={handleChange} aria-invalid={invalidFields.includes('email')} required />
                   </div>
                 </div>
                 <div className="form-row">
                   <div className="form-field">
                     <label htmlFor="checkout-phone">{t('buyer.checkout.phone')} *</label>
-                    <input id="checkout-phone" autoComplete="tel" type="tel" name="phone" value={formData.phone} onChange={handleChange} required />
+                    <input id="checkout-phone" autoComplete="tel" type="tel" name="phone" value={formData.phone} onChange={handleChange} aria-invalid={invalidFields.includes('phone')} required />
                   </div>
                   <div className="form-field">
                     <label htmlFor="checkout-city">{t('buyer.checkout.city')} *</label>
-                    <input id="checkout-city" autoComplete="address-level2" type="text" name="city" value={formData.city} onChange={handleChange} required />
+                    <input id="checkout-city" autoComplete="address-level2" type="text" name="city" value={formData.city} onChange={handleChange} aria-invalid={invalidFields.includes('city')} required />
                   </div>
                 </div>
                 <div className="form-field">
                   <label htmlFor="checkout-address">{t('buyer.checkout.address')} *</label>
-                  <input id="checkout-address" autoComplete="street-address" type="text" name="address" value={formData.address} onChange={handleChange} required />
+                  <input id="checkout-address" autoComplete="street-address" type="text" name="address" value={formData.address} onChange={handleChange} aria-invalid={invalidFields.includes('address')} required />
                 </div>
                 <div className="form-field">
                   <label htmlFor="checkout-postal-code">{t('buyer.checkout.postalCode')}</label>
@@ -418,6 +429,7 @@ const CheckoutPage = () => {
           border-radius: 0.5rem;
           font-size: 0.875rem;
         }
+        .form-field input[aria-invalid="true"] { border-color:#c2413b; box-shadow:0 0 0 3px rgba(194,65,59,.12); }
         .form-field input:focus, .form-field textarea:focus { outline: 3px solid rgba(135, 206, 235, 0.35); border-color: #87CEEB; }
         .payment-options {
           display: flex;

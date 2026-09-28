@@ -65,17 +65,37 @@ const EditProduct = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const title = formData.title.trim();
+    const description = formData.description.trim();
+    const price = Number(formData.price);
+    const deliveryFee = Number(formData.delivery_fee || 0);
+    const stock = Number(formData.stock);
+    const oldPrice = formData.old_price === '' ? undefined : Number(formData.old_price);
+
+    if (title.length < 2) return toast.error('Product title must contain at least 2 characters.');
+    if (description.length < 10) return toast.error('Description must contain at least 10 characters.');
+    if (!Number.isFinite(price) || price <= 0) return toast.error('Enter a valid product price.');
+    if (!Number.isFinite(deliveryFee) || deliveryFee < 0) return toast.error('Enter a valid delivery price.');
+    if (!Number.isInteger(stock) || stock < 0) return toast.error('Stock must be a whole number of 0 or more.');
+    if (oldPrice !== undefined && (!Number.isFinite(oldPrice) || oldPrice < price)) {
+      return toast.error('Original price must be at least the current product price.');
+    }
+    if (!media.length) return toast.error('Keep at least one clear product photo before saving.');
+
     setLoading(true);
     try {
       const productData = {
         ...formData,
-        price: parseFloat(formData.price),
-        old_price: formData.old_price ? parseFloat(formData.old_price) : null,
-        delivery_fee: parseFloat(formData.delivery_fee || '0'),
-        stock: parseInt(formData.stock) || 0,
+        title,
+        description,
+        price,
+        delivery_fee: deliveryFee,
+        stock,
         condition: formData.condition,
         media: media.map((m, idx) => ({ ...m, order: idx, isPrimary: idx === 0 }))
       };
+      if (oldPrice !== undefined) productData.old_price = oldPrice;
+      else delete productData.old_price;
       await api.put(`/products/${id}`, productData);
       toast.success('Product updated successfully!');
       navigate('/seller/dashboard/products');
@@ -86,6 +106,11 @@ const EditProduct = () => {
       setLoading(false);
     }
   };
+
+  const productPrice = Number(formData.price);
+  const hasValidPrice = Number.isFinite(productPrice) && productPrice > 0;
+  const platformCommission = hasValidPrice ? productPrice * 0.05 : 0;
+  const sellerNet = hasValidPrice ? productPrice - platformCommission : 0;
 
   if (fetching) {
     return (
@@ -152,6 +177,15 @@ const EditProduct = () => {
           <input type="number" name="delivery_fee" min="0" step="0.01" value={formData.delivery_fee} onChange={handleChange} className="form-input" required />
           <small className="form-hint">Set the COD delivery price for your preferred carrier. rifKANDO does not take commission from delivery.</small>
         </div>
+
+        <aside className="listing-estimate" aria-live="polite">
+          <div>
+            <span>COD listing estimate</span>
+            <strong>{hasValidPrice ? `${sellerNet.toFixed(2)} MAD` : 'Enter a product price'}</strong>
+          </div>
+          <p>rifKANDO commission is 5% of the item price only ({hasValidPrice ? `${platformCommission.toFixed(2)} MAD` : '—'}). Delivery money stays separate.</p>
+          <small>Update the cover image or order below to control what buyers see first.</small>
+        </aside>
 
         <div className="form-row">
           <div className="form-group">
@@ -265,6 +299,12 @@ const EditProduct = () => {
           color: #6b7280;
           margin-top: 0.25rem;
         }
+        .listing-estimate { display:grid; gap:.55rem; margin:0 0 1.25rem; padding:1rem; border:1px solid #cfe5f3; border-radius:.75rem; background:#f6fbfe; }
+        .listing-estimate > div { display:flex; align-items:baseline; justify-content:space-between; gap:1rem; }
+        .listing-estimate span { color:#216275; font-size:.72rem; font-weight:800; letter-spacing:.06em; text-transform:uppercase; }
+        .listing-estimate strong { color:#102a43; font-size:1.05rem; }
+        .listing-estimate p, .listing-estimate small { margin:0; color:#526579; font-size:.78rem; line-height:1.5; }
+        .listing-estimate small { color:#216275; }
         .form-actions {
           display: flex;
           gap: 1rem;
@@ -285,6 +325,7 @@ const EditProduct = () => {
           border-radius: 0.5rem;
           cursor: pointer;
         }
+        @media (max-width: 640px) { .product-form { padding:1rem; } .form-row { grid-template-columns:1fr; } .form-actions { flex-direction:column; } .form-actions button { min-height:48px; } }
       `}</style>
     </div>
   );

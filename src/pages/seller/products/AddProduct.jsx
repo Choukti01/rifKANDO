@@ -40,6 +40,7 @@ const AddProduct = () => {
     if (oldPrice !== undefined && (!Number.isFinite(oldPrice) || oldPrice < price)) {
       return toast.error('Original price must be at least the current product price.');
     }
+    if (!media.length) return toast.error('Add at least one clear product photo before publishing.');
 
     setLoading(true);
     try {
@@ -69,6 +70,12 @@ const AddProduct = () => {
       setLoading(false);
     }
   };
+
+  const productPrice = Number(formData.price);
+  const deliveryFee = Number(formData.delivery_fee || 0);
+  const hasValidPrice = Number.isFinite(productPrice) && productPrice > 0;
+  const platformCommission = hasValidPrice ? productPrice * 0.05 : 0;
+  const sellerNet = hasValidPrice ? productPrice - platformCommission : 0;
 
   return (
     <div className="add-product">
@@ -134,6 +141,18 @@ const AddProduct = () => {
           <small className="form-hint">Set the COD delivery price for your preferred carrier. rifKANDO does not take commission from delivery.</small>
         </div>
 
+        <aside className="listing-estimate" aria-live="polite">
+          <div>
+            <span>COD listing estimate</span>
+            <strong>{hasValidPrice ? `${sellerNet.toFixed(2)} MAD` : 'Enter a product price'}</strong>
+          </div>
+          <p>
+            rifKANDO commission is 5% of the item price only ({hasValidPrice ? `${platformCommission.toFixed(2)} MAD` : '—'}).
+            {hasValidPrice && ` The buyer sees ${((productPrice || 0) + (Number.isFinite(deliveryFee) ? deliveryFee : 0)).toFixed(2)} MAD including delivery.`}
+          </p>
+          <small>Commission is due only after a COD delivery is confirmed and settled. Delivery money is separate.</small>
+        </aside>
+
         <div className="form-row">
           <div className="form-group">
             <label>Category *</label>
@@ -188,7 +207,7 @@ const AddProduct = () => {
         </div>
 
         <div className="form-group">
-          <label>Product Photos & Videos (max 10)</label>
+          <label>Product Photos & Videos (1–10 required)</label>
           <MediaUploader onMediaUploaded={setMedia} existingMedia={media} maxFiles={10} allowedTypes={['image', 'video']} />
         </div>
 
@@ -248,6 +267,12 @@ const AddProduct = () => {
           color: #6b7280;
           margin-top: 0.25rem;
         }
+        .listing-estimate { display:grid; gap:.55rem; margin:0 0 1.25rem; padding:1rem; border:1px solid #cfe5f3; border-radius:.75rem; background:#f6fbfe; }
+        .listing-estimate > div { display:flex; align-items:baseline; justify-content:space-between; gap:1rem; }
+        .listing-estimate span { color:#216275; font-size:.72rem; font-weight:800; letter-spacing:.06em; text-transform:uppercase; }
+        .listing-estimate strong { color:#102a43; font-size:1.05rem; }
+        .listing-estimate p, .listing-estimate small { margin:0; color:#526579; font-size:.78rem; line-height:1.5; }
+        .listing-estimate small { color:#216275; }
         .form-actions {
           display: flex;
           gap: 1rem;
@@ -268,6 +293,7 @@ const AddProduct = () => {
           border-radius: 0.5rem;
           cursor: pointer;
         }
+        @media (max-width: 640px) { .product-form { padding:1rem; } .form-row { grid-template-columns:1fr; } .form-actions { flex-direction:column; } .form-actions button { min-height:48px; } }
       `}</style>
     </div>
   );
