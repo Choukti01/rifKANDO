@@ -56,6 +56,8 @@ const OrdersPage = () => {
       processing: { icon: CubeIcon, text: t('buyer.orders.status.processing'), color: '#3b82f6', bg: '#dbeafe' },
       shipped: { icon: TruckIcon, text: t('buyer.orders.status.shipped'), color: '#8b5cf6', bg: '#ede9fe' },
       delivered: { icon: CheckCircleIcon, text: t('buyer.orders.status.delivered'), color: '#10b981', bg: '#d1fae5' },
+      refused: { icon: CubeIcon, text: 'Delivery refused', color: '#b42318', bg: '#fff0f0' },
+      returned: { icon: TruckIcon, text: 'Returned to seller', color: '#b42318', bg: '#fff0f0' },
       cancelled: { icon: CubeIcon, text: t('buyer.orders.status.cancelled'), color: '#ef4444', bg: '#fee2e2' }
     }
     return configs[status] || configs.pending

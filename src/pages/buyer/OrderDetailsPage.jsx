@@ -12,14 +12,46 @@ import {
   CreditCardIcon, 
   BanknotesIcon, 
   WalletIcon,
-  CubeIcon
+  CubeIcon,
+  ArrowPathIcon,
+  ChatBubbleLeftRightIcon,
+  XCircleIcon,
+  InformationCircleIcon
 } from '@heroicons/react/24/outline';
+
+const money = (value) => `${Number(value || 0).toLocaleString()} MAD`;
+const dateTime = (value) => value ? new Date(value).toLocaleString('en-MA', { dateStyle: 'medium', timeStyle: 'short' }) : null;
+
+const codStatus = (fulfillment) => {
+  if (fulfillment.status === 'delivered') return { label: 'Delivered and paid', tone: 'success', detail: 'Your parcel was delivered and the COD payment was collected.' };
+  if (fulfillment.status === 'refused') return { label: 'Delivery refused', tone: 'danger', detail: 'The delivery was refused. No cash was collected.' };
+  if (fulfillment.status === 'returned') return { label: 'Returned to seller', tone: 'danger', detail: 'The parcel is being returned to the seller. No cash was collected.' };
+  if (fulfillment.status === 'cancelled') return { label: 'Cancelled', tone: 'muted', detail: 'This delivery was cancelled before completion.' };
+  if (fulfillment.status === 'shipped' && fulfillment.delivery_report_outcome === 'refused') return { label: 'Refusal under review', tone: 'warning', detail: 'The delivery partner reported a refusal. rifKANDO is confirming the final delivery record.' };
+  if (fulfillment.status === 'shipped' && fulfillment.delivery_report_outcome === 'returned') return { label: 'Return under review', tone: 'warning', detail: 'The delivery partner reported a return. rifKANDO is confirming the final delivery record.' };
+  if (fulfillment.status === 'shipped' && fulfillment.delivery_report_outcome === 'delivered') return { label: 'Delivery update received', tone: 'brand', detail: 'The delivery partner reported a successful delivery update.' };
+  if (fulfillment.status === 'shipped') return { label: 'With delivery network', tone: 'brand', detail: 'The parcel is with the delivery network. The driver will contact you to arrange delivery.' };
+  if (fulfillment.status === 'confirmed') return { label: 'Preparing pickup', tone: 'brand', detail: fulfillment.delivery_partner_contacted_at ? 'Toufiq is arranging parcel pickup with the seller.' : 'The seller is preparing your parcel for pickup.' };
+  return { label: 'Awaiting seller confirmation', tone: 'warning', detail: 'Your order was received and is awaiting seller confirmation.' };
+};
+
+const codSteps = (order, fulfillment) => {
+  const terminal = ['delivered', 'refused', 'returned', 'cancelled'].includes(fulfillment.status);
+  const deliveryTime = fulfillment.delivered_at || fulfillment.refused_at || fulfillment.returned_at || fulfillment.cancelled_at || null;
+  return [
+    { key: 'placed', label: 'Order placed', detail: 'Your COD order was received.', time: order.created_at, complete: true },
+    { key: 'confirmed', label: 'Seller confirmation', detail: fulfillment.confirmed_at ? 'The seller confirmed the order.' : 'Waiting for the seller to confirm.', time: fulfillment.confirmed_at, complete: Boolean(fulfillment.confirmed_at) },
+    { key: 'pickup', label: 'Pickup and tracking', detail: fulfillment.delivery_partner_pickup_at ? `Parcel picked up${fulfillment.carrier_name ? ` by ${fulfillment.carrier_name}` : ''}.` : fulfillment.delivery_partner_contacted_at ? 'Pickup is being coordinated with the seller.' : 'Pickup will be arranged after confirmation.', time: fulfillment.delivery_partner_pickup_at, complete: Boolean(fulfillment.delivery_partner_pickup_at), active: fulfillment.status === 'confirmed' },
+    { key: 'delivery', label: terminal ? codStatus(fulfillment).label : 'Delivery to you', detail: terminal ? codStatus(fulfillment).detail : 'The delivery partner will contact you before delivery.', time: deliveryTime, complete: terminal, active: fulfillment.status === 'shipped' },
+  ];
+};
 
 const OrderDetailsPage = () => {
   const { id } = useParams();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const { isAuthenticated } = useAuth();
 
   useEffect(() => {
@@ -42,9 +74,11 @@ const OrderDetailsPage = () => {
     };
 
     void loadOrder();
+    const refreshTimer = window.setInterval(loadOrder, 30_000);
 
     return () => {
       isCurrent = false;
+      window.clearInterval(refreshTimer);
     };
   }, [id, isAuthenticated]);
 
@@ -77,15 +111,10 @@ const OrderDetailsPage = () => {
     }
   };
 
-  const getStatusSteps = (currentStatus) => {
-    const steps = ['pending', 'processing', 'shipped', 'delivered'];
-    const currentIndex = steps.indexOf(currentStatus);
-    return steps.map((step, index) => ({
-      name: step,
-      completed: index <= currentIndex,
-      active: index === currentIndex,
-      label: step.charAt(0).toUpperCase() + step.slice(1)
-    }));
+  const refreshDelivery = async () => {
+    setRefreshing(true);
+    await fetchOrder();
+    setRefreshing(false);
   };
 
   const getPaymentIcon = (method) => {
@@ -135,11 +164,11 @@ const OrderDetailsPage = () => {
     );
   }
 
-  const statusSteps = getStatusSteps(order.status);
   const isFindItOrder = order.order_type === 'findit';
   const deliveryFee = isFindItOrder ? Number(order.items?.[0]?.delivery_fee || 0) : 0;
   const subtotal = order.items?.reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity)), 0) || Math.max(0, Number(order.total) - deliveryFee);
   const fulfillments = order.fulfillments || [];
+  const supportHref = `mailto:rifKANDO@gmail.com?subject=${encodeURIComponent(`[rifKANDO delivery support] ${order.order_number}`)}&body=${encodeURIComponent(`Order: ${order.order_number}\n\nDescribe the delivery issue and include any useful details.\n`)}`;
 
   return (
     <div className="order-details-page">
@@ -149,38 +178,40 @@ const OrderDetailsPage = () => {
           <Link to="/orders" className="back-link">← Back to Orders</Link>
         </div>
 
-        {/* Order Tracking Timeline */}
-        <div className="tracking-card">
-          <h3>Order Tracking</h3>
-          <div className="tracking-steps">
-            {statusSteps.map((step, idx) => (
-              <div key={step.name} className={`tracking-step ${step.completed ? 'completed' : ''} ${step.active ? 'active' : ''}`}>
-                <div className="step-dot"></div>
-                <div className="step-label">{step.label}</div>
-                {idx < statusSteps.length - 1 && <div className="step-line"></div>}
-              </div>
-            ))}
-          </div>
-          {fulfillments.some((fulfillment) => fulfillment.carrier_name && fulfillment.tracking_number) && (
-            <div className="carrier-tracking">
-              {fulfillments.filter((fulfillment) => fulfillment.carrier_name && fulfillment.tracking_number).map((fulfillment) => (
-                <div key={fulfillment.id} className="carrier-tracking-row">
-                  <TruckIcon aria-hidden="true" />
-                  <div>
-                    <strong>{fulfillment.carrier_name}</strong>
-                    <span>Tracking number: {fulfillment.tracking_number}</span>
-                  </div>
+        {fulfillments.length > 0 && <section className="tracking-card cod-tracking-card" aria-label="Cash on delivery tracking">
+          <header className="cod-tracking-card__header">
+            <div><span>Cash on delivery</span><h3>Delivery updates</h3><p>Pay only when the parcel reaches you. Never send money through an unofficial message. Updates refresh automatically while this page is open.</p></div>
+            <button type="button" onClick={() => void refreshDelivery()} disabled={refreshing}><ArrowPathIcon aria-hidden="true" />{refreshing ? 'Refreshing…' : 'Refresh'}</button>
+          </header>
+
+          <div className="cod-tracking-list">
+            {fulfillments.map((fulfillment, index) => {
+              const status = codStatus(fulfillment);
+              const steps = codSteps(order, fulfillment);
+              return <article className="cod-tracking-item" key={fulfillment.id}>
+                <div className="cod-tracking-item__topline"><div><strong>{fulfillment.source === 'findit' ? 'FINDit delivery' : `Product delivery${fulfillments.length > 1 ? ` ${index + 1}` : ''}`}</strong><p>{status.detail}</p></div><span className={`cod-status cod-status--${status.tone}`}>{status.tone === 'danger' ? <XCircleIcon aria-hidden="true" /> : status.tone === 'success' ? <CheckCircleIcon aria-hidden="true" /> : <TruckIcon aria-hidden="true" />}{status.label}</span></div>
+
+                <ol className="cod-timeline">
+                  {steps.map((step) => <li key={step.key} className={`${step.complete ? 'is-complete' : ''} ${step.active ? 'is-active' : ''}`}><span className="cod-timeline__dot" /><div><strong>{step.label}</strong><p>{step.detail}</p>{step.time && <small>{dateTime(step.time)}</small>}</div></li>)}
+                </ol>
+
+                <div className="cod-tracking-item__facts">
+                  <div><span>Pay on delivery</span><strong>{money(fulfillment.expected_cod_amount || order.total)}</strong></div>
+                  <div><span>Delivery charge</span><strong>{money(fulfillment.customer_delivery_fee)}</strong></div>
+                  {fulfillment.carrier_name && <div><span>Carrier</span><strong>{fulfillment.carrier_name}</strong></div>}
+                  {fulfillment.tracking_number && <div><span>Tracking number</span><strong>{fulfillment.tracking_number}</strong></div>}
                 </div>
-              ))}
-            </div>
-          )}
-          {fulfillments.some((fulfillment) => fulfillment.delivery_partner_name) && (
-            <div className="delivery-coordinator-note">
-              <TruckIcon aria-hidden="true" />
-              <p><strong>{fulfillments.find((fulfillment) => fulfillment.delivery_partner_name)?.delivery_partner_name}</strong> coordinates this COD delivery and will contact you to arrange delivery and collect payment only when the parcel arrives.</p>
-            </div>
-          )}
-        </div>
+              </article>;
+            })}
+          </div>
+
+          {order.deliveryPartner && <aside className="delivery-coordinator-note">
+            <ChatBubbleLeftRightIcon aria-hidden="true" />
+            <div><strong>{order.deliveryPartner.name} coordinates this delivery.</strong><p>They may contact you to confirm location and delivery timing. Pay only when you receive the parcel.</p></div>
+            <a href={`https://wa.me/${order.deliveryPartner.whatsappNumber}?text=${encodeURIComponent(`Hello ${order.deliveryPartner.name}, I am contacting you about rifKANDO order ${order.order_number}.`)}`} target="_blank" rel="noreferrer">WhatsApp</a>
+          </aside>}
+          <div className="cod-tracking-card__help"><InformationCircleIcon aria-hidden="true" /><span>Need help with this delivery?</span><a href={supportHref}>Email support with this order</a><Link to="/contact">Other contact options</Link></div>
+        </section>}
 
         <div className="details-grid">
           {/* Order Info */}
@@ -415,9 +446,35 @@ const OrderDetailsPage = () => {
         .carrier-tracking-row div { display: grid; gap: .12rem; }
         .carrier-tracking-row span { color: #52708a; font-size: .86rem; }
 
-        .delivery-coordinator-note { display:flex; gap:.65rem; align-items:flex-start; margin-top:.8rem; padding:.75rem; border-radius:.65rem; background:#f7fbfe; color:#425d75; font-size:.88rem; line-height:1.45; }
+        .cod-tracking-card { border-color:#d7e7f2; }
+        .cod-tracking-card__header { display:flex;justify-content:space-between;gap:1rem;align-items:flex-start; }
+        .cod-tracking-card__header span { color:#168dd9;font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase; }
+        .cod-tracking-card__header h3 { margin:.22rem 0;font-size:1.15rem; }
+        .cod-tracking-card__header p { margin:0;color:#5a7086;font-size:.9rem;line-height:1.45; }
+        .cod-tracking-card__header button { display:inline-flex;align-items:center;gap:.4rem;border:1px solid #b9dff5;background:#fff;color:#0877bf;border-radius:.55rem;padding:.55rem .75rem;font:inherit;font-weight:750;cursor:pointer;white-space:nowrap; }
+        .cod-tracking-card__header button:disabled { opacity:.6;cursor:wait; }
+        .cod-tracking-card__header button svg { width:1rem; }
+        .cod-tracking-list { display:grid;gap:1rem;margin-top:1.25rem; }
+        .cod-tracking-item { border:1px solid #e1eaf1;border-radius:.85rem;padding:1rem;background:#fff; }
+        .cod-tracking-item__topline { display:flex;gap:1rem;align-items:flex-start;justify-content:space-between; }
+        .cod-tracking-item__topline strong { color:#10233f; }
+        .cod-tracking-item__topline p { margin:.25rem 0 0;color:#607187;font-size:.88rem;line-height:1.4; }
+        .cod-status { display:inline-flex;align-items:center;gap:.32rem;border-radius:999px;padding:.34rem .55rem;font-size:.75rem;font-weight:750;white-space:nowrap; }
+        .cod-status svg { width:1rem; }
+        .cod-status--brand { background:#e9f6ff;color:#0877bf; }.cod-status--success { background:#e7f8f0;color:#087f52; }.cod-status--danger { background:#fff0f0;color:#b42318; }.cod-status--muted { background:#eef2f6;color:#526477; }.cod-status--warning { background:#fff4d6;color:#9a6100; }
+        .cod-timeline { list-style:none;margin:1rem 0;padding:0;display:grid;gap:.75rem; }
+        .cod-timeline li { display:grid;grid-template-columns:1rem 1fr;gap:.65rem;position:relative;color:#728197; }
+        .cod-timeline__dot { width:.72rem;height:.72rem;margin-top:.24rem;border:2px solid #c7d6e2;border-radius:50%;background:#fff; }
+        .cod-timeline li.is-complete .cod-timeline__dot { background:#168dd9;border-color:#168dd9; }.cod-timeline li.is-active .cod-timeline__dot { box-shadow:0 0 0 4px #d9f0ff;border-color:#168dd9; }
+        .cod-timeline strong { display:block;color:#445971;font-size:.88rem; }.cod-timeline p { margin:.12rem 0;color:#728197;font-size:.82rem;line-height:1.35; }.cod-timeline small { color:#168dd9;font-size:.76rem;font-weight:650; }
+        .cod-timeline li.is-complete strong,.cod-timeline li.is-active strong { color:#10233f; }
+        .cod-tracking-item__facts { display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.65rem;padding-top:.85rem;border-top:1px solid #edf2f6; }
+        .cod-tracking-item__facts div { min-width:0;display:grid;gap:.16rem; }.cod-tracking-item__facts span { color:#718197;font-size:.72rem; }.cod-tracking-item__facts strong { color:#1e3652;font-size:.84rem;overflow-wrap:anywhere; }
+        .delivery-coordinator-note { display:flex; gap:.65rem; align-items:flex-start; margin-top:1rem; padding:.85rem; border-radius:.65rem; background:#f2faff; color:#425d75; font-size:.88rem; line-height:1.45; }
         .delivery-coordinator-note svg { flex:0 0 auto; width:1.2rem; color:#168dd9; margin-top:.1rem; }
         .delivery-coordinator-note p { margin:0; }
+        .delivery-coordinator-note div { flex:1; }.delivery-coordinator-note a { flex:0 0 auto;color:#0877bf;font-weight:800;text-decoration:none; }
+        .cod-tracking-card__help { display:flex;align-items:center;gap:.35rem;margin:.85rem 0 0;color:#607187;font-size:.82rem; }.cod-tracking-card__help svg { width:1rem;color:#168dd9; }.cod-tracking-card__help a { color:#0877bf;font-weight:750;text-decoration:none; }
         
         .tracking-step.completed ~ .tracking-step .step-line { 
           background: #10b981; 
@@ -435,6 +492,9 @@ const OrderDetailsPage = () => {
           .details-grid { 
             grid-template-columns: 1fr; 
           } 
+          .cod-tracking-card__header,.cod-tracking-item__topline,.delivery-coordinator-note { flex-direction:column; }
+          .cod-tracking-card__header button,.delivery-coordinator-note a { width:100%;justify-content:center;text-align:center; }
+          .cod-tracking-item__facts { grid-template-columns:1fr 1fr; }
         }
         
         /* Info Cards */

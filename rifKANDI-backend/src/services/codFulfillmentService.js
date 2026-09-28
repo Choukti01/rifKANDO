@@ -54,6 +54,7 @@ class CodFulfillmentService {
     const statuses = fulfillments.map((item) => item.status);
     let nextStatus = 'pending';
     if (statuses.every((status) => status === 'delivered')) nextStatus = 'delivered';
+    else if (statuses.every((status) => status === 'refused')) nextStatus = 'refused';
     else if (statuses.every((status) => status === 'returned')) nextStatus = 'returned';
     else if (statuses.every((status) => TERMINAL_STATUSES.has(status))) nextStatus = 'cancelled';
     else if (statuses.some((status) => status === 'shipped')) nextStatus = 'shipped';
