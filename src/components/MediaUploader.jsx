@@ -20,7 +20,11 @@ const MEDIA_RULES = {
     label: 'photo',
   },
   video: {
-    accept: ['video/mp4', 'video/webm'],
+    // iPhones commonly label camera recordings as video/quicktime (.mov).
+    // Keep the extension fallbacks too: some Android file pickers report an
+    // empty or generic MIME type even for a valid MP4.
+    accept: ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-m4v', '.mp4', '.m4v', '.mov', '.webm'],
+    extensions: ['mp4', 'm4v', 'mov', 'webm'],
     maxBytes: 40 * 1024 * 1024,
     label: 'video',
   },
@@ -39,6 +43,14 @@ const MediaUploader = ({
     .filter((type) => MEDIA_RULES[type])
     .flatMap((type) => MEDIA_RULES[type].accept);
 
+  const mediaTypeForFile = (file) => {
+    const extension = file.name.split('.').pop()?.toLowerCase();
+    return allowedTypes.find((type) => {
+      const rule = MEDIA_RULES[type];
+      return rule?.accept.includes(file.type) || rule?.extensions?.includes(extension);
+    });
+  };
+
   const handleFileSelect = async (event) => {
     if (uploading) return;
     const files = Array.from(event.target.files || []);
@@ -53,7 +65,7 @@ const MediaUploader = ({
     let nextMedia = [...mediaList];
     let uploadedCount = 0;
     for (const file of files) {
-      const mediaType = allowedTypes.find((type) => MEDIA_RULES[type]?.accept.includes(file.type));
+      const mediaType = mediaTypeForFile(file);
       if (!mediaType) {
         toast.error(`${file.name} is not a supported photo or video.`);
         continue;

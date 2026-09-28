@@ -1262,6 +1262,8 @@ const allowedPublicMediaTypes = new Set([
   'image/heif',
   'video/mp4',
   'video/webm',
+  'video/quicktime',
+  'video/x-m4v',
 ]);
 const MAX_PUBLIC_IMAGE_BYTES = 10 * 1024 * 1024;
 const MAX_PUBLIC_VIDEO_BYTES = 40 * 1024 * 1024;
@@ -1272,8 +1274,12 @@ const mediaUpload = multer({
     // Browser MIME labels are not fully consistent for phone photos (for
     // example image/jpg versus image/jpeg). Sharp still validates the real
     // image bytes before storage, so accepting the image family here is safe.
-    if (file.mimetype.startsWith('image/') || allowedPublicMediaTypes.has(file.mimetype)) return cb(null, true);
-    return cb(new Error('Only JPEG, PNG, WebP, GIF, AVIF, MP4, and WebM media files are allowed.'));
+    const extension = path.extname(file.originalname || '').slice(1).toLowerCase();
+    const supportedExtension = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'avif', 'heic', 'heif', 'mp4', 'm4v', 'mov', 'webm'].includes(extension);
+    // Some mobile pickers return application/octet-stream. The file is still
+    // inspected by magic bytes below before it can ever reach public storage.
+    if (file.mimetype.startsWith('image/') || allowedPublicMediaTypes.has(file.mimetype) || (file.mimetype === 'application/octet-stream' && supportedExtension)) return cb(null, true);
+    return cb(new Error('Only JPEG, PNG, WebP, GIF, AVIF, MP4, MOV, and WebM media files are allowed.'));
   }
 });
 
@@ -1311,17 +1317,28 @@ const inspectPublicMedia = async (file) => {
     throw new Error('The uploaded image format is not supported. Use JPG, PNG, WebP, GIF, or AVIF.');
   }
 
-  if (file.mimetype === 'video/mp4') {
+  const originalExtension = path.extname(file.originalname || '').slice(1).toLowerCase();
+  const isWebm = file.mimetype === 'video/webm' || (file.mimetype === 'application/octet-stream' && originalExtension === 'webm');
+  const isIsoVideo = ['video/mp4', 'video/quicktime', 'video/x-m4v'].includes(file.mimetype)
+    || (file.mimetype === 'application/octet-stream' && ['mp4', 'm4v', 'mov'].includes(originalExtension));
+
+  if (isIsoVideo) {
     if (!hasMp4Signature(file.buffer)) throw new Error('The uploaded video is not a valid MP4 file.');
-    return { type: 'video', buffer: file.buffer, extension: 'mp4', contentType: 'video/mp4' };
+    const isQuickTime = file.mimetype === 'video/quicktime' || originalExtension === 'mov';
+    return {
+      type: 'video',
+      buffer: file.buffer,
+      extension: isQuickTime ? 'mov' : 'mp4',
+      contentType: isQuickTime ? 'video/quicktime' : 'video/mp4',
+    };
   }
 
-  if (file.mimetype === 'video/webm') {
+  if (isWebm) {
     if (!hasWebmSignature(file.buffer)) throw new Error('The uploaded video is not a valid WebM file.');
     return { type: 'video', buffer: file.buffer, extension: 'webm', contentType: 'video/webm' };
   }
 
-  throw new Error('Only JPEG, PNG, WebP, GIF, MP4, and WebM files are allowed.');
+  throw new Error('Only JPEG, PNG, WebP, GIF, MP4, MOV, and WebM files are allowed.');
 };
 
 const persistPublicMedia = async (req, res, next) => {

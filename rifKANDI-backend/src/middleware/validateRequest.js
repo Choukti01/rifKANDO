@@ -369,7 +369,7 @@ const publicMedia = (value, field = 'media', maxItems = 10, allowedTypes = ['ima
     const key = storageService.publicKeyFromUrl(url);
     const extension = key?.split('.').pop()?.toLowerCase();
     const validExtensions = item.type === 'video'
-      ? ['mp4', 'webm']
+      ? ['mp4', 'm4v', 'mov', 'webm']
       : ['jpg', 'jpeg', 'png', 'webp', 'gif'];
     if (!allowedTypes.includes(item.type) || !key || !validExtensions.includes(extension)) {
       fail(`${field}.${index}`, `must reference an uploaded public ${allowedTypes.join(' or ')}.`);
