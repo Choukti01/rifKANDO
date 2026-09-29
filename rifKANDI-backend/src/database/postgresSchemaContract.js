@@ -46,6 +46,7 @@ const EXPECTED_POSTGRES_TABLES = Object.freeze([
   'phone_verification_challenges',
   'product_media',
   'product_offers',
+  'product_reports',
   'product_reviews',
   'products',
   'refund_requests',

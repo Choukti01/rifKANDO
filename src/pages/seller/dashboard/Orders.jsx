@@ -15,6 +15,12 @@ const statusConfig = {
 
 const money = (value) => `${Number(value || 0).toLocaleString()} MAD`;
 
+const confirmationDeadline = (value) => {
+  if (!value) return 'within 24 hours of order creation';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? 'within 24 hours of order creation' : date.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+};
+
 const SellerOrders = () => {
   const [orders, setOrders] = useState([]);
   const [partner, setPartner] = useState(null);
@@ -96,6 +102,8 @@ const SellerOrders = () => {
                 </div>
 
                 <dl className="seller-cod-order__amounts"><div><dt>Buyer pays on delivery</dt><dd>{money(order.expected_cod_amount)}</dd></div><div><dt>Your payout after 5%</dt><dd>{money(order.seller_amount)}</dd></div><div><dt>Created</dt><dd>{new Date(order.created_at).toLocaleDateString()}</dd></div></dl>
+
+                {order.fulfillment_status === 'pending_confirmation' && <p className="seller-cod-order__deadline"><ClockIcon aria-hidden="true" /> Confirm by <strong>{confirmationDeadline(order.confirmation_expires_at)}</strong>. Unconfirmed orders expire automatically and do not enter delivery.</p>}
 
                 {order.fulfillment_status === 'pending_confirmation' && <div className="seller-cod-order__actions"><button className="seller-cod-order__button seller-cod-order__button--primary" disabled={isBusy} onClick={() => performAction(order, 'confirm')}>{isBusy ? 'Saving…' : 'Confirm order'}</button><button className="seller-cod-order__button seller-cod-order__button--quiet" disabled={isBusy} onClick={() => performAction(order, 'cancel')}>Cancel order</button></div>}
 

@@ -17,6 +17,9 @@ const AddProduct = () => {
     category: 'electronics',
     stock: '',
     condition: 'new',
+    origin_city: '',
+    preparation_days: '1',
+    estimated_delivery_days: '3',
   });
 
   const handleChange = (e) => {
@@ -52,6 +55,9 @@ const AddProduct = () => {
         stock,
         category: formData.category,
         condition: formData.condition,
+        origin_city: formData.origin_city.trim(),
+        preparation_days: Number(formData.preparation_days),
+        estimated_delivery_days: Number(formData.estimated_delivery_days),
         media: media.map(({ url, type }) => ({ url, type })),
       };
       if (oldPrice !== undefined) productData.old_price = oldPrice;
@@ -139,6 +145,11 @@ const AddProduct = () => {
           <label>Delivery price paid by buyer (MAD) *</label>
           <input type="number" name="delivery_fee" min="0" step="0.01" value={formData.delivery_fee} onChange={handleChange} className="form-input" required />
           <small className="form-hint">Set the COD delivery price for your preferred carrier. rifKANDO does not take commission from delivery.</small>
+        </div>
+        <div className="form-row">
+          <div className="form-group"><label>Dispatch city</label><input name="origin_city" value={formData.origin_city} onChange={handleChange} className="form-input" maxLength="100" placeholder="e.g. Nador" /><small className="form-hint">Shown to buyers as the seller’s dispatch location.</small></div>
+          <div className="form-group"><label>Preparation time</label><select name="preparation_days" value={formData.preparation_days} onChange={handleChange} className="form-input"><option value="0">Same day</option>{[1,2,3,4,5,7,10,14].map((days) => <option key={days} value={days}>{days} day{days === 1 ? '' : 's'}</option>)}</select></div>
+          <div className="form-group"><label>Estimated delivery</label><select name="estimated_delivery_days" value={formData.estimated_delivery_days} onChange={handleChange} className="form-input">{[1,2,3,4,5,7,10,14,21,30].map((days) => <option key={days} value={days}>{days} day{days === 1 ? '' : 's'}</option>)}</select></div>
         </div>
 
         <aside className="listing-estimate" aria-live="polite">

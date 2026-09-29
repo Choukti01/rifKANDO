@@ -1789,6 +1789,7 @@ app.use('/api', createProductRoutes({
   validateProductReview,
   validateProductUpdate,
   Money,
+  AuditService,
 }));
 
 app.use('/api', createCourseRoutes({
@@ -1973,7 +1974,7 @@ app.get('/api/orders/:id', protect, (req, res) => {
                    customer_delivery_fee, customer_delivery_fee_minor,
                    delivery_partner_name, delivery_partner_contacted_at, delivery_partner_pickup_at,
                    delivery_report_outcome, delivery_reported_at,
-                   confirmed_at, dispatched_at, delivered_at, refused_at, returned_at, cancelled_at, settled_at
+                   confirmation_expires_at, confirmed_at, dispatched_at, delivered_at, refused_at, returned_at, cancelled_at, settled_at
             FROM cod_fulfillments
             WHERE order_id = ?
             ORDER BY id ASC
@@ -3176,7 +3177,7 @@ app.get('/api/seller/orders', protect, requireSeller, (req, res) => {
       f.seller_payout_at,
       f.commission_payment_status, f.commission_reference, f.commission_due_at,
       f.commission_payment_reference, f.commission_payment_note, f.commission_submitted_at,
-      f.confirmed_at, f.dispatched_at, f.delivered_at, f.settled_at, f.created_at AS fulfillment_created_at,
+      f.confirmation_expires_at, f.confirmed_at, f.dispatched_at, f.delivered_at, f.settled_at, f.created_at AS fulfillment_created_at,
       o.id AS order_id, o.order_number, o.order_type, o.total, o.total_minor,
       o.status AS order_status, o.payment_status, o.payment_method, o.shipping_address, o.notes,
       o.created_at, u.name AS buyer_name,
@@ -3235,6 +3236,7 @@ app.get('/api/seller/cod-fulfillments/:id/delivery-handoff', protect, requireSel
 
 app.patch('/api/seller/cod-fulfillments/:id', protect, requireSeller, validateIdParams('id'), validateCodSellerAction, async (req, res) => {
   try {
+    await CodFulfillmentService.expirePendingConfirmations();
     const result = await CodFulfillmentService.sellerAction({
       fulfillmentId: req.params.id,
       sellerId: req.user.id,

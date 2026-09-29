@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { StarIcon, HeartIcon, TruckIcon, ShieldCheckIcon, ArrowPathIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { StarIcon, HeartIcon, TruckIcon, ShieldCheckIcon, ArrowPathIcon, XMarkIcon, FlagIcon } from '@heroicons/react/24/outline';
 import useCart from '../../hooks/useCart';
 import useFavorites from '../../hooks/useFavorites';
 import useAuth from '../../hooks/useAuth';
@@ -27,6 +27,10 @@ const ProductDetailsPage = () => {
   const [offerAmount, setOfferAmount] = useState('');
   const [offerMessage, setOfferMessage] = useState('');
   const [submittingOffer, setSubmittingOffer] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState('misleading');
+  const [reportDetails, setReportDetails] = useState('');
+  const [submittingReport, setSubmittingReport] = useState(false);
   
   // Reviews states
   const [reviews, setReviews] = useState([]);
@@ -203,6 +207,22 @@ const ProductDetailsPage = () => {
     }
   };
 
+  const submitReport = async () => {
+    if (!isAuthenticated) return toast.error('Please sign in to report a listing.');
+    if (reportDetails.trim().length < 10) return toast.error('Please provide at least a short explanation.');
+    setSubmittingReport(true);
+    try {
+      await api.post(`/products/${id}/reports`, { reason: reportReason, details: reportDetails.trim() });
+      toast.success('Thanks. Our moderation team will review this listing.');
+      setShowReportModal(false);
+      setReportDetails('');
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'Unable to submit this report.');
+    } finally {
+      setSubmittingReport(false);
+    }
+  };
+
   if (loading) return <div className="container text-center py-16"><div className="spinner"></div><p>Loading product...</p></div>;
   if (!product) return <div className="container text-center py-16"><p>Product not found</p><Link to="/products" className="btn btn-primary">Back</Link></div>;
 
@@ -325,7 +345,10 @@ const ProductDetailsPage = () => {
                 <button type="button" className="favorite-btn" onClick={handleFavorite} aria-label={isFav ? 'Remove from favorites' : 'Add to favorites'} aria-pressed={isFav}><HeartIcon className={`heart-icon ${isFav ? 'text-red-500 fill-current' : ''}`} /></button>
               </div>
               <p className="purchase-note">{isJoutiya ? t('products.offerDeliveryNote') : t('products.codPayNote', { total: `${formatAmount(codTotal)} MAD` })}</p>
+              {!isOwnListing && <button type="button" className="report-listing-btn" onClick={() => isAuthenticated ? setShowReportModal(true) : toast.error('Please sign in to report a listing.')}><FlagIcon aria-hidden="true" /> Report this listing</button>}
               <div className="product-shipping">
+                {product.origin_city && <div className="shipping-item"><TruckIcon className="shipping-icon" /><span>Ships from {product.origin_city}</span></div>}
+                <div className="shipping-item"><ArrowPathIcon className="shipping-icon" /><span>Seller prepares in {Number(product.preparation_days || 1) === 0 ? 'the same day' : `${Number(product.preparation_days || 1)} day${Number(product.preparation_days || 1) === 1 ? '' : 's'}`} · estimated delivery in {Number(product.estimated_delivery_days || 3)} day{Number(product.estimated_delivery_days || 3) === 1 ? '' : 's'}.</span></div>
                 <div className="shipping-item"><TruckIcon className="shipping-icon" /><span>{t('products.deliveryCheckoutNote')}</span></div>
                 <div className="shipping-item"><ShieldCheckIcon className="shipping-icon" /><span>{t('products.codProtectionNote')}</span></div>
                 <div className="shipping-item"><ArrowPathIcon className="shipping-icon" /><span>{t('products.orderTrackingNote')}</span></div>
@@ -362,6 +385,8 @@ const ProductDetailsPage = () => {
                 </span></div>
                 <div className="spec-item"><span className="spec-label">Availability</span><span className="spec-value">{stock > 0 ? `${stock} units available` : 'Out of stock'}</span></div>
                 <div className="spec-item"><span className="spec-label">Sold</span><span className="spec-value">{product.sold || 0} units</span></div>
+                <div className="spec-item"><span className="spec-label">Dispatch</span><span className="spec-value">{product.origin_city || 'Seller location shared at checkout'} · prepares in {Number(product.preparation_days || 1) === 0 ? 'same day' : `${Number(product.preparation_days || 1)} day(s)`}</span></div>
+                <div className="spec-item"><span className="spec-label">Delivery estimate</span><span className="spec-value">{Number(product.estimated_delivery_days || 3)} day(s) after dispatch</span></div>
               </div>
             )}
             {activeTab==='reviews' && (
@@ -489,6 +514,16 @@ const ProductDetailsPage = () => {
         </div>
       )}
 
+      {showReportModal && (
+        <div className="offer-modal" onClick={() => setShowReportModal(false)}>
+          <div className="offer-container report-dialog" role="dialog" aria-modal="true" aria-labelledby="report-listing-title" onClick={(event) => event.stopPropagation()}>
+            <div className="offer-header"><h3 id="report-listing-title">Report this listing</h3><button type="button" onClick={() => setShowReportModal(false)} className="close-offer-btn" aria-label="Close report form"><XMarkIcon className="w-5 h-5" /></button></div>
+            <div className="offer-body"><p>Reports are private. Please describe only what our moderation team needs to review.</p><div className="offer-field"><label htmlFor="report-reason">Reason</label><select id="report-reason" value={reportReason} onChange={(event) => setReportReason(event.target.value)}><option value="scam">Possible scam</option><option value="prohibited">Prohibited or unsafe item</option><option value="misleading">Misleading listing</option><option value="counterfeit">Suspected counterfeit</option><option value="other">Other concern</option></select></div><div className="offer-field"><label htmlFor="report-details">What should we review?</label><textarea id="report-details" value={reportDetails} onChange={(event) => setReportDetails(event.target.value)} maxLength="1000" rows="4" placeholder="Give clear details (at least 10 characters)." /></div></div>
+            <div className="offer-footer"><button type="button" onClick={() => setShowReportModal(false)} className="cancel-offer-btn">Cancel</button><button type="button" onClick={submitReport} disabled={submittingReport} className="submit-offer-btn">{submittingReport ? 'Submitting…' : 'Submit report'}</button></div>
+          </div>
+        </div>
+      )}
+
       {showGallery && (
         <MediaGallery
           media={product.media.map(m => ({ url: getImageUrl(m.media_url), type: m.media_type }))}
@@ -559,6 +594,7 @@ const ProductDetailsPage = () => {
         .fill-current { fill: currentColor; }
         .purchase-note { margin: 0.8rem 0 0; color: #4b5563; font-size: 0.8rem; line-height: 1.5; }
         .product-shipping { display: grid; gap: 0.65rem; border-top: 1px solid #e5e7eb; padding-top: 1rem; margin-top: 1rem; }
+        .report-listing-btn { display:inline-flex;align-items:center;gap:.38rem;margin-top:.85rem;padding:0;border:0;background:none;color:#5c6c7b;font:inherit;font-size:.82rem;cursor:pointer;text-decoration:underline; }.report-listing-btn svg { width:1rem; }.report-listing-btn:hover { color:#b42318; }.report-dialog select { width:100%;padding:.65rem;border:1px solid #d3dee6;border-radius:.5rem;background:#fff;font:inherit; }
         .shipping-item { display: flex; align-items: flex-start; gap: 0.55rem; font-size: 0.8rem; color: #4b5563; line-height: 1.4; }
         .shipping-icon { flex: 0 0 auto; width: 1rem; height: 1rem; margin-top: 0.05rem; color: #216275; }
         .mobile-purchase-bar { display: none; }

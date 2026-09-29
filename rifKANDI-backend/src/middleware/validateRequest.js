@@ -380,7 +380,7 @@ const publicMedia = (value, field = 'media', maxItems = 10, allowedTypes = ['ima
 
 const productPayload = (body, { partial }) => {
   object(body);
-  onlyKeys(body, ['title', 'description', 'price', 'old_price', 'delivery_fee', 'category', 'stock', 'media', 'condition']);
+  onlyKeys(body, ['title', 'description', 'price', 'old_price', 'delivery_fee', 'category', 'stock', 'media', 'condition', 'origin_city', 'preparation_days', 'estimated_delivery_days']);
   const required = !partial;
   const result = {
     title: text(body.title, 'title', { required, min: 2, max: 160 }),
@@ -394,6 +394,9 @@ const productPayload = (body, { partial }) => {
     // Keep this in sync with the storefront and seller listing forms.  The
     // public product state is `used_as_new`, not the legacy `used` value.
     condition: body.condition === undefined ? undefined : enumValue(body.condition, 'condition', ['new', 'used_as_new', 'joutiya']),
+    origin_city: text(body.origin_city, 'origin_city', { required: false, min: 2, max: 100 }),
+    preparation_days: body.preparation_days === undefined ? undefined : integer(body.preparation_days, 'preparation_days', { min: 0, max: 14 }),
+    estimated_delivery_days: body.estimated_delivery_days === undefined ? undefined : integer(body.estimated_delivery_days, 'estimated_delivery_days', { min: 1, max: 30 }),
   };
   if (required && result.stock === undefined) fail('stock', 'is required.');
   if (required && result.condition === undefined) fail('condition', 'is required.');

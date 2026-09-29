@@ -18,8 +18,10 @@ const createProductRoutes = ({
   validateProductReview,
   validateProductUpdate,
   Money,
+  AuditService,
 }) => {
   const router = express.Router();
+  const reportReasons = new Set(['scam', 'prohibited', 'misleading', 'counterfeit', 'other']);
 
   const attachMedia = (products, done) => {
     if (!products.length) return done(products);
@@ -154,15 +156,15 @@ const createProductRoutes = ({
   });
 
   router.post('/products', protect, requireSeller, validateProductCreate, (req, res) => {
-    const { title, description, price, old_price: oldPrice, delivery_fee: deliveryFee, category, stock, media, condition } = req.body;
+    const { title, description, price, old_price: oldPrice, delivery_fee: deliveryFee, category, stock, media, condition, origin_city: originCity, preparation_days: preparationDays, estimated_delivery_days: estimatedDeliveryDays } = req.body;
     const priceMinor = Money.toMinor(price);
     const oldPriceMinor = oldPrice === undefined ? null : Money.toMinor(oldPrice);
     const deliveryFeeMinor = Money.toMinor(deliveryFee, { allowZero: true });
 
     db.run(
       `INSERT INTO products
-       (title, description, price, old_price, price_minor, old_price_minor, delivery_fee, delivery_fee_minor, category, stock, seller_id, condition)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (title, description, price, old_price, price_minor, old_price_minor, delivery_fee, delivery_fee_minor, category, stock, seller_id, condition, origin_city, preparation_days, estimated_delivery_days)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         title,
         description,
@@ -176,6 +178,7 @@ const createProductRoutes = ({
         stock,
         req.user.id,
         condition || 'new',
+        originCity || '', preparationDays ?? 1, estimatedDeliveryDays ?? 3,
       ],
       function onProductCreated(error) {
         if (error) return res.status(400).json({ error: error.message });
@@ -203,7 +206,7 @@ const createProductRoutes = ({
   });
 
   router.put('/products/:id', protect, requireSeller, validateIdParams('id'), validateProductUpdate, (req, res) => {
-    const { title, description, price, old_price: oldPrice, delivery_fee: deliveryFee, category, stock, media, condition } = req.body;
+    const { title, description, price, old_price: oldPrice, delivery_fee: deliveryFee, category, stock, media, condition, origin_city: originCity, preparation_days: preparationDays, estimated_delivery_days: estimatedDeliveryDays } = req.body;
     const priceMinor = price === undefined ? undefined : Money.toMinor(price);
     const oldPriceMinor = oldPrice === undefined ? undefined : Money.toMinor(oldPrice);
     const deliveryFeeMinor = deliveryFee === undefined ? undefined : Money.toMinor(deliveryFee, { allowZero: true });
@@ -226,7 +229,10 @@ const createProductRoutes = ({
            delivery_fee_minor = COALESCE(?, delivery_fee_minor),
            category = COALESCE(?, category),
            stock = COALESCE(?, stock),
-           condition = COALESCE(?, condition)
+           condition = COALESCE(?, condition),
+           origin_city = COALESCE(?, origin_city),
+           preparation_days = COALESCE(?, preparation_days),
+           estimated_delivery_days = COALESCE(?, estimated_delivery_days)
          WHERE id = ?`,
         [
           title,
@@ -240,6 +246,9 @@ const createProductRoutes = ({
           category,
           stock,
           condition,
+          originCity,
+          preparationDays,
+          estimatedDeliveryDays,
           req.params.id,
         ],
         (updateError) => {
@@ -359,6 +368,64 @@ const createProductRoutes = ({
         return res.json({ success: true, reviews });
       },
     );
+  });
+
+  router.post('/products/:id/reports', protect, validateIdParams('id'), (req, res) => {
+    const reason = String(req.body?.reason || '').trim().toLowerCase();
+    const details = String(req.body?.details || '').trim();
+    if (!reportReasons.has(reason) || details.length < 10 || details.length > 1_000) {
+      return res.status(422).json({ error: 'Choose a report reason and provide 10 to 1000 characters of detail.' });
+    }
+    db.get('SELECT seller_id FROM products WHERE id = ?', [req.params.id], (productError, product) => {
+      if (productError) return res.status(500).json({ error: 'Unable to verify this listing.' });
+      if (!product) return res.status(404).json({ error: 'Product not found.' });
+      if (Number(product.seller_id) === Number(req.user.id)) return res.status(403).json({ error: 'You cannot report your own listing.' });
+      db.get("SELECT id FROM product_reports WHERE product_id = ? AND reporter_id = ? AND status = 'pending'", [req.params.id, req.user.id], (lookupError, existing) => {
+        if (lookupError) return res.status(500).json({ error: 'Unable to submit this report.' });
+        if (existing) return res.status(409).json({ error: 'You already have a report under review for this listing.' });
+        db.run('INSERT INTO product_reports (product_id, reporter_id, reason, details) VALUES (?, ?, ?, ?)', [req.params.id, req.user.id, reason, details], async function onReportCreated(insertError) {
+          if (insertError) return res.status(500).json({ error: 'Unable to submit this report.' });
+          if (AuditService) void AuditService.record({ actorUserId: req.user.id, actorRole: req.user.role, action: 'product.reported', resourceType: 'product_report', resourceId: this.lastID, metadata: { productId: Number(req.params.id), reason } }).catch(() => undefined);
+          return res.status(201).json({ success: true, message: 'Thanks. Our team will review this listing.', reportId: this.lastID });
+        });
+      });
+    });
+  });
+
+  router.get('/admin/product-reports', protect, (req, res) => {
+    if (!isAdmin(req.user)) return res.status(403).json({ error: 'Administrator access is required.' });
+    db.all(`SELECT r.id, r.reason, r.details, r.status, r.resolution_note, r.created_at,
+                   p.id AS product_id, p.title AS product_title, p.status AS product_status,
+                   reporter.name AS reporter_name, reviewer.name AS reviewer_name
+            FROM product_reports r
+            JOIN products p ON p.id = r.product_id
+            JOIN users reporter ON reporter.id = r.reporter_id
+            LEFT JOIN users reviewer ON reviewer.id = r.reviewed_by
+            ORDER BY CASE r.status WHEN 'pending' THEN 0 ELSE 1 END, r.created_at ASC`, [], (error, reports) => {
+      if (error) return res.status(500).json({ error: 'Unable to load moderation reports.' });
+      return res.json({ success: true, reports });
+    });
+  });
+
+  router.patch('/admin/product-reports/:id', protect, validateIdParams('id'), (req, res) => {
+    if (!isAdmin(req.user)) return res.status(403).json({ error: 'Administrator access is required.' });
+    const decision = String(req.body?.decision || '').trim();
+    const note = String(req.body?.note || '').trim();
+    if (!['dismiss', 'remove_listing'].includes(decision) || note.length < 3 || note.length > 1_000) return res.status(422).json({ error: 'Choose a moderation decision and provide a short note.' });
+    db.get("SELECT id, product_id FROM product_reports WHERE id = ? AND status = 'pending'", [req.params.id], (lookupError, report) => {
+      if (lookupError) return res.status(500).json({ error: 'Unable to review this report.' });
+      if (!report) return res.status(404).json({ error: 'Open report not found.' });
+      const resolve = () => db.run("UPDATE product_reports SET status = ?, resolution_note = ?, reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'pending'", [decision === 'dismiss' ? 'dismissed' : 'resolved', note, req.user.id, report.id], async function onResolved(updateError) {
+        if (updateError || this.changes !== 1) return res.status(409).json({ error: 'This report was already reviewed.' });
+        if (AuditService) void AuditService.record({ actorUserId: req.user.id, actorRole: req.user.role, action: `product_report.${decision}`, resourceType: 'product_report', resourceId: report.id, metadata: { productId: report.product_id } }).catch(() => undefined);
+        return res.json({ success: true });
+      });
+      if (decision === 'dismiss') return resolve();
+      db.run("UPDATE products SET status = 'ended', stock = 0 WHERE id = ?", [report.product_id], (productError) => {
+        if (productError) return res.status(500).json({ error: 'Unable to remove this listing from sale.' });
+        return resolve();
+      });
+    });
   });
 
   router.post('/products/:id/reviews', protect, validateIdParams('id'), validateProductReview, (req, res) => {

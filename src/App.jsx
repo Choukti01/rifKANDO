@@ -39,6 +39,7 @@ const SellerOrders = lazy(() => import('./pages/seller/dashboard/Orders'))
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'))
 const CODReconciliation = lazy(() => import('./pages/admin/CODReconciliation'))
 const OperationsTeamPage = lazy(() => import('./pages/admin/OperationsTeamPage'))
+const ProductReportsPage = lazy(() => import('./pages/admin/ProductReportsPage'))
 const CODOperationsDesk = lazy(() => import('./pages/operations/CODOperationsDesk'))
 // const PackagesManager = lazy(() => import('./pages/seller/services/PackagesManager'))
 // const LessonsManager = lazy(() => import('./pages/seller/courses/LessonsManager'))
@@ -173,6 +174,11 @@ function AppContent() {
                   <Route path="/admin/operations-team" element={
                     <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
                       <OperationsTeamPage />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/admin/product-reports" element={
+                    <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
+                      <ProductReportsPage />
                     </ProtectedRoute>
                   } />
                   <Route path="/operations/cod" element={
