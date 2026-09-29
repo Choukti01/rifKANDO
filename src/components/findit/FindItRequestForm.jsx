@@ -3,6 +3,7 @@ import toast from 'react-hot-toast';
 import { ArrowUpTrayIcon, PhotoIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { createFinditRequest, uploadFinditMedia } from '../../services/api';
 import { useTranslation } from 'react-i18next';
+import { getImageUrl } from '../../utils/imageUtils';
 
 const initialForm = {
   title: '', description: '', category: 'Auto & Parts', city: '',
@@ -106,7 +107,7 @@ const FindItRequestForm = ({ onCreated }) => {
           <div className="findit-upload-copy"><PhotoIcon aria-hidden="true" /><div><strong>{t('findit.form.photos')}</strong><span>{t('findit.form.photosHelp')}</span></div></div>
           <button type="button" onClick={() => inputRef.current?.click()} disabled={uploading || media.length >= 3}><ArrowUpTrayIcon aria-hidden="true" />{uploading ? t('findit.form.uploading') : t('findit.form.addPhotos')}</button>
         </div>
-        {media.length > 0 && <div className="findit-photo-list wide">{media.map((item) => <figure key={item.url}><img src={item.url} alt={t('findit.form.photos')} /><button type="button" aria-label={t('findit.form.removePhoto')} onClick={() => setMedia((current) => current.filter((mediaItem) => mediaItem.url !== item.url))}><XMarkIcon /></button></figure>)}</div>}
+        {media.length > 0 && <div className="findit-photo-list wide">{media.map((item) => <figure key={item.url}><img src={getImageUrl(item.url)} alt={t('findit.form.photos')} /><button type="button" aria-label={t('findit.form.removePhoto')} onClick={() => setMedia((current) => current.filter((mediaItem) => mediaItem.url !== item.url))}><XMarkIcon /></button></figure>)}</div>}
       </div>
       <div className="findit-form-footer"><p>{t('findit.form.footer')}</p><button type="submit" disabled={submitting || uploading}>{submitting ? t('findit.form.publishing') : t('findit.form.publish')}</button></div>
       <style>{`
