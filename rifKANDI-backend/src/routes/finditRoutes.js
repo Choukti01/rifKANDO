@@ -110,6 +110,7 @@ const createFindItRoutes = ({
   validateFinditOfferUpdate,
   validateFinditCheckout,
   auditService,
+  notificationService,
 }) => {
   const router = express.Router();
 
@@ -299,6 +300,14 @@ const createFindItRoutes = ({
         return { offer, request };
       });
       await record(req, 'findit.offer_created', 'findit_offer', offer.id, { requestId: request.id, priceMinor, deliveryFeeMinor });
+      if (notificationService) void notificationService.create({
+        userId: request.buyer_id,
+        kind: 'findit.offer_received',
+        title: 'New FINDit offer',
+        body: `A seller sent an offer for "${request.title}".`,
+        href: '/findit/dashboard',
+        metadata: { requestId: request.id, offerId: offer.id },
+      }).catch(() => undefined);
       return res.status(201).json({ success: true, offer: safeOfferForSeller({
         ...offer,
         request_number: request.request_number,
@@ -491,6 +500,8 @@ const createFindItRoutes = ({
           alreadyCreated: false,
           order: { id: orderId, order_number: number, total: Money.fromMinor(totalMinor), total_minor: totalMinor, status: 'pending', payment_method: 'cash', payment_status: 'pending' },
           commissionMinor,
+          sellerId: offer.seller_id,
+          offerTitle: offer.title,
         };
       });
       await record(req, 'findit.offer_accepted', 'findit_order', result.order.id, {
@@ -498,6 +509,14 @@ const createFindItRoutes = ({
         commissionMinor: result.commissionMinor ?? null,
         alreadyCreated: result.alreadyCreated,
       });
+      if (!result.alreadyCreated && notificationService) void notificationService.create({
+        userId: result.sellerId,
+        kind: 'findit.offer_accepted',
+        title: 'Your FINDit offer was accepted',
+        body: `The buyer accepted your offer for "${result.offerTitle}". Confirm the COD order next.`,
+        href: '/seller/dashboard/orders',
+        metadata: { orderId: result.order.id, offerId: Number(req.params.id) },
+      }).catch(() => undefined);
       return res.status(result.alreadyCreated ? 200 : 201).json({
         success: true,
         alreadyCreated: result.alreadyCreated,

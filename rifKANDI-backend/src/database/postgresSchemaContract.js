@@ -33,6 +33,7 @@ const EXPECTED_POSTGRES_TABLES = Object.freeze([
   'google_verifications',
   'lesson_progress',
   'messages',
+  'notifications',
   'order_invoices',
   'order_items',
   'order_status_history',

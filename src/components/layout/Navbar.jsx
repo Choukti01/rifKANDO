@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { MagnifyingGlassIcon, UserIcon, Bars3Icon, XMarkIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import useAuth from '../../hooks/useAuth';
 import LanguageSwitcher from '../LanguageSwitcher';
+import NotificationCenter from '../notifications/NotificationCenter';
 import { useTranslation } from 'react-i18next';
 
 const Navbar = () => {
@@ -113,6 +114,8 @@ const Navbar = () => {
             <div className="nav-icons">
               {/* Language Switcher (now only EN/AR) */}
               <div className="desktop-language-switcher"><LanguageSwitcher /></div>
+
+              {isAuthenticated && <NotificationCenter />}
 
               {/* Profile Dropdown */}
               <div className="profile-dropdown desktop-profile-dropdown" ref={dropdownRef}>

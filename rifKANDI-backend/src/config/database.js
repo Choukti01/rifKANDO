@@ -177,6 +177,24 @@ db.serialize(() => {
     )
   `, (err) => { if (err) console.error('Error creating product_reports:', err); else console.log('✅ product_reports table ready'); });
 
+  // Durable, user-scoped in-app notifications. Financial records and audit
+  // logs remain independent sources of truth; notifications are safe to read
+  // and may be marked as read without changing marketplace state.
+  db.run(`
+    CREATE TABLE IF NOT EXISTS notifications (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      kind TEXT NOT NULL,
+      title TEXT NOT NULL,
+      body TEXT NOT NULL,
+      href TEXT,
+      metadata TEXT NOT NULL DEFAULT '{}',
+      read_at DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `, (err) => { if (err) console.error('Error creating notifications:', err); else console.log('✅ notifications table ready'); });
+
   // Cart table
   db.run(`
     CREATE TABLE IF NOT EXISTS cart (
@@ -1424,6 +1442,7 @@ db.serialize(() => {
     ['idx_booking_date_overrides_schedule', 'booking_date_overrides(booking_id, date)'],
     ['idx_product_media_listing', 'product_media(product_id, display_order, id)'],
     ['idx_product_reports_queue', 'product_reports(status, created_at ASC)'],
+    ['idx_notifications_user_unread_created', 'notifications(user_id, read_at, created_at DESC)'],
     ['idx_course_media_listing', 'course_media(course_id, display_order, id)'],
     ['idx_service_media_listing', 'service_media(service_id, display_order, id)'],
     ['idx_digital_media_listing', 'digital_media(digital_id, display_order, id)'],
