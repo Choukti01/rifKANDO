@@ -76,6 +76,7 @@ const sessionService = require('./services/sessionService');
 const AuditService = require('./services/auditService');
 const Money = require('./services/moneyService');
 const CodFulfillmentService = require('./services/codFulfillmentService');
+const NotificationService = require('./services/notificationService');
 const { getCodDeliveryPartner, createSellerHandoffLink } = require('./services/deliveryPartnerService');
 const FeatureFlags = require('./services/featureFlagService');
 const PasskeyService = require('./services/passkeyService');
@@ -102,6 +103,15 @@ const createFindItRoutes = require('./routes/finditRoutes');
 
 
 const app = express();
+
+// Notifications are deliberately best-effort presentation events. Marketplace
+// transactions and their audit logs must succeed even if the notification UI
+// store is temporarily unavailable.
+const notify = (payload) => {
+  void NotificationService.create(payload).catch((error) => {
+    console.error(JSON.stringify({ level: 'error', event: 'notification_create_failed', error: error.message }));
+  });
+};
 
 const requireSeller = authorize(ROLES.SELLER);
 const requireAdmin = authorize(...ADMIN_ROLES);
@@ -1790,6 +1800,7 @@ app.use('/api', createProductRoutes({
   validateProductUpdate,
   Money,
   AuditService,
+  NotificationService,
 }));
 
 app.use('/api', createCourseRoutes({
@@ -1844,7 +1855,45 @@ app.use('/api', createFindItRoutes({
   validateFinditOfferUpdate,
   validateFinditCheckout,
   auditService: AuditService,
+  notificationService: NotificationService,
 }));
+
+// ==================== IN-APP NOTIFICATIONS ====================
+app.get('/api/notifications', protect, async (req, res) => {
+  try {
+    const notifications = await NotificationService.listForUser(req.user.id, req.query.limit);
+    const unreadCount = await NotificationService.unreadCount(req.user.id);
+    return res.json({ success: true, notifications, unreadCount });
+  } catch (error) {
+    return res.status(500).json({ error: 'Unable to load notifications.', requestId: req.requestId });
+  }
+});
+
+app.get('/api/notifications/unread-count', protect, async (req, res) => {
+  try {
+    return res.json({ success: true, unreadCount: await NotificationService.unreadCount(req.user.id) });
+  } catch (error) {
+    return res.status(500).json({ error: 'Unable to load notification count.', requestId: req.requestId });
+  }
+});
+
+app.patch('/api/notifications/:id/read', protect, validateIdParams('id'), async (req, res) => {
+  try {
+    const result = await NotificationService.markRead(req.user.id, req.params.id);
+    return res.json({ success: true, changed: result.changes === 1 });
+  } catch (error) {
+    return res.status(500).json({ error: 'Unable to update notification.', requestId: req.requestId });
+  }
+});
+
+app.post('/api/notifications/read-all', protect, async (req, res) => {
+  try {
+    const result = await NotificationService.markAllRead(req.user.id);
+    return res.json({ success: true, changed: result.changes || 0 });
+  } catch (error) {
+    return res.status(500).json({ error: 'Unable to update notifications.', requestId: req.requestId });
+  }
+});
 
 // ==================== CART ENDPOINTS ====================
 app.get('/api/cart', protect, (req, res) => {
@@ -2087,6 +2136,18 @@ app.post('/api/orders', protect, requireFeature('checkout'), validateCheckout, a
       idempotencyKey,
     });
     const order = result.order;
+    if (!result.alreadyCreated) {
+      void getDatabaseRows('SELECT DISTINCT seller_id FROM order_items WHERE order_id = ?', [order.id])
+        .then((sellers) => Promise.all(sellers.map((seller) => NotificationService.create({
+          userId: seller.seller_id,
+          kind: 'order.created',
+          title: 'New COD order',
+          body: `Order ${order.order_number} is ready for your confirmation.`,
+          href: '/seller/dashboard/orders',
+          metadata: { orderId: order.id },
+        }))))
+        .catch((notificationError) => console.error(JSON.stringify({ level: 'error', event: 'order_notification_failed', error: notificationError.message })));
+    }
     return res.status(result.alreadyCreated ? 200 : 201).json({
       success: true,
       alreadyCreated: result.alreadyCreated,
@@ -3003,6 +3064,16 @@ app.post('/api/orders/:id/cancel', protect, validateIdParams('id'), async (req, 
 app.post('/api/orders/:id/cancel', protect, validateIdParams('id'), async (req, res) => {
   try {
     await WalletService.cancelUnpaidOrder(req.params.id, req.user.id);
+    void getDatabaseRows('SELECT DISTINCT seller_id FROM cod_fulfillments WHERE order_id = ?', [req.params.id])
+      .then((sellers) => Promise.all(sellers.map((seller) => NotificationService.create({
+        userId: seller.seller_id,
+        kind: 'order.cancelled',
+        title: 'Order cancelled by buyer',
+        body: 'A buyer cancelled an order before delivery-partner pickup.',
+        href: '/seller/dashboard/orders',
+        metadata: { orderId: Number(req.params.id) },
+      }))))
+      .catch((notificationError) => console.error(JSON.stringify({ level: 'error', event: 'order_cancellation_notification_failed', error: notificationError.message })));
     await AuditService.recordFromRequest(req, {
       action: 'order.cancelled',
       resourceType: 'order',
@@ -3247,6 +3318,21 @@ app.patch('/api/seller/cod-fulfillments/:id', protect, requireSeller, validateId
       resourceType: 'cod_fulfillment',
       resourceId: req.params.id,
       metadata: { orderId: result.fulfillment.order_id, status: result.fulfillment.status },
+    });
+    const sellerActionNotifications = {
+      confirm: ['Order confirmed', 'The seller confirmed your COD order and is preparing it.'],
+      request_handoff: ['Pickup requested', 'The seller requested a delivery-partner pickup for your order.'],
+      dispatch: ['Order handed to carrier', 'Your order has been handed to the carrier and is on its way.'],
+      cancel: ['Order cancelled', 'The seller cancelled this order before delivery-partner pickup.'],
+    };
+    const notification = sellerActionNotifications[req.body.action];
+    if (notification) notify({
+      userId: result.fulfillment.buyer_id,
+      kind: `cod.seller_${req.body.action}`,
+      title: notification[0],
+      body: notification[1],
+      href: `/orders/${result.fulfillment.order_id}`,
+      metadata: { orderId: result.fulfillment.order_id, fulfillmentId: result.fulfillment.id },
     });
     return res.json({ success: true, fulfillment: result.fulfillment, order: result.orderState });
   } catch (error) {
@@ -3633,6 +3719,16 @@ app.post('/api/operations/cod-fulfillments/:id/confirm-pickup', protect, require
       resourceId: req.params.id,
       metadata: { orderId: result.fulfillment.order_id, carrier: result.fulfillment.carrier_name },
     });
+    for (const userId of [result.fulfillment.buyer_id, result.fulfillment.seller_id]) {
+      notify({
+        userId,
+        kind: 'cod.picked_up',
+        title: 'Parcel picked up',
+        body: `Toufiq confirmed pickup${result.fulfillment.carrier_name ? ` with ${result.fulfillment.carrier_name}` : ''}.`,
+        href: userId === result.fulfillment.seller_id ? '/seller/dashboard/orders' : `/orders/${result.fulfillment.order_id}`,
+        metadata: { orderId: result.fulfillment.order_id, fulfillmentId: result.fulfillment.id },
+      });
+    }
     return res.json({ success: true, fulfillment: result.fulfillment, order: result.orderState });
   } catch (error) {
     return res.status(400).json({ error: error.message, requestId: req.requestId });
@@ -3652,6 +3748,23 @@ app.post('/api/operations/cod-fulfillments/:id/report-delivery', protect, requir
       resourceId: req.params.id,
       metadata: { orderId: result.fulfillment.order_id, outcome: result.fulfillment.delivery_report_outcome },
     });
+    const outcomeCopy = {
+      delivered: ['Delivery reported', 'Toufiq reported that the order was delivered.'],
+      refused: ['Delivery reported', 'Toufiq reported that the delivery was refused.'],
+      returned: ['Delivery reported', 'Toufiq reported that the parcel is being returned.'],
+    }[result.fulfillment.delivery_report_outcome];
+    if (outcomeCopy) {
+      for (const userId of [result.fulfillment.buyer_id, result.fulfillment.seller_id]) {
+        notify({
+          userId,
+          kind: `cod.${result.fulfillment.delivery_report_outcome}`,
+          title: outcomeCopy[0],
+          body: outcomeCopy[1],
+          href: userId === result.fulfillment.seller_id ? '/seller/dashboard/orders' : `/orders/${result.fulfillment.order_id}`,
+          metadata: { orderId: result.fulfillment.order_id, fulfillmentId: result.fulfillment.id },
+        });
+      }
+    }
     return res.json({ success: true, fulfillment: result.fulfillment });
   } catch (error) {
     return res.status(400).json({ error: error.message, requestId: req.requestId });

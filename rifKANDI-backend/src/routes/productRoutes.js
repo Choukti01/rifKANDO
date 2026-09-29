@@ -19,6 +19,7 @@ const createProductRoutes = ({
   validateProductUpdate,
   Money,
   AuditService,
+  NotificationService,
 }) => {
   const router = express.Router();
   const reportReasons = new Set(['scam', 'prohibited', 'misleading', 'counterfeit', 'other']);
@@ -386,6 +387,13 @@ const createProductRoutes = ({
         db.run('INSERT INTO product_reports (product_id, reporter_id, reason, details) VALUES (?, ?, ?, ?)', [req.params.id, req.user.id, reason, details], async function onReportCreated(insertError) {
           if (insertError) return res.status(500).json({ error: 'Unable to submit this report.' });
           if (AuditService) void AuditService.record({ actorUserId: req.user.id, actorRole: req.user.role, action: 'product.reported', resourceType: 'product_report', resourceId: this.lastID, metadata: { productId: Number(req.params.id), reason } }).catch(() => undefined);
+          if (NotificationService) void NotificationService.createForRoles(['admin', 'super_admin'], {
+            kind: 'moderation.report_created',
+            title: 'New product report',
+            body: 'A listing was reported and is ready for moderation review.',
+            href: '/admin/product-reports',
+            metadata: { productId: Number(req.params.id), reportId: this.lastID, reason },
+          }).catch(() => undefined);
           return res.status(201).json({ success: true, message: 'Thanks. Our team will review this listing.', reportId: this.lastID });
         });
       });
@@ -412,12 +420,24 @@ const createProductRoutes = ({
     const decision = String(req.body?.decision || '').trim();
     const note = String(req.body?.note || '').trim();
     if (!['dismiss', 'remove_listing'].includes(decision) || note.length < 3 || note.length > 1_000) return res.status(422).json({ error: 'Choose a moderation decision and provide a short note.' });
-    db.get("SELECT id, product_id FROM product_reports WHERE id = ? AND status = 'pending'", [req.params.id], (lookupError, report) => {
+    db.get(`SELECT r.id, r.product_id, p.seller_id, p.title AS product_title
+            FROM product_reports r JOIN products p ON p.id = r.product_id
+            WHERE r.id = ? AND r.status = 'pending'`, [req.params.id], (lookupError, report) => {
       if (lookupError) return res.status(500).json({ error: 'Unable to review this report.' });
       if (!report) return res.status(404).json({ error: 'Open report not found.' });
       const resolve = () => db.run("UPDATE product_reports SET status = ?, resolution_note = ?, reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'pending'", [decision === 'dismiss' ? 'dismissed' : 'resolved', note, req.user.id, report.id], async function onResolved(updateError) {
         if (updateError || this.changes !== 1) return res.status(409).json({ error: 'This report was already reviewed.' });
         if (AuditService) void AuditService.record({ actorUserId: req.user.id, actorRole: req.user.role, action: `product_report.${decision}`, resourceType: 'product_report', resourceId: report.id, metadata: { productId: report.product_id } }).catch(() => undefined);
+        if (NotificationService) void NotificationService.create({
+          userId: report.seller_id,
+          kind: `moderation.report_${decision}`,
+          title: decision === 'remove_listing' ? 'Listing removed from sale' : 'Listing report reviewed',
+          body: decision === 'remove_listing'
+            ? `Your listing "${report.product_title}" was removed after moderation review.`
+            : `A report about "${report.product_title}" was reviewed and dismissed.`,
+          href: '/seller/dashboard/products',
+          metadata: { productId: report.product_id, reportId: report.id },
+        }).catch(() => undefined);
         return res.json({ success: true });
       });
       if (decision === 'dismiss') return resolve();
