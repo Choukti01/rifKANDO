@@ -11,10 +11,12 @@ validateEnvironment();
 
 const db = require('./src/config/database');
 const app = require('./src/app');
+const CodFulfillmentService = require('./src/services/codFulfillmentService');
 
 const PORT = Number(process.env.PORT || 5000);
 let server;
 let shuttingDown = false;
+let codExpiryTimer;
 
 const shutdown = (signal) => {
   if (shuttingDown) return;
@@ -28,6 +30,7 @@ const shutdown = (signal) => {
   forceExitTimer.unref();
 
   server.close((serverError) => {
+    if (codExpiryTimer) clearInterval(codExpiryTimer);
     db.close((databaseError) => {
       if (serverError || databaseError) {
         console.error(JSON.stringify({
@@ -55,6 +58,17 @@ const start = async () => {
         environment: process.env.NODE_ENV || 'development',
       }));
     });
+    const expirePendingCodOrders = async () => {
+      try {
+        const expired = await CodFulfillmentService.expirePendingConfirmations();
+        if (expired) console.log(JSON.stringify({ level: 'info', event: 'cod_confirmation_expired', count: expired }));
+      } catch (error) {
+        console.error(JSON.stringify({ level: 'error', event: 'cod_confirmation_expiry_failed', error: error.message }));
+      }
+    };
+    void expirePendingCodOrders();
+    codExpiryTimer = setInterval(() => { void expirePendingCodOrders(); }, 5 * 60 * 1000);
+    codExpiryTimer.unref();
     process.once('SIGTERM', () => shutdown('SIGTERM'));
     process.once('SIGINT', () => shutdown('SIGINT'));
   } catch (error) {

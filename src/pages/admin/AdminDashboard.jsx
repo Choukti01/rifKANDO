@@ -66,6 +66,11 @@ const AdminDashboard = () => {
           <h3>COD reconciliation</h3>
           <p>Record carrier collection, reconcile remittance, and release seller payouts safely.</p>
         </Link>
+        <Link to="/admin/product-reports" className="action-card">
+          <div className="action-icon">⚑</div>
+          <h3>Listing reports</h3>
+          <p>Review scams, prohibited items, counterfeits, and misleading listings.</p>
+        </Link>
       </div>
 
       {/* Recent Orders Table */}

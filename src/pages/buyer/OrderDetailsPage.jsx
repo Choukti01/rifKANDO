@@ -168,6 +168,8 @@ const OrderDetailsPage = () => {
   const deliveryFee = isFindItOrder ? Number(order.items?.[0]?.delivery_fee || 0) : 0;
   const subtotal = order.items?.reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity)), 0) || Math.max(0, Number(order.total) - deliveryFee);
   const fulfillments = order.fulfillments || [];
+  const canCancelBeforePickup = fulfillments.length > 0
+    && fulfillments.every((fulfillment) => ['pending_confirmation', 'confirmed'].includes(fulfillment.status));
   const supportHref = `mailto:rifKANDO@gmail.com?subject=${encodeURIComponent(`[rifKANDO delivery support] ${order.order_number}`)}&body=${encodeURIComponent(`Order: ${order.order_number}\n\nDescribe the delivery issue and include any useful details.\n`)}`;
 
   return (
@@ -240,15 +242,15 @@ const OrderDetailsPage = () => {
               <span className="info-label">Payment Status:</span>
               <span className={`payment-status ${order.payment_status}`}>{getPaymentStatusText(order.payment_status)}</span>
             </div>
-            {/* Cancel button - only for pending orders */}
-            {order.status === 'pending' && (
+            {/* A buyer can withdraw until a delivery partner actually has the parcel. */}
+            {(order.status === 'pending' || canCancelBeforePickup) && (
               <div className="info-row">
                 <button
                   onClick={handleCancelOrder}
                   disabled={cancelling}
                   className="cancel-btn"
                 >
-                  {cancelling ? 'Cancelling...' : 'Cancel Order'}
+                  {cancelling ? 'Cancelling...' : 'Cancel before pickup'}
                 </button>
               </div>
             )}

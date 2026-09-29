@@ -438,13 +438,15 @@ class WalletService {
       throw new Error('COD fulfilment amounts do not reconcile.');
     }
     const expectedCodMinor = this.minor(grossMinor + deliveryMinor, { allowZero: true });
+    const confirmationHours = Math.min(168, Math.max(1, Number.parseInt(process.env.COD_SELLER_CONFIRMATION_HOURS || '24', 10) || 24));
+    const confirmationExpiresAt = new Date(Date.now() + (confirmationHours * 60 * 60 * 1000)).toISOString();
 
     const inserted = await tx.run(
       `INSERT INTO cod_fulfillments
         (order_id, seller_id, source, gross_amount, gross_amount_minor,
          customer_delivery_fee, customer_delivery_fee_minor, expected_cod_amount, expected_cod_amount_minor,
-         commission, commission_minor, seller_amount, seller_amount_minor)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         commission, commission_minor, seller_amount, seller_amount_minor, confirmation_expires_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         safeOrderId,
         safeSellerId,
@@ -453,7 +455,7 @@ class WalletService {
         Money.fromMinor(deliveryMinor), deliveryMinor,
         Money.fromMinor(expectedCodMinor), expectedCodMinor,
         Money.fromMinor(commissionMinor), commissionMinor,
-        Money.fromMinor(sellerMinor), sellerMinor,
+        Money.fromMinor(sellerMinor), sellerMinor, confirmationExpiresAt,
       ]
     );
     return inserted.lastID;
@@ -1024,7 +1026,15 @@ class WalletService {
         [safeOrderId, safeBuyerId]
       );
       if (!order) throw new Error('Order not found.');
-      if (order.status !== 'pending') throw new Error('Only pending orders can be cancelled.');
+      const fulfillments = await tx.all(
+        this.lockForUpdate('SELECT id, status FROM cod_fulfillments WHERE order_id = ? ORDER BY id ASC'),
+        [safeOrderId]
+      );
+      const canCancelBeforePickup = fulfillments.length > 0
+        && fulfillments.every((fulfillment) => ['pending_confirmation', 'confirmed'].includes(fulfillment.status));
+      if ((fulfillments.length > 0 && !canCancelBeforePickup) || (fulfillments.length === 0 && order.status !== 'pending')) {
+        throw new Error('This order can only be cancelled before the delivery partner picks it up.');
+      }
       if (order.payment_status === 'paid') {
         throw new Error('Paid orders must use the refund workflow.');
       }
@@ -1039,7 +1049,7 @@ class WalletService {
 
       const update = await tx.run(
         `UPDATE orders SET status = 'cancelled', payment_status = 'cancelled'
-         WHERE id = ? AND user_id = ? AND status = 'pending' AND payment_status != 'paid'`,
+         WHERE id = ? AND user_id = ? AND status IN ('pending', 'processing') AND payment_status != 'paid'`,
         [safeOrderId, safeBuyerId]
       );
       if (update.changes !== 1) throw new Error('Order was already updated.');
@@ -1064,12 +1074,12 @@ class WalletService {
          SET status = 'cancelled', settlement_status = 'void',
              cancelled_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP,
              exception_note = COALESCE(exception_note, 'Cancelled by buyer before dispatch.')
-         WHERE order_id = ? AND status = 'pending_confirmation'`,
+         WHERE order_id = ? AND status IN ('pending_confirmation', 'confirmed')`,
         [safeOrderId]
       );
       await tx.run(
         `INSERT INTO order_status_history (order_id, status, note, created_by)
-         VALUES (?, 'cancelled', 'Order cancelled by buyer before payment', ?)`,
+         VALUES (?, 'cancelled', 'Order cancelled by buyer before delivery-partner pickup', ?)`,
         [safeOrderId, safeBuyerId]
       );
       return { success: true };

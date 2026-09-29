@@ -103,6 +103,9 @@ db.serialize(() => {
       views INTEGER DEFAULT 0,
       status TEXT DEFAULT 'published',
       condition TEXT DEFAULT 'new',
+      origin_city TEXT DEFAULT '',
+      preparation_days INTEGER NOT NULL DEFAULT 1,
+      estimated_delivery_days INTEGER NOT NULL DEFAULT 3,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (seller_id) REFERENCES users(id)
     )
@@ -116,6 +119,15 @@ db.serialize(() => {
       console.log('✅ Added condition column to products table');
     }
   });
+  for (const [column, definition] of [
+    ['origin_city', "TEXT DEFAULT ''"],
+    ['preparation_days', 'INTEGER NOT NULL DEFAULT 1'],
+    ['estimated_delivery_days', 'INTEGER NOT NULL DEFAULT 3'],
+  ]) {
+    db.run(`ALTER TABLE products ADD COLUMN ${column} ${definition}`, (err) => {
+      if (err && !err.message.includes('duplicate column name')) console.error(`Error adding ${column} to products:`, err.message);
+    });
+  }
 
   // Product Media table
   db.run(`
@@ -144,6 +156,26 @@ db.serialize(() => {
       FOREIGN KEY (user_id) REFERENCES users(id)
     )
   `, (err) => { if (err) console.error('Error creating product_reviews:', err); else console.log('✅ product_reviews table ready'); });
+
+  // User-submitted listing reports remain private to the reporter and the
+  // moderation team. They never expose reporter identity to a seller.
+  db.run(`
+    CREATE TABLE IF NOT EXISTS product_reports (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      product_id INTEGER NOT NULL,
+      reporter_id INTEGER NOT NULL,
+      reason TEXT NOT NULL CHECK(reason IN ('scam', 'prohibited', 'misleading', 'counterfeit', 'other')),
+      details TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'dismissed', 'resolved')),
+      resolution_note TEXT,
+      reviewed_by INTEGER,
+      reviewed_at DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+      FOREIGN KEY (reporter_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (reviewed_by) REFERENCES users(id)
+    )
+  `, (err) => { if (err) console.error('Error creating product_reports:', err); else console.log('✅ product_reports table ready'); });
 
   // Cart table
   db.run(`
@@ -927,6 +959,7 @@ db.serialize(() => {
       commission_submitted_at DATETIME,
       commission_verified_at DATETIME,
       commission_verified_by INTEGER,
+      confirmation_expires_at DATETIME,
       confirmed_at DATETIME,
       dispatched_at DATETIME,
       delivered_at DATETIME,
@@ -1285,6 +1318,7 @@ db.serialize(() => {
     ['delivery_report_note', 'TEXT'],
     ['delivery_reported_at', 'DATETIME'],
     ['delivery_reported_by', 'INTEGER'],
+    ['confirmation_expires_at', 'DATETIME'],
   ];
   for (const [column, definition] of codFulfillmentCompatibilityColumns) {
     db.run(`ALTER TABLE cod_fulfillments ADD COLUMN ${column} ${definition}`, (err) => {
@@ -1389,6 +1423,7 @@ db.serialize(() => {
     ['idx_booking_availability_windows_schedule', 'booking_availability_windows(booking_id, weekday, start_time)'],
     ['idx_booking_date_overrides_schedule', 'booking_date_overrides(booking_id, date)'],
     ['idx_product_media_listing', 'product_media(product_id, display_order, id)'],
+    ['idx_product_reports_queue', 'product_reports(status, created_at ASC)'],
     ['idx_course_media_listing', 'course_media(course_id, display_order, id)'],
     ['idx_service_media_listing', 'service_media(service_id, display_order, id)'],
     ['idx_digital_media_listing', 'digital_media(digital_id, display_order, id)'],
@@ -1405,6 +1440,7 @@ db.serialize(() => {
     ['idx_cod_fulfillments_tracking', 'cod_fulfillments(carrier_name, tracking_number)'],
     ['idx_cod_fulfillments_commission_due', 'cod_fulfillments(seller_id, commission_payment_status, commission_due_at)'],
     ['idx_cod_fulfillments_seller_payout', 'cod_fulfillments(seller_payout_status, settlement_status, created_at ASC)'],
+    ['idx_cod_fulfillments_confirmation_deadline', 'cod_fulfillments(status, confirmation_expires_at ASC)'],
   ];
   for (const [name, definition] of queryIndexes) {
     db.run(`CREATE INDEX IF NOT EXISTS ${name} ON ${definition}`, (err) => {

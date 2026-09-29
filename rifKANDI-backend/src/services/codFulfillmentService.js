@@ -24,6 +24,49 @@ const getAmountMinor = (row, minorColumn, decimalColumn) => {
 };
 
 class CodFulfillmentService {
+  static confirmationWindowHours() {
+    return Math.min(168, Math.max(1, Number.parseInt(process.env.COD_SELLER_CONFIRMATION_HOURS || '24', 10) || 24));
+  }
+
+  static confirmationExpired(fulfillment, now = Date.now()) {
+    const deadline = fulfillment.confirmation_expires_at
+      ? Date.parse(fulfillment.confirmation_expires_at)
+      : Date.parse(fulfillment.created_at) + (this.confirmationWindowHours() * 60 * 60 * 1000);
+    return Number.isFinite(deadline) && deadline <= now;
+  }
+
+  // Safe to run from both a timer and request paths: each update is conditional
+  // and wrapped in the same serializable financial transaction as COD actions.
+  static async expirePendingConfirmations({ now = Date.now(), limit = 100 } = {}) {
+    const candidates = await WalletService.all(
+      `SELECT id, created_at, confirmation_expires_at FROM cod_fulfillments
+       WHERE status = 'pending_confirmation' ORDER BY created_at ASC LIMIT ?`,
+      [Math.max(1, Math.min(500, Number(limit) || 100))]
+    );
+    let expired = 0;
+    for (const candidate of candidates) {
+      if (!this.confirmationExpired(candidate, now)) continue;
+      const changed = await WalletService.withFinancialTransaction(async (tx) => {
+        const fulfillment = await this.getFulfillmentTx(tx, candidate.id);
+        if (!fulfillment || fulfillment.status !== 'pending_confirmation' || !this.confirmationExpired(fulfillment, now)) return false;
+        const update = await tx.run(
+          `UPDATE cod_fulfillments SET status = 'cancelled', settlement_status = 'void',
+             cancelled_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP, exception_note = ?
+           WHERE id = ? AND status = 'pending_confirmation'`,
+          [`Seller confirmation expired after ${this.confirmationWindowHours()} hours.`, fulfillment.id]
+        );
+        if (update.changes !== 1) return false;
+        await this.restoreSellerInventoryTx(tx, fulfillment.order_id, fulfillment.seller_id);
+        await this.addHistoryTx(tx, fulfillment.order_id, 'cancelled', `Seller confirmation expired after ${this.confirmationWindowHours()} hours.`, null);
+        await this.cancelFinancialSplitsIfTerminalTx(tx, fulfillment.order_id);
+        await this.syncOrderStateTx(tx, fulfillment.order_id);
+        return true;
+      });
+      if (changed) expired += 1;
+    }
+    return expired;
+  }
+
   static async getFulfillmentTx(tx, fulfillmentId, sellerId = null) {
     const where = sellerId === null ? 'f.id = ?' : 'f.id = ? AND f.seller_id = ?';
     const params = sellerId === null ? [fulfillmentId] : [fulfillmentId, sellerId];
@@ -128,6 +171,9 @@ class CodFulfillmentService {
       if (action === 'confirm') {
         if (fulfillment.status !== 'pending_confirmation') {
           throw new Error('Only a new COD order can be confirmed.');
+        }
+        if (this.confirmationExpired(fulfillment)) {
+          throw new Error('This COD order expired because it was not confirmed in time.');
         }
         await tx.run(
           `UPDATE cod_fulfillments
