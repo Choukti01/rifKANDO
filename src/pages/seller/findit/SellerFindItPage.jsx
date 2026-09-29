@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { CheckBadgeIcon, MapPinIcon, MagnifyingGlassIcon, PaperAirplaneIcon, TagIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { createFinditOffer, getFinditRequests, getSellerFinditOffers, withdrawFinditOffer } from '../../../services/api';
+import { getImageUrl } from '../../../utils/imageUtils';
 
 const defaultOffer = { title: '', description: '', price: '', delivery_fee: '', condition: 'new', estimated_delivery_days: 3 };
 const categoryKeys = { 'Auto & Parts': 'auto', 'Phones & Electronics': 'electronics', 'Home & Appliances': 'home', 'Tools & Equipment': 'tools', 'Fashion & Accessories': 'fashion', Other: 'other' };
@@ -105,7 +106,7 @@ const SellerFindItPage = () => {
                     <div className="seller-findit-request-top"><div><span>{category(request.category)}</span><h3>{request.title}</h3></div><small>{t('findit.public.expires', { date: formatExpiry(request.expires_at) })}</small></div>
                     <p>{request.description}</p>
                     <div className="seller-findit-request-facts"><span><MapPinIcon />{request.city}</span><span><TagIcon />{request.budget_max > 0 ? t('findit.seller.budgetUpTo', { amount: formatMoney(request.budget_max) }) : t('findit.seller.budgetOpen')}</span><span>{request.preferred_condition === 'any' ? t('findit.seller.anyCondition') : t('findit.seller.requestedCondition', { condition: status(request.preferred_condition) })}</span></div>
-                    {request.media?.length > 0 && <div className="seller-findit-media">{request.media.map((media) => <img key={media.media_url} src={media.media_url} alt={request.title} />)}</div>}
+                    {request.media?.length > 0 && <div className="seller-findit-media">{request.media.map((media) => <img key={media.media_url} src={getImageUrl(media.media_url)} alt={request.title} />)}</div>}
                     <footer>{ownOffer ? <span className={`seller-findit-existing ${ownOffer.status}`}>{t('findit.seller.yourSolution', { status: status(ownOffer.status) })}</span> : <button onClick={() => openOffer(request)}><PaperAirplaneIcon />{t('findit.seller.send')}</button>}<span>{t('findit.public.offer', { count: request.offer_count })}</span></footer>
                   </article>
                 );
