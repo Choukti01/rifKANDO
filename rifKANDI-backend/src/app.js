@@ -81,6 +81,7 @@ const { getCodDeliveryPartner, createSellerHandoffLink } = require('./services/d
 const FeatureFlags = require('./services/featureFlagService');
 const PasskeyService = require('./services/passkeyService');
 const { snapshot: getObservabilitySnapshot } = require('./services/observabilityService');
+const { requireCodReconciliationAccess } = require('./middleware/codReconciliationAccess');
 const {
   OTP_MAX_ATTEMPTS,
   OTP_MAX_SENDS_PER_HOUR,
@@ -3772,7 +3773,7 @@ app.post('/api/operations/cod-fulfillments/:id/report-delivery', protect, requir
 });
 
 // ==================== COD FINANCE CONTROL ====================
-app.get('/api/admin/cod-fulfillments', protect, requireFinance, async (req, res) => {
+app.get('/api/admin/cod-fulfillments', protect, requireCodReconciliationAccess, async (req, res) => {
   try {
     const fulfillments = await getDatabaseRows(`
       SELECT
@@ -3826,7 +3827,7 @@ app.get('/api/admin/cod-fulfillments', protect, requireFinance, async (req, res)
   }
 });
 
-app.post('/api/admin/cod-fulfillments/:id/confirm-delivery', protect, requireFinance, validateIdParams('id'), validateCodDeliveryConfirmation, async (req, res) => {
+app.post('/api/admin/cod-fulfillments/:id/confirm-delivery', protect, requireCodReconciliationAccess, validateIdParams('id'), validateCodDeliveryConfirmation, async (req, res) => {
   try {
     const result = await CodFulfillmentService.confirmSellerManagedDelivery({
       fulfillmentId: req.params.id,
@@ -3845,7 +3846,7 @@ app.post('/api/admin/cod-fulfillments/:id/confirm-delivery', protect, requireFin
   }
 });
 
-app.post('/api/admin/cod-fulfillments/:id/confirm-pickup', protect, requireFinance, validateIdParams('id'), validateCodPartnerPickup, async (req, res) => {
+app.post('/api/admin/cod-fulfillments/:id/confirm-pickup', protect, requireCodReconciliationAccess, validateIdParams('id'), validateCodPartnerPickup, async (req, res) => {
   try {
     const result = await CodFulfillmentService.confirmDeliveryPartnerPickup({
       fulfillmentId: req.params.id,
@@ -3864,7 +3865,7 @@ app.post('/api/admin/cod-fulfillments/:id/confirm-pickup', protect, requireFinan
   }
 });
 
-app.post('/api/admin/cod-fulfillments/:id/verify-commission', protect, requireFinance, validateIdParams('id'), validateCodDeliveryConfirmation, async (req, res) => {
+app.post('/api/admin/cod-fulfillments/:id/verify-commission', protect, requireCodReconciliationAccess, validateIdParams('id'), validateCodDeliveryConfirmation, async (req, res) => {
   try {
     const result = await CodFulfillmentService.verifySellerManagedCommission({
       fulfillmentId: req.params.id,
@@ -3883,7 +3884,7 @@ app.post('/api/admin/cod-fulfillments/:id/verify-commission', protect, requireFi
   }
 });
 
-app.post('/api/admin/cod-fulfillments/:id/record-collection', protect, requireFinance, validateIdParams('id'), validateCodCollection, async (req, res) => {
+app.post('/api/admin/cod-fulfillments/:id/record-collection', protect, requireCodReconciliationAccess, validateIdParams('id'), validateCodCollection, async (req, res) => {
   try {
     const result = await CodFulfillmentService.recordCollection({
       fulfillmentId: req.params.id,
@@ -3902,7 +3903,7 @@ app.post('/api/admin/cod-fulfillments/:id/record-collection', protect, requireFi
   }
 });
 
-app.post('/api/admin/cod-fulfillments/:id/record-remittance', protect, requireFinance, validateIdParams('id'), validateCodSettlement, async (req, res) => {
+app.post('/api/admin/cod-fulfillments/:id/record-remittance', protect, requireCodReconciliationAccess, validateIdParams('id'), validateCodSettlement, async (req, res) => {
   try {
     const result = await CodFulfillmentService.recordDeliveryPartnerRemittance({
       fulfillmentId: req.params.id,
@@ -3921,7 +3922,7 @@ app.post('/api/admin/cod-fulfillments/:id/record-remittance', protect, requireFi
   }
 });
 
-app.post('/api/admin/cod-fulfillments/:id/record-seller-payout', protect, requireFinance, validateIdParams('id'), validateCodSellerPayout, async (req, res) => {
+app.post('/api/admin/cod-fulfillments/:id/record-seller-payout', protect, requireCodReconciliationAccess, validateIdParams('id'), validateCodSellerPayout, async (req, res) => {
   try {
     const result = await CodFulfillmentService.recordManualSellerPayout({
       fulfillmentId: req.params.id,
@@ -3940,7 +3941,7 @@ app.post('/api/admin/cod-fulfillments/:id/record-seller-payout', protect, requir
   }
 });
 
-app.post('/api/admin/cod-fulfillments/:id/exception', protect, requireFinance, validateIdParams('id'), validateCodException, async (req, res) => {
+app.post('/api/admin/cod-fulfillments/:id/exception', protect, requireCodReconciliationAccess, validateIdParams('id'), validateCodException, async (req, res) => {
   try {
     const result = await CodFulfillmentService.recordException({
       fulfillmentId: req.params.id,
@@ -3959,7 +3960,7 @@ app.post('/api/admin/cod-fulfillments/:id/exception', protect, requireFinance, v
   }
 });
 
-app.get('/api/admin/cod-orders', protect, requireFinance, async (req, res) => {
+app.get('/api/admin/cod-orders', protect, requireCodReconciliationAccess, async (req, res) => {
   try {
     await AuditService.recordFromRequest(req, {
       action: 'finance.cod_orders_viewed',
@@ -4062,7 +4063,7 @@ app.post('/api/admin/cod-orders/:id/confirm', protect, requireFinance, async (re
 });
 */
 
-app.post('/api/admin/cod-orders/:id/confirm', protect, requireFinance, validateIdParams('id'), async (req, res) => {
+app.post('/api/admin/cod-orders/:id/confirm', protect, requireCodReconciliationAccess, validateIdParams('id'), async (req, res) => {
   return res.status(410).json({
     error: 'Direct COD settlement is no longer available. Record carrier collection and remittance on the COD fulfilment instead.',
   });

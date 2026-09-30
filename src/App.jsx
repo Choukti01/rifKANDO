@@ -167,7 +167,7 @@ function AppContent() {
                     </ProtectedRoute>
                   } />
                   <Route path="/admin/cod-reconciliation" element={
-                    <ProtectedRoute requiredRoles={['finance', 'admin', 'super_admin']}>
+                    <ProtectedRoute requiredCapability="canReconcileCod">
                       <CODReconciliation />
                     </ProtectedRoute>
                   } />

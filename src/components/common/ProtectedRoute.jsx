@@ -2,7 +2,7 @@ import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
 
-const ProtectedRoute = ({ children, requiredRole, requiredRoles }) => {
+const ProtectedRoute = ({ children, requiredRole, requiredRoles, requiredCapability }) => {
   const { isAuthenticated, user, loading } = useAuth();
   const location = useLocation();
 
@@ -25,6 +25,10 @@ const ProtectedRoute = ({ children, requiredRole, requiredRoles }) => {
     : (requiredRole ? [requiredRole] : []);
   const userRoles = new Set([user?.role, ...(Array.isArray(user?.roles) ? user.roles : [])].filter(Boolean));
   if (roles.length > 0 && !roles.some((role) => userRoles.has(role))) {
+    return <Navigate to="/" replace />;
+  }
+
+  if (requiredCapability && !user?.[requiredCapability]) {
     return <Navigate to="/" replace />;
   }
 
