@@ -77,11 +77,12 @@ const AuditService = require('./services/auditService');
 const Money = require('./services/moneyService');
 const CodFulfillmentService = require('./services/codFulfillmentService');
 const NotificationService = require('./services/notificationService');
-const { getCodDeliveryPartner, createSellerHandoffLink } = require('./services/deliveryPartnerService');
+const { getCodDeliveryPartner, getCodReconciliationControllers, createSellerHandoffLink } = require('./services/deliveryPartnerService');
 const FeatureFlags = require('./services/featureFlagService');
 const PasskeyService = require('./services/passkeyService');
 const { snapshot: getObservabilitySnapshot } = require('./services/observabilityService');
 const { requireCodReconciliationAccess } = require('./middleware/codReconciliationAccess');
+const { requireCodOperationsAccess } = require('./middleware/codOperationsAccess');
 const {
   OTP_MAX_ATTEMPTS,
   OTP_MAX_SENDS_PER_HOUR,
@@ -3668,7 +3669,7 @@ app.delete('/api/admin/operations-members/:id', protect, requireAdmin, validateI
 // The operations workspace is deliberately narrower than finance: it gives
 // Toufiq the parcel, buyer, seller, carrier, and status information needed to
 // do delivery work, without exposing settlement or bank-transfer controls.
-app.get('/api/operations/cod-fulfillments', protect, requireOperations, async (req, res) => {
+app.get('/api/operations/cod-fulfillments', protect, requireCodOperationsAccess, async (req, res) => {
   try {
     const fulfillments = await getDatabaseRows(`
       SELECT
@@ -3707,8 +3708,9 @@ app.get('/api/operations/cod-fulfillments', protect, requireOperations, async (r
   }
 });
 
-app.post('/api/operations/cod-fulfillments/:id/confirm-pickup', protect, requireOperations, validateIdParams('id'), validateCodPartnerPickup, async (req, res) => {
+app.post('/api/operations/cod-fulfillments/:id/confirm-pickup', protect, requireCodOperationsAccess, validateIdParams('id'), validateCodPartnerPickup, async (req, res) => {
   try {
+    const deliveryPartner = getCodDeliveryPartner();
     const result = await CodFulfillmentService.confirmDeliveryPartnerPickup({
       fulfillmentId: req.params.id,
       operationsUserId: req.user.id,
@@ -3725,7 +3727,7 @@ app.post('/api/operations/cod-fulfillments/:id/confirm-pickup', protect, require
         userId,
         kind: 'cod.picked_up',
         title: 'Parcel picked up',
-        body: `Toufiq confirmed pickup${result.fulfillment.carrier_name ? ` with ${result.fulfillment.carrier_name}` : ''}.`,
+        body: `${deliveryPartner.name} confirmed pickup${result.fulfillment.carrier_name ? ` with ${result.fulfillment.carrier_name}` : ''}.`,
         href: userId === result.fulfillment.seller_id ? '/seller/dashboard/orders' : `/orders/${result.fulfillment.order_id}`,
         metadata: { orderId: result.fulfillment.order_id, fulfillmentId: result.fulfillment.id },
       });
@@ -3736,8 +3738,9 @@ app.post('/api/operations/cod-fulfillments/:id/confirm-pickup', protect, require
   }
 });
 
-app.post('/api/operations/cod-fulfillments/:id/report-delivery', protect, requireOperations, validateIdParams('id'), validateCodDeliveryReport, async (req, res) => {
+app.post('/api/operations/cod-fulfillments/:id/report-delivery', protect, requireCodOperationsAccess, validateIdParams('id'), validateCodDeliveryReport, async (req, res) => {
   try {
+    const deliveryPartner = getCodDeliveryPartner();
     const result = await CodFulfillmentService.reportDeliveryOutcome({
       fulfillmentId: req.params.id,
       operationsUserId: req.user.id,
@@ -3750,9 +3753,9 @@ app.post('/api/operations/cod-fulfillments/:id/report-delivery', protect, requir
       metadata: { orderId: result.fulfillment.order_id, outcome: result.fulfillment.delivery_report_outcome },
     });
     const outcomeCopy = {
-      delivered: ['Delivery reported', 'Toufiq reported that the order was delivered.'],
-      refused: ['Delivery reported', 'Toufiq reported that the delivery was refused.'],
-      returned: ['Delivery reported', 'Toufiq reported that the parcel is being returned.'],
+      delivered: ['Delivery reported', `${deliveryPartner.name} reported that the order was delivered.`],
+      refused: ['Delivery reported', `${deliveryPartner.name} reported that the delivery was refused.`],
+      returned: ['Delivery reported', `${deliveryPartner.name} reported that the parcel is being returned.`],
     }[result.fulfillment.delivery_report_outcome];
     if (outcomeCopy) {
       for (const userId of [result.fulfillment.buyer_id, result.fulfillment.seller_id]) {
@@ -3807,6 +3810,10 @@ app.get('/api/admin/cod-fulfillments', protect, requireCodReconciliationAccess, 
       JOIN users buyer ON buyer.id = o.user_id
       JOIN users seller ON seller.id = f.seller_id
       LEFT JOIN findit_orders fo ON fo.order_id = o.id AND f.source = 'findit'
+      -- Reconciliation is an active cash-control queue. Voided fulfilments
+      -- remain available through immutable order history and audit records,
+      -- but must not distract the team from money that still needs action.
+      WHERE f.settlement_status <> 'void'
       ORDER BY
         CASE f.settlement_status
           WHEN 'awaiting_remittance' THEN 0
@@ -3817,11 +3824,11 @@ app.get('/api/admin/cod-fulfillments', protect, requireCodReconciliationAccess, 
         f.created_at ASC
     `, []);
     await AuditService.recordFromRequest(req, {
-      action: 'finance.cod_fulfillments_viewed',
+      action: 'finance.cod_reconciliation_viewed',
       resourceType: 'cod_fulfillment',
       metadata: { resultCount: fulfillments.length },
     });
-    return res.json({ success: true, fulfillments });
+    return res.json({ success: true, fulfillments, controllers: getCodReconciliationControllers() });
   } catch (error) {
     return res.status(500).json({ error: 'Unable to load COD fulfilments.', requestId: req.requestId });
   }
@@ -3854,7 +3861,7 @@ app.post('/api/admin/cod-fulfillments/:id/confirm-pickup', protect, requireCodRe
       ...req.body,
     });
     await AuditService.recordFromRequest(req, {
-      action: 'toufiq_cod.pickup_confirmed',
+      action: 'delivery_partner_cod.pickup_confirmed',
       resourceType: 'cod_fulfillment',
       resourceId: req.params.id,
       metadata: { orderId: result.fulfillment.order_id, carrier: result.fulfillment.carrier_name },
@@ -3892,7 +3899,7 @@ app.post('/api/admin/cod-fulfillments/:id/record-collection', protect, requireCo
       ...req.body,
     });
     await AuditService.recordFromRequest(req, {
-      action: 'toufiq_cod.collection_recorded',
+      action: 'delivery_partner_cod.collection_recorded',
       resourceType: 'cod_fulfillment',
       resourceId: req.params.id,
       metadata: { orderId: result.fulfillment.order_id, carrierReference: result.fulfillment.carrier_collection_reference },
@@ -3911,7 +3918,7 @@ app.post('/api/admin/cod-fulfillments/:id/record-remittance', protect, requireCo
       ...req.body,
     });
     await AuditService.recordFromRequest(req, {
-      action: 'toufiq_cod.remittance_recorded',
+      action: 'delivery_partner_cod.remittance_recorded',
       resourceType: 'cod_fulfillment',
       resourceId: req.params.id,
       metadata: { orderId: result.fulfillment.order_id, remittanceReference: result.fulfillment.carrier_settlement_reference },
@@ -3930,7 +3937,7 @@ app.post('/api/admin/cod-fulfillments/:id/record-seller-payout', protect, requir
       ...req.body,
     });
     await AuditService.recordFromRequest(req, {
-      action: 'toufiq_cod.seller_payout_recorded',
+      action: 'delivery_partner_cod.seller_payout_recorded',
       resourceType: 'cod_fulfillment',
       resourceId: req.params.id,
       metadata: { orderId: result.fulfillment.order_id, payoutReference: result.fulfillment.seller_payout_reference },

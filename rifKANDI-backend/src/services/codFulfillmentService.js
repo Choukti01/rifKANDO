@@ -648,10 +648,10 @@ class CodFulfillmentService {
         [safeReference]
       );
       if (duplicateReference && Number(duplicateReference.id) !== Number(fulfillment.id)) {
-        throw new Error('This Toufiq remittance reference is already linked to another fulfilment.');
+        throw new Error('This delivery-partner remittance reference is already linked to another fulfilment.');
       }
 
-      const operationKey = `toufiq-cod-remittance:${safeFulfillmentId}`;
+      const operationKey = `delivery-partner-cod-remittance:${safeFulfillmentId}`;
       const operation = await WalletService.createOperationTx(tx, {
         operationKey,
         operationType: 'delivery_partner_cod_remittance',
@@ -770,10 +770,10 @@ class CodFulfillmentService {
         throw new Error('This carrier exception is not allowed for the current fulfilment state.');
       }
       if (fulfillment.delivery_reported_at && fulfillment.delivery_report_outcome === 'delivered') {
-        throw new Error('Toufiq reported this parcel as delivered. Resolve the collection record before recording a delivery exception.');
+        throw new Error('The delivery partner reported this parcel as delivered. Resolve the collection record before recording a delivery exception.');
       }
       if (fulfillment.status === 'shipped' && fulfillment.delivery_reported_at && fulfillment.delivery_report_outcome !== status) {
-        throw new Error(`Toufiq reported this parcel as ${fulfillment.delivery_report_outcome}. Record the matching delivery exception first.`);
+        throw new Error(`The delivery partner reported this parcel as ${fulfillment.delivery_report_outcome}. Record the matching delivery exception first.`);
       }
       const update = await tx.run(
         `UPDATE cod_fulfillments

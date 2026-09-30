@@ -182,7 +182,7 @@ function AppContent() {
                     </ProtectedRoute>
                   } />
                   <Route path="/operations/cod" element={
-                    <ProtectedRoute requiredRoles={['operations', 'finance', 'admin', 'super_admin']}>
+                    <ProtectedRoute requiredCapability="canOperateCod">
                       <CODOperationsDesk />
                     </ProtectedRoute>
                   } />
