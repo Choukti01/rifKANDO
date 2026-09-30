@@ -7,10 +7,10 @@ const {
 } = require('../src/services/commissionPolicyService');
 
 const expectedRates = {
-  product: 7.5,
-  course: 9,
+  product: 5,
+  course: 5,
   service: 5,
-  digital: 7,
+  digital: 5,
   booking: 5,
   findit: 5,
 };
@@ -19,10 +19,10 @@ assert.deepEqual(
   Object.fromEntries(Object.entries(COMMISSION_RATES).map(([type, rate]) => [type, rate.percent])),
   expectedRates
 );
-assert.equal(calculateCommissionMinor('product', 20_000), 1_500);
-assert.equal(calculateCommissionMinor('course', 20_000), 1_800);
+assert.equal(calculateCommissionMinor('product', 20_000), 1_000);
+assert.equal(calculateCommissionMinor('course', 20_000), 1_000);
 assert.equal(calculateCommissionMinor('service', 20_000), 1_000);
-assert.equal(calculateCommissionMinor('digital', 20_000), 1_400);
+assert.equal(calculateCommissionMinor('digital', 20_000), 1_000);
 assert.equal(calculateCommissionMinor('booking', 20_000), 1_000);
 assert.equal(calculateCommissionMinor('findit', 20_000), 1_000);
 

@@ -1,0 +1,12 @@
+{
+  "currency": "MAD",
+  "withdrawalHoldDays": 14,
+  "commissionRates": {
+    "product": 5,
+    "course": 5,
+    "service": 5,
+    "digital": 5,
+    "booking": 5,
+    "findit": 5
+  }
+}
