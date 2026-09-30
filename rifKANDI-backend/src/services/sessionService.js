@@ -2,6 +2,7 @@ const crypto = require('node:crypto');
 const jwt = require('jsonwebtoken');
 const db = require('../config/database');
 const { canAccessCodReconciliation } = require('../middleware/codReconciliationAccess');
+const { canAccessCodOperations } = require('../middleware/codOperationsAccess');
 
 const ACCESS_COOKIE = 'rifkando_access';
 const REFRESH_COOKIE = 'rifkando_refresh';
@@ -74,6 +75,7 @@ const publicUser = (user) => ({
   country: user.country,
   profilePicture: user.profilePicture,
   canReconcileCod: canAccessCodReconciliation(user),
+  canOperateCod: canAccessCodOperations(user),
 });
 
 const issueAccessToken = (userId, sessionId) => jwt.sign(

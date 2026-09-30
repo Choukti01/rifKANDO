@@ -10,6 +10,11 @@ const DEFAULT_PARTNER = Object.freeze({
   carrierNetwork: 'Najm Chamal and Ghazala',
 });
 
+const DEFAULT_RECONCILIATION_CONTROLLERS = Object.freeze([
+  'Abdelouahed Choukti',
+  'Mohamed Hadad',
+]);
+
 const normalizedWhatsAppNumber = (value) => {
   const valueDigits = digits(value);
   if (!valueDigits) return DEFAULT_PARTNER.whatsappNumber;
@@ -25,6 +30,17 @@ const getCodDeliveryPartner = () => ({
   carrierNetwork: String(process.env.COD_DELIVERY_PARTNER_NETWORK || DEFAULT_PARTNER.carrierNetwork).trim() || DEFAULT_PARTNER.carrierNetwork,
 });
 
+// Names are presentation metadata only. Actual reconciliation permission is
+// enforced independently by COD_RECONCILIATION_ALLOWED_EMAILS.
+const getCodReconciliationControllers = () => {
+  const configured = String(process.env.COD_RECONCILIATION_CONTROLLER_NAMES || '')
+    .split(',')
+    .map((name) => name.trim())
+    .filter(Boolean)
+    .slice(0, 6);
+  return configured.length > 0 ? configured : [...DEFAULT_RECONCILIATION_CONTROLLERS];
+};
+
 const createSellerHandoffLink = ({ orderNumber, itemTitle }) => {
   const partner = getCodDeliveryPartner();
   const safeOrderNumber = String(orderNumber || '').replace(/[^A-Za-z0-9-]/g, '').slice(0, 64);
@@ -35,6 +51,7 @@ const createSellerHandoffLink = ({ orderNumber, itemTitle }) => {
 
 module.exports = {
   getCodDeliveryPartner,
+  getCodReconciliationControllers,
   createSellerHandoffLink,
 };
 

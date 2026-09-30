@@ -112,9 +112,9 @@ const CODOperationsDesk = () => {
     <main className="cod-ops">
       <header className="cod-ops__header">
         <div>
-          <span>{t('codOps.eyebrow')}</span>
+          <span>{t('codOps.eyebrow')} · Delivery control</span>
           <h1>{t('codOps.title')}</h1>
-          <p>{t('codOps.lead')}</p>
+          <p><strong>Operations lead: {partner?.name || 'Toufiq Zariohi'}</strong></p><p>{t('codOps.lead')}</p>
         </div>
         <button type="button" onClick={() => void loadQueue()}>{t('codOps.refresh')}</button>
       </header>

@@ -6,9 +6,9 @@ const money = (value) => `${Number(value || 0).toLocaleString()} MAD`;
 const remittanceDue = (item) => Math.max(0, Number(item.collected_amount || 0) - Number(item.carrier_delivery_fee || 0));
 
 const stageLabel = (item) => {
-  if (item.status === 'confirmed') return item.delivery_partner_contacted_at ? 'Awaiting Toufiq pickup' : 'Seller has not contacted Toufiq';
+  if (item.status === 'confirmed') return item.delivery_partner_contacted_at ? 'Awaiting delivery-partner pickup' : 'Seller has not requested pickup';
   if (item.status === 'shipped') return 'Awaiting buyer delivery and collection';
-  if (item.status === 'delivered' && item.settlement_status === 'awaiting_remittance') return 'Awaiting Toufiq remittance';
+  if (item.status === 'delivered' && item.settlement_status === 'awaiting_remittance') return 'Awaiting delivery-partner remittance';
   if (item.seller_payout_status === 'due') return 'Seller payout due';
   if (item.seller_payout_status === 'paid') return 'Seller payout recorded';
   if (item.settlement_status === 'void') return 'Voided';
@@ -20,11 +20,13 @@ const CODReconciliation = () => {
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(null);
   const [forms, setForms] = useState({});
+  const [controllers, setControllers] = useState(['Abdelouahed Choukti', 'Mohamed Hadad']);
 
   const loadFulfillments = async () => {
     try {
       const response = await api.get('/admin/cod-fulfillments');
       setFulfillments(response.data.fulfillments || []);
+      setControllers(response.data.controllers?.length ? response.data.controllers : ['Abdelouahed Choukti', 'Mohamed Hadad']);
     } catch (error) {
       console.error('COD reconciliation could not be loaded:', error);
       toast.error(error.response?.data?.error || 'Unable to load COD reconciliation.');
@@ -52,7 +54,7 @@ const CODReconciliation = () => {
     if (action === 'pickup') return {
       path: `/admin/cod-fulfillments/${item.fulfillment_id}/confirm-pickup`,
       payload: { carrierName, trackingNumber: String(form.trackingNumber || '').trim(), note: form.pickupNote || '' },
-      success: 'Toufiq pickup and carrier tracking recorded.',
+      success: 'Delivery-partner pickup and carrier tracking recorded.',
     };
     if (action === 'collection') return {
       path: `/admin/cod-fulfillments/${item.fulfillment_id}/record-collection`,
@@ -72,7 +74,7 @@ const CODReconciliation = () => {
         remittedAmount: form.remittedAmount === undefined ? remittanceDue(item) : Number(form.remittedAmount),
         note: form.remittanceNote || '',
       },
-      success: 'Toufiq remittance recorded. Seller payout is now due.',
+      success: 'Delivery-partner remittance recorded. Seller payout is now due.',
     };
     if (action === 'payout') return {
       path: `/admin/cod-fulfillments/${item.fulfillment_id}/record-seller-payout`,
@@ -106,8 +108,8 @@ const CODReconciliation = () => {
       return;
     }
     const confirmations = {
-      collection: `Record ${money(item.expected_cod_amount)} as cash collected for ${item.order_number}? Confirm only after Toufiq has verified the buyer paid.`,
-      remittance: `Record ${money(remittanceDue(item))} as received from Toufiq for ${item.order_number}? Confirm the money is in rifKANDO's possession first.`,
+      collection: `Record ${money(item.expected_cod_amount)} as cash collected for ${item.order_number}? Confirm only after the delivery partner has verified the buyer paid.`,
+      remittance: `Record ${money(remittanceDue(item))} as received from the delivery partner for ${item.order_number}? Confirm the money is in rifKANDO's possession first.`,
       payout: `Record the seller payout of ${money(item.seller_amount)} for ${item.order_number}? Confirm the bank transfer has already been sent.`,
       exception: `Record this ${form.exceptionStatus || 'refused'} exception for ${item.order_number}? This voids its COD settlement.`,
     };
@@ -130,7 +132,7 @@ const CODReconciliation = () => {
   return (
     <main className="cod-finance">
       <header className="cod-finance__header">
-        <div><span>Finance control</span><h1>Toufiq COD control</h1><p>Record real-world proof in order: seller pickup request, Toufiq pickup and tracking, buyer collection, Toufiq remittance, then the real seller bank payout. Each financial action is auditable and idempotent.</p></div>
+        <div><span>Restricted reconciliation control</span><h1>COD reconciliation</h1><p><strong>Accountable controllers: {controllers.join(' · ')}</strong></p><p>Record verified evidence in order: seller handoff, delivery-partner tracking, buyer collection, remittance, then the real seller bank payout. Each financial action is auditable and idempotent.</p></div>
         <button type="button" onClick={() => void loadFulfillments()}>Refresh</button>
       </header>
 
@@ -144,14 +146,14 @@ const CODReconciliation = () => {
           const exceptionBusy = processing === `${item.fulfillment_id}:exception`;
           return <article className="cod-finance__card" key={item.fulfillment_id}>
             <div className="cod-finance__topline"><div><div className="cod-finance__order">{item.order_number} <span>{item.source === 'findit' ? 'FINDit' : 'Product'}</span></div><p>{item.item_title || 'Order item'} · Buyer: {item.buyer_name} · Seller: {item.seller_name}</p></div><strong className={`cod-finance__stage ${item.settlement_status}`}>{stageLabel(item)}</strong></div>
-            <dl className="cod-finance__amounts"><div><dt>Buyer pays</dt><dd>{money(item.expected_cod_amount)}</dd></div><div><dt>Toufiq keeps</dt><dd>{money(item.carrier_delivery_fee || item.customer_delivery_fee)}</dd></div><div><dt>rifKANDO commission</dt><dd>{money(item.commission)}</dd></div><div><dt>Seller payout</dt><dd>{money(item.seller_amount)}</dd></div></dl>
+            <dl className="cod-finance__amounts"><div><dt>Buyer pays</dt><dd>{money(item.expected_cod_amount)}</dd></div><div><dt>Delivery fee</dt><dd>{money(item.carrier_delivery_fee || item.customer_delivery_fee)}</dd></div><div><dt>rifKANDO commission</dt><dd>{money(item.commission)}</dd></div><div><dt>Seller payout</dt><dd>{money(item.seller_amount)}</dd></div></dl>
 
-            {isConfirmed && <section className="cod-finance__workflow"><h2>1. Confirm Toufiq pickup</h2>{!item.delivery_partner_contacted_at ? <p>Wait for the seller to use the Toufiq WhatsApp handoff button. Do not invent a pickup record.</p> : <><p>Seller requested pickup {new Date(item.delivery_partner_contacted_at).toLocaleString()}. After Toufiq has the parcel, record the carrier and its tracking number.</p><div className="cod-finance__fields"><label>Carrier<select value={form.carrierName || ''} onChange={(event) => updateForm(item, 'carrierName', event.target.value)}><option value="">Select carrier</option><option value="Najm Chamal">Najm Chamal</option><option value="Ghazala">Ghazala</option><option value="Other">Other</option></select></label>{form.carrierName === 'Other' && <label>Carrier name<input value={form.otherCarrierName || ''} onChange={(event) => updateForm(item, 'otherCarrierName', event.target.value)} placeholder="Actual carrier name" /></label>}<label>Carrier tracking<input value={form.trackingNumber || ''} onChange={(event) => updateForm(item, 'trackingNumber', event.target.value)} placeholder="Tracking number" /></label><label>Pickup note<input value={form.pickupNote || ''} onChange={(event) => updateForm(item, 'pickupNote', event.target.value)} placeholder="Optional handoff evidence" /></label></div><button disabled={processing === `${item.fulfillment_id}:pickup`} onClick={() => submit(item, 'pickup')}>{processing === `${item.fulfillment_id}:pickup` ? 'Recording…' : 'Confirm pickup'}</button></>}</section>}
+            {isConfirmed && <section className="cod-finance__workflow"><h2>1. Confirm delivery-partner pickup</h2>{!item.delivery_partner_contacted_at ? <p>Wait for the seller to use the delivery-partner handoff button. Do not invent a pickup record.</p> : <><p>Seller requested pickup {new Date(item.delivery_partner_contacted_at).toLocaleString()}. After the delivery partner has the parcel, record the carrier and its tracking number.</p><div className="cod-finance__fields"><label>Carrier<select value={form.carrierName || ''} onChange={(event) => updateForm(item, 'carrierName', event.target.value)}><option value="">Select carrier</option><option value="Najm Chamal">Najm Chamal</option><option value="Ghazala">Ghazala</option><option value="Other">Other</option></select></label>{form.carrierName === 'Other' && <label>Carrier name<input value={form.otherCarrierName || ''} onChange={(event) => updateForm(item, 'otherCarrierName', event.target.value)} placeholder="Actual carrier name" /></label>}<label>Carrier tracking<input value={form.trackingNumber || ''} onChange={(event) => updateForm(item, 'trackingNumber', event.target.value)} placeholder="Tracking number" /></label><label>Pickup note<input value={form.pickupNote || ''} onChange={(event) => updateForm(item, 'pickupNote', event.target.value)} placeholder="Optional handoff evidence" /></label></div><button disabled={processing === `${item.fulfillment_id}:pickup`} onClick={() => submit(item, 'pickup')}>{processing === `${item.fulfillment_id}:pickup` ? 'Recording…' : 'Confirm pickup'}</button></>}</section>}
 
-            {item.carrier_name && <p className="cod-finance__tracking">Toufiq · {item.carrier_name} · {item.tracking_number}</p>}
-            {isShipped && <section className="cod-finance__workflow"><h2>2. Record delivery and cash collection</h2><p>Only after Toufiq confirms the buyer received the parcel and paid cash. The collected amount and delivery fee are locked to the amounts accepted at checkout.</p><div className="cod-finance__fields"><label>Collection reference<input value={form.collectionReference || ''} onChange={(event) => updateForm(item, 'collectionReference', event.target.value)} placeholder="Carrier or receipt reference" /></label><label>Collected MAD<input type="number" value={item.expected_cod_amount ?? 0} readOnly aria-label="COD amount accepted by the buyer" /></label><label>Toufiq fee MAD<input type="number" value={item.customer_delivery_fee ?? 0} readOnly aria-label="Delivery fee accepted by the buyer" /></label><label>Note<input value={form.collectionNote || ''} onChange={(event) => updateForm(item, 'collectionNote', event.target.value)} placeholder="Optional delivery proof" /></label></div><button disabled={processing === `${item.fulfillment_id}:collection`} onClick={() => submit(item, 'collection')}>{processing === `${item.fulfillment_id}:collection` ? 'Recording…' : 'Record collection'}</button><ExceptionControls item={item} form={form} updateForm={updateForm} submit={submit} busy={exceptionBusy} /></section>}
+            {item.carrier_name && <p className="cod-finance__tracking">Delivery partner · {item.carrier_name} · {item.tracking_number}</p>}
+            {isShipped && <section className="cod-finance__workflow"><h2>2. Record delivery and cash collection</h2><p>Only after the delivery partner confirms the buyer received the parcel and paid cash. The collected amount and delivery fee are locked to the amounts accepted at checkout.</p><div className="cod-finance__fields"><label>Collection reference<input value={form.collectionReference || ''} onChange={(event) => updateForm(item, 'collectionReference', event.target.value)} placeholder="Carrier or receipt reference" /></label><label>Collected MAD<input type="number" value={item.expected_cod_amount ?? 0} readOnly aria-label="COD amount accepted by the buyer" /></label><label>Delivery fee MAD<input type="number" value={item.customer_delivery_fee ?? 0} readOnly aria-label="Delivery fee accepted by the buyer" /></label><label>Note<input value={form.collectionNote || ''} onChange={(event) => updateForm(item, 'collectionNote', event.target.value)} placeholder="Optional delivery proof" /></label></div><button disabled={processing === `${item.fulfillment_id}:collection`} onClick={() => submit(item, 'collection')}>{processing === `${item.fulfillment_id}:collection` ? 'Recording…' : 'Record collection'}</button><ExceptionControls item={item} form={form} updateForm={updateForm} submit={submit} busy={exceptionBusy} /></section>}
 
-            {awaitingRemittance && <section className="cod-finance__workflow"><h2>3. Record Toufiq remittance to rifKANDO</h2><p>Expected after Toufiq’s recorded fee: <strong>{money(remittanceDue(item))}</strong>. Confirm the money is actually received before recording it.</p><div className="cod-finance__fields"><label>Remittance reference<input value={form.remittanceReference || ''} onChange={(event) => updateForm(item, 'remittanceReference', event.target.value)} placeholder="Cash receipt or bank reference" /></label><label>Received MAD<input type="number" value={remittanceDue(item)} readOnly aria-label="Amount Toufiq must remit" /></label><label>Note<input value={form.remittanceNote || ''} onChange={(event) => updateForm(item, 'remittanceNote', event.target.value)} placeholder="Optional reconciliation note" /></label></div><button disabled={processing === `${item.fulfillment_id}:remittance`} onClick={() => submit(item, 'remittance')}>{processing === `${item.fulfillment_id}:remittance` ? 'Recording…' : 'Record remittance'}</button></section>}
+            {awaitingRemittance && <section className="cod-finance__workflow"><h2>3. Record delivery-partner remittance to rifKANDO</h2><p>Expected after the recorded delivery fee: <strong>{money(remittanceDue(item))}</strong>. Confirm the money is actually received before recording it.</p><div className="cod-finance__fields"><label>Remittance reference<input value={form.remittanceReference || ''} onChange={(event) => updateForm(item, 'remittanceReference', event.target.value)} placeholder="Cash receipt or bank reference" /></label><label>Received MAD<input type="number" value={remittanceDue(item)} readOnly aria-label="Amount the delivery partner must remit" /></label><label>Note<input value={form.remittanceNote || ''} onChange={(event) => updateForm(item, 'remittanceNote', event.target.value)} placeholder="Optional reconciliation note" /></label></div><button disabled={processing === `${item.fulfillment_id}:remittance`} onClick={() => submit(item, 'remittance')}>{processing === `${item.fulfillment_id}:remittance` ? 'Recording…' : 'Record remittance'}</button></section>}
 
             {payoutDue && <section className="cod-finance__workflow"><h2>4. Record seller payout</h2><p>Send exactly <strong>{money(item.seller_amount)}</strong> to the seller outside rifKANDO, then record the real transfer reference. rifKANDO retains the 5% commission automatically in the reconciliation record.</p><div className="cod-finance__fields"><label>Seller transfer reference<input value={form.payoutReference || ''} onChange={(event) => updateForm(item, 'payoutReference', event.target.value)} placeholder="Attijari transfer reference" /></label><label>Note<input value={form.payoutNote || ''} onChange={(event) => updateForm(item, 'payoutNote', event.target.value)} placeholder="Optional payout note" /></label></div><button disabled={processing === `${item.fulfillment_id}:payout`} onClick={() => submit(item, 'payout')}>{processing === `${item.fulfillment_id}:payout` ? 'Recording…' : 'Record seller payout'}</button></section>}
 
