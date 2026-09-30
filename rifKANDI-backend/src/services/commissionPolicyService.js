@@ -1,4 +1,7 @@
-const commissionPolicy = require('../../../commission-policy.json');
+// Keep the backend policy inside the deployable backend package. Railway builds
+// this directory as an isolated service, so reaching into the repository root
+// would leave the runtime without its financial policy.
+const commissionPolicy = require('../config/commission-policy.json');
 
 const BASIS_POINTS_PER_PERCENT = 100;
 const BASIS_POINTS_DENOMINATOR = 10_000;
