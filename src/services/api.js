@@ -2,6 +2,7 @@ import axios from 'axios';
 import { API_URL } from '../config/apiUrl';
 
 const unsafeMethods = new Set(['post', 'put', 'patch', 'delete']);
+const offlineActionMessage = 'rifKANDO is temporarily unavailable for live actions. You can keep browsing and try again shortly.';
 const nonRefreshableAuthPaths = [
   '/auth/login',
   '/auth/register',
@@ -69,6 +70,17 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+    // Browsing must stay available when the personal-PC origin is offline.
+    // Give every write action one consistent, safe message rather than letting
+    // individual screens expose a browser-specific network error.
+    if (!error.response && unsafeMethods.has(String(originalRequest?.method || '').toLowerCase())) {
+      error.response = {
+        status: 503,
+        data: { error: offlineActionMessage },
+        headers: {},
+        config: originalRequest,
+      };
+    }
     if (error.response?.status !== 401 || !isRefreshableRequest(originalRequest)) {
       if (error.response?.status === 401 && !originalRequest?._skipSessionExpiryEvent) {
         expireClientSession();

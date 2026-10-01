@@ -77,7 +77,7 @@ import { FavoritesProvider } from './contexts/FavoritesContext'
 import ProtectedRoute from './components/common/ProtectedRoute'
 import PageTransition from './components/common/PageTransition'
 import UnderDevelopment from './components/common/UnderDevelopment'
-import MarketplaceClosed from './components/common/MarketplaceClosed'
+import MarketplaceBrowsingNotice from './components/common/MarketplaceBrowsingNotice'
 import NotFoundPage from './components/common/NotFoundPage'
 import { API_ORIGIN } from './config/apiUrl'
 
@@ -131,15 +131,13 @@ function AppContent() {
     return () => { active = false; window.clearInterval(timer) }
   }, [availabilityAttempt])
 
-  if (apiAvailable === null) return <PageLoadingFallback />
-  if (!apiAvailable) return <MarketplaceClosed onRetry={() => { setApiAvailable(null); setAvailabilityAttempt((attempt) => attempt + 1) }} />
-
   return (
       <AuthProvider>
         <CartProvider>
           <FavoritesProvider>
             <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
               <Navbar />
+              {apiAvailable === false && <MarketplaceBrowsingNotice onRetry={() => { setApiAvailable(null); setAvailabilityAttempt((attempt) => attempt + 1) }} />}
               <main className="app-main">
                 <AnimatePresence mode="wait" initial={false}>
                   <PageTransition key={location.pathname}>
