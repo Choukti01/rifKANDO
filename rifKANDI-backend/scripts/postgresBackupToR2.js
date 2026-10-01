@@ -74,6 +74,10 @@ function buildPgDumpOptions(connectionString, destination) {
       TMP: process.env.TMP,
       PGPASSWORD: decodeURIComponent(url.password),
       PGSSLMODE: sslMode,
+      // PostgreSQL clients on Windows need an explicit trust source for
+      // verify-full connections. Keep certificate verification enabled while
+      // selecting a URL, configured CA bundle, or the system trust store.
+      PGSSLROOTCERT: url.searchParams.get('sslrootcert') || process.env.PGSSLROOTCERT || (process.platform === 'win32' ? 'system' : undefined),
       PGCHANNELBINDING: url.searchParams.get('channel_binding') || undefined,
     },
   };
