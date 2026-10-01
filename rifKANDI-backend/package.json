@@ -49,7 +49,8 @@
     "db:postgres:preflight": "node scripts/postgresPreflight.js --target-only",
     "db:postgres:import-sqlite": "node scripts/importSqliteToPostgres.js",
     "backup:db": "node scripts/backupDatabase.js",
-    "backup:postgres:r2": "node --use-system-ca scripts/postgresBackupToR2.js"
+    "backup:postgres:r2": "node --use-system-ca scripts/postgresBackupToR2.js",
+    "load:catalog:local": "node scripts/loadTestCatalog.js"
   },
   "overrides": {
     "brace-expansion": "5.0.9",
