@@ -363,6 +363,8 @@ Object.assign(resources.en.translation, {
   availability: {
     title: 'Marketplace temporarily unavailable',
     description: 'We cannot reach the rifKANDO marketplace service right now. No data has been changed. Please try again in a moment.',
+    browseTitle: 'Browsing mode is on.',
+    browseDescription: 'You can explore rifKANDO, but live actions such as sign-in, publishing, cart, and checkout will return when the service reconnects.',
     retry: 'Try again',
     liveData: 'Live data temporarily unavailable',
     productsAvailable: 'Products available',
@@ -376,6 +378,8 @@ Object.assign(resources.fr.translation, {
   availability: {
     title: 'Place de marché temporairement indisponible',
     description: 'Le service de place de marché rifKANDO est momentanément inaccessible. Aucune donnée n’a été modifiée. Réessayez dans un instant.',
+    browseTitle: 'Mode consultation activé.',
+    browseDescription: 'Vous pouvez explorer rifKANDO, mais les actions en direct, comme la connexion, la publication, le panier et la commande, reviendront dès que le service sera reconnecté.',
     retry: 'Réessayer',
     liveData: 'Données en direct temporairement indisponibles',
     productsAvailable: 'Produits disponibles',
@@ -389,6 +393,8 @@ Object.assign(resources.ar.translation, {
   availability: {
     title: 'سوق rifKANDO غير متاح مؤقتًا',
     description: 'يتعذر الاتصال بخدمة سوق rifKANDO الآن. لم يتم تغيير أي بيانات. يُرجى المحاولة مرة أخرى بعد قليل.',
+    browseTitle: 'وضع التصفح مفعّل.',
+    browseDescription: 'يمكنك استكشاف rifKANDO، لكن الإجراءات المباشرة مثل تسجيل الدخول والنشر والسلة وإتمام الطلب ستعود عند عودة الاتصال بالخدمة.',
     retry: 'حاول مرة أخرى',
     liveData: 'البيانات المباشرة غير متاحة مؤقتًا',
     productsAvailable: 'المنتجات المتاحة',

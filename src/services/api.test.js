@@ -6,6 +6,7 @@ import api, {
 } from './api';
 
 const runRequestInterceptor = (config) => api.interceptors.request.handlers[0].fulfilled(config);
+const runResponseErrorInterceptor = (error) => api.interceptors.response.handlers[0].rejected(error);
 
 describe('browser API client security boundary', () => {
   beforeEach(() => {
@@ -50,5 +51,16 @@ describe('browser API client security boundary', () => {
     await getProducts();
 
     expect(get).toHaveBeenCalledWith('/products');
+  });
+
+  it('gives offline write actions a clear, safe message', async () => {
+    const error = { config: { method: 'post', url: '/cart' } };
+
+    await expect(runResponseErrorInterceptor(error)).rejects.toMatchObject({
+      response: {
+        status: 503,
+        data: { error: 'rifKANDO is temporarily unavailable for live actions. You can keep browsing and try again shortly.' },
+      },
+    });
   });
 });
