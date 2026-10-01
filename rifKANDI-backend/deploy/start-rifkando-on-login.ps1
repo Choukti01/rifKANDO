@@ -7,6 +7,10 @@ $backendLog = 'C:\rifkando-data\backend.log'
 $backendErrorLog = 'C:\rifkando-data\backend.error.log'
 $tunnelLog = 'C:\rifkando-data\cloudflared-api.log'
 $tunnelErrorLog = 'C:\rifkando-data\cloudflared-api.error.log'
+$backupLog = 'C:\rifkando-data\postgres-backup.log'
+$backupErrorLog = 'C:\rifkando-data\postgres-backup.error.log'
+$backupStatePath = 'C:\rifkando-data\postgres-backup-state.json'
+$backupRunner = Join-Path $backendRoot 'scripts\windows\runPostgresBackup.ps1'
 $tunnelConfig = 'C:\ProgramData\cloudflared\rifkando-api-origin.yml'
 $watchdogMutex = New-Object System.Threading.Mutex($false, 'Global\rifKANDOProductionWatchdog')
 
@@ -36,6 +40,31 @@ function Ensure-rifKANDOProductionProcesses {
       -WindowStyle Hidden `
       -RedirectStandardOutput $tunnelLog `
       -RedirectStandardError $tunnelErrorLog
+  }
+
+  # Task Scheduler can be unavailable on a personal Windows installation.
+  # The production watchdog is already always running while this local origin
+  # is available, so it safely owns the once-daily backup fallback.
+  $now = Get-Date
+  $today = $now.ToString('yyyy-MM-dd')
+  $backupSlot = $now.Date.AddHours(2).AddMinutes(30)
+  $backupState = @{}
+  if (Test-Path -LiteralPath $backupStatePath) {
+    try { $backupState = Get-Content -LiteralPath $backupStatePath -Raw | ConvertFrom-Json -AsHashtable } catch { $backupState = @{} }
+  }
+  $backupProcess = Get-CimInstance Win32_Process -Filter "Name = 'powershell.exe'" -ErrorAction SilentlyContinue |
+    Where-Object { $_.CommandLine -like "*$backupRunner*" }
+  $lastAttempt = [DateTime]::MinValue
+  $hasLastAttempt = $backupState.lastAttemptAt -and [DateTime]::TryParse($backupState.lastAttemptAt, [ref]$lastAttempt)
+  if (-not $hasLastAttempt) { $lastAttempt = $null }
+  $attemptedRecently = $lastAttempt -and (([DateTime]::UtcNow - $lastAttempt.ToUniversalTime()).TotalMinutes -lt 60)
+
+  if ($now -ge $backupSlot -and $backupState.successfulDate -ne $today -and -not $backupProcess -and -not $attemptedRecently) {
+    Start-Process -FilePath 'powershell.exe' `
+      -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $backupRunner, '-BackendRoot', $backendRoot, '-StatePath', $backupStatePath) `
+      -WindowStyle Hidden `
+      -RedirectStandardOutput $backupLog `
+      -RedirectStandardError $backupErrorLog
   }
 }
 
