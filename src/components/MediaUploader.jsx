@@ -82,11 +82,10 @@ const MediaUploader = ({
       const formData = new FormData();
       formData.append('media', file);
       try {
-        // The shared API client defaults to JSON for normal requests. Declare
-        // multipart explicitly so browser uploads retain their boundary and
-        // Multer receives the selected file rather than an empty request.
+        // Do not set Content-Type ourselves. The browser must add the
+        // multipart boundary for FormData; manually forcing this header can
+        // leave Multer with an unreadable request on some browsers.
         const response = await api.post('/upload-media', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
           onUploadProgress: (progressEvent) => {
             if (!progressEvent.total) return;
             setUploadProgress(Math.min(100, Math.round((progressEvent.loaded / progressEvent.total) * 100)));

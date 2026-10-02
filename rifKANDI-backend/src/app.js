@@ -1291,10 +1291,17 @@ const mediaUpload = multer({
     // example image/jpg versus image/jpeg). Sharp still validates the real
     // image bytes before storage, so accepting the image family here is safe.
     const extension = path.extname(file.originalname || '').slice(1).toLowerCase();
-    const supportedExtension = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'avif', 'heic', 'heif', 'mp4', 'm4v', 'mov', 'webm'].includes(extension);
+    const supportedImageExtension = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'avif', 'heic', 'heif'].includes(extension);
+    const supportedVideoExtension = ['mp4', 'm4v', 'mov', 'webm'].includes(extension);
+    const mimeType = String(file.mimetype || '').toLowerCase();
     // Some mobile pickers return application/octet-stream. The file is still
     // inspected by magic bytes below before it can ever reach public storage.
-    if (file.mimetype.startsWith('image/') || allowedPublicMediaTypes.has(file.mimetype) || (file.mimetype === 'application/octet-stream' && supportedExtension)) return cb(null, true);
+    if (
+      mimeType.startsWith('image/')
+      || allowedPublicMediaTypes.has(mimeType)
+      || (mimeType.startsWith('video/') && supportedVideoExtension)
+      || ((mimeType === 'application/octet-stream' || !mimeType) && (supportedImageExtension || supportedVideoExtension))
+    ) return cb(null, true);
     return cb(new Error('Only JPEG, PNG, WebP, GIF, AVIF, MP4, MOV, and WebM media files are allowed.'));
   }
 });
@@ -1334,9 +1341,12 @@ const inspectPublicMedia = async (file) => {
   }
 
   const originalExtension = path.extname(file.originalname || '').slice(1).toLowerCase();
-  const isWebm = file.mimetype === 'video/webm' || (file.mimetype === 'application/octet-stream' && originalExtension === 'webm');
-  const isIsoVideo = ['video/mp4', 'video/quicktime', 'video/x-m4v'].includes(file.mimetype)
-    || (file.mimetype === 'application/octet-stream' && ['mp4', 'm4v', 'mov'].includes(originalExtension));
+  // File pickers on Android and iOS do not consistently preserve MIME labels.
+  // The extension only chooses which container inspection runs. Magic-byte
+  // validation below is still mandatory before anything reaches public R2.
+  const isWebm = originalExtension === 'webm' || file.mimetype === 'video/webm';
+  const isIsoVideo = ['mp4', 'm4v', 'mov'].includes(originalExtension)
+    || ['video/mp4', 'video/quicktime', 'video/x-m4v'].includes(file.mimetype);
 
   if (isIsoVideo) {
     if (!hasMp4Signature(file.buffer)) throw new Error('The uploaded video is not a valid MP4 file.');
