@@ -100,6 +100,7 @@ db.serialize(() => {
       stock INTEGER DEFAULT 0,
       sold INTEGER DEFAULT 0,
       rating REAL DEFAULT 0,
+      review_count INTEGER NOT NULL DEFAULT 0,
       views INTEGER DEFAULT 0,
       status TEXT DEFAULT 'published',
       condition TEXT DEFAULT 'new',
@@ -123,6 +124,7 @@ db.serialize(() => {
     ['origin_city', "TEXT DEFAULT ''"],
     ['preparation_days', 'INTEGER NOT NULL DEFAULT 1'],
     ['estimated_delivery_days', 'INTEGER NOT NULL DEFAULT 3'],
+    ['review_count', 'INTEGER NOT NULL DEFAULT 0'],
   ]) {
     db.run(`ALTER TABLE products ADD COLUMN ${column} ${definition}`, (err) => {
       if (err && !err.message.includes('duplicate column name')) console.error(`Error adding ${column} to products:`, err.message);

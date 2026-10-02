@@ -27,7 +27,7 @@ function closeDatabase(database) {
 }
 
 function extractPostgresColumns(sql, table) {
-  const tablePattern = new RegExp(`CREATE TABLE ${table} \\(([\\s\\S]*?)\\n\\);`, 'i');
+  const tablePattern = new RegExp(`CREATE TABLE(?: IF NOT EXISTS)? ${table} \\(([\\s\\S]*?)\\n\\);`, 'i');
   const match = sql.match(tablePattern);
   assert.ok(match, `Missing PostgreSQL table definition for ${table}`);
 
