@@ -50,6 +50,7 @@ db.serialize(() => {
       password TEXT NOT NULL,
       phone TEXT,
       role TEXT DEFAULT 'buyer',
+      cod_operations_access BOOLEAN NOT NULL DEFAULT 0,
       seller_type TEXT,
       seller_started_at DATETIME,
       bio TEXT,
@@ -74,6 +75,14 @@ db.serialize(() => {
       console.log('Note: seller_started_at column might already exist');
     } else if (!err) {
       console.log('Seller withdrawal eligibility column added to users table');
+    }
+  });
+
+  // Delivery-team access is a narrow capability, independent from a normal
+  // marketplace role. It never grants finance or reconciliation access.
+  db.run('ALTER TABLE users ADD COLUMN cod_operations_access BOOLEAN NOT NULL DEFAULT 0', (err) => {
+    if (err && !err.message.includes('duplicate column name')) {
+      console.error('Error adding COD operations access column:', err.message);
     }
   });
 

@@ -3610,9 +3610,9 @@ app.get('/api/admin/audit-logs', protect, authorize(ROLES.SUPER_ADMIN), async (r
 app.get('/api/admin/operations-members', protect, requireAdmin, async (req, res) => {
   try {
     const members = await getDatabaseRows(
-      `SELECT id, name, email, role, created_at
+      `SELECT id, name, email, role, cod_operations_access, created_at
        FROM users
-       WHERE role = 'operations'
+       WHERE role = 'operations' OR COALESCE(cod_operations_access, FALSE) = TRUE
        ORDER BY created_at ASC, id ASC`,
       []
     );
@@ -3630,26 +3630,35 @@ app.get('/api/admin/operations-members', protect, requireAdmin, async (req, res)
 app.post('/api/admin/operations-members', protect, requireAdmin, validateOperationsMember, async (req, res) => {
   try {
     const member = await getDatabaseRow(
-      'SELECT id, name, email, role FROM users WHERE LOWER(email) = LOWER(?)',
+      'SELECT id, name, email, role, cod_operations_access FROM users WHERE LOWER(email) = LOWER(?)',
       [req.body.email]
     );
     if (!member) return res.status(404).json({ error: 'No rifKANDO account exists for that email.', requestId: req.requestId });
     if (Number(member.id) === Number(req.user.id)) {
       return res.status(400).json({ error: 'Your own administrative account cannot be changed here.', requestId: req.requestId });
     }
-    if (member.role === ROLES.OPERATIONS) return res.json({ success: true, member, alreadyMember: true });
-    if (![ROLES.BUYER].includes(member.role)) {
-      return res.status(400).json({ error: 'Use a dedicated buyer account for operations access. Seller, finance, and administrator accounts cannot be changed here.', requestId: req.requestId });
+    if (member.role === ROLES.OPERATIONS || member.cod_operations_access) {
+      return res.json({ success: true, member, alreadyMember: true });
     }
-    const update = await runDatabaseStatement("UPDATE users SET role = 'operations' WHERE id = ? AND role = 'buyer'", [member.id]);
+    const update = await runDatabaseStatement(
+      'UPDATE users SET cod_operations_access = TRUE WHERE id = ? AND COALESCE(cod_operations_access, FALSE) = FALSE',
+      [member.id]
+    );
     if (update.changes !== 1) return res.status(409).json({ error: 'This account changed before operations access could be granted.', requestId: req.requestId });
     await AuditService.recordFromRequest(req, {
       action: 'admin.operations_member_added',
       resourceType: 'user',
       resourceId: member.id,
-      metadata: { previousRole: member.role },
+      metadata: { marketplaceRole: member.role },
     });
-    return res.status(201).json({ success: true, member: { ...member, role: ROLES.OPERATIONS }, alreadyMember: false });
+    notify({
+      userId: member.id,
+      kind: 'cod.operations_access_granted',
+      title: 'COD Operations Desk access granted',
+      body: 'You can coordinate COD pickup, tracking, and delivery updates. Financial reconciliation remains restricted.',
+      href: '/operations/cod',
+    });
+    return res.status(201).json({ success: true, member: { ...member, cod_operations_access: true }, alreadyMember: false });
   } catch (error) {
     return res.status(500).json({ error: 'Unable to grant operations access.', requestId: req.requestId });
   }
@@ -3660,11 +3669,13 @@ app.delete('/api/admin/operations-members/:id', protect, requireAdmin, validateI
     if (Number(req.params.id) === Number(req.user.id)) {
       return res.status(400).json({ error: 'Your own administrative account cannot be changed here.', requestId: req.requestId });
     }
-    const member = await getDatabaseRow('SELECT id, name, email, role FROM users WHERE id = ?', [req.params.id]);
-    if (!member || member.role !== ROLES.OPERATIONS) {
+    const member = await getDatabaseRow('SELECT id, name, email, role, cod_operations_access FROM users WHERE id = ?', [req.params.id]);
+    if (!member || (member.role !== ROLES.OPERATIONS && !member.cod_operations_access)) {
       return res.status(404).json({ error: 'Operations team member not found.', requestId: req.requestId });
     }
-    const update = await runDatabaseStatement("UPDATE users SET role = 'buyer' WHERE id = ? AND role = 'operations'", [member.id]);
+    const update = member.role === ROLES.OPERATIONS
+      ? await runDatabaseStatement("UPDATE users SET role = 'buyer', cod_operations_access = FALSE WHERE id = ? AND role = 'operations'", [member.id])
+      : await runDatabaseStatement('UPDATE users SET cod_operations_access = FALSE WHERE id = ? AND COALESCE(cod_operations_access, FALSE) = TRUE', [member.id]);
     if (update.changes !== 1) return res.status(409).json({ error: 'This account changed before operations access could be removed.', requestId: req.requestId });
     await AuditService.recordFromRequest(req, {
       action: 'admin.operations_member_removed',

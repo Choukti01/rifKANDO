@@ -17,6 +17,8 @@ const canAccessCodOperations = (user) => {
   const roles = [user?.role, ...(Array.isArray(user?.roles) ? user.roles : [])];
   return Boolean(
     (email && getAllowedCodOperationsEmails().has(email))
+    || user?.cod_operations_access === true
+    || Number(user?.cod_operations_access) === 1
     || roles.some((role) => OPERATIONS_ROLES.has(role))
   );
 };
