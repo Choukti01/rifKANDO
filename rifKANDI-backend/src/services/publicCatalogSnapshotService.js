@@ -24,7 +24,11 @@ class PublicCatalogSnapshotService {
   }
 
   isAvailable() {
-    return !this.storage.isLocal() && Boolean(this.storage.publicBaseUrl && this.storage.publicBucket);
+    // A local or isolated test database must never overwrite the public
+    // read-only catalog snapshot served while the live API is unavailable.
+    return process.env.NODE_ENV === 'production'
+      && !this.storage.isLocal()
+      && Boolean(this.storage.publicBaseUrl && this.storage.publicBucket);
   }
 
   async build() {
