@@ -17,6 +17,7 @@ const PORT = Number(process.env.PORT || 5000);
 let server;
 let shuttingDown = false;
 let codExpiryTimer;
+let publicCatalogSnapshotTimer;
 
 const shutdown = (signal) => {
   if (shuttingDown) return;
@@ -31,6 +32,7 @@ const shutdown = (signal) => {
 
   server.close((serverError) => {
     if (codExpiryTimer) clearInterval(codExpiryTimer);
+    if (publicCatalogSnapshotTimer) clearInterval(publicCatalogSnapshotTimer);
     db.close((databaseError) => {
       if (serverError || databaseError) {
         console.error(JSON.stringify({
@@ -69,6 +71,19 @@ const start = async () => {
     void expirePendingCodOrders();
     codExpiryTimer = setInterval(() => { void expirePendingCodOrders(); }, 5 * 60 * 1000);
     codExpiryTimer.unref();
+    const publishPublicCatalogSnapshot = async () => {
+      try {
+        const result = await app.locals.publicCatalogSnapshotService?.publish();
+        if (result?.published) console.log(JSON.stringify({ level: 'info', event: 'public_catalog_snapshot_published', ...result }));
+      } catch (error) {
+        // A snapshot is an availability enhancement, never a reason to stop
+        // the live API. The next scheduled attempt will repair it.
+        console.error(JSON.stringify({ level: 'warn', event: 'public_catalog_snapshot_failed', error: error.message }));
+      }
+    };
+    void publishPublicCatalogSnapshot();
+    publicCatalogSnapshotTimer = setInterval(() => { void publishPublicCatalogSnapshot(); }, 5 * 60 * 1000);
+    publicCatalogSnapshotTimer.unref();
     process.once('SIGTERM', () => shutdown('SIGTERM'));
     process.once('SIGINT', () => shutdown('SIGINT'));
   } catch (error) {

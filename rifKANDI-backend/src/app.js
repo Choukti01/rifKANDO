@@ -100,11 +100,13 @@ const createCourseRoutes = require('./routes/courseRoutes');
 const createServiceRoutes = require('./routes/serviceRoutes');
 const createDigitalRoutes = require('./routes/digitalRoutes');
 const createFindItRoutes = require('./routes/finditRoutes');
+const { PublicCatalogSnapshotService } = require('./services/publicCatalogSnapshotService');
 // const EmailService = require('./services/emailService');
 
 
 
 const app = express();
+app.locals.publicCatalogSnapshotService = new PublicCatalogSnapshotService(db);
 
 // Notifications are deliberately best-effort presentation events. Marketplace
 // transactions and their audit logs must succeed even if the notification UI

@@ -1,5 +1,10 @@
 import axios from 'axios';
 import { API_URL } from '../config/apiUrl';
+import {
+  cachePublicCatalogResponse,
+  getPublicCatalogFallback,
+  isPublicCatalogRequest,
+} from './publicCatalogFallback';
 
 const unsafeMethods = new Set(['post', 'put', 'patch', 'delete']);
 const offlineActionMessage = 'rifKANDO is temporarily unavailable for live actions. You can keep browsing and try again shortly.';
@@ -67,9 +72,24 @@ const expireClientSession = () => {
 };
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    cachePublicCatalogResponse(response.config, response.data);
+    return response;
+  },
   async (error) => {
     const originalRequest = error.config;
+    if (!error.response && isPublicCatalogRequest(originalRequest)) {
+      const fallback = await getPublicCatalogFallback(originalRequest);
+      if (fallback) {
+        return {
+          config: originalRequest,
+          data: fallback.data,
+          headers: { 'x-rifkando-catalog-source': fallback.source },
+          status: 200,
+          statusText: 'OK',
+        };
+      }
+    }
     // Browsing must stay available when the personal-PC origin is offline.
     // Give every write action one consistent, safe message rather than letting
     // individual screens expose a browser-specific network error.
