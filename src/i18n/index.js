@@ -315,6 +315,11 @@ Object.assign(resources.ar.translation, {
 
 resources.ar.translation.nav.findit = '\u0627\u0639\u062b\u0631 \u0639\u0644\u064a\u0647\u0627';
 resources.ar.translation.findit.navigation = '\u0627\u0639\u062b\u0631 \u0639\u0644\u064a\u0647\u0627';
+// French intentionally falls back to English for FINDit until its complete
+// translation is added. Create the nested objects before adding the one
+// delivery-specific French string so startup never depends on that fallback.
+resources.fr.translation.findit ??= {};
+resources.fr.translation.findit.seller ??= {};
 Object.assign(resources.fr.translation.findit.seller, {
   deliveryQuoteNote: 'La livraison est déterminée par les opérations COD de rifKANDO après l’acceptation de l’offre par l’acheteur.',
 });
