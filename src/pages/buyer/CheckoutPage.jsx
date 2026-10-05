@@ -312,7 +312,7 @@ const CheckoutPage = () => {
             </div>
             <div className="summary-row">
               <span>{t('buyer.shipping')}</span>
-              <span>{shipping === 0 ? t('buyer.free') : formatAmount(shipping)}</span>
+              <span>{t('products.deliveryQuotedAfterOrder')}</span>
             </div>
             <div className="summary-total">
               <span>{t('buyer.total')}</span>

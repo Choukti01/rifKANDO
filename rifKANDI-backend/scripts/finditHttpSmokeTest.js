@@ -17,6 +17,7 @@ process.env.AUDIT_LOG_SECRET = 'test-audit-secret-that-is-long-enough-for-findit
 process.env.CLIENT_URL = 'https://www.rifkando.test';
 process.env.BACKEND_URL = 'https://api.rifkando.test';
 process.env.FEATURE_FLAGS = 'checkout=true,cmi_payments=false,wallet_payments=false,digital_downloads=false,courses=false,services=false,digital=false';
+process.env.COD_RECONCILIATION_ALLOWED_EMAILS = 'finance@example.test';
 fsSync.mkdirSync(testDirectory, { recursive: true });
 
 const db = require('../src/config/database');
@@ -57,6 +58,7 @@ async function run() {
   const seller = await runStatement("INSERT INTO users (name, email, password, role, is_verified) VALUES (?, ?, ?, 'seller', 1)", ['Parts Seller', 'seller@example.test', hash]);
   await runStatement("INSERT INTO users (name, email, password, role, is_verified) VALUES (?, ?, ?, 'seller', 1)", ['Other Seller', 'other-seller@example.test', hash]);
   await runStatement("INSERT INTO users (name, email, password, role, is_verified) VALUES (?, ?, ?, 'finance', 1)", ['Finance Operator', 'finance@example.test', hash]);
+  await runStatement("INSERT INTO users (name, email, password, role, is_verified) VALUES (?, ?, ?, 'operations', 1)", ['COD Operator', 'operations@example.test', hash]);
   const server = await startServer();
   const port = server.address().port;
   try {
@@ -65,6 +67,7 @@ async function run() {
     const sellerSession = await login(port, 'seller@example.test', password);
     const otherSellerSession = await login(port, 'other-seller@example.test', password);
     const financeSession = await login(port, 'finance@example.test', password);
+    const operationsSession = await login(port, 'operations@example.test', password);
 
     const create = await request(port, '/api/findit/requests', {
       method: 'POST', cookies: buyerSession.cookies, csrfToken: buyerSession.csrfToken,
@@ -92,14 +95,14 @@ async function run() {
       body: {
         title: 'Compatible original left headlight',
         description: 'Original compatible part, inspected and ready to ship from Tangier.',
-        price: 2000, delivery_fee: 50, condition: 'used', estimated_delivery_days: 2,
+        price: 2000, condition: 'used', estimated_delivery_days: 2,
       },
     });
     assert.equal(offerCreate.status, 201, 'seller can send a private FINDit solution');
     const offer = (await offerCreate.json()).offer;
     const duplicateOffer = await request(port, `/api/findit/requests/${finditRequest.id}/offers`, {
       method: 'POST', cookies: sellerSession.cookies, csrfToken: sellerSession.csrfToken,
-      body: { title: 'Duplicate', description: 'This duplicate offer must be blocked.', price: 1900, delivery_fee: 0, condition: 'used', estimated_delivery_days: 2 },
+      body: { title: 'Duplicate', description: 'This duplicate offer must be blocked.', price: 1900, condition: 'used', estimated_delivery_days: 2 },
     });
     assert.equal(duplicateOffer.status, 409, 'one seller may have only one active solution per request');
 
@@ -122,7 +125,7 @@ async function run() {
     assert.equal(checkout.status, 201, 'buyer can accept an offer into a cash-on-delivery order');
     const order = (await checkout.json()).order;
     assert.equal(order.type, 'findit');
-    assert.equal(order.total, 2050);
+    assert.equal(order.total, 2000, 'delivery is quoted by COD Operations after the order is accepted');
 
     const replay = await request(port, `/api/findit/offers/${offer.id}/checkout`, {
       method: 'POST', cookies: buyerSession.cookies, csrfToken: buyerSession.csrfToken,
@@ -139,7 +142,7 @@ async function run() {
 
     const fulfillment = await getRow('SELECT * FROM cod_fulfillments WHERE order_id = ?', [order.id]);
     assert.ok(fulfillment, 'FINDit COD checkout creates an immutable fulfilment record');
-    assert.equal(fulfillment.expected_cod_amount_minor, 205_000, 'COD record includes item price and the buyer delivery fee');
+    assert.equal(fulfillment.expected_cod_amount_minor, 200_000, 'COD record starts with the item amount before Operations quotes delivery');
 
     const legacyStatus = await request(port, `/api/orders/${order.id}/status`, {
       method: 'PATCH', cookies: sellerSession.cookies, csrfToken: sellerSession.csrfToken, body: { status: 'processing' },
@@ -153,6 +156,11 @@ async function run() {
       method: 'PATCH', cookies: sellerSession.cookies, csrfToken: sellerSession.csrfToken, body: { action: 'confirm' },
     });
     assert.equal(confirmed.status, 200, 'selected FINDit seller can confirm the COD order');
+    const quote = await request(port, `/api/operations/cod-fulfillments/${fulfillment.id}/quote-delivery`, {
+      method: 'POST', cookies: operationsSession.cookies, csrfToken: operationsSession.csrfToken,
+      body: { deliveryFee: 50, note: 'Quoted from parcel and Tangier destination.' },
+    });
+    assert.equal(quote.status, 200, 'COD Operations can quote the delivery fee after seller confirmation');
     const dispatched = await request(port, `/api/seller/cod-fulfillments/${fulfillment.id}`, {
       method: 'PATCH', cookies: sellerSession.cookies, csrfToken: sellerSession.csrfToken,
       body: { action: 'dispatch', carrierName: 'Test Carrier', trackingNumber: 'TRACK-FINDIT-1001' },

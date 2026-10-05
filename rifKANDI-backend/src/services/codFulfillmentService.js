@@ -211,6 +211,9 @@ class CodFulfillmentService {
         if (fulfillment.status !== 'confirmed') {
           throw new Error('Confirm the COD order before handing it to a carrier.');
         }
+        if (!fulfillment.delivery_fee_quoted_at) {
+          throw new Error('COD Operations must set and save the buyer delivery quote before dispatch.');
+        }
         if (!cleanText(carrierName, 120) || !cleanText(trackingNumber, 128)) {
           throw new Error('Carrier name and tracking number are required before dispatch.');
         }
@@ -270,6 +273,9 @@ class CodFulfillmentService {
       if (!fulfillment.delivery_partner_contacted_at) {
         throw new Error('Wait for the seller to request Toufiq pickup before confirming handoff.');
       }
+      if (!fulfillment.delivery_fee_quoted_at) {
+        throw new Error('Set and save the buyer delivery quote before confirming pickup.');
+      }
 
       const update = await tx.run(
         `UPDATE cod_fulfillments
@@ -289,6 +295,60 @@ class CodFulfillmentService {
       );
       const orderState = await this.syncOrderStateTx(tx, fulfillment.order_id);
       return { fulfillment: await this.getFulfillmentTx(tx, safeFulfillmentId), orderState };
+    });
+  }
+
+  // A delivery quote is an operational decision, not seller-controlled listing
+  // data. It is frozen before pickup so collection and reconciliation can use
+  // the same amount that was communicated to the buyer.
+  static async quoteDeliveryFee({ fulfillmentId, operationsUserId, deliveryFee, note = '' }) {
+    const safeFulfillmentId = WalletService.positiveInteger(fulfillmentId, 'Fulfillment ID');
+    const safeOperationsUserId = WalletService.positiveInteger(operationsUserId, 'Operations user ID');
+    const deliveryFeeMinor = Money.toMinor(deliveryFee, { allowZero: true });
+    const safeNote = cleanText(note);
+
+    return WalletService.withFinancialTransaction(async (tx) => {
+      const fulfillment = await this.getFulfillmentTx(tx, safeFulfillmentId);
+      if (!fulfillment) throw new Error('COD fulfilment was not found.');
+      if (fulfillment.status !== 'confirmed' || fulfillment.delivery_partner_pickup_at) {
+        throw new Error('A delivery quote can be set only before pickup for a confirmed COD order.');
+      }
+
+      const grossMinor = getAmountMinor(fulfillment, 'gross_amount_minor', 'gross_amount');
+      const expectedCodMinor = grossMinor + deliveryFeeMinor;
+      const update = await tx.run(
+        `UPDATE cod_fulfillments
+         SET customer_delivery_fee = ?, customer_delivery_fee_minor = ?,
+             expected_cod_amount = ?, expected_cod_amount_minor = ?,
+             delivery_fee_quoted_at = CURRENT_TIMESTAMP, delivery_fee_quoted_by = ?,
+             delivery_fee_quote_note = ?
+         WHERE id = ? AND status = 'confirmed' AND delivery_partner_pickup_at IS NULL`,
+        [
+          Money.fromMinor(deliveryFeeMinor), deliveryFeeMinor,
+          Money.fromMinor(expectedCodMinor), expectedCodMinor,
+          safeOperationsUserId, safeNote, fulfillment.id,
+        ]
+      );
+      if (update.changes !== 1) throw new Error('The COD fulfilment changed before its delivery quote could be saved.');
+
+      const total = await tx.get(
+        `SELECT COALESCE(SUM(expected_cod_amount_minor), 0) AS total_minor
+         FROM cod_fulfillments WHERE order_id = ? AND status <> 'cancelled'`,
+        [fulfillment.order_id]
+      );
+      const orderTotalMinor = Money.assertMinor(Number(total?.total_minor || 0), { allowZero: true });
+      await tx.run(
+        'UPDATE orders SET total = ?, total_minor = ? WHERE id = ?',
+        [Money.fromMinor(orderTotalMinor), orderTotalMinor, fulfillment.order_id]
+      );
+      await this.addHistoryTx(
+        tx,
+        fulfillment.order_id,
+        'processing',
+        `COD delivery quoted at ${Money.formatMinor(deliveryFeeMinor)} MAD by COD Operations.${safeNote ? ` ${safeNote}` : ''}`,
+        safeOperationsUserId
+      );
+      return { fulfillment: await this.getFulfillmentTx(tx, safeFulfillmentId) };
     });
   }
 
@@ -316,7 +376,7 @@ class CodFulfillmentService {
       }
       const customerDeliveryFeeMinor = getAmountMinor(fulfillment, 'customer_delivery_fee_minor', 'customer_delivery_fee');
       if (deliveryFeeMinor !== customerDeliveryFeeMinor) {
-        throw new Error(`Toufiq delivery fee must equal the ${Money.formatMinor(customerDeliveryFeeMinor)} MAD delivery fee accepted by the buyer at checkout.`);
+        throw new Error(`Toufiq delivery fee must equal the ${Money.formatMinor(customerDeliveryFeeMinor)} MAD quote recorded by COD Operations.`);
       }
       if (deliveryFeeMinor > collectionMinor) {
         throw new Error('Carrier delivery fee cannot exceed the COD amount collected.');

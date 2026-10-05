@@ -165,8 +165,7 @@ const OrderDetailsPage = () => {
   }
 
   const isFindItOrder = order.order_type === 'findit';
-  const deliveryFee = isFindItOrder ? Number(order.items?.[0]?.delivery_fee || 0) : 0;
-  const subtotal = order.items?.reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity)), 0) || Math.max(0, Number(order.total) - deliveryFee);
+  const subtotal = order.items?.reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity)), 0) || Number(order.total || 0);
   const fulfillments = order.fulfillments || [];
   const canCancelBeforePickup = fulfillments.length > 0
     && fulfillments.every((fulfillment) => ['pending_confirmation', 'confirmed'].includes(fulfillment.status));
@@ -198,8 +197,8 @@ const OrderDetailsPage = () => {
                 </ol>
 
                 <div className="cod-tracking-item__facts">
-                  <div><span>Pay on delivery</span><strong>{money(fulfillment.expected_cod_amount || order.total)}</strong></div>
-                  <div><span>Delivery charge</span><strong>{money(fulfillment.customer_delivery_fee)}</strong></div>
+                  <div><span>Pay on delivery</span><strong>{fulfillment.delivery_fee_quoted_at ? money(fulfillment.expected_cod_amount || order.total) : 'Delivery quote pending'}</strong></div>
+                  <div><span>Delivery charge</span><strong>{fulfillment.delivery_fee_quoted_at ? money(fulfillment.customer_delivery_fee) : 'To be confirmed'}</strong></div>
                   {fulfillment.carrier_name && <div><span>Carrier</span><strong>{fulfillment.carrier_name}</strong></div>}
                   {fulfillment.tracking_number && <div><span>Tracking number</span><strong>{fulfillment.tracking_number}</strong></div>}
                 </div>
@@ -311,7 +310,7 @@ const OrderDetailsPage = () => {
                 </div>
                 <div className="summary-row">
                   <span>Shipping</span>
-                  <span>{isFindItOrder ? (deliveryFee > 0 ? `${deliveryFee} MAD` : 'Included') : 'Free'}</span>
+                  <span>{fulfillments.some((fulfillment) => fulfillment.delivery_fee_quoted_at) ? 'See delivery tracking' : 'Quoted after order'}</span>
                 </div>
                 <div className="summary-total">
                   <span>Total</span>

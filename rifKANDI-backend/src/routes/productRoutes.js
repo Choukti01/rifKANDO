@@ -157,10 +157,9 @@ const createProductRoutes = ({
   });
 
   router.post('/products', protect, requireSeller, validateProductCreate, (req, res) => {
-    const { title, description, price, old_price: oldPrice, delivery_fee: deliveryFee, category, stock, media, condition, origin_city: originCity, preparation_days: preparationDays, estimated_delivery_days: estimatedDeliveryDays } = req.body;
+    const { title, description, price, old_price: oldPrice, category, stock, media, condition, origin_city: originCity, preparation_days: preparationDays, estimated_delivery_days: estimatedDeliveryDays } = req.body;
     const priceMinor = Money.toMinor(price);
     const oldPriceMinor = oldPrice === undefined ? null : Money.toMinor(oldPrice);
-    const deliveryFeeMinor = Money.toMinor(deliveryFee, { allowZero: true });
 
     db.run(
       `INSERT INTO products
@@ -173,8 +172,8 @@ const createProductRoutes = ({
         oldPriceMinor === null ? null : Money.fromMinor(oldPriceMinor),
         priceMinor,
         oldPriceMinor,
-        Money.fromMinor(deliveryFeeMinor),
-        deliveryFeeMinor,
+        0,
+        0,
         category,
         stock,
         req.user.id,
@@ -207,10 +206,9 @@ const createProductRoutes = ({
   });
 
   router.put('/products/:id', protect, requireSeller, validateIdParams('id'), validateProductUpdate, (req, res) => {
-    const { title, description, price, old_price: oldPrice, delivery_fee: deliveryFee, category, stock, media, condition, origin_city: originCity, preparation_days: preparationDays, estimated_delivery_days: estimatedDeliveryDays } = req.body;
+    const { title, description, price, old_price: oldPrice, category, stock, media, condition, origin_city: originCity, preparation_days: preparationDays, estimated_delivery_days: estimatedDeliveryDays } = req.body;
     const priceMinor = price === undefined ? undefined : Money.toMinor(price);
     const oldPriceMinor = oldPrice === undefined ? undefined : Money.toMinor(oldPrice);
-    const deliveryFeeMinor = deliveryFee === undefined ? undefined : Money.toMinor(deliveryFee, { allowZero: true });
 
     db.get('SELECT seller_id FROM products WHERE id = ?', [req.params.id], (lookupError, product) => {
       if (lookupError || !product) return res.status(404).json({ error: 'Product not found' });
@@ -226,8 +224,6 @@ const createProductRoutes = ({
            old_price = COALESCE(?, old_price),
            price_minor = COALESCE(?, price_minor),
            old_price_minor = COALESCE(?, old_price_minor),
-           delivery_fee = COALESCE(?, delivery_fee),
-           delivery_fee_minor = COALESCE(?, delivery_fee_minor),
            category = COALESCE(?, category),
            stock = COALESCE(?, stock),
            condition = COALESCE(?, condition),
@@ -242,8 +238,6 @@ const createProductRoutes = ({
           oldPriceMinor === undefined ? undefined : Money.fromMinor(oldPriceMinor),
           priceMinor,
           oldPriceMinor,
-          deliveryFeeMinor === undefined ? undefined : Money.fromMinor(deliveryFeeMinor),
-          deliveryFeeMinor,
           category,
           stock,
           condition,

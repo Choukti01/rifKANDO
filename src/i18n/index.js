@@ -152,7 +152,7 @@ Object.assign(resources.en.translation, {
       budgetUpTo: 'Budget up to {{amount}}',
       solution_one: '{{count}} seller solution',
       solution_other: '{{count}} seller solutions',
-      noSolutions: 'Your request is live. Sellers will appear here with a solution, exact item price, delivery fee, and estimate.',
+      noSolutions: 'Your request is live. Sellers will appear here with a solution, exact item price, delivery quote, and estimate.',
       item: 'Item', delivery: 'Delivery', arrival: 'Arrival', condition: 'Condition',
       included: 'Included', totalCod: 'Total COD: {{amount}}', choose: 'Choose this solution',
       checkoutEyebrow: 'Confirm FINDit solution', checkoutTotal: 'Cash on delivery total',
@@ -164,7 +164,7 @@ Object.assign(resources.en.translation, {
     seller: {
       eyebrow: 'FINDit seller workspace',
       title: 'Answer real buyer needs with a precise solution.',
-      lead: 'Offer an exact item, clear delivery total, and realistic arrival time. FINDit orders use a 5% rifKANDO commission after COD settlement.',
+      lead: 'Offer an exact item and realistic arrival time. COD Operations quotes delivery after the buyer confirms the order. FINDit orders use a 5% rifKANDO commission after COD settlement.',
       independent: 'Independent from Products',
       independentText: 'Your FINDit solution is visible only to the buyer who asked. It is never published in the product catalogue.',
       requests: 'Buyer requests', heading: 'Open needs you can solve', open: '{{count}} open', loading: 'Loading buyer requests...',
@@ -173,7 +173,7 @@ Object.assign(resources.en.translation, {
       send: 'Send solution', yourSolution: 'Your solution: {{status}}',
       solutions: 'Your solutions', status: 'Offer status', noSolutions: 'When you answer a buyer request, its status appears here.',
       reply: 'Reply to FINDit request', formNote: 'Give the buyer a specific, truthful solution. Contact and payment stay inside rifKANDO.',
-      solutionTitle: 'Solution title', solutionDescription: 'Why this is the right match', price: 'Item price in MAD', deliveryFee: 'Delivery fee in MAD', deliveryIncluded: '0 if included', estimate: 'Delivery estimate',
+      solutionTitle: 'Solution title', solutionDescription: 'Why this is the right match', price: 'Item price in MAD', deliveryFee: 'Delivery fee in MAD', deliveryIncluded: '0 if included', deliveryQuoteNote: 'Delivery is quoted by rifKANDO COD Operations after the buyer accepts an offer.', estimate: 'Delivery estimate',
       commission: 'rifKANDO takes 5% of the item price only after this FINDit COD order is delivered and settled.',
       sending: 'Sending solution...', sent: 'Send FINDit solution', withdraw: 'Withdraw', withdrawConfirm: 'Withdraw this FINDit solution? The buyer will no longer be able to accept it.', withdrawn: 'FINDit solution withdrawn.',
     },
@@ -315,6 +315,12 @@ Object.assign(resources.ar.translation, {
 
 resources.ar.translation.nav.findit = '\u0627\u0639\u062b\u0631 \u0639\u0644\u064a\u0647\u0627';
 resources.ar.translation.findit.navigation = '\u0627\u0639\u062b\u0631 \u0639\u0644\u064a\u0647\u0627';
+Object.assign(resources.fr.translation.findit.seller, {
+  deliveryQuoteNote: 'La livraison est déterminée par les opérations COD de rifKANDO après l’acceptation de l’offre par l’acheteur.',
+});
+Object.assign(resources.ar.translation.findit.seller, {
+  deliveryQuoteNote: 'يحدد فريق عمليات الدفع عند الاستلام في rifKANDO رسوم التوصيل بعد قبول المشتري للعرض.',
+});
 
 Object.assign(resources.en.translation, {
   launch: {
@@ -547,7 +553,7 @@ Object.assign(resources.en.translation.products, {
   price: 'Price', itemPrice: 'Item price', delivery: 'Delivery', freeDelivery: 'Free', codTotal: 'COD total', codBreakdown: 'Cash on delivery total',
   stockAvailable: '{{count}} available', stockLow: 'Only {{count}} left', outOfStock: 'Out of stock', yourListing: 'Your listing', ownListing: 'You cannot buy your own listing.',
   codPayNote: 'Pay {{total}} in cash when your order is delivered.', offerDeliveryNote: 'Agree the final price with the seller before the COD order is created.',
-  deliveryCheckoutNote: 'Delivery fee is included in the COD total shown above.', codProtectionNote: 'Review your delivery information before placing the COD order.',
+  deliveryCheckoutNote: 'COD Operations confirms the delivery fee after the order is created.', deliveryQuotedAfterOrder: 'Quoted by COD Operations after order', deliveryQuoteBeforePickup: 'rifKANDO COD Operations confirms the delivery fee from the parcel and destination before pickup.', itemPlusDelivery: '{{item}} + delivery', itemPayNote: 'Pay {{item}} for the item on delivery. rifKANDO COD Operations confirms the delivery fee before pickup.', codProtectionNote: 'Review your delivery information before placing the COD order.',
   orderTrackingNote: 'Follow order progress from your account.', purchaseActions: 'Purchase actions', askingPrice: 'Asking price',
 });
 
@@ -555,7 +561,7 @@ Object.assign(resources.fr.translation.products, {
   price: 'Prix', itemPrice: 'Prix de l’article', delivery: 'Livraison', freeDelivery: 'Gratuite', codTotal: 'Total à la livraison', codBreakdown: 'Total du paiement à la livraison',
   stockAvailable: '{{count}} disponible(s)', stockLow: 'Plus que {{count}} disponible(s)', outOfStock: 'Rupture de stock', yourListing: 'Votre annonce', ownListing: 'Vous ne pouvez pas acheter votre propre annonce.',
   codPayNote: 'Payez {{total}} en espèces lors de la livraison de votre commande.', offerDeliveryNote: 'Convenez du prix final avec le vendeur avant de créer la commande COD.',
-  deliveryCheckoutNote: 'Les frais de livraison sont inclus dans le total COD indiqué.', codProtectionNote: 'Vérifiez vos informations de livraison avant de passer la commande COD.',
+  deliveryCheckoutNote: 'Les opérations COD confirment les frais de livraison après la création de la commande.', deliveryQuotedAfterOrder: 'Déterminée par les opérations COD après la commande', deliveryQuoteBeforePickup: 'Les opérations COD de rifKANDO confirment les frais selon le colis et la destination avant l’enlèvement.', itemPlusDelivery: '{{item}} + livraison', itemPayNote: 'Payez {{item}} pour l’article à la livraison. Les opérations COD de rifKANDO confirment les frais avant l’enlèvement.', codProtectionNote: 'Vérifiez vos informations de livraison avant de passer la commande COD.',
   orderTrackingNote: 'Suivez votre commande depuis votre compte.', purchaseActions: 'Actions d’achat', askingPrice: 'Prix demandé',
 });
 
@@ -563,7 +569,7 @@ Object.assign(resources.ar.translation.products, {
   price: 'السعر', itemPrice: 'سعر المنتج', delivery: 'التوصيل', freeDelivery: 'مجاني', codTotal: 'إجمالي الدفع عند الاستلام', codBreakdown: 'تفاصيل إجمالي الدفع عند الاستلام',
   stockAvailable: '{{count}} متاح', stockLow: 'لم يتبق سوى {{count}}', outOfStock: 'غير متوفر حاليًا', yourListing: 'إعلانك', ownListing: 'لا يمكنك شراء إعلانك الخاص.',
   codPayNote: 'ادفع {{total}} نقدًا عند استلام طلبك.', offerDeliveryNote: 'اتفق مع البائع على السعر النهائي قبل إنشاء طلب الدفع عند الاستلام.',
-  deliveryCheckoutNote: 'رسوم التوصيل مشمولة في إجمالي الدفع عند الاستلام المعروض أعلاه.', codProtectionNote: 'راجع بيانات التوصيل قبل تأكيد طلب الدفع عند الاستلام.',
+  deliveryCheckoutNote: 'يؤكد فريق عمليات الدفع عند الاستلام رسوم التوصيل بعد إنشاء الطلب.', deliveryQuotedAfterOrder: 'يحددها فريق عمليات الدفع عند الاستلام بعد الطلب', deliveryQuoteBeforePickup: 'يؤكد فريق عمليات rifKANDO رسوم التوصيل حسب الطرد والوجهة قبل الاستلام.', itemPlusDelivery: '{{item}} + التوصيل', itemPayNote: 'ادفع {{item}} ثمن المنتج عند الاستلام. يؤكد فريق عمليات rifKANDO رسوم التوصيل قبل الاستلام.', codProtectionNote: 'راجع بيانات التوصيل قبل تأكيد طلب الدفع عند الاستلام.',
   orderTrackingNote: 'تابع تقدم طلبك من حسابك.', purchaseActions: 'إجراءات الشراء', askingPrice: 'السعر المطلوب',
 });
 

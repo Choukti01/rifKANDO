@@ -34,7 +34,6 @@ export const CartProvider = ({ children }) => {
         id: item.product_id,
         title: item.title,
         price: item.price,
-        delivery_fee: item.delivery_fee,
         sellerId: item.seller_id,
         image: item.image,
         quantity: item.quantity,
@@ -182,14 +181,9 @@ export const CartProvider = ({ children }) => {
     return cart.reduce((total, item) => total + (item.price * item.quantity), 0);
   };
 
-  const getCartShipping = () => {
-    const perSeller = new Map();
-    cart.forEach((item) => {
-      const sellerKey = item.sellerId || item.seller || item.id;
-      perSeller.set(sellerKey, Math.max(perSeller.get(sellerKey) || 0, Number(item.delivery_fee || 0)));
-    });
-    return [...perSeller.values()].reduce((total, value) => total + value, 0);
-  };
+  // Delivery is quoted by COD Operations after the order is created. Do not
+  // show an unverified seller-defined fee in carts or checkout.
+  const getCartShipping = () => 0;
 
   const getCartCount = () => {
     return cart.reduce((count, item) => count + item.quantity, 0);

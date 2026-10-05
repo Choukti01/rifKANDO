@@ -61,19 +61,32 @@ async function run() {
     paymentMethod: 'cash',
     shippingAddress: address('cod-product@buyer.test'),
     items: [{ id: flow.productId, quantity: 1 }],
-    expectedTotal: 150,
+    expectedTotal: 100,
     idempotencyKey: 'cod-fulfillment-checkout-1001',
   });
   const fulfillment = await WalletService.get('SELECT * FROM cod_fulfillments WHERE order_id = ?', [checkout.order.id]);
   assert.equal(fulfillment.gross_amount_minor, 10_000);
   assert.equal(fulfillment.commission_minor, 500, 'product commission is exactly 5%');
   assert.equal(fulfillment.seller_amount_minor, 9_500);
-  assert.equal(fulfillment.expected_cod_amount_minor, 15_000);
+  assert.equal(fulfillment.expected_cod_amount_minor, 10_000, 'checkout starts without a seller-defined delivery fee');
 
   await CodFulfillmentService.sellerAction({ fulfillmentId: fulfillment.id, sellerId: flow.sellerId, action: 'confirm' });
   await CodFulfillmentService.sellerAction({
     fulfillmentId: fulfillment.id, sellerId: flow.sellerId, action: 'request_handoff',
   });
+  await assert.rejects(
+    () => CodFulfillmentService.confirmDeliveryPartnerPickup({
+      fulfillmentId: fulfillment.id, operationsUserId: flow.operationsId,
+      carrierName: 'Najm Chamal', trackingNumber: 'COD-TRACK-1001', note: 'Toufiq collected the parcel.',
+    }),
+    /delivery quote/,
+    'Toufiq cannot confirm pickup before setting the buyer delivery quote'
+  );
+  const quoted = await CodFulfillmentService.quoteDeliveryFee({
+    fulfillmentId: fulfillment.id, operationsUserId: flow.operationsId, deliveryFee: 50,
+    note: 'Parcel and destination confirmed by Toufiq.',
+  });
+  assert.equal(quoted.fulfillment.expected_cod_amount_minor, 15_000, 'the quote updates the COD amount before pickup');
   const pickedUp = await CodFulfillmentService.confirmDeliveryPartnerPickup({
     fulfillmentId: fulfillment.id, operationsUserId: flow.operationsId,
     carrierName: 'Najm Chamal', trackingNumber: 'COD-TRACK-1001', note: 'Toufiq collected the parcel.',
@@ -90,8 +103,8 @@ async function run() {
       fulfillmentId: fulfillment.id, financeUserId: flow.financeId,
       carrierReference: 'INVALID-FEE-1001', collectedAmount: 150, carrierDeliveryFee: 49,
     }),
-    /delivery fee accepted by the buyer/,
-    'a collection cannot change the delivery fee accepted at checkout'
+    /quote recorded by COD Operations/,
+    'a collection cannot change Toufiq\'s recorded delivery quote'
   );
   const collected = await CodFulfillmentService.recordCollection({
     fulfillmentId: fulfillment.id, financeUserId: flow.financeId,
@@ -121,12 +134,15 @@ async function run() {
     paymentMethod: 'cash',
     shippingAddress: address('duplicate-remittance@buyer.test'),
     items: [{ id: duplicateRemittanceFlow.productId, quantity: 1 }],
-    expectedTotal: 150,
+    expectedTotal: 100,
     idempotencyKey: 'cod-fulfillment-duplicate-remittance-1001',
   });
   const duplicateRemittanceFulfillment = await WalletService.get('SELECT * FROM cod_fulfillments WHERE order_id = ?', [duplicateRemittanceCheckout.order.id]);
   await CodFulfillmentService.sellerAction({ fulfillmentId: duplicateRemittanceFulfillment.id, sellerId: duplicateRemittanceFlow.sellerId, action: 'confirm' });
   await CodFulfillmentService.sellerAction({ fulfillmentId: duplicateRemittanceFulfillment.id, sellerId: duplicateRemittanceFlow.sellerId, action: 'request_handoff' });
+  await CodFulfillmentService.quoteDeliveryFee({
+    fulfillmentId: duplicateRemittanceFulfillment.id, operationsUserId: duplicateRemittanceFlow.operationsId, deliveryFee: 50,
+  });
   await CodFulfillmentService.confirmDeliveryPartnerPickup({
     fulfillmentId: duplicateRemittanceFulfillment.id, operationsUserId: duplicateRemittanceFlow.operationsId,
     carrierName: 'Najm Chamal', trackingNumber: 'COD-TRACK-DUPLICATE-REM-1001',
@@ -151,11 +167,14 @@ async function run() {
     paymentMethod: 'cash',
     shippingAddress: address('returned-cod@buyer.test'),
     items: [{ id: returnFlow.productId, quantity: 1 }],
-    expectedTotal: 150,
+    expectedTotal: 100,
     idempotencyKey: 'cod-fulfillment-return-1001',
   });
   const returnFulfillment = await WalletService.get('SELECT * FROM cod_fulfillments WHERE order_id = ?', [returnCheckout.order.id]);
   await CodFulfillmentService.sellerAction({ fulfillmentId: returnFulfillment.id, sellerId: returnFlow.sellerId, action: 'confirm' });
+  await CodFulfillmentService.quoteDeliveryFee({
+    fulfillmentId: returnFulfillment.id, operationsUserId: returnFlow.operationsId, deliveryFee: 50,
+  });
   await CodFulfillmentService.sellerAction({
     fulfillmentId: returnFulfillment.id, sellerId: returnFlow.sellerId, action: 'dispatch', carrierName: 'Test Carrier', trackingNumber: 'COD-TRACK-RETURN-1001',
   });

@@ -5,7 +5,7 @@ import { CheckBadgeIcon, MapPinIcon, MagnifyingGlassIcon, PaperAirplaneIcon, Tag
 import { createFinditOffer, getFinditRequests, getSellerFinditOffers, withdrawFinditOffer } from '../../../services/api';
 import { getImageUrl } from '../../../utils/imageUtils';
 
-const defaultOffer = { title: '', description: '', price: '', delivery_fee: '', condition: 'new', estimated_delivery_days: 3 };
+const defaultOffer = { title: '', description: '', price: '', condition: 'new', estimated_delivery_days: 3 };
 const categoryKeys = { 'Auto & Parts': 'auto', 'Phones & Electronics': 'electronics', 'Home & Appliances': 'home', 'Tools & Equipment': 'tools', 'Fashion & Accessories': 'fashion', Other: 'other' };
 
 const SellerFindItPage = () => {
@@ -55,14 +55,13 @@ const SellerFindItPage = () => {
     event.preventDefault();
     if (!selectedRequest) return;
     const price = Number(form.price);
-    const deliveryFee = Number(form.delivery_fee || 0);
-    if (!Number.isFinite(price) || price <= 0 || !Number.isFinite(deliveryFee) || deliveryFee < 0) {
+    if (!Number.isFinite(price) || price <= 0) {
       toast.error(t('findit.seller.price'));
       return;
     }
     setSending(true);
     try {
-      await createFinditOffer(selectedRequest.id, { ...form, price, delivery_fee: deliveryFee, estimated_delivery_days: Number(form.estimated_delivery_days) });
+      await createFinditOffer(selectedRequest.id, { ...form, price, estimated_delivery_days: Number(form.estimated_delivery_days) });
       toast.success(t('findit.seller.sent'));
       setSelectedRequest(null);
       setForm(defaultOffer);
@@ -117,7 +116,7 @@ const SellerFindItPage = () => {
 
         <aside className="seller-findit-offers">
           <div className="seller-findit-heading"><div><p>{t('findit.seller.solutions')}</p><h2>{t('findit.seller.status')}</h2></div></div>
-          {offers.length === 0 ? <p className="seller-findit-offer-empty">{t('findit.seller.noSolutions')}</p> : <div className="seller-findit-offer-list">{offers.map((offer) => <article key={offer.id}><div><span className={`seller-findit-existing ${offer.status}`}>{status(offer.status)}</span><h3>{offer.title}</h3><p>{offer.request?.title}</p></div><strong>{formatMoney(Number(offer.price) + Number(offer.delivery_fee || 0))} COD</strong>{offer.status === 'active' && <button onClick={() => withdraw(offer.id)}>{t('findit.seller.withdraw')}</button>}</article>)}</div>}
+          {offers.length === 0 ? <p className="seller-findit-offer-empty">{t('findit.seller.noSolutions')}</p> : <div className="seller-findit-offer-list">{offers.map((offer) => <article key={offer.id}><div><span className={`seller-findit-existing ${offer.status}`}>{status(offer.status)}</span><h3>{offer.title}</h3><p>{offer.request?.title}</p></div><strong>{formatMoney(Number(offer.price))} COD</strong>{offer.status === 'active' && <button onClick={() => withdraw(offer.id)}>{t('findit.seller.withdraw')}</button>}</article>)}</div>}
         </aside>
       </div>
 
@@ -130,7 +129,7 @@ const SellerFindItPage = () => {
             <label><span>{t('findit.seller.solutionDescription')}</span><textarea value={form.description} minLength="10" maxLength="2000" rows="4" onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} required /></label>
             <div className="seller-findit-form-grid">
               <label><span>{t('findit.seller.price')}</span><input value={form.price} type="number" min="0.01" step="0.01" onChange={(event) => setForm((current) => ({ ...current, price: event.target.value }))} required /></label>
-              <label><span>{t('findit.seller.deliveryFee')}</span><input value={form.delivery_fee} type="number" min="0" step="0.01" onChange={(event) => setForm((current) => ({ ...current, delivery_fee: event.target.value }))} placeholder={t('findit.seller.deliveryIncluded')} required /></label>
+              <p className="seller-findit-delivery-note">{t('findit.seller.deliveryQuoteNote')}</p>
               <label><span>{t('findit.form.condition')}</span><select value={form.condition} onChange={(event) => setForm((current) => ({ ...current, condition: event.target.value }))}><option value="new">{status('new')}</option><option value="used">{status('used')}</option><option value="refurbished">{status('refurbished')}</option></select></label>
               <label><span>{t('findit.seller.estimate')}</span><select value={form.estimated_delivery_days} onChange={(event) => setForm((current) => ({ ...current, estimated_delivery_days: event.target.value }))}>{[1, 2, 3, 4, 5, 7, 10, 14, 21, 30].map((days) => <option key={days} value={days}>{t('findit.form.days', { count: days })}</option>)}</select></label>
             </div>

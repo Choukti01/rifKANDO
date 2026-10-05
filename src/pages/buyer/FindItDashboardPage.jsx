@@ -131,14 +131,14 @@ const FindItDashboardPage = () => {
                     {offers.length === 0 ? <div className="findit-no-offers">{t('findit.buyer.noSolutions')}</div> : (
                       <div className="findit-buyer-offers">
                         {offers.map((offer) => {
-                          const total = Number(offer.price) + Number(offer.delivery_fee || 0);
+                          const total = Number(offer.price);
                           return (
                             <article className="findit-buyer-offer" key={offer.id}>
                               <div className="findit-offer-title"><div><span>{offer.seller.name}</span><h4>{offer.title}</h4></div><span className={`findit-offer-state ${offer.status}`}>{labelStatus(offer.status)}</span></div>
                               <p>{offer.description}</p>
                               <dl>
                                 <div><dt>{t('findit.buyer.item')}</dt><dd>{formatMoney(offer.price)}</dd></div>
-                                <div><dt>{t('findit.buyer.delivery')}</dt><dd>{Number(offer.delivery_fee) > 0 ? formatMoney(offer.delivery_fee) : t('findit.buyer.included')}</dd></div>
+                                <div><dt>{t('findit.buyer.delivery')}</dt><dd>{t('products.deliveryQuotedAfterOrder')}</dd></div>
                                 <div><dt>{t('findit.buyer.arrival')}</dt><dd>{t('findit.form.days', { count: offer.estimated_delivery_days })}</dd></div>
                                 <div><dt>{t('findit.buyer.condition')}</dt><dd>{labelCondition(offer.condition)}</dd></div>
                               </dl>
@@ -161,7 +161,7 @@ const FindItDashboardPage = () => {
           <form className="findit-checkout-card" onSubmit={accept}>
             <button className="findit-close-checkout" type="button" onClick={() => setSelectedOffer(null)} aria-label={t('common.closeMenu')}><XCircleIcon /></button>
             <p>{t('findit.buyer.checkoutEyebrow')}</p><h2>{selectedOffer.offer.title}</h2>
-            <div className="findit-checkout-total"><span>{t('findit.buyer.checkoutTotal')}</span><strong>{formatMoney(Number(selectedOffer.offer.price) + Number(selectedOffer.offer.delivery_fee || 0))}</strong></div>
+            <div className="findit-checkout-total"><span>{t('findit.buyer.checkoutTotal')}</span><strong>{t('products.itemPlusDelivery', { item: formatMoney(Number(selectedOffer.offer.price)) })}</strong></div>
             <div className="findit-address-grid">
               {Object.entries(addressLabels).map(([field, label]) => <label key={field}><span>{label}</span><input required={field !== 'postalCode'} value={address[field]} type={field === 'email' ? 'email' : 'text'} onChange={(event) => setAddress((current) => ({ ...current, [field]: event.target.value }))} /></label>)}
             </div>

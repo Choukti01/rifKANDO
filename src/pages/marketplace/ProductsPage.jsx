@@ -180,7 +180,6 @@ const ProductsPage = () => {
 
         {loadError ? <ServiceUnavailableState onRetry={() => setRetryKey((current) => current + 1)} /> : <div className="products-grid">
           {products.map(product => {
-              const deliveryFee = Number(product.delivery_fee || 0);
               const productPrice = Number(product.price || 0);
               const isOwnListing = Number(product.seller_id) === Number(user?.id);
               const outOfStock = Number(product.stock) < 1;
@@ -224,8 +223,8 @@ const ProductsPage = () => {
                   {product.old_price && <span className="old-price">{formatAmount(product.old_price)} MAD</span>}
                 </div>
                 <div className="product-cod-summary">
-                  <span>{t('products.delivery')}: <strong>{deliveryFee > 0 ? `${formatAmount(deliveryFee)} MAD` : t('products.freeDelivery')}</strong></span>
-                  {product.condition !== 'joutiya' && <span>{t('products.codTotal')}: <strong>{formatAmount(productPrice + deliveryFee)} MAD</strong></span>}
+                  <span>{t('products.delivery')}: <strong>{t('products.deliveryQuotedAfterOrder')}</strong></span>
+                  {product.condition !== 'joutiya' && <span>{t('products.codTotal')}: <strong>{t('products.itemPlusDelivery', { item: `${formatAmount(productPrice)} MAD` })}</strong></span>}
                 </div>
                 <div className={`product-availability ${outOfStock ? 'is-out-of-stock' : ''}`}>
                   {outOfStock ? t('products.outOfStock') : t('products.stockAvailable', { count: product.stock })}

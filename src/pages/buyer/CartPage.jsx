@@ -108,13 +108,13 @@ const CartPage = () => {
             </div>
             <div className="summary-row">
               <span>{t('buyer.shipping')}</span>
-              <span>{shipping === 0 ? t('buyer.free') : formatAmount(shipping)}</span>
+              <span>{t('products.deliveryQuotedAfterOrder')}</span>
             </div>
             <div className="summary-total">
               <span>{t('buyer.total')}</span>
               <span>{formatAmount(total)}</span>
             </div>
-            <p className="shipping-note">{t('buyer.cart.shippingNote')}</p>
+            <p className="shipping-note">{t('products.deliveryQuoteBeforePickup')}</p>
             <Link to="/checkout" className="checkout-link">{t('buyer.cart.continueCheckout')}</Link>
             <p className="cart-secure-note"><ShieldCheckIcon aria-hidden="true" />{t('buyer.cart.secureNote')}</p>
           </div>

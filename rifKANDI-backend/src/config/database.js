@@ -959,6 +959,9 @@ db.serialize(() => {
       gross_amount_minor INTEGER NOT NULL,
       customer_delivery_fee REAL NOT NULL DEFAULT 0,
       customer_delivery_fee_minor INTEGER NOT NULL DEFAULT 0,
+      delivery_fee_quoted_at DATETIME,
+      delivery_fee_quoted_by INTEGER,
+      delivery_fee_quote_note TEXT NOT NULL DEFAULT '',
       expected_cod_amount REAL NOT NULL,
       expected_cod_amount_minor INTEGER NOT NULL,
       commission REAL NOT NULL,
@@ -1348,6 +1351,9 @@ db.serialize(() => {
     ['delivery_reported_at', 'DATETIME'],
     ['delivery_reported_by', 'INTEGER'],
     ['confirmation_expires_at', 'DATETIME'],
+    ['delivery_fee_quoted_at', 'DATETIME'],
+    ['delivery_fee_quoted_by', 'INTEGER'],
+    ['delivery_fee_quote_note', "TEXT NOT NULL DEFAULT ''"],
   ];
   for (const [column, definition] of codFulfillmentCompatibilityColumns) {
     db.run(`ALTER TABLE cod_fulfillments ADD COLUMN ${column} ${definition}`, (err) => {

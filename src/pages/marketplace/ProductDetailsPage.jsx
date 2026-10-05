@@ -232,9 +232,7 @@ const ProductDetailsPage = () => {
   const totalReviews = product.reviews_count || 0;
   const isJoutiya = product.condition === 'joutiya';
   const stock = Number(product.stock) || 0;
-  const deliveryFee = Number(product.delivery_fee || 0);
   const productPrice = Number(product.price || 0);
-  const codTotal = productPrice + deliveryFee;
   const categoryLabel = product.category ? product.category.charAt(0).toUpperCase() + product.category.slice(1) : null;
   const canOpenGallery = media.length > 0 && primaryMedia?.media_type !== 'video';
   const conditionLabel = product.condition === 'used_as_new' ? 'Used as New' : product.condition === 'joutiya' ? 'Joutiya (Haggle)' : 'New';
@@ -320,8 +318,8 @@ const ProductDetailsPage = () => {
               <div className="product-price"><span className="price-label">{t('products.price')}</span><span className="current-price">{formatAmount(productPrice)} MAD</span>{product.old_price && <span className="old-price">{formatAmount(product.old_price)} MAD</span>}</div>
               <div className="cod-price-breakdown" aria-label={t('products.codBreakdown')}>
                 <span><span>{t('products.itemPrice')}</span><strong>{formatAmount(productPrice)} MAD</strong></span>
-                <span><span>{t('products.delivery')}</span><strong>{deliveryFee > 0 ? `${formatAmount(deliveryFee)} MAD` : t('products.freeDelivery')}</strong></span>
-                {!isJoutiya && <span className="cod-total"><span>{t('products.codTotal')}</span><strong>{formatAmount(codTotal)} MAD</strong></span>}
+                <span><span>{t('products.delivery')}</span><strong>{t('products.deliveryQuotedAfterOrder')}</strong></span>
+                {!isJoutiya && <span className="cod-total"><span>{t('products.codTotal')}</span><strong>{t('products.itemPlusDelivery', { item: `${formatAmount(productPrice)} MAD` })}</strong></span>}
               </div>
               <div className="product-stock" aria-live="polite">
                 {stock > 0 ? <span className="in-stock">{stock <= 5 ? t('products.stockLow', { count: stock }) : t('products.stockAvailable', { count: stock })}</span> : <span className="out-of-stock">{t('products.outOfStock')}</span>}
@@ -344,7 +342,7 @@ const ProductDetailsPage = () => {
                 )}
                 <button type="button" className="favorite-btn" onClick={handleFavorite} aria-label={isFav ? 'Remove from favorites' : 'Add to favorites'} aria-pressed={isFav}><HeartIcon className={`heart-icon ${isFav ? 'text-red-500 fill-current' : ''}`} /></button>
               </div>
-              <p className="purchase-note">{isJoutiya ? t('products.offerDeliveryNote') : t('products.codPayNote', { total: `${formatAmount(codTotal)} MAD` })}</p>
+              <p className="purchase-note">{isJoutiya ? t('products.offerDeliveryNote') : t('products.itemPayNote', { item: `${formatAmount(productPrice)} MAD` })}</p>
               {!isOwnListing && <button type="button" className="report-listing-btn" onClick={() => isAuthenticated ? setShowReportModal(true) : toast.error('Please sign in to report a listing.')}><FlagIcon aria-hidden="true" /> Report this listing</button>}
               <div className="product-shipping">
                 {product.origin_city && <div className="shipping-item"><TruckIcon className="shipping-icon" /><span>Ships from {product.origin_city}</span></div>}
@@ -360,7 +358,7 @@ const ProductDetailsPage = () => {
         <div className="mobile-purchase-bar" aria-label={t('products.purchaseActions')}>
           <div>
             <span>{isJoutiya ? t('products.askingPrice') : t('products.codTotal')}</span>
-            <strong>{formatAmount(isJoutiya ? productPrice : codTotal)} MAD</strong>
+            <strong>{isJoutiya ? `${formatAmount(productPrice)} MAD` : t('products.itemPlusDelivery', { item: `${formatAmount(productPrice)} MAD` })}</strong>
           </div>
           {isJoutiya ? (
             <button type="button" onClick={handleMakeOffer} disabled={isUnavailable}>{stock < 1 ? t('products.outOfStock') : isOwnListing ? t('products.yourListing') : t('products.makeOffer')}</button>

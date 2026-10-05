@@ -225,6 +225,17 @@ const validateCodPartnerPickup = validate((req) => {
   };
 });
 
+const validateCodDeliveryQuote = validate((req) => {
+  const body = object(req.body);
+  onlyKeys(body, ['deliveryFee', 'note']);
+  return {
+    body: {
+      deliveryFee: money(body.deliveryFee, 'deliveryFee', { min: 0 }),
+      note: optionalText(body.note, 'note', 1_000),
+    },
+  };
+});
+
 const validateCodCollection = validate((req) => {
   const body = object(req.body);
   onlyKeys(body, ['carrierReference', 'collectedAmount', 'carrierDeliveryFee', 'carrierReturnFee', 'note']);
@@ -380,14 +391,15 @@ const publicMedia = (value, field = 'media', maxItems = 10, allowedTypes = ['ima
 
 const productPayload = (body, { partial }) => {
   object(body);
-  onlyKeys(body, ['title', 'description', 'price', 'old_price', 'delivery_fee', 'category', 'stock', 'media', 'condition', 'origin_city', 'preparation_days', 'estimated_delivery_days']);
+  // Delivery is quoted per confirmed order by COD Operations. Sellers cannot
+  // set a delivery price on a listing or override it with a crafted request.
+  onlyKeys(body, ['title', 'description', 'price', 'old_price', 'category', 'stock', 'media', 'condition', 'origin_city', 'preparation_days', 'estimated_delivery_days']);
   const required = !partial;
   const result = {
     title: text(body.title, 'title', { required, min: 2, max: 160 }),
     description: text(body.description, 'description', { required, min: 10, max: 5_000 }),
     price: required ? money(body.price, 'price', { min: 0.01 }) : optionalMoney(body.price, 'price', { min: 0.01 }),
     old_price: optionalMoney(body.old_price, 'old_price', { min: 0.01 }),
-    delivery_fee: required ? money(body.delivery_fee, 'delivery_fee', { min: 0, max: 10_000 }) : optionalMoney(body.delivery_fee, 'delivery_fee', { min: 0, max: 10_000 }),
     category: text(body.category, 'category', { required, min: 2, max: 64 }),
     stock: body.stock === undefined ? undefined : integer(body.stock, 'stock', { min: 0, max: 1_000_000 }),
     media: publicMedia(body.media, 'media', 10, ['image', 'video']),
@@ -675,12 +687,11 @@ const finditRequestPayload = (body) => {
 
 const finditOfferPayload = (body, partial) => {
   object(body);
-  onlyKeys(body, ['title', 'description', 'price', 'delivery_fee', 'condition', 'estimated_delivery_days']);
+  onlyKeys(body, ['title', 'description', 'price', 'condition', 'estimated_delivery_days']);
   const result = {
     title: body.title === undefined ? undefined : text(body.title, 'title', { required: true, min: 3, max: 160 }),
     description: body.description === undefined ? undefined : text(body.description, 'description', { required: true, min: 10, max: 2_000 }),
     price: body.price === undefined ? undefined : money(body.price, 'price', { min: 0.01 }),
-    delivery_fee: body.delivery_fee === undefined ? undefined : money(body.delivery_fee, 'delivery_fee', { min: 0 }),
     condition: body.condition === undefined ? undefined : enumValue(body.condition, 'condition', ['new', 'used', 'refurbished']),
     estimated_delivery_days: body.estimated_delivery_days === undefined ? undefined : integer(body.estimated_delivery_days, 'estimated_delivery_days', { min: 1, max: 60 }),
   };
@@ -857,6 +868,7 @@ module.exports = {
   validateOrderStatus,
   validateCodSellerAction,
   validateCodPartnerPickup,
+  validateCodDeliveryQuote,
   validateCodCollection,
   validateCodSettlement,
   validateCodException,

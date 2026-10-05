@@ -13,7 +13,6 @@ const AddProduct = () => {
     description: '',
     price: '',
     old_price: '',
-    delivery_fee: '50',
     category: 'electronics',
     stock: '',
     condition: 'new',
@@ -31,14 +30,12 @@ const AddProduct = () => {
     const title = formData.title.trim();
     const description = formData.description.trim();
     const price = Number(formData.price);
-    const deliveryFee = Number(formData.delivery_fee || 0);
     const stock = Number(formData.stock);
     const oldPrice = formData.old_price === '' ? undefined : Number(formData.old_price);
 
     if (title.length < 2) return toast.error('Product title must contain at least 2 characters.');
     if (description.length < 10) return toast.error('Description must contain at least 10 characters.');
     if (!Number.isFinite(price) || price <= 0) return toast.error('Enter a valid product price.');
-    if (!Number.isFinite(deliveryFee) || deliveryFee < 0) return toast.error('Enter a valid delivery price.');
     if (!Number.isInteger(stock) || stock < 0) return toast.error('Stock must be a whole number of 0 or more.');
     if (oldPrice !== undefined && (!Number.isFinite(oldPrice) || oldPrice < price)) {
       return toast.error('Original price must be at least the current product price.');
@@ -51,7 +48,6 @@ const AddProduct = () => {
         title,
         description,
         price,
-        delivery_fee: deliveryFee,
         stock,
         category: formData.category,
         condition: formData.condition,
@@ -78,7 +74,6 @@ const AddProduct = () => {
   };
 
   const productPrice = Number(formData.price);
-  const deliveryFee = Number(formData.delivery_fee || 0);
   const hasValidPrice = Number.isFinite(productPrice) && productPrice > 0;
   const platformCommission = hasValidPrice ? productPrice * 0.05 : 0;
   const sellerNet = hasValidPrice ? productPrice - platformCommission : 0;
@@ -141,11 +136,6 @@ const AddProduct = () => {
             />
           </div>
         </div>
-        <div className="form-group">
-          <label>Delivery price paid by buyer (MAD) *</label>
-          <input type="number" name="delivery_fee" min="0" step="0.01" value={formData.delivery_fee} onChange={handleChange} className="form-input" required />
-          <small className="form-hint">Set the COD delivery price for your preferred carrier. rifKANDO does not take commission from delivery.</small>
-        </div>
         <div className="form-row">
           <div className="form-group"><label>Dispatch city</label><input name="origin_city" value={formData.origin_city} onChange={handleChange} className="form-input" maxLength="100" placeholder="e.g. Nador" /><small className="form-hint">Shown to buyers as the seller’s dispatch location.</small></div>
           <div className="form-group"><label>Preparation time</label><select name="preparation_days" value={formData.preparation_days} onChange={handleChange} className="form-input"><option value="0">Same day</option>{[1,2,3,4,5,7,10,14].map((days) => <option key={days} value={days}>{days} day{days === 1 ? '' : 's'}</option>)}</select></div>
@@ -159,7 +149,7 @@ const AddProduct = () => {
           </div>
           <p>
             rifKANDO commission is 5% of the item price only ({hasValidPrice ? `${platformCommission.toFixed(2)} MAD` : '—'}).
-            {hasValidPrice && ` The buyer sees ${((productPrice || 0) + (Number.isFinite(deliveryFee) ? deliveryFee : 0)).toFixed(2)} MAD including delivery.`}
+            {hasValidPrice && ' Delivery is quoted by rifKANDO COD Operations for each confirmed order, based on the parcel and destination.'}
           </p>
           <small>Commission is due only after a COD delivery is confirmed and settled. Delivery money is separate.</small>
         </aside>

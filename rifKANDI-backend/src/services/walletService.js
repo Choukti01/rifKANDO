@@ -833,7 +833,7 @@ class WalletService {
       let subtotal = 0;
       for (const [productId, quantity] of requestedQuantities) {
         const product = await tx.get(
-          this.lockForUpdate(`SELECT id, seller_id, title, image, price, price_minor, delivery_fee, delivery_fee_minor, stock, status
+          this.lockForUpdate(`SELECT id, seller_id, title, image, price, price_minor, stock, status
            FROM products
            WHERE id = ?
              AND NOT EXISTS (
@@ -863,10 +863,8 @@ class WalletService {
           lineTotal,
         };
         orderItems.push(orderItem);
-        const productDeliveryFee = this.minorFromRow(product, 'delivery_fee_minor', 'delivery_fee');
-        const group = sellerGroups.get(product.seller_id) || { grossAmount: 0, deliveryFee: 0, items: [] };
+        const group = sellerGroups.get(product.seller_id) || { grossAmount: 0, items: [] };
         group.grossAmount = this.minor(group.grossAmount + lineTotal, { allowZero: true });
-        group.deliveryFee = Math.max(group.deliveryFee, productDeliveryFee);
         group.items.push(orderItem);
         sellerGroups.set(product.seller_id, group);
       }
@@ -879,10 +877,9 @@ class WalletService {
         throw new Error('COD checkout currently supports items from one seller at a time. Please place separate orders for each seller.');
       }
 
-      const deliveryFee = this.minor(
-        [...sellerGroups.values()].reduce((amount, group) => amount + group.deliveryFee, 0),
-        { allowZero: true }
-      );
+      // COD Operations quotes delivery from the parcel and destination after
+      // the order is created. Listing data must never set a buyer's fee.
+      const deliveryFee = 0;
       const total = this.minor(subtotal + deliveryFee);
       if (expectedTotal !== undefined && expectedTotal !== null && expectedTotal !== '') {
         const clientTotal = this.money(expectedTotal);
@@ -944,7 +941,7 @@ class WalletService {
             sellerId,
             source: 'product',
             grossAmount,
-            customerDeliveryFee: group.deliveryFee,
+            customerDeliveryFee: 0,
             commission,
             sellerAmount,
           });

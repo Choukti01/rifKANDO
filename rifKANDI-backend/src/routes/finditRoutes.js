@@ -262,7 +262,7 @@ const createFindItRoutes = ({
   router.post('/findit/requests/:id/offers', protect, requireSeller, validateIdParams('id'), validateFinditOfferCreate, async (req, res) => {
     try {
       const priceMinor = Money.toMinor(req.body.price);
-      const deliveryFeeMinor = Money.toMinor(req.body.delivery_fee, { allowZero: true });
+      const deliveryFeeMinor = 0;
       const { offer, request } = await WalletService.withFinancialTransaction(async (transaction) => {
         const debt = await get(transaction, WalletService.lockForUpdate(`
           SELECT id FROM cod_fulfillments
@@ -354,7 +354,7 @@ const createFindItRoutes = ({
           title: req.body.title ?? existing.title,
           description: req.body.description ?? existing.description,
           price: req.body.price ?? Number(existing.price),
-          delivery_fee: req.body.delivery_fee ?? Number(existing.delivery_fee || 0),
+          delivery_fee: 0,
           condition: req.body.condition ?? existing.condition,
           estimated_delivery_days: req.body.estimated_delivery_days ?? Number(existing.estimated_delivery_days),
         };
@@ -429,7 +429,7 @@ const createFindItRoutes = ({
 
         const address = WalletService.sanitizeShippingAddress(req.body.shippingAddress);
         const priceMinor = minorFromRow(offer, 'price_minor', 'price');
-        const deliveryFeeMinor = minorFromRow(offer, 'delivery_fee_minor', 'delivery_fee');
+        const deliveryFeeMinor = 0;
         const commissionMinor = calculateCommissionMinor('findit', priceMinor);
         const sellerAmountMinor = priceMinor - commissionMinor;
         const totalMinor = priceMinor + deliveryFeeMinor;

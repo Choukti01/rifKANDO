@@ -125,7 +125,7 @@ const run = async () => {
       method: 'POST', cookies: seller.cookies, csrfToken: seller.csrfToken,
       body: {
         title: 'Video product listing', description: 'This description is long enough for a product video listing.',
-        price: 100, delivery_fee: 0, category: 'Home', stock: 1, condition: 'new',
+        price: 100, category: 'Home', stock: 1, condition: 'new',
         media: [{ url: '/uploads/media/product-preview.mp4', type: 'video' }],
       },
     });
@@ -134,7 +134,7 @@ const run = async () => {
       method: 'POST', cookies: seller.cookies, csrfToken: seller.csrfToken,
       body: {
         title: 'Invalid product media', description: 'This description is long enough for a media validation test.',
-        price: 100, delivery_fee: 0, category: 'Home', stock: 1, condition: 'new',
+        price: 100, category: 'Home', stock: 1, condition: 'new',
         media: [{ url: '/uploads/media/product-preview.mp4', type: 'document' }],
       },
     }), 'products must reject unsupported public media types');
@@ -142,10 +142,17 @@ const run = async () => {
       method: 'POST', cookies: seller.cookies, csrfToken: seller.csrfToken,
       body: {
         title: 'Mismatched product media', description: 'This description is long enough for a media validation test.',
-        price: 100, delivery_fee: 0, category: 'Home', stock: 1, condition: 'new',
+        price: 100, category: 'Home', stock: 1, condition: 'new',
         media: [{ url: '/uploads/media/product-photo.jpg', type: 'video' }],
       },
     }), 'products must reject mismatched public media references');
+    await assertValidationError(await request(port, '/api/products', {
+      method: 'POST', cookies: seller.cookies, csrfToken: seller.csrfToken,
+      body: {
+        title: 'Seller delivery override', description: 'This seller must not be able to set the buyer delivery fee.',
+        price: 100, delivery_fee: 50, category: 'Home', stock: 1, condition: 'new', media: [],
+      },
+    }), 'seller listings must not accept a delivery-fee override');
     await assertValidationError(await request(port, '/api/courses', {
       method: 'POST', cookies: seller.cookies, csrfToken: seller.csrfToken,
       body: { title: 'Valid course', description: 'This description is long enough.', price: 100, category: 'Programming', level: 'expert', duration: 1, what_you_learn: '[]', media: [] },
@@ -156,7 +163,7 @@ const run = async () => {
     }), 'services must cap revision counts');
     await assertValidationError(await request(port, '/api/findit/requests/1/offers', {
       method: 'POST', cookies: seller.cookies, csrfToken: seller.csrfToken,
-      body: { title: 'Valid FINDit solution', description: 'This solution description is long enough for validation.', price: 100, delivery_fee: 0, condition: 'new', estimated_delivery_days: 61 },
+      body: { title: 'Valid FINDit solution', description: 'This solution description is long enough for validation.', price: 100, condition: 'new', estimated_delivery_days: 61 },
     }), 'FINDit offers must enforce a safe delivery estimate range');
     await assertValidationError(await request(port, '/api/digital', {
       method: 'POST', cookies: seller.cookies, csrfToken: seller.csrfToken,

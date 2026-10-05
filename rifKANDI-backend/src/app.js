@@ -30,6 +30,7 @@ const {
   validateOrderStatus,
   validateCodSellerAction,
   validateCodPartnerPickup,
+  validateCodDeliveryQuote,
   validateCodCollection,
   validateCodSettlement,
   validateCodException,
@@ -2035,6 +2036,7 @@ app.get('/api/orders/:id', protect, (req, res) => {
             SELECT id, source, status, settlement_status, carrier_name, tracking_number,
                    expected_cod_amount, expected_cod_amount_minor,
                    customer_delivery_fee, customer_delivery_fee_minor,
+                   delivery_fee_quoted_at, delivery_fee_quote_note,
                    delivery_partner_name, delivery_partner_contacted_at, delivery_partner_pickup_at,
                    delivery_report_outcome, delivery_reported_at,
                    confirmation_expires_at, confirmed_at, dispatched_at, delivered_at, refused_at, returned_at, cancelled_at, settled_at
@@ -3700,6 +3702,7 @@ app.get('/api/operations/cod-fulfillments', protect, requireCodOperationsAccess,
         f.delivery_partner_name, f.delivery_partner_contacted_at, f.delivery_partner_pickup_at,
         f.delivery_report_outcome, f.delivery_report_note, f.delivery_reported_at,
         f.confirmed_at, f.dispatched_at, f.created_at,
+        f.customer_delivery_fee, f.customer_delivery_fee_minor, f.delivery_fee_quoted_at, f.delivery_fee_quote_note,
         f.expected_cod_amount, f.expected_cod_amount_minor,
         o.id AS order_id, o.order_number, o.shipping_address, o.notes, o.created_at AS order_created_at,
         buyer.name AS buyer_name, buyer.phone AS buyer_phone,
@@ -3728,6 +3731,35 @@ app.get('/api/operations/cod-fulfillments', protect, requireCodOperationsAccess,
     return res.json({ success: true, fulfillments, deliveryPartner: getCodDeliveryPartner() });
   } catch (error) {
     return res.status(500).json({ error: 'Unable to load the COD operations queue.', requestId: req.requestId });
+  }
+});
+
+app.post('/api/operations/cod-fulfillments/:id/quote-delivery', protect, requireCodOperationsAccess, validateIdParams('id'), validateCodDeliveryQuote, async (req, res) => {
+  try {
+    const result = await CodFulfillmentService.quoteDeliveryFee({
+      fulfillmentId: req.params.id,
+      operationsUserId: req.user.id,
+      ...req.body,
+    });
+    await AuditService.recordFromRequest(req, {
+      action: 'operations.cod_delivery_quoted',
+      resourceType: 'cod_fulfillment',
+      resourceId: req.params.id,
+      metadata: { orderId: result.fulfillment.order_id, deliveryFee: Number(result.fulfillment.customer_delivery_fee) },
+    });
+    for (const userId of [result.fulfillment.buyer_id, result.fulfillment.seller_id]) {
+      notify({
+        userId,
+        kind: 'cod.delivery_quoted',
+        title: 'COD delivery quote updated',
+        body: `rifKANDO COD Operations set the delivery fee at ${Number(result.fulfillment.customer_delivery_fee).toFixed(2)} MAD.`,
+        href: userId === result.fulfillment.seller_id ? '/seller/dashboard/orders' : `/orders/${result.fulfillment.order_id}`,
+        metadata: { orderId: result.fulfillment.order_id, fulfillmentId: result.fulfillment.id },
+      });
+    }
+    return res.json({ success: true, fulfillment: result.fulfillment });
+  } catch (error) {
+    return res.status(400).json({ error: error.message, requestId: req.requestId });
   }
 });
 
