@@ -8,7 +8,6 @@ CREATE TABLE users (
   password TEXT NOT NULL,
   phone TEXT,
   role TEXT NOT NULL DEFAULT 'buyer',
-  cod_operations_access BOOLEAN NOT NULL DEFAULT FALSE,
   seller_type TEXT,
   bio TEXT,
   city TEXT,

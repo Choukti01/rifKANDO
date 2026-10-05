@@ -52,7 +52,7 @@ async function main() {
   const baselineSql = migrations[0].sql;
   const allMigrationSql = migrations.map((migration) => migration.sql).join('\n');
   for (const table of EXPECTED_POSTGRES_TABLES) {
-    assert.match(allMigrationSql, new RegExp(`CREATE TABLE ${table} \\(`), `Missing PostgreSQL table: ${table}`);
+    assert.match(allMigrationSql, new RegExp(`CREATE TABLE (?:IF NOT EXISTS )?${table} \\(`), `Missing PostgreSQL table: ${table}`);
   }
 
   for (const [table, column] of REQUIRED_MINOR_UNIT_COLUMNS) {
