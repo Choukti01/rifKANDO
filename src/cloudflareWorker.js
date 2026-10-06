@@ -31,6 +31,12 @@ const catalogSnapshotResponse = async (request) => {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    if (url.hostname === 'rifkando.com') {
+      url.protocol = 'https:';
+      url.hostname = 'www.rifkando.com';
+      return Response.redirect(url.toString(), 301);
+    }
+
     if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname === '/catalog/latest.json') {
       return catalogSnapshotResponse(request);
     }
