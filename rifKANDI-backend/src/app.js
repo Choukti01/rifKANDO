@@ -1322,7 +1322,15 @@ const inspectPublicMedia = async (file) => {
     gif: { extension: 'gif', contentType: 'image/gif' },
   };
 
-  if (file.mimetype.startsWith('image/')) {
+  const originalExtension = path.extname(file.originalname || '').slice(1).toLowerCase();
+  // A few Android and iOS pickers send application/octet-stream or an empty
+  // MIME label for an otherwise valid camera photo. The extension only lets
+  // the file reach Sharp; Sharp then verifies the actual image bytes before
+  // any object can be stored or exposed publicly.
+  const isImageCandidate = file.mimetype.startsWith('image/')
+    || ['jpg', 'jpeg', 'png', 'webp', 'gif', 'avif', 'heic', 'heif'].includes(originalExtension);
+
+  if (isImageCandidate) {
     if (file.size > MAX_PUBLIC_IMAGE_BYTES) throw new Error('Images must be 10 MB or smaller.');
     const metadata = await sharp(file.buffer, { failOn: 'error' }).metadata();
     const format = imageFormats[metadata.format];
@@ -1341,7 +1349,6 @@ const inspectPublicMedia = async (file) => {
     throw new Error('The uploaded image format is not supported. Use JPG, PNG, WebP, GIF, or AVIF.');
   }
 
-  const originalExtension = path.extname(file.originalname || '').slice(1).toLowerCase();
   // File pickers on Android and iOS do not consistently preserve MIME labels.
   // The extension only chooses which container inspection runs. Magic-byte
   // validation below is still mandatory before anything reaches public R2.
