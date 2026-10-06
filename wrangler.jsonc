@@ -9,8 +9,12 @@
   },
   "routes": [
     {
-      "pattern": "rifkando.com",
-      "custom_domain": true
+      "pattern": "rifkando.com/*",
+      "zone_name": "rifkando.com"
+    },
+    {
+      "pattern": "www.rifkando.com/*",
+      "zone_name": "rifkando.com"
     }
   ]
 }
