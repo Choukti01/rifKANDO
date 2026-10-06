@@ -31,6 +31,15 @@ const catalogSnapshotResponse = async (request) => {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    // Keep one secure, canonical public address. Cloudflare provisions the
+    // naked custom domain from wrangler.jsonc, then this redirect preserves
+    // every path and query string on the www HTTPS storefront.
+    if (url.hostname === 'rifkando.com') {
+      url.protocol = 'https:';
+      url.hostname = 'www.rifkando.com';
+      return Response.redirect(url.toString(), 301);
+    }
+
     if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname === '/catalog/latest.json') {
       return catalogSnapshotResponse(request);
     }
