@@ -6,11 +6,5 @@
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS"
-  },
-  "routes": [
-    {
-      "pattern": "rifkando.com",
-      "custom_domain": true
-    }
-  ]
+  }
 }

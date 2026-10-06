@@ -6,19 +6,6 @@ afterEach(() => {
 });
 
 describe('Cloudflare Worker catalog snapshot route', () => {
-  it('redirects the naked domain to the secure canonical www domain', async () => {
-    const assetsFetch = vi.fn();
-
-    const response = await worker.fetch(
-      new Request('http://rifkando.com/products?condition=new'),
-      { ASSETS: { fetch: assetsFetch } },
-    );
-
-    expect(response.status).toBe(301);
-    expect(response.headers.get('location')).toBe('https://www.rifkando.com/products?condition=new');
-    expect(assetsFetch).not.toHaveBeenCalled();
-  });
-
   it('proxies the snapshot before static-asset routing', async () => {
     const upstreamFetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ schemaVersion: 1 }), {
       headers: { 'Content-Type': 'application/json; charset=utf-8' },
