@@ -43,6 +43,23 @@ const api = axios.create({
   },
 });
 
+// Axios instances that default to JSON need an explicit reset for browser
+// FormData. Leaving the JSON header in place makes Multer see an empty body on
+// some mobile browsers, even though the selected file is valid.
+export const uploadPublicMedia = (formData, onUploadProgress) => api.post('/upload-media', formData, {
+  headers: { 'Content-Type': undefined },
+  transformRequest: [(data, headers) => {
+    if (typeof headers?.setContentType === 'function') {
+      headers.setContentType(undefined);
+    } else if (headers) {
+      delete headers['Content-Type'];
+      delete headers['content-type'];
+    }
+    return data;
+  }],
+  onUploadProgress,
+});
+
 api.interceptors.request.use((config) => {
   config.withCredentials = true;
   // Cookie sessions intentionally do not accept a browser-supplied bearer

@@ -8,7 +8,7 @@ import {
   StarIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline';
-import api from '../services/api';
+import { uploadPublicMedia } from '../services/api';
 import toast from 'react-hot-toast';
 import { getImageUrl } from '../utils/imageUtils';
 
@@ -85,11 +85,9 @@ const MediaUploader = ({
         // Do not set Content-Type ourselves. The browser must add the
         // multipart boundary for FormData; manually forcing this header can
         // leave Multer with an unreadable request on some browsers.
-        const response = await api.post('/upload-media', formData, {
-          onUploadProgress: (progressEvent) => {
-            if (!progressEvent.total) return;
-            setUploadProgress(Math.min(100, Math.round((progressEvent.loaded / progressEvent.total) * 100)));
-          },
+        const response = await uploadPublicMedia(formData, (progressEvent) => {
+          if (!progressEvent.total) return;
+          setUploadProgress(Math.min(100, Math.round((progressEvent.loaded / progressEvent.total) * 100)));
         });
         if (response.data.success) {
           const newMedia = { url: response.data.url, type: response.data.type };

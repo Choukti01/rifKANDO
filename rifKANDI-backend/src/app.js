@@ -81,7 +81,7 @@ const NotificationService = require('./services/notificationService');
 const { getCodDeliveryPartner, getCodReconciliationControllers, createSellerHandoffLink } = require('./services/deliveryPartnerService');
 const FeatureFlags = require('./services/featureFlagService');
 const PasskeyService = require('./services/passkeyService');
-const { snapshot: getObservabilitySnapshot } = require('./services/observabilityService');
+const { log: logObservability, snapshot: getObservabilitySnapshot } = require('./services/observabilityService');
 const { requireCodReconciliationAccess } = require('./middleware/codReconciliationAccess');
 const { requireCodOperationsAccess } = require('./middleware/codOperationsAccess');
 const {
@@ -1376,7 +1376,16 @@ const inspectPublicMedia = async (file) => {
 };
 
 const persistPublicMedia = async (req, res, next) => {
-  if (!req.file) return res.status(400).json({ error: 'No file uploaded.' });
+  if (!req.file) {
+    // Do not log a filename or file content. Content type and body presence are
+    // sufficient to diagnose multipart interoperability problems safely.
+    logObservability('warn', 'public_media_upload_missing_file', {
+      contentType: String(req.get('content-type') || '').slice(0, 160),
+      contentLength: Number(req.get('content-length') || 0) || undefined,
+      userId: req.user?.id,
+    });
+    return res.status(400).json({ error: 'The upload did not contain a media file. Please choose the file again and retry.' });
+  }
   try {
     const media = await inspectPublicMedia(req.file);
     const key = storageService.createKey('public', 'media', media.extension);
