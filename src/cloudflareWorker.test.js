@@ -38,4 +38,14 @@ describe('Cloudflare Worker catalog snapshot route', () => {
     expect(upstreamFetch).toHaveBeenCalledOnce();
     expect(assetsFetch).not.toHaveBeenCalled();
   });
+
+  it('removes the legacy service worker once for a browser navigation', async () => {
+    const response = await worker.fetch(
+      new Request('https://www.rifkando.com/', { headers: { Accept: 'text/html' } }),
+      { ASSETS: { fetch: vi.fn().mockResolvedValue(new Response('<!doctype html>', { status: 200 })) } },
+    );
+
+    expect(response.headers.get('clear-site-data')).toBe('"storage"');
+    expect(response.headers.get('set-cookie')).toContain('rifkando_sw_recovery=1');
+  });
 });

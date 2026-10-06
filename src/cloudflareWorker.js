@@ -1,4 +1,29 @@
 const PUBLIC_CATALOG_SNAPSHOT_URL = 'https://media.rifkando.com/public/catalog/latest.json';
+const SERVICE_WORKER_RECOVERY_COOKIE = 'rifkando_sw_recovery=1';
+
+const applyServiceWorkerRecovery = (request, response) => {
+  const isNavigation = request.method === 'GET'
+    && request.headers.get('accept')?.includes('text/html');
+  const alreadyRecovered = request.headers.get('cookie')?.includes(SERVICE_WORKER_RECOVERY_COOKIE);
+
+  if (!isNavigation || alreadyRecovered) return response;
+
+  // A previously deployed service worker could turn an upstream failure into
+  // an invalid browser response. Clear only origin storage once so browsers
+  // remove that registration without clearing authenticated session cookies.
+  const headers = new Headers(response.headers);
+  headers.set('Clear-Site-Data', '"storage"');
+  headers.append(
+    'Set-Cookie',
+    `${SERVICE_WORKER_RECOVERY_COOKIE}; Max-Age=604800; Path=/; Secure; SameSite=Lax`,
+  );
+
+  return new Response(response.body, {
+    headers,
+    status: response.status,
+    statusText: response.statusText,
+  });
+};
 
 const catalogSnapshotResponse = async (request) => {
   try {
@@ -42,13 +67,13 @@ export default {
     }
 
     const assetResponse = await env.ASSETS.fetch(request);
-    if (assetResponse.status !== 404) return assetResponse;
+    if (assetResponse.status !== 404) return applyServiceWorkerRecovery(request, assetResponse);
 
     const acceptsHtml = request.headers.get('accept')?.includes('text/html');
     if ((request.method === 'GET' || request.method === 'HEAD') && acceptsHtml) {
       url.pathname = '/index.html';
       url.search = '';
-      return env.ASSETS.fetch(new Request(url, request));
+      return applyServiceWorkerRecovery(request, await env.ASSETS.fetch(new Request(url, request)));
     }
 
     return assetResponse;
