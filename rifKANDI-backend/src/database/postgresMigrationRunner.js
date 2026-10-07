@@ -85,6 +85,10 @@ async function getMigrationPlan(pool, directory = POSTGRES_MIGRATIONS_DIRECTORY)
   const client = await pool.connect();
 
   try {
+    // Managed PostgreSQL roles can have an empty search_path. The production
+    // schema is intentionally public, so make migration resolution explicit
+    // instead of relying on a role-level default.
+    await client.query('SET search_path TO public');
     await ensureMigrationTable(client);
     const applied = await getAppliedMigrations(client);
     validateMigrationHistory(migrations, applied);
@@ -106,6 +110,7 @@ async function applyPostgresMigrations(pool, directory = POSTGRES_MIGRATIONS_DIR
   try {
     await client.query('BEGIN');
     await client.query('SELECT pg_advisory_xact_lock($1)', [MIGRATION_LOCK_ID]);
+    await client.query('SET LOCAL search_path TO public');
     await ensureMigrationTable(client);
 
     const applied = await getAppliedMigrations(client);
