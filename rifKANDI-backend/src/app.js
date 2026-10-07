@@ -2052,7 +2052,7 @@ app.get('/api/orders/:id', protect, (req, res) => {
             SELECT id, source, status, settlement_status, carrier_name, tracking_number,
                    expected_cod_amount, expected_cod_amount_minor,
                    customer_delivery_fee, customer_delivery_fee_minor,
-                   delivery_fee_quoted_at, delivery_fee_quote_note,
+                   delivery_fee_quoted_at, delivery_fee_quote_note, delivery_deadline_at, delivery_deadline_set_at,
                    delivery_partner_name, delivery_partner_contacted_at, delivery_partner_pickup_at,
                    delivery_report_outcome, delivery_reported_at,
                    confirmation_expires_at, confirmed_at, dispatched_at, delivered_at, refused_at, returned_at, cancelled_at, settled_at
@@ -3276,6 +3276,7 @@ app.get('/api/seller/orders', protect, requireSeller, (req, res) => {
       f.expected_cod_amount, f.expected_cod_amount_minor, f.commission, f.commission_minor,
       f.seller_amount, f.seller_amount_minor, f.carrier_name, f.tracking_number,
       f.delivery_partner_name, f.delivery_partner_contacted_at, f.delivery_partner_pickup_at,
+      f.delivery_fee_quoted_at, f.delivery_deadline_at,
       f.seller_payout_status, f.seller_payout_due_at, f.seller_payout_reference, f.seller_payout_note,
       f.seller_payout_at,
       f.commission_payment_status, f.commission_reference, f.commission_due_at,
@@ -3719,6 +3720,7 @@ app.get('/api/operations/cod-fulfillments', protect, requireCodOperationsAccess,
         f.delivery_report_outcome, f.delivery_report_note, f.delivery_reported_at,
         f.confirmed_at, f.dispatched_at, f.created_at,
         f.customer_delivery_fee, f.customer_delivery_fee_minor, f.delivery_fee_quoted_at, f.delivery_fee_quote_note,
+        f.delivery_deadline_at, f.delivery_deadline_set_at,
         f.expected_cod_amount, f.expected_cod_amount_minor,
         o.id AS order_id, o.order_number, o.shipping_address, o.notes, o.created_at AS order_created_at,
         buyer.name AS buyer_name, buyer.phone AS buyer_phone,
@@ -3761,14 +3763,14 @@ app.post('/api/operations/cod-fulfillments/:id/quote-delivery', protect, require
       action: 'operations.cod_delivery_quoted',
       resourceType: 'cod_fulfillment',
       resourceId: req.params.id,
-      metadata: { orderId: result.fulfillment.order_id, deliveryFee: Number(result.fulfillment.customer_delivery_fee) },
+      metadata: { orderId: result.fulfillment.order_id, deliveryFee: Number(result.fulfillment.customer_delivery_fee), deliveryDeadline: result.fulfillment.delivery_deadline_at },
     });
     for (const userId of [result.fulfillment.buyer_id, result.fulfillment.seller_id]) {
       notify({
         userId,
         kind: 'cod.delivery_quoted',
         title: 'COD delivery quote updated',
-        body: `rifKANDO COD Operations set the delivery fee at ${Number(result.fulfillment.customer_delivery_fee).toFixed(2)} MAD.`,
+        body: `rifKANDO COD Operations set delivery at ${Number(result.fulfillment.customer_delivery_fee).toFixed(2)} MAD, with arrival planned by ${new Date(result.fulfillment.delivery_deadline_at).toLocaleString('en-MA')}.`,
         href: userId === result.fulfillment.seller_id ? '/seller/dashboard/orders' : `/orders/${result.fulfillment.order_id}`,
         metadata: { orderId: result.fulfillment.order_id, fulfillmentId: result.fulfillment.id },
       });

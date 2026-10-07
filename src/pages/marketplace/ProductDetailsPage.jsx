@@ -346,7 +346,7 @@ const ProductDetailsPage = () => {
               {!isOwnListing && <button type="button" className="report-listing-btn" onClick={() => isAuthenticated ? setShowReportModal(true) : toast.error('Please sign in to report a listing.')}><FlagIcon aria-hidden="true" /> Report this listing</button>}
               <div className="product-shipping">
                 {product.origin_city && <div className="shipping-item"><TruckIcon className="shipping-icon" /><span>Ships from {product.origin_city}</span></div>}
-                <div className="shipping-item"><ArrowPathIcon className="shipping-icon" /><span>Seller prepares in {Number(product.preparation_days || 1) === 0 ? 'the same day' : `${Number(product.preparation_days || 1)} day${Number(product.preparation_days || 1) === 1 ? '' : 's'}`} · estimated delivery in {Number(product.estimated_delivery_days || 3)} day{Number(product.estimated_delivery_days || 3) === 1 ? '' : 's'}.</span></div>
+                <div className="shipping-item"><ArrowPathIcon className="shipping-icon" /><span>Seller prepares in {Number(product.preparation_days || 1) === 0 ? 'the same day' : `${Number(product.preparation_days || 1)} day${Number(product.preparation_days || 1) === 1 ? '' : 's'}`}. rifKANDO COD Operations confirms the delivery fee and arrival deadline after the order is confirmed.</span></div>
                 <div className="shipping-item"><TruckIcon className="shipping-icon" /><span>{t('products.deliveryCheckoutNote')}</span></div>
                 <div className="shipping-item"><ShieldCheckIcon className="shipping-icon" /><span>{t('products.codProtectionNote')}</span></div>
                 <div className="shipping-item"><ArrowPathIcon className="shipping-icon" /><span>{t('products.orderTrackingNote')}</span></div>
@@ -384,7 +384,7 @@ const ProductDetailsPage = () => {
                 <div className="spec-item"><span className="spec-label">Availability</span><span className="spec-value">{stock > 0 ? `${stock} units available` : 'Out of stock'}</span></div>
                 <div className="spec-item"><span className="spec-label">Sold</span><span className="spec-value">{product.sold || 0} units</span></div>
                 <div className="spec-item"><span className="spec-label">Dispatch</span><span className="spec-value">{product.origin_city || 'Seller location shared at checkout'} · prepares in {Number(product.preparation_days || 1) === 0 ? 'same day' : `${Number(product.preparation_days || 1)} day(s)`}</span></div>
-                <div className="spec-item"><span className="spec-label">Delivery estimate</span><span className="spec-value">{Number(product.estimated_delivery_days || 3)} day(s) after dispatch</span></div>
+                <div className="spec-item"><span className="spec-label">Delivery plan</span><span className="spec-value">Set by rifKANDO COD Operations after confirmation</span></div>
               </div>
             )}
             {activeTab==='reviews' && (

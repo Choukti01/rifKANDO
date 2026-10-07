@@ -1,7 +1,7 @@
 const Money = require('./moneyService');
 const WalletService = require('./walletService');
 
-const SELLER_ACTIONS = new Set(['confirm', 'request_handoff', 'dispatch', 'cancel']);
+const SELLER_ACTIONS = new Set(['confirm', 'request_handoff', 'cancel']);
 const PHYSICAL_STATUSES = new Set([
   'pending_confirmation',
   'confirmed',
@@ -15,6 +15,14 @@ const TERMINAL_STATUSES = new Set(['delivered', 'refused', 'returned', 'cancelle
 
 const cleanText = (value, maxLength = 1_000) => String(value || '').trim().slice(0, maxLength);
 const commissionReference = (fulfillment) => `RKC-${String(fulfillment.order_number).replace(/[^A-Za-z0-9]/g, '').slice(-18)}-${fulfillment.id}`;
+const validatedDeliveryDeadline = (value, now = Date.now()) => {
+  const parsed = Date.parse(value);
+  const maximum = now + (90 * 24 * 60 * 60 * 1000);
+  if (!Number.isFinite(parsed) || parsed < now - (5 * 60 * 1000) || parsed > maximum) {
+    throw new Error('The delivery deadline must be between now and 90 days from now.');
+  }
+  return new Date(parsed).toISOString();
+};
 
 const getAmountMinor = (row, minorColumn, decimalColumn) => {
   if (Number.isSafeInteger(row?.[minorColumn])) {
@@ -158,7 +166,7 @@ class CodFulfillmentService {
     );
   }
 
-  static async sellerAction({ fulfillmentId, sellerId, action, carrierName = '', trackingNumber = '', note = '' }) {
+  static async sellerAction({ fulfillmentId, sellerId, action, note = '' }) {
     const safeFulfillmentId = WalletService.positiveInteger(fulfillmentId, 'Fulfillment ID');
     const safeSellerId = WalletService.positiveInteger(sellerId, 'Seller ID');
     if (!SELLER_ACTIONS.has(action)) throw new Error('Unsupported COD fulfilment action.');
@@ -207,33 +215,6 @@ class CodFulfillmentService {
         }
       }
 
-      if (action === 'dispatch') {
-        if (fulfillment.status !== 'confirmed') {
-          throw new Error('Confirm the COD order before handing it to a carrier.');
-        }
-        if (!fulfillment.delivery_fee_quoted_at) {
-          throw new Error('COD Operations must set and save the buyer delivery quote before dispatch.');
-        }
-        if (!cleanText(carrierName, 120) || !cleanText(trackingNumber, 128)) {
-          throw new Error('Carrier name and tracking number are required before dispatch.');
-        }
-        const update = await tx.run(
-          `UPDATE cod_fulfillments
-           SET status = 'shipped', carrier_name = ?, tracking_number = ?,
-               dispatched_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-           WHERE id = ? AND status = 'confirmed'`,
-          [cleanText(carrierName, 120), cleanText(trackingNumber, 128), fulfillment.id]
-        );
-        if (update.changes !== 1) throw new Error('COD fulfilment changed before dispatch.');
-        await this.addHistoryTx(
-          tx,
-          fulfillment.order_id,
-          'shipped',
-          `Seller handed the parcel to ${cleanText(carrierName, 120)}. Tracking: ${cleanText(trackingNumber, 128)}.`,
-          safeSellerId
-        );
-      }
-
       if (action === 'cancel') {
         if (!['pending_confirmation', 'confirmed'].includes(fulfillment.status)) {
           throw new Error('Only an unshipped COD order can be cancelled by the seller.');
@@ -273,8 +254,8 @@ class CodFulfillmentService {
       if (!fulfillment.delivery_partner_contacted_at) {
         throw new Error('Wait for the seller to request Toufiq pickup before confirming handoff.');
       }
-      if (!fulfillment.delivery_fee_quoted_at) {
-        throw new Error('Set and save the buyer delivery quote before confirming pickup.');
+      if (!fulfillment.delivery_fee_quoted_at || !fulfillment.delivery_deadline_at) {
+        throw new Error('Set the buyer delivery quote and arrival deadline before confirming pickup.');
       }
 
       const update = await tx.run(
@@ -301,10 +282,11 @@ class CodFulfillmentService {
   // A delivery quote is an operational decision, not seller-controlled listing
   // data. It is frozen before pickup so collection and reconciliation can use
   // the same amount that was communicated to the buyer.
-  static async quoteDeliveryFee({ fulfillmentId, operationsUserId, deliveryFee, note = '' }) {
+  static async quoteDeliveryFee({ fulfillmentId, operationsUserId, deliveryFee, deliveryDeadline, note = '' }) {
     const safeFulfillmentId = WalletService.positiveInteger(fulfillmentId, 'Fulfillment ID');
     const safeOperationsUserId = WalletService.positiveInteger(operationsUserId, 'Operations user ID');
     const deliveryFeeMinor = Money.toMinor(deliveryFee, { allowZero: true });
+    const deadlineIso = validatedDeliveryDeadline(deliveryDeadline);
     const safeNote = cleanText(note);
 
     return WalletService.withFinancialTransaction(async (tx) => {
@@ -321,12 +303,13 @@ class CodFulfillmentService {
          SET customer_delivery_fee = ?, customer_delivery_fee_minor = ?,
              expected_cod_amount = ?, expected_cod_amount_minor = ?,
              delivery_fee_quoted_at = CURRENT_TIMESTAMP, delivery_fee_quoted_by = ?,
-             delivery_fee_quote_note = ?
+             delivery_fee_quote_note = ?, delivery_deadline_at = ?,
+             delivery_deadline_set_at = CURRENT_TIMESTAMP, delivery_deadline_set_by = ?
          WHERE id = ? AND status = 'confirmed' AND delivery_partner_pickup_at IS NULL`,
         [
           Money.fromMinor(deliveryFeeMinor), deliveryFeeMinor,
           Money.fromMinor(expectedCodMinor), expectedCodMinor,
-          safeOperationsUserId, safeNote, fulfillment.id,
+          safeOperationsUserId, safeNote, deadlineIso, safeOperationsUserId, fulfillment.id,
         ]
       );
       if (update.changes !== 1) throw new Error('The COD fulfilment changed before its delivery quote could be saved.');
@@ -345,7 +328,7 @@ class CodFulfillmentService {
         tx,
         fulfillment.order_id,
         'processing',
-        `COD delivery quoted at ${Money.formatMinor(deliveryFeeMinor)} MAD by COD Operations.${safeNote ? ` ${safeNote}` : ''}`,
+        `COD delivery quoted at ${Money.formatMinor(deliveryFeeMinor)} MAD with arrival deadline ${deadlineIso} by COD Operations.${safeNote ? ` ${safeNote}` : ''}`,
         safeOperationsUserId
       );
       return { fulfillment: await this.getFulfillmentTx(tx, safeFulfillmentId) };

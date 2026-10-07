@@ -115,6 +115,7 @@ const SellerOrders = () => {
                 )}
 
                 {order.carrier_name && order.tracking_number && <p className="seller-cod-order__tracking">Delivery network: <strong>{order.carrier_name}</strong> · Tracking: <strong>{order.tracking_number}</strong></p>}
+                {order.delivery_deadline_at && <p className="seller-cod-order__tracking">Toufiq set the buyer arrival deadline: <strong>{new Date(order.delivery_deadline_at).toLocaleString('en-MA', { dateStyle: 'medium', timeStyle: 'short' })}</strong>.</p>}
                 {order.seller_payout_status === 'due' && <p className="seller-cod-order__payout">Toufiq’s remittance is recorded. rifKANDO will send your payout of <strong>{money(order.seller_amount)}</strong> and record the transfer reference here.</p>}
                 {order.seller_payout_status === 'paid' && <p className="seller-cod-order__payout is-paid">Your payout of <strong>{money(order.seller_amount)}</strong> has been recorded. Reference: {order.seller_payout_reference}.</p>}
                 {order.commission_payment_status === 'due' && <p className="seller-cod-order__legacy">This older order uses the previous seller-managed commission flow. Contact rifKANDO support for settlement.</p>}

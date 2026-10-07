@@ -42,7 +42,7 @@ const codSteps = (order, fulfillment) => {
     { key: 'placed', label: 'Order placed', detail: 'Your COD order was received.', time: order.created_at, complete: true },
     { key: 'confirmed', label: 'Seller confirmation', detail: fulfillment.confirmed_at ? 'The seller confirmed the order.' : 'Waiting for the seller to confirm.', time: fulfillment.confirmed_at, complete: Boolean(fulfillment.confirmed_at) },
     { key: 'pickup', label: 'Pickup and tracking', detail: fulfillment.delivery_partner_pickup_at ? `Parcel picked up${fulfillment.carrier_name ? ` by ${fulfillment.carrier_name}` : ''}.` : fulfillment.delivery_partner_contacted_at ? 'Pickup is being coordinated with the seller.' : 'Pickup will be arranged after confirmation.', time: fulfillment.delivery_partner_pickup_at, complete: Boolean(fulfillment.delivery_partner_pickup_at), active: fulfillment.status === 'confirmed' },
-    { key: 'delivery', label: terminal ? codStatus(fulfillment).label : 'Delivery to you', detail: terminal ? codStatus(fulfillment).detail : 'The delivery partner will contact you before delivery.', time: deliveryTime, complete: terminal, active: fulfillment.status === 'shipped' },
+    { key: 'delivery', label: terminal ? codStatus(fulfillment).label : 'Delivery to you', detail: terminal ? codStatus(fulfillment).detail : fulfillment.delivery_deadline_at ? `rifKANDO COD Operations plans arrival by ${dateTime(fulfillment.delivery_deadline_at)}.` : 'COD Operations will confirm your delivery plan before pickup.', time: deliveryTime, complete: terminal, active: fulfillment.status === 'shipped' },
   ];
 };
 
@@ -199,6 +199,7 @@ const OrderDetailsPage = () => {
                 <div className="cod-tracking-item__facts">
                   <div><span>Pay on delivery</span><strong>{fulfillment.delivery_fee_quoted_at ? money(fulfillment.expected_cod_amount || order.total) : 'Delivery quote pending'}</strong></div>
                   <div><span>Delivery charge</span><strong>{fulfillment.delivery_fee_quoted_at ? money(fulfillment.customer_delivery_fee) : 'To be confirmed'}</strong></div>
+                  <div><span>Planned arrival</span><strong>{fulfillment.delivery_deadline_at ? dateTime(fulfillment.delivery_deadline_at) : 'Set by COD Operations before pickup'}</strong></div>
                   {fulfillment.carrier_name && <div><span>Carrier</span><strong>{fulfillment.carrier_name}</strong></div>}
                   {fulfillment.tracking_number && <div><span>Tracking number</span><strong>{fulfillment.tracking_number}</strong></div>}
                 </div>

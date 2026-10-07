@@ -51,6 +51,7 @@ const createUsersAndProduct = async (title, price = 100) => WalletService.withFi
 const address = (email) => ({
   fullName: 'COD Test Buyer', email, phone: '0600000000', address: '1 Test Street', city: 'Rabat', postalCode: '10000',
 });
+const deliveryDeadline = () => new Date(Date.now() + (48 * 60 * 60 * 1000)).toISOString();
 
 async function run() {
   await db.ready;
@@ -71,6 +72,13 @@ async function run() {
   assert.equal(fulfillment.expected_cod_amount_minor, 10_000, 'checkout starts without a seller-defined delivery fee');
 
   await CodFulfillmentService.sellerAction({ fulfillmentId: fulfillment.id, sellerId: flow.sellerId, action: 'confirm' });
+  await assert.rejects(
+    () => CodFulfillmentService.sellerAction({
+      fulfillmentId: fulfillment.id, sellerId: flow.sellerId, action: 'dispatch',
+    }),
+    /Unsupported COD fulfilment action/,
+    'a seller cannot bypass Toufiq and mark a parcel as dispatched'
+  );
   await CodFulfillmentService.sellerAction({
     fulfillmentId: fulfillment.id, sellerId: flow.sellerId, action: 'request_handoff',
   });
@@ -84,9 +92,11 @@ async function run() {
   );
   const quoted = await CodFulfillmentService.quoteDeliveryFee({
     fulfillmentId: fulfillment.id, operationsUserId: flow.operationsId, deliveryFee: 50,
+    deliveryDeadline: deliveryDeadline(),
     note: 'Parcel and destination confirmed by Toufiq.',
   });
   assert.equal(quoted.fulfillment.expected_cod_amount_minor, 15_000, 'the quote updates the COD amount before pickup');
+  assert.ok(quoted.fulfillment.delivery_deadline_at, 'Toufiq sets the buyer delivery deadline with the quote');
   const pickedUp = await CodFulfillmentService.confirmDeliveryPartnerPickup({
     fulfillmentId: fulfillment.id, operationsUserId: flow.operationsId,
     carrierName: 'Najm Chamal', trackingNumber: 'COD-TRACK-1001', note: 'Toufiq collected the parcel.',
@@ -142,6 +152,7 @@ async function run() {
   await CodFulfillmentService.sellerAction({ fulfillmentId: duplicateRemittanceFulfillment.id, sellerId: duplicateRemittanceFlow.sellerId, action: 'request_handoff' });
   await CodFulfillmentService.quoteDeliveryFee({
     fulfillmentId: duplicateRemittanceFulfillment.id, operationsUserId: duplicateRemittanceFlow.operationsId, deliveryFee: 50,
+    deliveryDeadline: deliveryDeadline(),
   });
   await CodFulfillmentService.confirmDeliveryPartnerPickup({
     fulfillmentId: duplicateRemittanceFulfillment.id, operationsUserId: duplicateRemittanceFlow.operationsId,
@@ -172,11 +183,22 @@ async function run() {
   });
   const returnFulfillment = await WalletService.get('SELECT * FROM cod_fulfillments WHERE order_id = ?', [returnCheckout.order.id]);
   await CodFulfillmentService.sellerAction({ fulfillmentId: returnFulfillment.id, sellerId: returnFlow.sellerId, action: 'confirm' });
+  await CodFulfillmentService.sellerAction({ fulfillmentId: returnFulfillment.id, sellerId: returnFlow.sellerId, action: 'request_handoff' });
+  await assert.rejects(
+    () => CodFulfillmentService.quoteDeliveryFee({
+      fulfillmentId: returnFulfillment.id, operationsUserId: returnFlow.operationsId, deliveryFee: 50,
+      deliveryDeadline: new Date(Date.now() - (10 * 60 * 1000)).toISOString(),
+    }),
+    /between now and 90 days/,
+    'delivery deadlines cannot be set in the past'
+  );
   await CodFulfillmentService.quoteDeliveryFee({
     fulfillmentId: returnFulfillment.id, operationsUserId: returnFlow.operationsId, deliveryFee: 50,
+    deliveryDeadline: deliveryDeadline(),
   });
-  await CodFulfillmentService.sellerAction({
-    fulfillmentId: returnFulfillment.id, sellerId: returnFlow.sellerId, action: 'dispatch', carrierName: 'Test Carrier', trackingNumber: 'COD-TRACK-RETURN-1001',
+  await CodFulfillmentService.confirmDeliveryPartnerPickup({
+    fulfillmentId: returnFulfillment.id, operationsUserId: returnFlow.operationsId,
+    carrierName: 'Test Carrier', trackingNumber: 'COD-TRACK-RETURN-1001',
   });
   await CodFulfillmentService.reportDeliveryOutcome({
     fulfillmentId: returnFulfillment.id, operationsUserId: returnFlow.operationsId,

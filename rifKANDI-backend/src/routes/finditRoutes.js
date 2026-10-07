@@ -64,7 +64,6 @@ const safeOfferForBuyer = (offer) => ({
   delivery_fee: Number(offer.delivery_fee || 0),
   delivery_fee_minor: minorFromRow(offer, 'delivery_fee_minor', 'delivery_fee'),
   condition: offer.condition,
-  estimated_delivery_days: Number(offer.estimated_delivery_days),
   status: offer.status,
   created_at: offer.created_at,
   updated_at: offer.updated_at,
@@ -85,7 +84,6 @@ const safeOfferForSeller = (offer) => ({
   delivery_fee: Number(offer.delivery_fee || 0),
   delivery_fee_minor: minorFromRow(offer, 'delivery_fee_minor', 'delivery_fee'),
   condition: offer.condition,
-  estimated_delivery_days: Number(offer.estimated_delivery_days),
   status: offer.status,
   created_at: offer.created_at,
   updated_at: offer.updated_at,
@@ -294,7 +292,9 @@ const createFindItRoutes = ({
         `, [
           request.id, req.user.id, req.body.title, req.body.description,
           Money.fromMinor(priceMinor), priceMinor, Money.fromMinor(deliveryFeeMinor), deliveryFeeMinor,
-          req.body.condition, req.body.estimated_delivery_days,
+          // This existing required column is retained only for backwards
+          // compatibility. COD Operations owns the actual delivery deadline.
+          req.body.condition, 3,
         ]);
         const offer = await get(transaction, 'SELECT * FROM findit_offers WHERE id = ?', [inserted.lastID]);
         return { offer, request };
@@ -356,7 +356,7 @@ const createFindItRoutes = ({
           price: req.body.price ?? Number(existing.price),
           delivery_fee: 0,
           condition: req.body.condition ?? existing.condition,
-          estimated_delivery_days: req.body.estimated_delivery_days ?? Number(existing.estimated_delivery_days),
+          estimated_delivery_days: Number(existing.estimated_delivery_days),
         };
         const priceMinor = Money.toMinor(next.price);
         const deliveryFeeMinor = Money.toMinor(next.delivery_fee, { allowZero: true });

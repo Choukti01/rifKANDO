@@ -157,7 +157,7 @@ const createProductRoutes = ({
   });
 
   router.post('/products', protect, requireSeller, validateProductCreate, (req, res) => {
-    const { title, description, price, old_price: oldPrice, category, stock, media, condition, origin_city: originCity, preparation_days: preparationDays, estimated_delivery_days: estimatedDeliveryDays } = req.body;
+    const { title, description, price, old_price: oldPrice, category, stock, media, condition, origin_city: originCity, preparation_days: preparationDays } = req.body;
     const priceMinor = Money.toMinor(price);
     const oldPriceMinor = oldPrice === undefined ? null : Money.toMinor(oldPrice);
 
@@ -178,7 +178,9 @@ const createProductRoutes = ({
         stock,
         req.user.id,
         condition || 'new',
-        originCity || '', preparationDays ?? 1, estimatedDeliveryDays ?? 3,
+        // This legacy listing column remains populated for schema compatibility.
+        // The real buyer deadline now belongs only to COD Operations per order.
+        originCity || '', preparationDays ?? 1, 3,
       ],
       function onProductCreated(error) {
         if (error) return res.status(400).json({ error: error.message });
@@ -206,7 +208,7 @@ const createProductRoutes = ({
   });
 
   router.put('/products/:id', protect, requireSeller, validateIdParams('id'), validateProductUpdate, (req, res) => {
-    const { title, description, price, old_price: oldPrice, category, stock, media, condition, origin_city: originCity, preparation_days: preparationDays, estimated_delivery_days: estimatedDeliveryDays } = req.body;
+    const { title, description, price, old_price: oldPrice, category, stock, media, condition, origin_city: originCity, preparation_days: preparationDays } = req.body;
     const priceMinor = price === undefined ? undefined : Money.toMinor(price);
     const oldPriceMinor = oldPrice === undefined ? undefined : Money.toMinor(oldPrice);
 
@@ -228,8 +230,7 @@ const createProductRoutes = ({
            stock = COALESCE(?, stock),
            condition = COALESCE(?, condition),
            origin_city = COALESCE(?, origin_city),
-           preparation_days = COALESCE(?, preparation_days),
-           estimated_delivery_days = COALESCE(?, estimated_delivery_days)
+           preparation_days = COALESCE(?, preparation_days)
          WHERE id = ?`,
         [
           title,
@@ -243,7 +244,6 @@ const createProductRoutes = ({
           condition,
           originCity,
           preparationDays,
-          estimatedDeliveryDays,
           req.params.id,
         ],
         (updateError) => {

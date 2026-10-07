@@ -5,7 +5,7 @@ import { CheckBadgeIcon, MapPinIcon, MagnifyingGlassIcon, PaperAirplaneIcon, Tag
 import { createFinditOffer, getFinditRequests, getSellerFinditOffers, withdrawFinditOffer } from '../../../services/api';
 import { getImageUrl } from '../../../utils/imageUtils';
 
-const defaultOffer = { title: '', description: '', price: '', condition: 'new', estimated_delivery_days: 3 };
+const defaultOffer = { title: '', description: '', price: '', condition: 'new' };
 const categoryKeys = { 'Auto & Parts': 'auto', 'Phones & Electronics': 'electronics', 'Home & Appliances': 'home', 'Tools & Equipment': 'tools', 'Fashion & Accessories': 'fashion', Other: 'other' };
 
 const SellerFindItPage = () => {
@@ -61,7 +61,7 @@ const SellerFindItPage = () => {
     }
     setSending(true);
     try {
-      await createFinditOffer(selectedRequest.id, { ...form, price, estimated_delivery_days: Number(form.estimated_delivery_days) });
+      await createFinditOffer(selectedRequest.id, { ...form, price });
       toast.success(t('findit.seller.sent'));
       setSelectedRequest(null);
       setForm(defaultOffer);
@@ -131,7 +131,7 @@ const SellerFindItPage = () => {
               <label><span>{t('findit.seller.price')}</span><input value={form.price} type="number" min="0.01" step="0.01" onChange={(event) => setForm((current) => ({ ...current, price: event.target.value }))} required /></label>
               <p className="seller-findit-delivery-note">{t('findit.seller.deliveryQuoteNote')}</p>
               <label><span>{t('findit.form.condition')}</span><select value={form.condition} onChange={(event) => setForm((current) => ({ ...current, condition: event.target.value }))}><option value="new">{status('new')}</option><option value="used">{status('used')}</option><option value="refurbished">{status('refurbished')}</option></select></label>
-              <label><span>{t('findit.seller.estimate')}</span><select value={form.estimated_delivery_days} onChange={(event) => setForm((current) => ({ ...current, estimated_delivery_days: event.target.value }))}>{[1, 2, 3, 4, 5, 7, 10, 14, 21, 30].map((days) => <option key={days} value={days}>{t('findit.form.days', { count: days })}</option>)}</select></label>
+              <p className="seller-findit-delivery-note">rifKANDO COD Operations sets the delivery fee and buyer arrival deadline after an offer is accepted.</p>
             </div>
             <div className="seller-findit-commission"><CheckBadgeIcon />{t('findit.seller.commission')}</div>
             <button className="seller-findit-send" disabled={sending}>{sending ? t('findit.seller.sending') : t('findit.seller.sent')}</button>

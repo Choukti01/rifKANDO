@@ -20,6 +20,14 @@ const displayAddress = (value, unavailable) => {
     return String(value);
   }
 };
+const toDateTimeLocal = (value) => {
+  const date = value ? new Date(value) : new Date(Date.now() + (2 * 24 * 60 * 60 * 1000));
+  const local = new Date(date.getTime() - (date.getTimezoneOffset() * 60 * 1000));
+  return local.toISOString().slice(0, 16);
+};
+const deadlineLabel = (value, language) => value
+  ? new Date(value).toLocaleString(language === 'ar' ? 'ar-MA' : language === 'fr' ? 'fr-MA' : 'en-MA', { dateStyle: 'medium', timeStyle: 'short' })
+  : 'Not set';
 const stageFor = (item, t) => {
   if (item.status === 'confirmed') return item.delivery_partner_contacted_at ? t('codOps.stages.pickupRequested') : t('codOps.stages.waitingHandoff');
   if (item.status === 'shipped' && item.delivery_reported_at) return t('codOps.stages.reported', { outcome: t(`codOps.outcomes.${item.delivery_report_outcome}`) });
@@ -81,8 +89,8 @@ const CODOperationsDesk = () => {
     const carrierName = form.carrierName === 'Other'
       ? String(form.otherCarrierName || '').trim()
       : form.carrierName || '';
-    if (isQuote && (!Number.isFinite(Number(form.deliveryFee)) || Number(form.deliveryFee) < 0)) {
-      toast.error('Enter the agreed delivery fee in MAD before saving the quote.');
+    if (isQuote && (!Number.isFinite(Number(form.deliveryFee)) || Number(form.deliveryFee) < 0 || !form.deliveryDeadline)) {
+      toast.error('Set the agreed delivery fee and arrival deadline before saving.');
       return;
     }
     if (isPickup && (!carrierName || !String(form.trackingNumber || '').trim())) {
@@ -99,7 +107,7 @@ const CODOperationsDesk = () => {
         ? `/operations/cod-fulfillments/${item.fulfillment_id}/confirm-pickup`
         : `/operations/cod-fulfillments/${item.fulfillment_id}/report-delivery`;
     const payload = isQuote
-      ? { deliveryFee: Number(form.deliveryFee), note: form.deliveryQuoteNote || '' }
+      ? { deliveryFee: Number(form.deliveryFee), deliveryDeadline: new Date(form.deliveryDeadline).toISOString(), note: form.deliveryQuoteNote || '' }
       : isPickup
         ? { carrierName, trackingNumber: String(form.trackingNumber || '').trim(), note: form.pickupNote || '' }
         : { outcome: form.outcome || 'delivered', note: form.deliveryNote || '' };
@@ -149,7 +157,7 @@ const CODOperationsDesk = () => {
           const sellerMessage = t('codOps.sellerMessage', { name: item.seller_name || '', order: item.order_number });
           const buyerWhatsApp = toWhatsApp(item.buyer_phone, buyerMessage);
           const sellerWhatsApp = toWhatsApp(item.seller_phone, sellerMessage);
-          const quoteRecorded = Boolean(item.delivery_fee_quoted_at);
+          const quoteRecorded = Boolean(item.delivery_fee_quoted_at && item.delivery_deadline_at);
           const canConfirmPickup = item.status === 'confirmed' && item.delivery_partner_contacted_at && quoteRecorded;
           const canReportDelivery = item.status === 'shipped' && !item.delivery_reported_at;
           return <article className="cod-ops__card" key={item.fulfillment_id}>
@@ -157,11 +165,11 @@ const CODOperationsDesk = () => {
             <div className="cod-ops__details">
               <section><small>{t('codOps.buyerDestination')}</small><strong>{item.buyer_name || t('codOps.buyer')}</strong><p>{item.buyer_phone || t('codOps.noPhone')}<br />{displayAddress(item.shipping_address, t('codOps.noAddress'))}</p>{buyerWhatsApp && <a href={buyerWhatsApp} target="_blank" rel="noreferrer">{t('codOps.messageBuyer')}</a>}</section>
               <section><small>{t('codOps.sellerParcel')}</small><strong>{item.seller_name || t('codOps.seller')}</strong><p>{item.seller_phone || t('codOps.noPhone')}<br />{item.notes || t('codOps.noSellerNote')}</p>{sellerWhatsApp && <a href={sellerWhatsApp} target="_blank" rel="noreferrer">{t('codOps.messageSeller')}</a>}</section>
-              <section><small>{t('codOps.codTarget')}</small><strong>{quoteRecorded ? money(item.expected_cod_amount, i18n.language) : 'Quote pending'}</strong><p>{quoteRecorded ? `Delivery: ${money(item.customer_delivery_fee, i18n.language)}` : 'Set the delivery fee before pickup.'}</p></section>
+              <section><small>{t('codOps.codTarget')}</small><strong>{quoteRecorded ? money(item.expected_cod_amount, i18n.language) : 'Plan pending'}</strong><p>{quoteRecorded ? `Delivery: ${money(item.customer_delivery_fee, i18n.language)} · By ${deadlineLabel(item.delivery_deadline_at, i18n.language)}` : 'Set the delivery fee and arrival deadline before pickup.'}</p></section>
             </div>
 
             {item.carrier_name && <div className="cod-ops__tracking"><b>Carrier:</b> {item.carrier_name} <b>Tracking:</b> {item.tracking_number || 'Not recorded'}</div>}
-            {item.status === 'confirmed' && !quoteRecorded && <section className="cod-ops__action"><h3>Set buyer delivery fee</h3><p>Use the real parcel, destination, and carrier information. This quote becomes the COD amount the buyer will see before pickup.</p><div className="cod-ops__fields"><label>Delivery fee MAD<input type="number" min="0" step="0.01" value={form.deliveryFee ?? ''} onChange={(event) => updateForm(item, 'deliveryFee', event.target.value)} placeholder="e.g. 35" /></label><label className="wide">Quote note<input value={form.deliveryQuoteNote || ''} onChange={(event) => updateForm(item, 'deliveryQuoteNote', event.target.value)} placeholder="Optional reason, route, or carrier detail" /></label></div><button disabled={processing === `${item.fulfillment_id}:quote`} onClick={() => void submit(item, 'quote')}>{processing === `${item.fulfillment_id}:quote` ? 'Saving…' : 'Save delivery quote'}</button></section>}
+            {item.status === 'confirmed' && <section className="cod-ops__action"><h3>{quoteRecorded ? 'Update delivery plan' : 'Set buyer delivery plan'}</h3><p>Only Toufiq in COD Operations can set the delivery fee and buyer arrival deadline. Both are locked before pickup.</p><div className="cod-ops__fields"><label>Delivery fee MAD<input type="number" min="0" step="0.01" value={form.deliveryFee ?? item.customer_delivery_fee ?? ''} onChange={(event) => updateForm(item, 'deliveryFee', event.target.value)} placeholder="e.g. 35" /></label><label>Arrival deadline<input type="datetime-local" value={form.deliveryDeadline ?? toDateTimeLocal(item.delivery_deadline_at)} onChange={(event) => updateForm(item, 'deliveryDeadline', event.target.value)} /></label><label className="wide">Plan note<input value={form.deliveryQuoteNote ?? item.delivery_fee_quote_note ?? ''} onChange={(event) => updateForm(item, 'deliveryQuoteNote', event.target.value)} placeholder="Optional route, carrier, or timing detail" /></label></div><button disabled={processing === `${item.fulfillment_id}:quote`} onClick={() => void submit(item, 'quote')}>{processing === `${item.fulfillment_id}:quote` ? 'Saving…' : quoteRecorded ? 'Update delivery plan' : 'Save delivery plan'}</button></section>}
             {canConfirmPickup && <section className="cod-ops__action"><h3>Confirm parcel pickup</h3><p>The delivery quote is saved. Record the actual carrier and tracking after you have the parcel.</p><div className="cod-ops__fields"><label>Carrier<select value={form.carrierName || ''} onChange={(event) => updateForm(item, 'carrierName', event.target.value)}><option value="">Select carrier</option><option value="Najm Chamal">Najm Chamal</option><option value="Ghazala">Ghazala</option><option value="Other">Other</option></select></label>{form.carrierName === 'Other' && <label>Carrier name<input value={form.otherCarrierName || ''} onChange={(event) => updateForm(item, 'otherCarrierName', event.target.value)} placeholder="Actual carrier name" /></label>}<label>Tracking number<input value={form.trackingNumber || ''} onChange={(event) => updateForm(item, 'trackingNumber', event.target.value)} placeholder="Carrier tracking" /></label><label>Handoff note<input value={form.pickupNote || ''} onChange={(event) => updateForm(item, 'pickupNote', event.target.value)} placeholder="Optional proof or note" /></label></div><button disabled={processing === `${item.fulfillment_id}:pickup`} onClick={() => void submit(item, 'pickup')}>{processing === `${item.fulfillment_id}:pickup` ? 'Recording…' : 'Confirm pickup'}</button></section>}
             {item.status === 'confirmed' && !item.delivery_partner_contacted_at && <p className="cod-ops__notice">Waiting for the seller to request a Toufiq handoff through the seller dashboard.</p>}
             {canReportDelivery && <section className="cod-ops__action"><h3>Report delivery outcome</h3><p>Report what happened in the field. This does not mark cash as collected or release any seller payment.</p><div className="cod-ops__fields"><label>Outcome<select value={form.outcome || 'delivered'} onChange={(event) => updateForm(item, 'outcome', event.target.value)}><option value="delivered">Delivered to buyer</option><option value="refused">Buyer refused</option><option value="returned">Returned to seller</option></select></label><label className="wide">Report note<input value={form.deliveryNote || ''} onChange={(event) => updateForm(item, 'deliveryNote', event.target.value)} placeholder="Required: date, buyer response, and any carrier evidence" /></label></div><button disabled={processing === `${item.fulfillment_id}:delivery`} onClick={() => void submit(item, 'delivery')}>{processing === `${item.fulfillment_id}:delivery` ? 'Reporting…' : 'Report outcome'}</button></section>}

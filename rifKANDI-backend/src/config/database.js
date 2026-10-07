@@ -962,6 +962,9 @@ db.serialize(() => {
       delivery_fee_quoted_at DATETIME,
       delivery_fee_quoted_by INTEGER,
       delivery_fee_quote_note TEXT NOT NULL DEFAULT '',
+      delivery_deadline_at DATETIME,
+      delivery_deadline_set_at DATETIME,
+      delivery_deadline_set_by INTEGER,
       expected_cod_amount REAL NOT NULL,
       expected_cod_amount_minor INTEGER NOT NULL,
       commission REAL NOT NULL,
@@ -1354,6 +1357,9 @@ db.serialize(() => {
     ['delivery_fee_quoted_at', 'DATETIME'],
     ['delivery_fee_quoted_by', 'INTEGER'],
     ['delivery_fee_quote_note', "TEXT NOT NULL DEFAULT ''"],
+    ['delivery_deadline_at', 'DATETIME'],
+    ['delivery_deadline_set_at', 'DATETIME'],
+    ['delivery_deadline_set_by', 'INTEGER'],
   ];
   for (const [column, definition] of codFulfillmentCompatibilityColumns) {
     db.run(`ALTER TABLE cod_fulfillments ADD COLUMN ${column} ${definition}`, (err) => {
@@ -1477,6 +1483,7 @@ db.serialize(() => {
     ['idx_cod_fulfillments_commission_due', 'cod_fulfillments(seller_id, commission_payment_status, commission_due_at)'],
     ['idx_cod_fulfillments_seller_payout', 'cod_fulfillments(seller_payout_status, settlement_status, created_at ASC)'],
     ['idx_cod_fulfillments_confirmation_deadline', 'cod_fulfillments(status, confirmation_expires_at ASC)'],
+    ['idx_cod_fulfillments_delivery_deadline', 'cod_fulfillments(status, delivery_deadline_at ASC)'],
   ];
   for (const [name, definition] of queryIndexes) {
     db.run(`CREATE INDEX IF NOT EXISTS ${name} ON ${definition}`, (err) => {

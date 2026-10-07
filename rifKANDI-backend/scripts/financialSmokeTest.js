@@ -73,7 +73,7 @@ const run = async () => {
     paymentMethod: 'wallet',
     shippingAddress: addressFor('wallet-product@buyer.test'),
     items: [{ id: walletFlow.productId, quantity: 1, price: 0 }],
-    expectedTotal: 250,
+    expectedTotal: 200,
     idempotencyKey: 'test-wallet-checkout-request:1001',
   });
   const duplicateOrder = await WalletService.createMarketplaceOrder({
@@ -82,7 +82,7 @@ const run = async () => {
     paymentMethod: 'wallet',
     shippingAddress: addressFor('wallet-product@buyer.test'),
     items: [{ id: walletFlow.productId, quantity: 1 }],
-    expectedTotal: 250,
+    expectedTotal: 200,
     idempotencyKey: 'test-wallet-checkout-request:1001',
   });
   assert.equal(duplicateOrder.alreadyCreated, true, 'checkout retry must return the original order');
@@ -113,8 +113,8 @@ const run = async () => {
   });
   const buyerWallet = await WalletService.getWallet(walletFlow.buyerId);
   const sellerWallet = await WalletService.getWallet(walletFlow.sellerId);
-  assert.equal(buyerWallet.available_balance, 750);
-  assert.equal(buyerWallet.available_balance_minor, 75000);
+  assert.equal(buyerWallet.available_balance, 800);
+  assert.equal(buyerWallet.available_balance_minor, 80000);
   assert.equal(sellerWallet.available_balance, 90);
   assert.equal(sellerWallet.available_balance_minor, 9000);
   assert.equal(sellerWallet.escrow_balance, 0);
@@ -127,17 +127,17 @@ const run = async () => {
     paymentMethod: 'cmi',
     shippingAddress: addressFor('cmi-product@buyer.test'),
     items: [{ id: cmiFlow.productId, quantity: 1 }],
-    expectedTotal: 250,
+    expectedTotal: 200,
     idempotencyKey: 'test-cmi-checkout-request:1001',
   });
   const oid = 'CMI-TEST-ORDER-1001';
   await WalletService.withFinancialTransaction((tx) => tx.run(
     "INSERT INTO payment_transactions (order_id, cmi_oid, amount, amount_minor, status) VALUES (?, ?, ?, ?, 'pending')",
-    [cmiOrder.order.id, oid, 250, 25000]
+    [cmiOrder.order.id, oid, 200, 20000]
   ));
   const callback = signCmiCallback({
     oid,
-    amount: '250.00',
+    amount: '200.00',
     clientid: 'test-client-id',
     currency: '504',
     ProcReturnCode: '00',
@@ -194,7 +194,7 @@ const run = async () => {
     paymentMethod: 'wallet',
     shippingAddress: addressFor('refund-product@buyer.test'),
     items: [{ id: refundFlow.productId, quantity: 1 }],
-    expectedTotal: 250,
+    expectedTotal: 200,
     idempotencyKey: 'test-refund-checkout-request:1001',
   });
   const refundRequest = await WalletService.requestRefund({

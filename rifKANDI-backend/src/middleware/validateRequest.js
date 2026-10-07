@@ -83,6 +83,20 @@ const email = (value, field) => text(value, field, {
 
 const optionalText = (value, field, max) => text(value, field, { max }) || '';
 
+const deliveryDeadline = (value, field) => {
+  if (typeof value !== 'string' || !value.trim()) fail(field, 'is required.');
+  const parsed = Date.parse(value);
+  if (!Number.isFinite(parsed)) fail(field, 'must be a valid date and time.');
+  const now = Date.now();
+  const maximum = now + (90 * 24 * 60 * 60 * 1000);
+  // A small grace period avoids rejecting a value selected moments before it
+  // reaches the API, while still preventing past delivery promises.
+  if (parsed < now - (5 * 60 * 1000) || parsed > maximum) {
+    fail(field, 'must be between now and 90 days from now.');
+  }
+  return new Date(parsed).toISOString();
+};
+
 const validate = (validator) => (req, res, next) => {
   try {
     const result = validator(req) || {};
@@ -202,15 +216,9 @@ const validateOrderStatus = validate((req) => {
 
 const validateCodSellerAction = validate((req) => {
   const body = object(req.body);
-  onlyKeys(body, ['action', 'carrierName', 'trackingNumber', 'note']);
-  const action = enumValue(body.action, 'action', ['confirm', 'request_handoff', 'dispatch', 'cancel']);
-  const carrierName = optionalText(body.carrierName, 'carrierName', 120);
-  const trackingNumber = optionalText(body.trackingNumber, 'trackingNumber', 128);
-  if (action === 'dispatch') {
-    if (!carrierName) fail('carrierName', 'is required when dispatching a COD order.');
-    if (!trackingNumber) fail('trackingNumber', 'is required when dispatching a COD order.');
-  }
-  return { body: { action, carrierName, trackingNumber, note: optionalText(body.note, 'note', 1_000) } };
+  onlyKeys(body, ['action', 'note']);
+  const action = enumValue(body.action, 'action', ['confirm', 'request_handoff', 'cancel']);
+  return { body: { action, note: optionalText(body.note, 'note', 1_000) } };
 });
 
 const validateCodPartnerPickup = validate((req) => {
@@ -227,10 +235,11 @@ const validateCodPartnerPickup = validate((req) => {
 
 const validateCodDeliveryQuote = validate((req) => {
   const body = object(req.body);
-  onlyKeys(body, ['deliveryFee', 'note']);
+  onlyKeys(body, ['deliveryFee', 'deliveryDeadline', 'note']);
   return {
     body: {
       deliveryFee: money(body.deliveryFee, 'deliveryFee', { min: 0 }),
+      deliveryDeadline: deliveryDeadline(body.deliveryDeadline, 'deliveryDeadline'),
       note: optionalText(body.note, 'note', 1_000),
     },
   };
@@ -393,7 +402,7 @@ const productPayload = (body, { partial }) => {
   object(body);
   // Delivery is quoted per confirmed order by COD Operations. Sellers cannot
   // set a delivery price on a listing or override it with a crafted request.
-  onlyKeys(body, ['title', 'description', 'price', 'old_price', 'category', 'stock', 'media', 'condition', 'origin_city', 'preparation_days', 'estimated_delivery_days']);
+  onlyKeys(body, ['title', 'description', 'price', 'old_price', 'category', 'stock', 'media', 'condition', 'origin_city', 'preparation_days']);
   const required = !partial;
   const result = {
     title: text(body.title, 'title', { required, min: 2, max: 160 }),
@@ -408,7 +417,6 @@ const productPayload = (body, { partial }) => {
     condition: body.condition === undefined ? undefined : enumValue(body.condition, 'condition', ['new', 'used_as_new', 'joutiya']),
     origin_city: text(body.origin_city, 'origin_city', { required: false, min: 2, max: 100 }),
     preparation_days: body.preparation_days === undefined ? undefined : integer(body.preparation_days, 'preparation_days', { min: 0, max: 14 }),
-    estimated_delivery_days: body.estimated_delivery_days === undefined ? undefined : integer(body.estimated_delivery_days, 'estimated_delivery_days', { min: 1, max: 30 }),
   };
   if (required && result.stock === undefined) fail('stock', 'is required.');
   if (required && result.condition === undefined) fail('condition', 'is required.');
@@ -687,13 +695,12 @@ const finditRequestPayload = (body) => {
 
 const finditOfferPayload = (body, partial) => {
   object(body);
-  onlyKeys(body, ['title', 'description', 'price', 'condition', 'estimated_delivery_days']);
+  onlyKeys(body, ['title', 'description', 'price', 'condition']);
   const result = {
     title: body.title === undefined ? undefined : text(body.title, 'title', { required: true, min: 3, max: 160 }),
     description: body.description === undefined ? undefined : text(body.description, 'description', { required: true, min: 10, max: 2_000 }),
     price: body.price === undefined ? undefined : money(body.price, 'price', { min: 0.01 }),
     condition: body.condition === undefined ? undefined : enumValue(body.condition, 'condition', ['new', 'used', 'refurbished']),
-    estimated_delivery_days: body.estimated_delivery_days === undefined ? undefined : integer(body.estimated_delivery_days, 'estimated_delivery_days', { min: 1, max: 60 }),
   };
   if (!partial) {
     for (const [field, value] of Object.entries(result)) {

@@ -139,7 +139,7 @@ const FindItDashboardPage = () => {
                               <dl>
                                 <div><dt>{t('findit.buyer.item')}</dt><dd>{formatMoney(offer.price)}</dd></div>
                                 <div><dt>{t('findit.buyer.delivery')}</dt><dd>{t('products.deliveryQuotedAfterOrder')}</dd></div>
-                                <div><dt>{t('findit.buyer.arrival')}</dt><dd>{t('findit.form.days', { count: offer.estimated_delivery_days })}</dd></div>
+                                <div><dt>{t('findit.buyer.arrival')}</dt><dd>Confirmed by rifKANDO COD Operations after acceptance</dd></div>
                                 <div><dt>{t('findit.buyer.condition')}</dt><dd>{labelCondition(offer.condition)}</dd></div>
                               </dl>
                               <footer><strong>{t('findit.buyer.totalCod', { amount: formatMoney(total) })}</strong>{request.status === 'active' && offer.status === 'active' && <button onClick={() => chooseOffer(request, offer)}>{t('findit.buyer.choose')}</button>}</footer>
