@@ -20,6 +20,7 @@ const createProductRoutes = ({
   Money,
   AuditService,
   NotificationService,
+  CodFulfillmentService,
 }) => {
   const router = express.Router();
   const reportReasons = new Set(['scam', 'prohibited', 'misleading', 'counterfeit', 'other']);
@@ -279,59 +280,103 @@ const createProductRoutes = ({
     });
   });
 
-  router.delete('/products/:id', protect, requireSeller, validateIdParams('id'), (req, res) => {
-    db.get('SELECT seller_id FROM products WHERE id = ?', [req.params.id], (lookupError, product) => {
-      if (lookupError) return res.status(500).json({ error: 'Could not find this product.' });
+  router.delete('/products/:id', protect, requireSeller, validateIdParams('id'), async (req, res) => {
+    const get = (sql, params) => new Promise((resolve, reject) => db.get(sql, params, (error, row) => (error ? reject(error) : resolve(row))));
+    const all = (sql, params) => new Promise((resolve, reject) => db.all(sql, params, (error, rows) => (error ? reject(error) : resolve(rows || []))));
+    const run = (sql, params) => new Promise((resolve, reject) => db.run(sql, params, function onRun(error) {
+      if (error) reject(error);
+      else resolve({ changes: this.changes });
+    }));
+
+    try {
+      const product = await get('SELECT seller_id FROM products WHERE id = ?', [req.params.id]);
       if (!product) return res.status(404).json({ error: 'Product not found' });
-      if (product.seller_id !== req.user.id && !isAdmin(req.user)) {
+      if (Number(product.seller_id) !== Number(req.user.id) && !isAdmin(req.user)) {
         return res.status(403).json({ error: 'Not authorized' });
       }
 
-      const endProduct = (message) => db.run(
-        "UPDATE products SET status = 'ended', stock = 0 WHERE id = ?",
-        [req.params.id],
-        (endError) => {
-          if (endError) return res.status(500).json({ error: 'Could not end this listing.' });
-          return res.json({ success: true, archived: true, message });
-        },
-      );
-
-      // Order items are an immutable record of what was sold. Removing their
-      // product would corrupt accounting, COD reconciliation, and buyer order
-      // history. End the listing instead, which immediately removes it from
-      // the catalogue and prevents a new checkout.
-      db.get('SELECT COUNT(*) AS count FROM order_items WHERE product_id = ?', [req.params.id], (orderError, result) => {
-        if (orderError) return res.status(500).json({ error: 'Could not check this product history.' });
-        if (Number(result?.count || 0) > 0) {
-          return endProduct('Product removed from sale. Its completed order history was kept safely.');
-        }
-
-        // Stop new purchases first, then clear transient cart entries before
-        // the physical delete. This keeps both SQLite and PostgreSQL foreign
-        // key rules satisfied without touching historical transactions.
-        db.run("UPDATE products SET status = 'ended', stock = 0 WHERE id = ?", [req.params.id], (endError) => {
-          if (endError) return res.status(500).json({ error: 'Could not prepare this product for deletion.' });
-          db.run('DELETE FROM cart WHERE product_id = ?', [req.params.id], (cartError) => {
-            if (cartError) return res.status(500).json({ error: 'Could not clear active carts for this product.' });
-            db.run('DELETE FROM products WHERE id = ?', [req.params.id], function onProductDeleted(deleteError) {
-              if (!deleteError) return res.json({ success: true, deleted: true, message: 'Product deleted.' });
-
-              // A checkout can complete between the history check and this
-              // delete. The product is already ended, so retain it safely
-              // rather than surfacing a misleading deletion failure.
-              if (/foreign key|constraint/i.test(deleteError.message || '')) {
-                return res.json({
-                  success: true,
-                  archived: true,
-                  message: 'Product removed from sale. Its order history was kept safely.',
-                });
-              }
-              return res.status(500).json({ error: 'Could not delete this product.' });
-            });
-          });
+      const activeFulfillments = await all(`
+        SELECT DISTINCT f.id, f.order_id, f.status, f.delivery_partner_pickup_at, o.user_id AS buyer_id
+        FROM cod_fulfillments f
+        JOIN order_items oi ON oi.order_id = f.order_id
+        JOIN orders o ON o.id = f.order_id
+        WHERE oi.product_id = ?
+          AND f.status IN ('pending_confirmation', 'confirmed', 'shipped')
+      `, [req.params.id]);
+      const collectedOrInTransit = activeFulfillments.filter((fulfillment) => (
+        fulfillment.status === 'shipped' || fulfillment.delivery_partner_pickup_at
+      ));
+      if (collectedOrInTransit.length > 0) {
+        return res.status(409).json({
+          error: 'This listing has a parcel already collected by the delivery network. Finish its delivery or record its return before removing the listing.',
         });
-      });
-    });
+      }
+      if (activeFulfillments.length > 0 && Number(product.seller_id) !== Number(req.user.id)) {
+        return res.status(409).json({
+          error: 'This listing has open COD orders. The seller must cancel them before an administrator can remove the listing.',
+        });
+      }
+
+      // Deleting a listing is an explicit seller cancellation for every COD
+      // parcel that has not reached Toufiq. The service performs the stock,
+      // order, settlement, and history updates atomically per fulfillment.
+      for (const fulfillment of activeFulfillments) {
+        await CodFulfillmentService.sellerAction({
+          fulfillmentId: fulfillment.id,
+          sellerId: product.seller_id,
+          action: 'cancel',
+          note: 'Listing removed by seller before delivery-partner pickup.',
+        });
+        if (NotificationService) {
+          void NotificationService.create({
+            userId: fulfillment.buyer_id,
+            kind: 'order.cancelled',
+            title: 'Order cancelled by seller',
+            body: 'The seller removed this listing before delivery-partner pickup. No COD payment is due.',
+            href: `/orders/${fulfillment.order_id}`,
+            metadata: { orderId: fulfillment.order_id, fulfillmentId: fulfillment.id },
+          }).catch(() => undefined);
+        }
+      }
+
+      const orderCount = await get('SELECT COUNT(*) AS count FROM order_items WHERE product_id = ?', [req.params.id]);
+      // Order items are immutable. A listing with any order history is ended
+      // after safe pre-pickup cancellations, not physically deleted.
+      if (Number(orderCount?.count || 0) > 0) {
+        await run("UPDATE products SET status = 'ended', stock = 0 WHERE id = ?", [req.params.id]);
+        if (AuditService) void AuditService.record({
+          actorUserId: req.user.id,
+          actorRole: req.user.role,
+          action: 'product.archived',
+          resourceType: 'product',
+          resourceId: req.params.id,
+          metadata: { cancelledFulfillments: activeFulfillments.length },
+        }).catch(() => undefined);
+        return res.json({
+          success: true,
+          archived: true,
+          cancelledFulfillments: activeFulfillments.length,
+          message: activeFulfillments.length
+            ? 'Product removed from sale and its unpicked COD order was cancelled safely.'
+            : 'Product removed from sale. Its completed order history was kept safely.',
+        });
+      }
+
+      await run("UPDATE products SET status = 'ended', stock = 0 WHERE id = ?", [req.params.id]);
+      await run('DELETE FROM cart WHERE product_id = ?', [req.params.id]);
+      try {
+        await run('DELETE FROM products WHERE id = ?', [req.params.id]);
+        return res.json({ success: true, deleted: true, message: 'Product deleted.' });
+      } catch (error) {
+        if (/foreign key|constraint/i.test(error.message || '')) {
+          return res.json({ success: true, archived: true, message: 'Product removed from sale. Its order history was kept safely.' });
+        }
+        throw error;
+      }
+    } catch (error) {
+      const status = /fulfilment changed|unshipped COD order|invalid status/i.test(error.message || '') ? 409 : 500;
+      return res.status(status).json({ error: error.message || 'Could not delete this product.' });
+    }
   });
 
   router.get('/my-products', protect, requireSeller, (req, res) => {

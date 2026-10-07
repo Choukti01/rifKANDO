@@ -113,6 +113,7 @@ const SellerOrders = () => {
                     {!pickupRequested ? <div className="seller-cod-order__partner-actions"><a href={sellerWhatsAppLink(order)} target="_blank" rel="noreferrer">Open WhatsApp</a><button className="seller-cod-order__button seller-cod-order__button--primary" disabled={isBusy} onClick={() => performAction(order, 'request_handoff')}>{isBusy ? 'Saving…' : 'I requested pickup'}</button></div> : <p className="seller-cod-order__partner-confirmed"><CheckCircleIcon aria-hidden="true" /> Pickup request recorded. Wait for Toufiq to collect the parcel and send carrier tracking.</p>}
                   </aside>
                 )}
+                {order.fulfillment_status === 'confirmed' && !order.delivery_partner_pickup_at && <div className="seller-cod-order__actions"><button className="seller-cod-order__button seller-cod-order__button--quiet" disabled={isBusy} onClick={() => performAction(order, 'cancel')}>{isBusy ? 'Saving…' : 'Cancel before pickup'}</button></div>}
 
                 {order.carrier_name && order.tracking_number && <p className="seller-cod-order__tracking">Delivery network: <strong>{order.carrier_name}</strong> · Tracking: <strong>{order.tracking_number}</strong></p>}
                 {order.delivery_deadline_at && <p className="seller-cod-order__tracking">Toufiq set the buyer arrival deadline: <strong>{new Date(order.delivery_deadline_at).toLocaleString('en-MA', { dateStyle: 'medium', timeStyle: 'short' })}</strong>.</p>}

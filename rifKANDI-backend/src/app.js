@@ -1832,6 +1832,7 @@ app.use('/api', createProductRoutes({
   Money,
   AuditService,
   NotificationService,
+  CodFulfillmentService,
 }));
 
 app.use('/api', createCourseRoutes({

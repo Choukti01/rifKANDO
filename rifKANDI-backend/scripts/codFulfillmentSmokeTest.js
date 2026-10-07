@@ -137,6 +137,33 @@ async function run() {
   const wallet = await WalletService.getWallet(flow.sellerId);
   assert.equal(wallet.available_balance_minor, 0, 'manual COD seller payout never credits a rifKANDO wallet');
 
+  // Removing a listing before the delivery partner collects it follows the
+  // same seller cancellation path. It must void settlement so the parcel is
+  // not shown in Operations or Reconciliation queues.
+  const cancellationFlow = await createUsersAndProduct('Cancelled before pickup COD product');
+  const cancellationCheckout = await WalletService.createMarketplaceOrder({
+    buyerId: cancellationFlow.buyerId,
+    orderNumber: 'RIF-COD-CANCEL-1001',
+    paymentMethod: 'cash',
+    shippingAddress: address('cancelled-cod@buyer.test'),
+    items: [{ id: cancellationFlow.productId, quantity: 1 }],
+    expectedTotal: 100,
+    idempotencyKey: 'cod-fulfillment-cancel-1001',
+  });
+  const cancellationFulfillment = await WalletService.get('SELECT * FROM cod_fulfillments WHERE order_id = ?', [cancellationCheckout.order.id]);
+  await CodFulfillmentService.sellerAction({ fulfillmentId: cancellationFulfillment.id, sellerId: cancellationFlow.sellerId, action: 'confirm' });
+  const cancelled = await CodFulfillmentService.sellerAction({
+    fulfillmentId: cancellationFulfillment.id,
+    sellerId: cancellationFlow.sellerId,
+    action: 'cancel',
+    note: 'Listing removed before pickup.',
+  });
+  assert.equal(cancelled.fulfillment.status, 'cancelled', 'a pre-pickup listing removal cancels its COD fulfilment');
+  assert.equal(cancelled.fulfillment.settlement_status, 'void', 'a cancelled COD fulfilment cannot appear in financial reconciliation');
+  const cancelledOrder = await WalletService.get('SELECT status, payment_status FROM orders WHERE id = ?', [cancellationCheckout.order.id]);
+  assert.equal(cancelledOrder.status, 'cancelled');
+  assert.equal(cancelledOrder.payment_status, 'cancelled');
+
   const duplicateRemittanceFlow = await createUsersAndProduct('Duplicate remittance COD product');
   const duplicateRemittanceCheckout = await WalletService.createMarketplaceOrder({
     buyerId: duplicateRemittanceFlow.buyerId,
