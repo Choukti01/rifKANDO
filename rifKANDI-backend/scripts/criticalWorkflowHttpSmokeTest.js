@@ -19,6 +19,8 @@ process.env.CMI_CLIENT_ID = 'test-client-id';
 process.env.CLIENT_URL = 'https://www.rifkando.test';
 process.env.BACKEND_URL = 'https://api.rifkando.test';
 process.env.FEATURE_FLAGS = 'checkout=true,cmi_payments=false,wallet_payments=false,digital_downloads=true,courses=false,services=false,digital=true';
+process.env.COD_OPERATIONS_ALLOWED_EMAILS = 'workflow-operations@example.test';
+process.env.COD_RECONCILIATION_ALLOWED_EMAILS = 'workflow-finance@example.test';
 fsSync.mkdirSync(testDirectory, { recursive: true });
 
 const db = require('../src/config/database');
@@ -37,6 +39,15 @@ const runStatement = (sql, params = []) => new Promise((resolve, reject) => {
 const getRow = (sql, params = []) => new Promise((resolve, reject) => {
   db.get(sql, params, (error, row) => (error ? reject(error) : resolve(row)));
 });
+
+const waitForRow = async (sql, params = [], attempts = 30) => {
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    const row = await getRow(sql, params);
+    if (row) return row;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  return null;
+};
 
 const closeDatabase = () => new Promise((resolve, reject) => {
   db.close((error) => (error ? reject(error) : resolve()));
@@ -101,6 +112,10 @@ const run = async () => {
   const seller = await runStatement(
     "INSERT INTO users (name, email, password, role, is_verified) VALUES (?, ?, ?, 'seller', 1)",
     ['Workflow Seller', 'workflow-seller@example.test', passwordHash]
+  );
+  const operations = await runStatement(
+    "INSERT INTO users (name, email, password, role, is_verified) VALUES (?, ?, ?, 'buyer', 1)",
+    ['Workflow Operations', 'workflow-operations@example.test', passwordHash]
   );
   const product = await runStatement(
     "INSERT INTO products (title, price, seller_id, stock, status) VALUES (?, ?, ?, ?, 'published')",
@@ -228,6 +243,43 @@ const run = async () => {
     assert.equal(exhaustedDownload.status, 403, 'download limits must be enforced atomically');
     const directPrivatePath = await request(port, `/uploads/${privateKey}`);
     assert.equal(directPrivatePath.status, 404, 'private storage must never be served as a public upload');
+
+    // COD notifications are recipient-specific: the buyer receives seller
+    // status changes, while Toufiq's named operations account receives the
+    // pickup task and a cancellation stop notice.
+    const sellerSession = await login(port, 'workflow-seller@example.test', password);
+    const codCheckout = await request(port, '/api/orders', {
+      method: 'POST',
+      cookies: buyerSession.cookies,
+      csrfToken: buyerSession.csrfToken,
+      headers: { 'Idempotency-Key': 'workflow-cod-notifications:1001' },
+      body: {
+        shippingAddress: address,
+        paymentMethod: 'cash',
+        items: [{ id: product.lastID, quantity: 1 }],
+        total: 200,
+      },
+    });
+    assert.equal(codCheckout.status, 201, 'COD checkout should create an order for lifecycle notification testing');
+    const codOrder = await codCheckout.json();
+    const fulfillment = await getRow('SELECT id FROM cod_fulfillments WHERE order_id = ?', [codOrder.order.id]);
+    const confirmed = await request(port, `/api/seller/cod-fulfillments/${fulfillment.id}`, {
+      method: 'PATCH', cookies: sellerSession.cookies, csrfToken: sellerSession.csrfToken, body: { action: 'confirm' },
+    });
+    assert.equal(confirmed.status, 200, 'seller confirmation should succeed');
+    const handoff = await request(port, `/api/seller/cod-fulfillments/${fulfillment.id}`, {
+      method: 'PATCH', cookies: sellerSession.cookies, csrfToken: sellerSession.csrfToken, body: { action: 'request_handoff' },
+    });
+    assert.equal(handoff.status, 200, 'seller pickup request should succeed');
+    assert.ok(await waitForRow("SELECT id FROM notifications WHERE user_id = ? AND kind = 'cod.seller_confirm'", [buyer.lastID]), 'buyer receives COD seller confirmation');
+    assert.ok(await waitForRow("SELECT id FROM notifications WHERE user_id = ? AND kind = 'cod.pickup_requested'", [operations.lastID]), 'operations receives COD pickup request');
+
+    const cancellation = await request(port, `/api/orders/${codOrder.order.id}/cancel`, {
+      method: 'POST', cookies: buyerSession.cookies, csrfToken: buyerSession.csrfToken,
+    });
+    assert.equal(cancellation.status, 200, 'buyer cancellation before pickup should succeed');
+    assert.ok(await waitForRow("SELECT id FROM notifications WHERE user_id = ? AND kind = 'order.cancelled'", [seller.lastID]), 'seller receives buyer cancellation');
+    assert.ok(await waitForRow("SELECT id FROM notifications WHERE user_id = ? AND kind = 'cod.cancelled'", [operations.lastID]), 'operations receives cancellation stop notice');
   } finally {
     await stopServer(server);
   }

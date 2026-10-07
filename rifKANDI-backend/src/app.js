@@ -118,6 +118,69 @@ const notify = (payload) => {
   });
 };
 
+const codNotificationMetadata = (fulfillment) => ({
+  orderId: fulfillment.order_id,
+  fulfillmentId: fulfillment.id,
+});
+
+const notifyCodParticipants = ({ fulfillment, kind, title, body, includeBuyer = true, includeSeller = true }) => {
+  const recipients = new Set();
+  if (includeBuyer) recipients.add(Number(fulfillment.buyer_id));
+  if (includeSeller) recipients.add(Number(fulfillment.seller_id));
+
+  for (const userId of recipients) {
+    if (!Number.isSafeInteger(userId) || userId < 1) continue;
+    notify({
+      userId,
+      kind,
+      title,
+      body,
+      href: userId === Number(fulfillment.seller_id) ? '/seller/dashboard/orders' : `/orders/${fulfillment.order_id}`,
+      metadata: codNotificationMetadata(fulfillment),
+    });
+  }
+};
+
+const configuredCodEmails = (environmentKey) => [...new Set(
+  String(process.env[environmentKey] || '')
+    .split(',')
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean)
+)];
+
+const getCodTeamRecipientIds = async (team) => {
+  const isOperations = team === 'operations';
+  const configuredEmails = configuredCodEmails(
+    isOperations ? 'COD_OPERATIONS_ALLOWED_EMAILS' : 'COD_RECONCILIATION_ALLOWED_EMAILS'
+  );
+  if (!isOperations && configuredEmails.length === 0) return [];
+  const clauses = isOperations
+    ? ["COALESCE(cod_operations_access, FALSE) = TRUE OR role IN ('operations', 'finance', 'admin', 'super_admin')"]
+    : [];
+  const parameters = [];
+  if (configuredEmails.length > 0) {
+    clauses.push(`LOWER(email) IN (${configuredEmails.map(() => '?').join(', ')})`);
+    parameters.push(...configuredEmails);
+  }
+  const users = await getDatabaseRows(`SELECT id FROM users WHERE ${clauses.map((clause) => `(${clause})`).join(' OR ')}`, parameters);
+  return [...new Set(users.map((user) => Number(user.id)).filter((id) => Number.isSafeInteger(id) && id > 0))];
+};
+
+// Team alerts are presentation-only. They run after a successful state
+// transition and never delay or roll back order, delivery, or financial data.
+const notifyCodTeam = ({ team, excludedUserId = null, kind, title, body, href, metadata }) => {
+  void getCodTeamRecipientIds(team)
+    .then((userIds) => {
+      for (const userId of userIds) {
+        if (Number(userId) === Number(excludedUserId)) continue;
+        notify({ userId, kind, title, body, href, metadata });
+      }
+    })
+    .catch((error) => {
+      console.error(JSON.stringify({ level: 'error', event: 'cod_team_notification_failed', team, error: error.message }));
+    });
+};
+
 const requireSeller = authorize(ROLES.SELLER);
 const requireAdmin = authorize(...ADMIN_ROLES);
 const requireFinance = authorize(...FINANCE_ROLES);
@@ -2170,7 +2233,12 @@ app.post('/api/orders', protect, requireFeature('checkout'), validateCheckout, a
     });
     const order = result.order;
     if (!result.alreadyCreated) {
-      void getDatabaseRows('SELECT DISTINCT seller_id FROM order_items WHERE order_id = ?', [order.id])
+      void getDatabaseRows(`
+        SELECT DISTINCT p.seller_id
+        FROM order_items oi
+        JOIN products p ON p.id = oi.product_id
+        WHERE oi.order_id = ?
+      `, [order.id])
         .then((sellers) => Promise.all(sellers.map((seller) => NotificationService.create({
           userId: seller.seller_id,
           kind: 'order.created',
@@ -3097,15 +3165,32 @@ app.post('/api/orders/:id/cancel', protect, validateIdParams('id'), async (req, 
 app.post('/api/orders/:id/cancel', protect, validateIdParams('id'), async (req, res) => {
   try {
     await WalletService.cancelUnpaidOrder(req.params.id, req.user.id);
-    void getDatabaseRows('SELECT DISTINCT seller_id FROM cod_fulfillments WHERE order_id = ?', [req.params.id])
-      .then((sellers) => Promise.all(sellers.map((seller) => NotificationService.create({
-        userId: seller.seller_id,
-        kind: 'order.cancelled',
-        title: 'Order cancelled by buyer',
-        body: 'A buyer cancelled an order before delivery-partner pickup.',
-        href: '/seller/dashboard/orders',
-        metadata: { orderId: Number(req.params.id) },
-      }))))
+    void getDatabaseRows(`
+      SELECT f.id, f.order_id, f.seller_id, o.user_id AS buyer_id, o.order_number
+      FROM cod_fulfillments f
+      JOIN orders o ON o.id = f.order_id
+      WHERE f.order_id = ?
+    `, [req.params.id])
+      .then((fulfillments) => {
+        for (const fulfillment of fulfillments) {
+          notifyCodParticipants({
+            fulfillment,
+            kind: 'order.cancelled',
+            title: 'Order cancelled by buyer',
+            body: 'A buyer cancelled this order before delivery-partner pickup.',
+            includeBuyer: false,
+          });
+          notifyCodTeam({
+            team: 'operations',
+            excludedUserId: req.user.id,
+            kind: 'cod.cancelled',
+            title: 'COD order cancelled',
+            body: `Order ${fulfillment.order_number} was cancelled by the buyer. Do not collect this parcel.`,
+            href: '/operations/cod',
+            metadata: codNotificationMetadata(fulfillment),
+          });
+        }
+      })
       .catch((notificationError) => console.error(JSON.stringify({ level: 'error', event: 'order_cancellation_notification_failed', error: notificationError.message })));
     await AuditService.recordFromRequest(req, {
       action: 'order.cancelled',
@@ -3360,14 +3445,37 @@ app.patch('/api/seller/cod-fulfillments/:id', protect, requireSeller, validateId
       cancel: ['Order cancelled', 'The seller cancelled this order before delivery-partner pickup.'],
     };
     const notification = sellerActionNotifications[req.body.action];
-    if (notification) notify({
-      userId: result.fulfillment.buyer_id,
-      kind: `cod.seller_${req.body.action}`,
-      title: notification[0],
-      body: notification[1],
-      href: `/orders/${result.fulfillment.order_id}`,
-      metadata: { orderId: result.fulfillment.order_id, fulfillmentId: result.fulfillment.id },
-    });
+    if (notification) {
+      notifyCodParticipants({
+        fulfillment: result.fulfillment,
+        kind: `cod.seller_${req.body.action}`,
+        title: notification[0],
+        body: notification[1],
+        includeSeller: false,
+      });
+    }
+    if (req.body.action === 'request_handoff') {
+      notifyCodTeam({
+        team: 'operations',
+        excludedUserId: req.user.id,
+        kind: 'cod.pickup_requested',
+        title: 'COD pickup requested',
+        body: `A seller requested a Toufiq pickup for order ${result.fulfillment.order_number}. Set the delivery quote and arrange collection.`,
+        href: '/operations/cod',
+        metadata: codNotificationMetadata(result.fulfillment),
+      });
+    }
+    if (req.body.action === 'cancel') {
+      notifyCodTeam({
+        team: 'operations',
+        excludedUserId: req.user.id,
+        kind: 'cod.cancelled',
+        title: 'COD order cancelled',
+        body: `Order ${result.fulfillment.order_number} was cancelled before delivery-partner pickup. Do not collect this parcel.`,
+        href: '/operations/cod',
+        metadata: codNotificationMetadata(result.fulfillment),
+      });
+    }
     return res.json({ success: true, fulfillment: result.fulfillment, order: result.orderState });
   } catch (error) {
     return res.status(400).json({ error: error.message, requestId: req.requestId });
@@ -3399,6 +3507,17 @@ app.post('/api/seller/cod-fulfillments/:id/submit-commission', protect, requireS
       resourceId: req.params.id,
       metadata: { orderId: result.fulfillment.order_id, commissionReference: result.fulfillment.commission_reference },
     });
+    if (!result.alreadySubmitted) {
+      notifyCodTeam({
+        team: 'reconciliation',
+        excludedUserId: req.user.id,
+        kind: 'cod.commission_submitted',
+        title: 'COD commission ready to verify',
+        body: `A seller submitted the Attijari transfer reference for order ${result.fulfillment.order_number}. Verify it before marking the commission paid.`,
+        href: '/admin/cod-reconciliation',
+        metadata: codNotificationMetadata(result.fulfillment),
+      });
+    }
     return res.json({ success: true, fulfillment: result.fulfillment, alreadySubmitted: result.alreadySubmitted });
   } catch (error) {
     return res.status(400).json({ error: error.message, requestId: req.requestId });
@@ -3766,16 +3885,12 @@ app.post('/api/operations/cod-fulfillments/:id/quote-delivery', protect, require
       resourceId: req.params.id,
       metadata: { orderId: result.fulfillment.order_id, deliveryFee: Number(result.fulfillment.customer_delivery_fee), deliveryDeadline: result.fulfillment.delivery_deadline_at },
     });
-    for (const userId of [result.fulfillment.buyer_id, result.fulfillment.seller_id]) {
-      notify({
-        userId,
-        kind: 'cod.delivery_quoted',
-        title: 'COD delivery quote updated',
-        body: `rifKANDO COD Operations set delivery at ${Number(result.fulfillment.customer_delivery_fee).toFixed(2)} MAD, with arrival planned by ${new Date(result.fulfillment.delivery_deadline_at).toLocaleString('en-MA')}.`,
-        href: userId === result.fulfillment.seller_id ? '/seller/dashboard/orders' : `/orders/${result.fulfillment.order_id}`,
-        metadata: { orderId: result.fulfillment.order_id, fulfillmentId: result.fulfillment.id },
-      });
-    }
+    notifyCodParticipants({
+      fulfillment: result.fulfillment,
+      kind: 'cod.delivery_quoted',
+      title: 'COD delivery quote updated',
+      body: `rifKANDO COD Operations set delivery at ${Number(result.fulfillment.customer_delivery_fee).toFixed(2)} MAD, with arrival planned by ${new Date(result.fulfillment.delivery_deadline_at).toLocaleString('en-MA')}.`,
+    });
     return res.json({ success: true, fulfillment: result.fulfillment });
   } catch (error) {
     return res.status(400).json({ error: error.message, requestId: req.requestId });
@@ -3796,16 +3911,21 @@ app.post('/api/operations/cod-fulfillments/:id/confirm-pickup', protect, require
       resourceId: req.params.id,
       metadata: { orderId: result.fulfillment.order_id, carrier: result.fulfillment.carrier_name },
     });
-    for (const userId of [result.fulfillment.buyer_id, result.fulfillment.seller_id]) {
-      notify({
-        userId,
-        kind: 'cod.picked_up',
-        title: 'Parcel picked up',
-        body: `${deliveryPartner.name} confirmed pickup${result.fulfillment.carrier_name ? ` with ${result.fulfillment.carrier_name}` : ''}.`,
-        href: userId === result.fulfillment.seller_id ? '/seller/dashboard/orders' : `/orders/${result.fulfillment.order_id}`,
-        metadata: { orderId: result.fulfillment.order_id, fulfillmentId: result.fulfillment.id },
-      });
-    }
+    notifyCodParticipants({
+      fulfillment: result.fulfillment,
+      kind: 'cod.picked_up',
+      title: 'Parcel picked up',
+      body: `${deliveryPartner.name} confirmed pickup${result.fulfillment.carrier_name ? ` with ${result.fulfillment.carrier_name}` : ''}.`,
+    });
+    notifyCodTeam({
+      team: 'reconciliation',
+      excludedUserId: req.user.id,
+      kind: 'cod.picked_up',
+      title: 'COD parcel in delivery',
+      body: `Order ${result.fulfillment.order_number} was collected for delivery. Reconciliation will be needed after the delivery outcome.`,
+      href: '/admin/cod-reconciliation',
+      metadata: codNotificationMetadata(result.fulfillment),
+    });
     return res.json({ success: true, fulfillment: result.fulfillment, order: result.orderState });
   } catch (error) {
     return res.status(400).json({ error: error.message, requestId: req.requestId });
@@ -3832,16 +3952,21 @@ app.post('/api/operations/cod-fulfillments/:id/report-delivery', protect, requir
       returned: ['Delivery reported', `${deliveryPartner.name} reported that the parcel is being returned.`],
     }[result.fulfillment.delivery_report_outcome];
     if (outcomeCopy) {
-      for (const userId of [result.fulfillment.buyer_id, result.fulfillment.seller_id]) {
-        notify({
-          userId,
-          kind: `cod.${result.fulfillment.delivery_report_outcome}`,
-          title: outcomeCopy[0],
-          body: outcomeCopy[1],
-          href: userId === result.fulfillment.seller_id ? '/seller/dashboard/orders' : `/orders/${result.fulfillment.order_id}`,
-          metadata: { orderId: result.fulfillment.order_id, fulfillmentId: result.fulfillment.id },
-        });
-      }
+      notifyCodParticipants({
+        fulfillment: result.fulfillment,
+        kind: `cod.${result.fulfillment.delivery_report_outcome}`,
+        title: outcomeCopy[0],
+        body: outcomeCopy[1],
+      });
+      notifyCodTeam({
+        team: 'reconciliation',
+        excludedUserId: req.user.id,
+        kind: `cod.delivery_${result.fulfillment.delivery_report_outcome}_reported`,
+        title: `Delivery ${result.fulfillment.delivery_report_outcome} reported`,
+        body: `Toufiq reported ${result.fulfillment.delivery_report_outcome} for order ${result.fulfillment.order_number}. Record the matching financial evidence before settlement.`,
+        href: '/admin/cod-reconciliation',
+        metadata: codNotificationMetadata(result.fulfillment),
+      });
     }
     return res.json({ success: true, fulfillment: result.fulfillment });
   } catch (error) {
@@ -3921,6 +4046,13 @@ app.post('/api/admin/cod-fulfillments/:id/confirm-delivery', protect, requireCod
       resourceId: req.params.id,
       metadata: { orderId: result.fulfillment.order_id, status: result.fulfillment.status },
     });
+    notifyCodParticipants({
+      fulfillment: result.fulfillment,
+      kind: 'cod.commission_due',
+      title: 'rifKANDO commission is due',
+      body: `Delivery was confirmed. Submit the commission transfer reference for order ${result.fulfillment.order_number} within three days.`,
+      includeBuyer: false,
+    });
     return res.json({ success: true, fulfillment: result.fulfillment, order: result.orderState });
   } catch (error) {
     return res.status(400).json({ error: error.message, requestId: req.requestId });
@@ -3939,6 +4071,12 @@ app.post('/api/admin/cod-fulfillments/:id/confirm-pickup', protect, requireCodRe
       resourceType: 'cod_fulfillment',
       resourceId: req.params.id,
       metadata: { orderId: result.fulfillment.order_id, carrier: result.fulfillment.carrier_name },
+    });
+    notifyCodParticipants({
+      fulfillment: result.fulfillment,
+      kind: 'cod.picked_up',
+      title: 'Parcel picked up',
+      body: `The parcel is now in delivery${result.fulfillment.carrier_name ? ` with ${result.fulfillment.carrier_name}` : ''}.`,
     });
     return res.json({ success: true, fulfillment: result.fulfillment, order: result.orderState });
   } catch (error) {
@@ -3959,6 +4097,15 @@ app.post('/api/admin/cod-fulfillments/:id/verify-commission', protect, requireCo
       resourceId: req.params.id,
       metadata: { orderId: result.fulfillment.order_id, alreadyProcessed: result.alreadyProcessed },
     });
+    if (!result.alreadyProcessed) {
+      notifyCodParticipants({
+        fulfillment: result.fulfillment,
+        kind: 'cod.commission_verified',
+        title: 'rifKANDO commission verified',
+        body: `Your commission payment for order ${result.fulfillment.order_number} was verified. This COD record is settled.`,
+        includeBuyer: false,
+      });
+    }
     return res.json({ success: true, fulfillment: result.fulfillment, alreadyProcessed: result.alreadyProcessed });
   } catch (error) {
     return res.status(400).json({ error: error.message, requestId: req.requestId });
@@ -3977,6 +4124,13 @@ app.post('/api/admin/cod-fulfillments/:id/record-collection', protect, requireCo
       resourceType: 'cod_fulfillment',
       resourceId: req.params.id,
       metadata: { orderId: result.fulfillment.order_id, carrierReference: result.fulfillment.carrier_collection_reference },
+    });
+    notifyCodParticipants({
+      fulfillment: result.fulfillment,
+      kind: 'cod.cash_collected',
+      title: 'COD cash collection recorded',
+      body: `Cash collection for order ${result.fulfillment.order_number} was recorded. rifKANDO is awaiting the delivery-partner remittance before your payout is processed.`,
+      includeBuyer: false,
     });
     return res.json({ success: true, fulfillment: result.fulfillment, order: result.orderState });
   } catch (error) {
@@ -3997,6 +4151,15 @@ app.post('/api/admin/cod-fulfillments/:id/record-remittance', protect, requireCo
       resourceId: req.params.id,
       metadata: { orderId: result.fulfillment.order_id, remittanceReference: result.fulfillment.carrier_settlement_reference },
     });
+    if (!result.alreadyProcessed) {
+      notifyCodParticipants({
+        fulfillment: result.fulfillment,
+        kind: 'cod.remittance_recorded',
+        title: 'COD remittance reconciled',
+        body: `rifKANDO recorded the delivery-partner remittance for order ${result.fulfillment.order_number}. Your manual payout is now being prepared.`,
+        includeBuyer: false,
+      });
+    }
     return res.json({ success: true, fulfillment: result.fulfillment, order: result.orderState, alreadyProcessed: result.alreadyProcessed });
   } catch (error) {
     return res.status(400).json({ error: error.message, requestId: req.requestId });
@@ -4016,6 +4179,15 @@ app.post('/api/admin/cod-fulfillments/:id/record-seller-payout', protect, requir
       resourceId: req.params.id,
       metadata: { orderId: result.fulfillment.order_id, payoutReference: result.fulfillment.seller_payout_reference },
     });
+    if (!result.alreadyProcessed) {
+      notifyCodParticipants({
+        fulfillment: result.fulfillment,
+        kind: 'cod.seller_payout_recorded',
+        title: 'Seller payout recorded',
+        body: `rifKANDO recorded your payout for order ${result.fulfillment.order_number}. Check your transfer reference in the order details.`,
+        includeBuyer: false,
+      });
+    }
     return res.json({ success: true, fulfillment: result.fulfillment, order: result.orderState, alreadyProcessed: result.alreadyProcessed });
   } catch (error) {
     return res.status(400).json({ error: error.message, requestId: req.requestId });
@@ -4034,6 +4206,12 @@ app.post('/api/admin/cod-fulfillments/:id/exception', protect, requireCodReconci
       resourceType: 'cod_fulfillment',
       resourceId: req.params.id,
       metadata: { orderId: result.fulfillment.order_id, status: result.fulfillment.status },
+    });
+    notifyCodParticipants({
+      fulfillment: result.fulfillment,
+      kind: `cod.${result.fulfillment.status}`,
+      title: `COD order ${result.fulfillment.status}`,
+      body: `rifKANDO recorded this order as ${result.fulfillment.status}. Review the order status for the next step.`,
     });
     return res.json({ success: true, fulfillment: result.fulfillment, order: result.orderState });
   } catch (error) {
