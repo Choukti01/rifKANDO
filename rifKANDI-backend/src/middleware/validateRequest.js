@@ -830,6 +830,16 @@ const validateProductReview = validate((req) => {
   };
 });
 
+const validateSellerReviewReply = validate((req) => {
+  const body = object(req.body);
+  onlyKeys(body, ['reply']);
+  return {
+    body: {
+      reply: text(body.reply, 'reply', { required: true, min: 2, max: 1_000 }),
+    },
+  };
+});
+
 const validateProductQuery = validate((req) => {
   const query = req.query || {};
   const parseQueryInteger = (name, fallback, min, max) => {
@@ -895,6 +905,7 @@ module.exports = {
   validatePasswordChange,
   validateSellerType,
   validateProductReview,
+  validateSellerReviewReply,
   validateCourseCreate,
   validateCourseUpdate,
   validateServiceCreate,

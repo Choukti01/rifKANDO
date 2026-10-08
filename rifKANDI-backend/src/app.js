@@ -50,6 +50,7 @@ const {
   validatePasswordChange,
   validateSellerType,
   validateProductReview,
+  validateSellerReviewReply,
   validateCourseCreate,
   validateCourseUpdate,
   validateServiceCreate,
@@ -1891,6 +1892,7 @@ app.use('/api', createProductRoutes({
   validateProductCreate,
   validateProductQuery,
   validateProductReview,
+  validateSellerReviewReply,
   validateProductUpdate,
   Money,
   AuditService,
@@ -2636,7 +2638,7 @@ app.get('/api/users/:id', (req, res) => {
   // This route is used for public profile previews and messaging headers.
   // Never leak contact data from a user record simply because its numeric ID
   // can be discovered in a public listing URL.
-  db.get('SELECT id, name, bio, city, country, seller_type, profilePicture, created_at FROM users WHERE id = ?', [req.params.id], (err, user) => {
+  db.get("SELECT id, name, bio, city, country, seller_type, profilePicture, created_at FROM users WHERE id = ? AND COALESCE(marketplace_status, 'active') = 'active'", [req.params.id], (err, user) => {
     if (err) return res.status(500).json({ error: err.message });
     if (!user) return res.status(404).json({ error: 'User not found' });
     res.json({ success: true, user });
@@ -2644,7 +2646,7 @@ app.get('/api/users/:id', (req, res) => {
 });
 
 app.get('/api/users/:id/products', (req, res) => {
-  db.all("SELECT p.*, u.name as seller_name FROM products p JOIN users u ON p.seller_id = u.id WHERE p.seller_id = ? AND p.status = 'published' ORDER BY p.created_at DESC", [req.params.id], (err, rows) => {
+  db.all("SELECT p.*, u.name as seller_name FROM products p JOIN users u ON p.seller_id = u.id WHERE p.seller_id = ? AND p.status = 'published' AND COALESCE(u.marketplace_status, 'active') = 'active' ORDER BY p.created_at DESC", [req.params.id], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     if (!rows.length) return res.json({ success: true, products: [] });
     let completed = 0;

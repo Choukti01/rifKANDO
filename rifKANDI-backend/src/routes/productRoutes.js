@@ -16,6 +16,7 @@ const createProductRoutes = ({
   validateProductCreate,
   validateProductQuery,
   validateProductReview,
+  validateSellerReviewReply,
   validateProductUpdate,
   Money,
   AuditService,
@@ -124,7 +125,9 @@ const createProductRoutes = ({
     const condition = req.query.condition || '';
     // A seller with an overdue, verified-delivery COD commission cannot accept
     // new sales. This is enforced in the catalogue and again at checkout.
-    let whereClause = `p.status = 'published' AND NOT EXISTS (
+    let whereClause = `p.status = 'published'
+      AND COALESCE(u.marketplace_status, 'active') = 'active'
+      AND NOT EXISTS (
       SELECT 1 FROM cod_fulfillments debt
       WHERE debt.seller_id = p.seller_id
         AND debt.commission_payment_status = 'due'
@@ -199,6 +202,7 @@ const createProductRoutes = ({
        FROM products p
        JOIN users u ON p.seller_id = u.id
        WHERE p.id = ? AND p.status = 'published'
+         AND COALESCE(u.marketplace_status, 'active') = 'active'
          AND NOT EXISTS (
            SELECT 1 FROM cod_fulfillments debt
            WHERE debt.seller_id = p.seller_id
@@ -488,7 +492,7 @@ const createProductRoutes = ({
               ) AS average_rating
        FROM users u
        LEFT JOIN products p ON p.seller_id = u.id AND ${visibleListingClause}
-       WHERE u.id = ?
+       WHERE u.id = ? AND COALESCE(u.marketplace_status, 'active') = 'active'
        GROUP BY u.id, u.name, u.bio, u.city, u.country, u.seller_type, u.profilePicture, u.created_at`,
       [sellerId],
       (sellerError, seller) => {
@@ -545,6 +549,7 @@ const createProductRoutes = ({
   router.get('/products/:id/reviews', validateIdParams('id'), (req, res) => {
     db.all(
       `SELECT r.id, r.product_id, r.user_id, r.rating, r.comment, r.created_at,
+              r.seller_reply, r.seller_reply_at,
               CASE WHEN r.order_id IS NULL THEN 0 ELSE 1 END AS verified_purchase,
               u.name AS user_name
        FROM product_reviews r
@@ -614,33 +619,116 @@ const createProductRoutes = ({
     if (!isAdmin(req.user)) return res.status(403).json({ error: 'Administrator access is required.' });
     const decision = String(req.body?.decision || '').trim();
     const note = String(req.body?.note || '').trim();
-    if (!['dismiss', 'remove_listing'].includes(decision) || note.length < 3 || note.length > 1_000) return res.status(422).json({ error: 'Choose a moderation decision and provide a short note.' });
-    db.get(`SELECT r.id, r.product_id, p.seller_id, p.title AS product_title
-            FROM product_reports r JOIN products p ON p.id = r.product_id
+    if (!['dismiss', 'warn_seller', 'remove_listing', 'suspend_seller'].includes(decision) || note.length < 3 || note.length > 1_000) return res.status(422).json({ error: 'Choose a moderation decision and provide a short note.' });
+    db.get(`SELECT r.id, r.product_id, p.seller_id, p.title AS product_title, seller.role AS seller_role
+            FROM product_reports r
+            JOIN products p ON p.id = r.product_id
+            JOIN users seller ON seller.id = p.seller_id
             WHERE r.id = ? AND r.status = 'pending'`, [req.params.id], (lookupError, report) => {
       if (lookupError) return res.status(500).json({ error: 'Unable to review this report.' });
       if (!report) return res.status(404).json({ error: 'Open report not found.' });
       const resolve = () => db.run("UPDATE product_reports SET status = ?, resolution_note = ?, reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'pending'", [decision === 'dismiss' ? 'dismissed' : 'resolved', note, req.user.id, report.id], async function onResolved(updateError) {
         if (updateError || this.changes !== 1) return res.status(409).json({ error: 'This report was already reviewed.' });
         if (AuditService) void AuditService.record({ actorUserId: req.user.id, actorRole: req.user.role, action: `product_report.${decision}`, resourceType: 'product_report', resourceId: report.id, metadata: { productId: report.product_id } }).catch(() => undefined);
+        const notificationCopy = {
+          warn_seller: {
+            title: 'Listing warning',
+            body: `rifKANDO reviewed a report about "${report.product_title}". Please correct the issue described in the moderation note.`,
+          },
+          remove_listing: {
+            title: 'Listing removed from sale',
+            body: `Your listing "${report.product_title}" was removed after moderation review.`,
+          },
+          suspend_seller: {
+            title: 'Marketplace account suspended',
+            body: 'Your marketplace account was suspended after moderation review. Contact rifKANDO support if you believe this is an error.',
+          },
+          dismiss: {
+            title: 'Listing report reviewed',
+            body: `A report about "${report.product_title}" was reviewed and dismissed.`,
+          },
+        }[decision];
         if (NotificationService) void NotificationService.create({
           userId: report.seller_id,
           kind: `moderation.report_${decision}`,
-          title: decision === 'remove_listing' ? 'Listing removed from sale' : 'Listing report reviewed',
-          body: decision === 'remove_listing'
-            ? `Your listing "${report.product_title}" was removed after moderation review.`
-            : `A report about "${report.product_title}" was reviewed and dismissed.`,
+          title: notificationCopy.title,
+          body: notificationCopy.body,
           href: '/seller/dashboard/products',
           metadata: { productId: report.product_id, reportId: report.id },
         }).catch(() => undefined);
         return res.json({ success: true });
       });
-      if (decision === 'dismiss') return resolve();
+      if (decision === 'dismiss' || decision === 'warn_seller') return resolve();
+      if (decision === 'suspend_seller') {
+        if (['admin', 'super_admin'].includes(report.seller_role)) {
+          return res.status(422).json({ error: 'Administrator accounts cannot be suspended from a listing report.' });
+        }
+        return db.run(
+          `UPDATE users
+           SET marketplace_status = 'suspended', marketplace_status_note = ?,
+               marketplace_status_updated_at = CURRENT_TIMESTAMP, marketplace_status_updated_by = ?
+           WHERE id = ? AND COALESCE(marketplace_status, 'active') <> 'suspended'`,
+          [note, req.user.id, report.seller_id],
+          function onSellerSuspended(suspensionError) {
+            if (suspensionError) return res.status(500).json({ error: 'Unable to suspend this seller.' });
+            return db.run("UPDATE products SET status = 'ended', stock = 0 WHERE seller_id = ? AND status = 'published'", [report.seller_id], (productsError) => {
+              if (productsError) return res.status(500).json({ error: 'Seller suspended, but active listings could not be removed.' });
+              return db.run("UPDATE auth_sessions SET revoked_at = COALESCE(revoked_at, CURRENT_TIMESTAMP), revocation_reason = COALESCE(revocation_reason, 'marketplace_suspension') WHERE user_id = ?", [report.seller_id], (sessionsError) => {
+                if (sessionsError) return res.status(500).json({ error: 'Seller suspended, but active sessions could not be revoked.' });
+                return resolve();
+              });
+            });
+          },
+        );
+      }
       db.run("UPDATE products SET status = 'ended', stock = 0 WHERE id = ?", [report.product_id], (productError) => {
         if (productError) return res.status(500).json({ error: 'Unable to remove this listing from sale.' });
         return resolve();
       });
     });
+  });
+
+  router.put('/products/:productId/reviews/:reviewId/reply', protect, validateIdParams('productId', 'reviewId'), validateSellerReviewReply, (req, res) => {
+    const productId = Number(req.params.productId);
+    const reviewId = Number(req.params.reviewId);
+    db.get(
+      `SELECT r.id, r.product_id, r.user_id AS buyer_id, p.seller_id
+       FROM product_reviews r
+       JOIN products p ON p.id = r.product_id
+       WHERE r.id = ? AND r.product_id = ?`,
+      [reviewId, productId],
+      (lookupError, review) => {
+        if (lookupError) return res.status(500).json({ error: 'Unable to load this review.' });
+        if (!review) return res.status(404).json({ error: 'Review not found.' });
+        if (Number(review.seller_id) !== Number(req.user.id)) return res.status(403).json({ error: 'Only this product seller can reply to the review.' });
+        return db.run(
+          `UPDATE product_reviews
+           SET seller_reply = ?, seller_reply_at = CURRENT_TIMESTAMP, seller_reply_by = ?
+           WHERE id = ? AND product_id = ?`,
+          [req.body.reply, req.user.id, reviewId, productId],
+          async function onReplySaved(updateError) {
+            if (updateError || this.changes !== 1) return res.status(500).json({ error: 'Unable to save the seller reply.' });
+            if (AuditService) void AuditService.record({
+              actorUserId: req.user.id,
+              actorRole: req.user.role,
+              action: 'product_review.seller_reply_saved',
+              resourceType: 'product_review',
+              resourceId: reviewId,
+              metadata: { productId },
+            }).catch(() => undefined);
+            if (NotificationService) void NotificationService.create({
+              userId: review.buyer_id,
+              kind: 'product_review.seller_reply',
+              title: 'Seller replied to your review',
+              body: 'The seller replied to your product review.',
+              href: `/product/${productId}`,
+              metadata: { productId, reviewId },
+            }).catch(() => undefined);
+            return res.json({ success: true, sellerReply: req.body.reply });
+          },
+        );
+      },
+    );
   });
 
   const submitDeliveredOrderReview = (req, res) => {

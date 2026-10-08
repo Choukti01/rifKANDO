@@ -51,6 +51,10 @@ db.serialize(() => {
       phone TEXT,
       role TEXT DEFAULT 'buyer',
       cod_operations_access BOOLEAN NOT NULL DEFAULT 0,
+      marketplace_status TEXT NOT NULL DEFAULT 'active',
+      marketplace_status_note TEXT,
+      marketplace_status_updated_at DATETIME,
+      marketplace_status_updated_by INTEGER,
       seller_type TEXT,
       seller_started_at DATETIME,
       bio TEXT,
@@ -84,6 +88,19 @@ db.serialize(() => {
     if (err && !err.message.includes('duplicate column name')) {
       console.error('Error adding COD operations access column:', err.message);
     }
+  });
+
+  db.run("ALTER TABLE users ADD COLUMN marketplace_status TEXT NOT NULL DEFAULT 'active'", (err) => {
+    if (err && !err.message.includes('duplicate column name')) console.error('Error adding marketplace status:', err.message);
+  });
+  db.run('ALTER TABLE users ADD COLUMN marketplace_status_note TEXT', (err) => {
+    if (err && !err.message.includes('duplicate column name')) console.error('Error adding marketplace status note:', err.message);
+  });
+  db.run('ALTER TABLE users ADD COLUMN marketplace_status_updated_at DATETIME', (err) => {
+    if (err && !err.message.includes('duplicate column name')) console.error('Error adding marketplace status timestamp:', err.message);
+  });
+  db.run('ALTER TABLE users ADD COLUMN marketplace_status_updated_by INTEGER', (err) => {
+    if (err && !err.message.includes('duplicate column name')) console.error('Error adding marketplace status reviewer:', err.message);
   });
 
   db.run(`
@@ -177,6 +194,15 @@ db.serialize(() => {
     if (err && !err.message.includes('duplicate column name')) {
       console.error('Error adding product review order reference:', err.message);
     }
+  });
+  db.run('ALTER TABLE product_reviews ADD COLUMN seller_reply TEXT', (err) => {
+    if (err && !err.message.includes('duplicate column name')) console.error('Error adding seller review reply:', err.message);
+  });
+  db.run('ALTER TABLE product_reviews ADD COLUMN seller_reply_at DATETIME', (err) => {
+    if (err && !err.message.includes('duplicate column name')) console.error('Error adding seller review reply timestamp:', err.message);
+  });
+  db.run('ALTER TABLE product_reviews ADD COLUMN seller_reply_by INTEGER', (err) => {
+    if (err && !err.message.includes('duplicate column name')) console.error('Error adding seller review reply author:', err.message);
   });
 
   // User-submitted listing reports remain private to the reporter and the

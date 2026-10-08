@@ -125,7 +125,7 @@ const loadActiveSession = async (sessionId, userId) => {
     SELECT
       s.id AS session_id, s.user_id AS session_user_id, s.csrf_token_hash,
       s.expires_at, s.revoked_at,
-      u.id, u.name, u.email, u.password, u.phone, u.role, u.cod_operations_access, u.seller_type, u.seller_started_at,
+      u.id, u.name, u.email, u.password, u.phone, u.role, u.cod_operations_access, u.seller_type, u.seller_started_at, u.marketplace_status,
       u.bio, u.city, u.country, u.profilePicture
     FROM auth_sessions s
     JOIN users u ON u.id = s.user_id

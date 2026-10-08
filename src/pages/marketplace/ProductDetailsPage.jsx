@@ -39,6 +39,9 @@ const ProductDetailsPage = () => {
   const [submittingReview, setSubmittingReview] = useState(false);
   const [hasPurchased, setHasPurchased] = useState(false);
   const [hasReviewed, setHasReviewed] = useState(false);
+  const [replyingToReviewId, setReplyingToReviewId] = useState(null);
+  const [sellerReplyDraft, setSellerReplyDraft] = useState('');
+  const [savingSellerReply, setSavingSellerReply] = useState(false);
   
   const { addToCart } = useCart();
   const { addToFavorites, removeFromFavorites, isFavorite } = useFavorites();
@@ -218,6 +221,32 @@ const ProductDetailsPage = () => {
       toast.error(error.response?.data?.error || t('productDetails.reportFailed'));
     } finally {
       setSubmittingReport(false);
+    }
+  };
+
+  const startSellerReply = (review) => {
+    setReplyingToReviewId(review.id);
+    setSellerReplyDraft(review.seller_reply || '');
+  };
+
+  const saveSellerReply = async (reviewId) => {
+    const reply = sellerReplyDraft.trim();
+    if (reply.length < 2) {
+      toast.error(t('productDetails.review.replyValidation'));
+      return;
+    }
+    setSavingSellerReply(true);
+    try {
+      await api.put(`/products/${id}/reviews/${reviewId}/reply`, { reply });
+      const nextReviews = await fetchReviews();
+      setReviews(nextReviews);
+      setReplyingToReviewId(null);
+      setSellerReplyDraft('');
+      toast.success(t('productDetails.review.replySaved'));
+    } catch (error) {
+      toast.error(error.response?.data?.error || t('productDetails.review.replyFailed'));
+    } finally {
+      setSavingSellerReply(false);
     }
   };
 
@@ -456,6 +485,27 @@ const ProductDetailsPage = () => {
                           <span className="review-date">{new Date(review.created_at).toLocaleDateString(i18n.language)}</span>
                         </div>
                         {review.comment && <p className="review-comment-text">{review.comment}</p>}
+                        {review.seller_reply && replyingToReviewId !== review.id && (
+                          <div className="seller-review-reply">
+                            <strong>{t('productDetails.review.sellerReply')}</strong>
+                            <p>{review.seller_reply}</p>
+                            {review.seller_reply_at && <span>{t('productDetails.review.replyDate', { date: new Date(review.seller_reply_at).toLocaleDateString(i18n.language) })}</span>}
+                          </div>
+                        )}
+                        {isOwnListing && (
+                          replyingToReviewId === review.id ? (
+                            <div className="seller-reply-editor">
+                              <label htmlFor={`seller-reply-${review.id}`}>{t('productDetails.review.replyLabel')}</label>
+                              <textarea id={`seller-reply-${review.id}`} value={sellerReplyDraft} onChange={(event) => setSellerReplyDraft(event.target.value)} maxLength="1000" rows="3" placeholder={t('productDetails.review.replyPlaceholder')} />
+                              <div className="seller-reply-editor__actions">
+                                <button type="button" onClick={() => saveSellerReply(review.id)} disabled={savingSellerReply} className="submit-review-btn">{savingSellerReply ? t('productDetails.review.replySaving') : t('productDetails.review.replySave')}</button>
+                                <button type="button" onClick={() => { setReplyingToReviewId(null); setSellerReplyDraft(''); }} disabled={savingSellerReply} className="seller-reply-cancel">{t('productDetails.offer.cancel')}</button>
+                              </div>
+                            </div>
+                          ) : (
+                            <button type="button" className="seller-reply-trigger" onClick={() => startSellerReply(review)}>{review.seller_reply ? t('productDetails.review.editReply') : t('productDetails.review.reply')}</button>
+                          )
+                        )}
                       </div>
                     ))
                   )}
@@ -626,6 +676,16 @@ const ProductDetailsPage = () => {
         .review-stars { color: #f59e0b; font-size: 0.875rem; }
         .review-date { font-size: 0.7rem; color: #9ca3af; }
         .review-comment-text { color: #4b5563; font-size: 0.875rem; line-height: 1.5; }
+        .seller-review-reply { margin: .8rem 0 0 1rem; padding: .85rem 1rem; border-inline-start: 3px solid #0b69d6; border-radius: 0 .65rem .65rem 0; background: #f4f9ff; color: #29445d; }
+        .seller-review-reply strong { display: block; color: #0b69d6; font-size: .8rem; }
+        .seller-review-reply p { margin: .35rem 0; line-height: 1.55; white-space: pre-wrap; }
+        .seller-review-reply span { color: #637891; font-size: .75rem; }
+        .seller-reply-trigger, .seller-reply-cancel { margin-top: .7rem; border: 1px solid #b8d4f1; border-radius: .45rem; background: #fff; color: #0b69d6; padding: .42rem .68rem; font: inherit; font-size: .8rem; font-weight: 750; cursor: pointer; }
+        .seller-reply-editor { display: grid; gap: .45rem; margin-top: .85rem; padding: .85rem; border: 1px solid #d7e7f7; border-radius: .65rem; background: #fbfdff; }
+        .seller-reply-editor label { color: #244260; font-size: .82rem; font-weight: 750; }
+        .seller-reply-editor textarea { width: 100%; box-sizing: border-box; resize: vertical; border: 1px solid #bed4e9; border-radius: .45rem; padding: .65rem; font: inherit; }
+        .seller-reply-editor__actions { display: flex; flex-wrap: wrap; gap: .55rem; align-items: center; }
+        .seller-reply-cancel { margin-top: 0; color: #526477; border-color: #ccd9e5; }
         .no-reviews { color: #6b7280; text-align: center; padding: 2rem; }
         .offer-modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1002; }
         .offer-container { background: white; border-radius: 1rem; width: 90%; max-width: 450px; max-height: 80vh; display: flex; flex-direction: column; overflow: hidden; }

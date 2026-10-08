@@ -29,6 +29,13 @@ const protect = async (req, res, next) => {
     const authenticated = await sessionService.authenticateAccessCookie(cookies[sessionService.ACCESS_COOKIE]);
     if (!authenticated) return res.status(401).json({ error: 'You are not logged in' });
 
+    if (authenticated.user.marketplace_status === 'suspended') {
+      return res.status(403).json({
+        error: 'This marketplace account is suspended. Contact rifKANDO support if you believe this is an error.',
+        code: 'MARKETPLACE_ACCOUNT_SUSPENDED',
+      });
+    }
+
     if (unsafeMethods.has(req.method) && !sessionService.hasValidCsrfToken(authenticated.session, req.get('X-CSRF-Token'))) {
       return res.status(403).json({ error: 'A valid CSRF token is required.' });
     }
@@ -45,7 +52,7 @@ const optionalProtect = async (req, res, next) => {
   try {
     const cookies = sessionService.readCookies(req);
     const authenticated = await sessionService.authenticateAccessCookie(cookies[sessionService.ACCESS_COOKIE]);
-    if (authenticated) {
+    if (authenticated && authenticated.user.marketplace_status !== 'suspended') {
       req.user = authenticated.user;
       req.authSession = authenticated.session;
     }
