@@ -54,23 +54,19 @@ const ProductDetailsPage = () => {
     return response.data.reviews || [];
   }, [id]);
 
-  const checkPurchaseStatus = useCallback(async () => {
-    const response = await api.get(`/orders`);
-    const orders = response.data.orders || [];
-    return orders.some(order =>
-      order.status === 'delivered' &&
-      order.items?.some(item => item.product_id === parseInt(id, 10))
-    );
+  const checkReviewEligibility = useCallback(async () => {
+    const response = await api.get(`/products/${id}/review-eligibility`);
+    return response.data;
   }, [id]);
 
   useEffect(() => {
     let isCurrent = true;
 
     const loadProductDetails = async () => {
-      const [productResult, reviewsResult, purchaseResult] = await Promise.allSettled([
+      const [productResult, reviewsResult, eligibilityResult] = await Promise.allSettled([
         fetchProduct(),
         fetchReviews(),
-        isAuthenticated ? checkPurchaseStatus() : Promise.resolve(false)
+        isAuthenticated ? checkReviewEligibility() : Promise.resolve({ eligible: false, reason: 'sign_in_required' })
       ]);
 
       if (!isCurrent) return;
@@ -91,16 +87,18 @@ const ProductDetailsPage = () => {
       if (reviewsResult.status === 'fulfilled') {
         const nextReviews = reviewsResult.value;
         setReviews(nextReviews);
-        setHasReviewed(isAuthenticated && nextReviews.some((review) => review.user_id === user?.id));
       } else {
         console.error('Error fetching reviews:', reviewsResult.reason);
       }
 
-      if (purchaseResult.status === 'fulfilled') {
-        setHasPurchased(purchaseResult.value);
+      if (eligibilityResult.status === 'fulfilled') {
+        const eligibility = eligibilityResult.value;
+        setHasPurchased(Boolean(eligibility.eligible));
+        setHasReviewed(eligibility.reason === 'already_reviewed');
       } else {
-        console.error('Error checking purchase status:', purchaseResult.reason);
+        console.error('Error checking review eligibility:', eligibilityResult.reason);
         setHasPurchased(false);
+        setHasReviewed(false);
       }
 
       setLoading(false);
@@ -111,7 +109,7 @@ const ProductDetailsPage = () => {
     return () => {
       isCurrent = false;
     };
-  }, [checkPurchaseStatus, fetchProduct, fetchReviews, isAuthenticated, t, user?.id]);
+  }, [checkReviewEligibility, fetchProduct, fetchReviews, isAuthenticated, t]);
 
   const submitReview = async () => {
     if (!reviewRating) {
@@ -229,7 +227,7 @@ const ProductDetailsPage = () => {
   const media = product.media || [];
   const primaryMedia = media.find((item) => item.id === activeMediaId) || media.find((item) => item.is_primary) || media[0];
   const averageRating = product.rating || 0;
-  const totalReviews = product.reviews_count || 0;
+  const totalReviews = product.review_count ?? product.reviews_count ?? 0;
   const isJoutiya = product.condition === 'joutiya';
   const stock = Number(product.stock) || 0;
   const productPrice = Number(product.price || 0);
@@ -450,6 +448,7 @@ const ProductDetailsPage = () => {
                         <div className="review-header">
                           <div className="reviewer-info">
                             <strong>{review.user_name}</strong>
+                            {Number(review.verified_purchase) === 1 && <span className="verified-purchase-badge">✓ {t('productDetails.review.verifiedPurchase')}</span>}
                             <div className="review-stars">
                               {"★".repeat(review.rating)}{"☆".repeat(5-review.rating)}
                             </div>
@@ -623,6 +622,7 @@ const ProductDetailsPage = () => {
         .review-item:last-child { border-bottom: none; }
         .review-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem; }
         .reviewer-info { display: flex; align-items: center; gap: 1rem; }
+        .verified-purchase-badge { display: inline-flex; align-items: center; border-radius: 999px; padding: .2rem .45rem; background: #e7f7ef; color: #087443; font-size: .68rem; font-weight: 800; white-space: nowrap; }
         .review-stars { color: #f59e0b; font-size: 0.875rem; }
         .review-date { font-size: 0.7rem; color: #9ca3af; }
         .review-comment-text { color: #4b5563; font-size: 0.875rem; line-height: 1.5; }

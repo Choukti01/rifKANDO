@@ -25,6 +25,65 @@ const createProductRoutes = ({
   const router = express.Router();
   const reportReasons = new Set(['scam', 'prohibited', 'misleading', 'counterfeit', 'other']);
 
+  // Reviews are evidence of a completed marketplace transaction, not a general
+  // comment system. A COD fulfilment is the authoritative delivery record for
+  // product orders, so a mutable legacy order status cannot grant review access.
+  const findDeliveredReviewOrder = (productId, userId, callback) => {
+    db.get(
+      `SELECT o.id AS order_id, f.id AS fulfillment_id
+       FROM order_items oi
+       JOIN orders o ON o.id = oi.order_id
+       JOIN products p ON p.id = oi.product_id
+       JOIN cod_fulfillments f ON f.order_id = o.id AND f.seller_id = p.seller_id
+       WHERE oi.product_id = ?
+         AND o.user_id = ?
+         AND p.seller_id <> o.user_id
+         AND f.source = 'product'
+         AND f.status = 'delivered'
+       ORDER BY COALESCE(f.delivered_at, f.updated_at) DESC, f.id DESC
+       LIMIT 1`,
+      [productId, userId],
+      callback,
+    );
+  };
+
+  const getReviewEligibility = (productId, userId, callback) => {
+    db.get(
+      'SELECT id FROM product_reviews WHERE product_id = ? AND user_id = ?',
+      [productId, userId],
+      (reviewError, existingReview) => {
+        if (reviewError) return callback(reviewError);
+        if (existingReview) return callback(null, { eligible: false, reason: 'already_reviewed' });
+        return findDeliveredReviewOrder(productId, userId, (orderError, deliveredOrder) => {
+          if (orderError) return callback(orderError);
+          if (!deliveredOrder) return callback(null, { eligible: false, reason: 'delivery_required' });
+          return callback(null, {
+            eligible: true,
+            orderId: deliveredOrder.order_id,
+            fulfillmentId: deliveredOrder.fulfillment_id,
+          });
+        });
+      },
+    );
+  };
+
+  const refreshProductReviewSummary = (productId, callback) => {
+    db.get(
+      'SELECT AVG(rating) AS average_rating, COUNT(*) AS review_count FROM product_reviews WHERE product_id = ?',
+      [productId],
+      (summaryError, summary) => {
+        if (summaryError) return callback(summaryError);
+        const averageRating = Math.round(Number(summary?.average_rating || 0) * 10) / 10;
+        const reviewCount = Number(summary?.review_count || 0);
+        return db.run(
+          'UPDATE products SET rating = ?, review_count = ? WHERE id = ?',
+          [averageRating, reviewCount, productId],
+          (updateError) => callback(updateError, { averageRating, reviewCount }),
+        );
+      },
+    );
+  };
+
   const attachMedia = (products, done) => {
     if (!products.length) return done(products);
 
@@ -395,9 +454,99 @@ const createProductRoutes = ({
     );
   });
 
+  // A storefront intentionally exposes only seller-facing marketplace data.
+  // Contact details, roles, and account controls remain private even though a
+  // public listing links here.
+  router.get('/sellers/:id/storefront', validateIdParams('id'), (req, res) => {
+    const requestedPage = Number.parseInt(req.query.page, 10) || 1;
+    const requestedLimit = Number.parseInt(req.query.limit, 10) || 24;
+    if (requestedPage < 1 || requestedLimit < 1 || requestedLimit > 48) {
+      return res.status(422).json({ error: 'page must be positive and limit must be between 1 and 48.' });
+    }
+    const offset = (requestedPage - 1) * requestedLimit;
+    const sellerId = Number(req.params.id);
+    const visibleListingClause = `p.status = 'published' AND NOT EXISTS (
+      SELECT 1 FROM cod_fulfillments debt
+      WHERE debt.seller_id = p.seller_id
+        AND debt.commission_payment_status = 'due'
+        AND debt.commission_due_at <= CURRENT_TIMESTAMP
+    )`;
+
+    db.get(
+      `SELECT u.id, u.name, u.bio, u.city, u.country, u.seller_type,
+              u.profilePicture AS profile_picture,
+              COALESCE(u.seller_started_at, u.created_at) AS seller_since,
+              COUNT(p.id) AS product_count,
+              COALESCE(SUM(COALESCE(p.review_count, 0)), 0) AS review_count,
+              COALESCE(
+                ROUND(
+                  CAST(SUM(COALESCE(p.rating, 0) * COALESCE(p.review_count, 0)) AS NUMERIC)
+                  / NULLIF(SUM(COALESCE(p.review_count, 0)), 0),
+                  1
+                ),
+                0
+              ) AS average_rating
+       FROM users u
+       LEFT JOIN products p ON p.seller_id = u.id AND ${visibleListingClause}
+       WHERE u.id = ?
+       GROUP BY u.id, u.name, u.bio, u.city, u.country, u.seller_type, u.profilePicture, u.seller_started_at, u.created_at`,
+      [sellerId],
+      (sellerError, seller) => {
+        if (sellerError) return res.status(500).json({ error: 'Unable to load this seller storefront.' });
+        if (!seller) return res.status(404).json({ error: 'Seller storefront not found.' });
+
+        db.get(
+          `SELECT COUNT(*) AS total FROM products p WHERE p.seller_id = ? AND ${visibleListingClause}`,
+          [sellerId],
+          (countError, countResult) => {
+            if (countError) return res.status(500).json({ error: 'Unable to load this seller storefront.' });
+            const total = Number(countResult?.total || 0);
+            db.all(
+              `SELECT p.*, u.name AS seller_name, u.id AS seller_id
+               FROM products p
+               JOIN users u ON u.id = p.seller_id
+               WHERE p.seller_id = ? AND ${visibleListingClause}
+               ORDER BY p.created_at DESC
+               LIMIT ? OFFSET ?`,
+              [sellerId, requestedLimit, offset],
+              (productsError, products) => {
+                if (productsError) return res.status(500).json({ error: 'Unable to load this seller storefront.' });
+                return attachMedia(products || [], (productsWithMedia) => res.json({
+                  success: true,
+                  seller: {
+                    id: seller.id,
+                    name: seller.name,
+                    bio: seller.bio || '',
+                    city: seller.city || '',
+                    country: seller.country || '',
+                    sellerType: seller.seller_type || 'product',
+                    profilePicture: seller.profile_picture || '',
+                    sellerSince: seller.seller_since,
+                    activeListings: Number(seller.product_count || 0),
+                    reviewCount: Number(seller.review_count || 0),
+                    averageRating: Number(seller.average_rating || 0),
+                  },
+                  products: productsWithMedia,
+                  pagination: {
+                    page: requestedPage,
+                    limit: requestedLimit,
+                    total,
+                    totalPages: Math.ceil(total / requestedLimit),
+                  },
+                }));
+              },
+            );
+          },
+        );
+      },
+    );
+  });
+
   router.get('/products/:id/reviews', validateIdParams('id'), (req, res) => {
     db.all(
-      `SELECT r.*, u.name as user_name
+      `SELECT r.id, r.product_id, r.user_id, r.rating, r.comment, r.created_at,
+              CASE WHEN r.order_id IS NULL THEN 0 ELSE 1 END AS verified_purchase,
+              u.name AS user_name
        FROM product_reviews r
        JOIN users u ON r.user_id = u.id
        WHERE r.product_id = ?
@@ -408,6 +557,13 @@ const createProductRoutes = ({
         return res.json({ success: true, reviews });
       },
     );
+  });
+
+  router.get('/products/:id/review-eligibility', protect, validateIdParams('id'), (req, res) => {
+    getReviewEligibility(req.params.id, req.user.id, (error, eligibility) => {
+      if (error) return res.status(500).json({ error: 'Unable to verify review eligibility.' });
+      return res.json({ success: true, ...eligibility });
+    });
   });
 
   router.post('/products/:id/reports', protect, validateIdParams('id'), (req, res) => {
@@ -487,51 +643,54 @@ const createProductRoutes = ({
     });
   });
 
-  router.post('/products/:id/reviews', protect, validateIdParams('id'), validateProductReview, (req, res) => {
+  const submitDeliveredOrderReview = (req, res) => {
     const productId = req.params.id;
     const { rating, comment } = req.body;
-    if (!rating || rating < 1 || rating > 5) {
-      return res.status(400).json({ error: 'Rating must be between 1 and 5' });
-    }
+    getReviewEligibility(productId, req.user.id, (eligibilityError, eligibility) => {
+      if (eligibilityError) return res.status(500).json({ error: 'Unable to verify review eligibility.' });
+      if (!eligibility.eligible) {
+        return res.status(eligibility.reason === 'already_reviewed' ? 409 : 403).json({
+          error: eligibility.reason === 'already_reviewed'
+            ? 'You have already reviewed this product.'
+            : 'Only the buyer of a delivered COD order can review this product.',
+          reason: eligibility.reason,
+        });
+      }
+      return db.run(
+        'INSERT INTO product_reviews (product_id, user_id, order_id, rating, comment) VALUES (?, ?, ?, ?, ?)',
+        [productId, req.user.id, eligibility.orderId, rating, comment || ''],
+        function onReviewCreated(insertError) {
+          if (insertError) {
+            if (/unique|duplicate/i.test(insertError.message || '')) {
+              return res.status(409).json({ error: 'You have already reviewed this product.', reason: 'already_reviewed' });
+            }
+            return res.status(500).json({ error: 'Unable to save your review.' });
+          }
+          return refreshProductReviewSummary(productId, (summaryError, summary) => {
+            if (summaryError) return res.status(500).json({ error: 'Your review was saved, but its summary could not be refreshed.' });
+            if (AuditService) void AuditService.record({
+              actorUserId: req.user.id,
+              actorRole: req.user.role,
+              action: 'product.review_created',
+              resourceType: 'product_review',
+              resourceId: this.lastID,
+              metadata: { productId: Number(productId), orderId: eligibility.orderId, fulfillmentId: eligibility.fulfillmentId },
+            }).catch(() => undefined);
+            return res.status(201).json({
+              success: true,
+              message: 'Review added.',
+              review: { id: this.lastID, verifiedPurchase: true },
+              summary,
+            });
+          });
+        },
+      );
+    });
+  };
 
-    db.get(
-      "SELECT * FROM order_items oi JOIN orders o ON oi.order_id = o.id WHERE oi.product_id = ? AND o.user_id = ? AND o.status = 'delivered'",
-      [productId, req.user.id],
-      (purchaseError, purchase) => {
-        if (purchaseError || !purchase) {
-          return res.status(403).json({ error: 'You can only review products you have purchased' });
-        }
-        db.get(
-          'SELECT * FROM product_reviews WHERE product_id = ? AND user_id = ?',
-          [productId, req.user.id],
-          (reviewLookupError, existingReview) => {
-            if (reviewLookupError) return res.status(500).json({ error: reviewLookupError.message });
-            if (existingReview) return res.status(400).json({ error: 'You have already reviewed this product' });
-            db.run(
-              'INSERT INTO product_reviews (product_id, user_id, rating, comment) VALUES (?, ?, ?, ?)',
-              [productId, req.user.id, rating, comment || ''],
-              (insertError) => {
-                if (insertError) return res.status(500).json({ error: insertError.message });
-                db.get(
-                  'SELECT AVG(rating) as avg_rating, COUNT(*) as review_count FROM product_reviews WHERE product_id = ?',
-                  [productId],
-                  (statsError, result) => {
-                    if (!statsError && result) {
-                      db.run(
-                        'UPDATE products SET rating = ?, reviews_count = ? WHERE id = ?',
-                        [Math.round(result.avg_rating * 10) / 10, result.review_count, productId],
-                      );
-                    }
-                    return res.json({ success: true, message: 'Review added' });
-                  },
-                );
-              },
-            );
-          },
-        );
-      },
-    );
-  });
+  router.post('/products/:id/reviews', protect, validateIdParams('id'), validateProductReview, submitDeliveredOrderReview);
+  // Keep the former singular endpoint safe for older deployed clients.
+  router.post('/products/:id/review', protect, validateIdParams('id'), validateProductReview, submitDeliveredOrderReview);
 
   return router;
 };

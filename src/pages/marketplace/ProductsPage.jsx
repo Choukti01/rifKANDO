@@ -217,7 +217,7 @@ const ProductsPage = () => {
                 <p>
                   {t('products.by')} <Link to={`/profile/${product.seller_id}`} className="seller-link">{product.seller_name || t('products.unknownSeller')}</Link>
                 </p>
-                <div className="product-rating">⭐ {product.rating || 0} ({t('products.reviewCount', { count: product.reviews_count || 0 })})</div>
+                <div className="product-rating">⭐ {product.rating || 0} ({t('products.reviewCount', { count: product.review_count ?? product.reviews_count ?? 0 })})</div>
                 <div className="product-price">
                   <span className="current-price">{formatAmount(productPrice)} MAD</span>
                   {product.old_price && <span className="old-price">{formatAmount(product.old_price)} MAD</span>}

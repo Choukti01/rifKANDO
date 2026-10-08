@@ -160,13 +160,24 @@ db.serialize(() => {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       product_id INTEGER NOT NULL,
       user_id INTEGER NOT NULL,
+      order_id INTEGER,
       rating INTEGER NOT NULL CHECK(rating >= 1 AND rating <= 5),
       comment TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
-      FOREIGN KEY (user_id) REFERENCES users(id)
+      FOREIGN KEY (user_id) REFERENCES users(id),
+      FOREIGN KEY (order_id) REFERENCES orders(id)
     )
   `, (err) => { if (err) console.error('Error creating product_reviews:', err); else console.log('✅ product_reviews table ready'); });
+
+  // A review is linked to the delivered order that earned it. Existing
+  // historical rows remain readable, but all newly created reviews receive
+  // this immutable delivery reference through the product review route.
+  db.run('ALTER TABLE product_reviews ADD COLUMN order_id INTEGER', (err) => {
+    if (err && !err.message.includes('duplicate column name')) {
+      console.error('Error adding product review order reference:', err.message);
+    }
+  });
 
   // User-submitted listing reports remain private to the reporter and the
   // moderation team. They never expose reporter identity to a seller.
@@ -1464,6 +1475,8 @@ db.serialize(() => {
     ['idx_booking_availability_windows_schedule', 'booking_availability_windows(booking_id, weekday, start_time)'],
     ['idx_booking_date_overrides_schedule', 'booking_date_overrides(booking_id, date)'],
     ['idx_product_media_listing', 'product_media(product_id, display_order, id)'],
+    ['idx_product_reviews_product_user', 'product_reviews(product_id, user_id)'],
+    ['idx_product_reviews_product_created', 'product_reviews(product_id, created_at DESC)'],
     ['idx_product_reports_queue', 'product_reports(status, created_at ASC)'],
     ['idx_notifications_user_unread_created', 'notifications(user_id, read_at, created_at DESC)'],
     ['idx_course_media_listing', 'course_media(course_id, display_order, id)'],
@@ -1490,6 +1503,17 @@ db.serialize(() => {
       if (err) console.error(`Error creating ${name}:`, err.message);
     });
   }
+  // Old imported reviews can lack an order reference. The partial index keeps
+  // that history intact while guaranteeing one newly verified review per buyer
+  // and product, even if a client retries the request concurrently.
+  db.run(
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_product_reviews_verified_product_user
+     ON product_reviews(product_id, user_id)
+     WHERE order_id IS NOT NULL`,
+    (err) => {
+      if (err) console.error('Error creating verified product review index:', err.message);
+    },
+  );
   db.run(
     `CREATE UNIQUE INDEX IF NOT EXISTS idx_cod_fulfillments_collection_reference
      ON cod_fulfillments(carrier_collection_reference)

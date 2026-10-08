@@ -719,6 +719,29 @@ Object.assign(resources.ar.translation.productDetails, {
   openGallery: 'فتح معرض الوسائط لـ {{title}}', showMedia: 'عرض الوسيط {{count}} لـ {{title}}', soldBy: 'يباع بواسطة', selectQuantity: 'اختر الكمية', favoriteAdd: 'أضف إلى المفضلة', favoriteRemove: 'أزل من المفضلة', productInformation: 'معلومات المنتج', noDescription: 'لم يضف البائع وصفًا لهذا المنتج بعد.',
 });
 
+Object.assign(resources.en.translation.productDetails.review, {
+  verifiedPurchase: 'Verified delivery',
+});
+Object.assign(resources.ar.translation.productDetails.review, {
+  verifiedPurchase: 'تسليم موثّق',
+});
+
+Object.assign(resources.en.translation, {
+  storefront: {
+    loading: 'Loading seller storefront…', notFound: 'This seller storefront is not available', loadFailed: 'We could not load this storefront', errorLead: 'Try again in a moment or continue browsing active marketplace listings.', backToProducts: 'Back to products', eyebrow: 'rifKANDO seller storefront', sellingSince: 'Selling since {{date}}', reputationLabel: 'Seller reputation', reviews_one: '{{count}} verified review', reviews_other: '{{count}} verified reviews', activeListings: 'active listings', listingsEyebrow: 'Available now', listingsTitle: '{{name}}’s listings', listingCount_one: '{{count}} listing', listingCount_other: '{{count}} listings', emptyTitle: 'No active listings right now', emptyLead: 'This seller has no products available at the moment. Explore other products on rifKANDO.', browseProducts: 'Browse products', loadMore: 'Load more listings', loadingMore: 'Loading listings…',
+  },
+});
+Object.assign(resources.fr.translation, {
+  storefront: {
+    loading: 'Chargement de la vitrine…', notFound: 'Cette vitrine vendeur n’est pas disponible', loadFailed: 'Impossible de charger cette vitrine', errorLead: 'Réessayez dans un instant ou continuez à parcourir les annonces actives.', backToProducts: 'Retour aux produits', eyebrow: 'Vitrine vendeur rifKANDO', sellingSince: 'Vendeur depuis {{date}}', reputationLabel: 'Réputation du vendeur', reviews_one: '{{count}} avis vérifié', reviews_other: '{{count}} avis vérifiés', activeListings: 'annonces actives', listingsEyebrow: 'Disponible maintenant', listingsTitle: 'Annonces de {{name}}', listingCount_one: '{{count}} annonce', listingCount_other: '{{count}} annonces', emptyTitle: 'Aucune annonce active pour le moment', emptyLead: 'Ce vendeur n’a pas de produit disponible pour le moment. Découvrez les autres produits sur rifKANDO.', browseProducts: 'Voir les produits', loadMore: 'Voir plus d’annonces', loadingMore: 'Chargement des annonces…',
+  },
+});
+Object.assign(resources.ar.translation, {
+  storefront: {
+    loading: 'جارٍ تحميل واجهة البائع…', notFound: 'واجهة هذا البائع غير متاحة', loadFailed: 'تعذر تحميل واجهة البائع', errorLead: 'حاول مرة أخرى بعد لحظات أو واصل تصفح الإعلانات النشطة.', backToProducts: 'العودة إلى المنتجات', eyebrow: 'واجهة بائع rifKANDO', sellingSince: 'يبيع منذ {{date}}', reputationLabel: 'سمعة البائع', reviews_one: '{{count}} مراجعة موثّقة', reviews_other: '{{count}} مراجعة موثّقة', activeListings: 'إعلانات نشطة', listingsEyebrow: 'متاح الآن', listingsTitle: 'إعلانات {{name}}', listingCount_one: '{{count}} إعلان', listingCount_other: '{{count}} إعلانات', emptyTitle: 'لا توجد إعلانات نشطة حاليًا', emptyLead: 'لا يملك هذا البائع منتجات متاحة الآن. اكتشف منتجات أخرى على rifKANDO.', browseProducts: 'تصفح المنتجات', loadMore: 'تحميل مزيد من الإعلانات', loadingMore: 'جارٍ تحميل الإعلانات…',
+  },
+});
+
 const replaceArabicFinditBrand = (value) => {
   if (typeof value === 'string') return value.replaceAll('FINDit', resources.ar.translation.findit.navigation);
   if (value && typeof value === 'object') Object.values(value).forEach(replaceArabicFinditBrand);

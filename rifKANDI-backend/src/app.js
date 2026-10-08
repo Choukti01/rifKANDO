@@ -2633,7 +2633,10 @@ app.patch('/api/users/update-seller-type', protect, validateSellerType, (req, re
 });
 
 app.get('/api/users/:id', (req, res) => {
-  db.get('SELECT id, name, email, phone, bio, city, country, seller_type, profilePicture, created_at FROM users WHERE id = ?', [req.params.id], (err, user) => {
+  // This route is used for public profile previews and messaging headers.
+  // Never leak contact data from a user record simply because its numeric ID
+  // can be discovered in a public listing URL.
+  db.get('SELECT id, name, bio, city, country, seller_type, profilePicture, created_at FROM users WHERE id = ?', [req.params.id], (err, user) => {
     if (err) return res.status(500).json({ error: err.message });
     if (!user) return res.status(404).json({ error: 'User not found' });
     res.json({ success: true, user });
@@ -3608,58 +3611,6 @@ app.get('/api/orders/:id/invoice', protect, async (req, res) => {
     console.error(JSON.stringify({ level: 'error', event: 'invoice_download_failed', error: error.message }));
     if (!res.headersSent) return res.status(500).json({ error: 'Unable to prepare the invoice.' });
   }
-});
-
-// ==================== RATINGS & REVIEWS ====================
-app.post('/api/products/:id/review', protect, validateIdParams('id'), validateProductReview, async (req, res) => {
-  const { rating, comment } = req.body;
-  const productId = req.params.id;
-  
-  if (!rating || rating < 1 || rating > 5) {
-    return res.status(400).json({ error: 'Rating must be between 1 and 5' });
-  }
-  
-  db.get(`
-    SELECT oi.id FROM order_items oi
-    JOIN orders o ON oi.order_id = o.id
-    WHERE oi.product_id = ? AND o.user_id = ? AND o.status = 'delivered'
-  `, [productId, req.user.id], (err, purchase) => {
-    if (err || !purchase) {
-      return res.status(403).json({ error: 'You can only review products you have purchased and received' });
-    }
-    
-    db.get('SELECT * FROM product_reviews WHERE product_id = ? AND user_id = ?', [productId, req.user.id], (err, existing) => {
-      if (existing) {
-        return res.status(400).json({ error: 'You have already reviewed this product' });
-      }
-      
-      db.run('INSERT INTO product_reviews (product_id, user_id, rating, comment) VALUES (?, ?, ?, ?)',
-        [productId, req.user.id, rating, comment || ''], function(err) {
-          if (err) return res.status(500).json({ error: err.message });
-          
-          db.get('SELECT AVG(rating) as avg_rating, COUNT(*) as review_count FROM product_reviews WHERE product_id = ?', [productId], (err, result) => {
-            if (!err && result) {
-              db.run('UPDATE products SET rating = ?, reviews_count = ? WHERE id = ?',
-                [Math.round(result.avg_rating * 10) / 10, result.review_count, productId]);
-            }
-            res.json({ success: true, message: 'Review added' });
-          });
-        });
-    });
-  });
-});
-
-app.get('/api/products/:id/reviews', (req, res) => {
-  db.all(`
-    SELECT r.*, u.name as user_name
-    FROM product_reviews r
-    JOIN users u ON r.user_id = u.id
-    WHERE r.product_id = ?
-    ORDER BY r.created_at DESC
-  `, [req.params.id], (err, rows) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json({ success: true, reviews: rows });
-  });
 });
 
 // ==================== ADMIN DASHBOARD (UPDATED WITH SELLER VERIFICATION) ====================

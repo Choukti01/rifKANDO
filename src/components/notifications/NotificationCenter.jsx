@@ -10,6 +10,7 @@ const NotificationCenter = () => {
   const [items, setItems] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [currentTime, setCurrentTime] = useState(null);
   const rootRef = useRef(null);
   const navigate = useNavigate();
 
@@ -35,6 +36,16 @@ const NotificationCenter = () => {
       window.clearInterval(interval);
     };
   }, [loadNotifications]);
+
+  useEffect(() => {
+    const updateClock = () => setCurrentTime(Date.now());
+    const kickoff = window.setTimeout(updateClock, 0);
+    const interval = window.setInterval(updateClock, 60_000);
+    return () => {
+      window.clearTimeout(kickoff);
+      window.clearInterval(interval);
+    };
+  }, []);
 
   useEffect(() => {
     const onPointerDown = (event) => {
@@ -73,8 +84,8 @@ const NotificationCenter = () => {
 
   const relativeTimeForLocale = (value) => {
     const timestamp = Date.parse(value);
-    if (Number.isNaN(timestamp)) return '';
-    let amount = Math.round((timestamp - Date.now()) / 1000);
+    if (Number.isNaN(timestamp) || currentTime === null) return '';
+    let amount = Math.round((timestamp - currentTime) / 1000);
     let unit = 'second';
     for (const [divisor, nextUnit] of [[60, 'minute'], [60, 'hour'], [24, 'day'], [7, 'week'], [4.345, 'month'], [12, 'year']]) {
       if (Math.abs(amount) < divisor) break;
