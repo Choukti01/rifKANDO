@@ -10,6 +10,7 @@
 html {
   scroll-behavior: smooth;
   -webkit-text-size-adjust: 100%;
+  background: var(--color-white);
 }
 
 html[dir='rtl'] body {
@@ -182,10 +183,28 @@ body {
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
+  min-width: 320px;
 }
 
 img, picture, video, canvas, svg {
   max-width: 100%;
+}
+
+img, picture, video, canvas {
+  height: auto;
+}
+
+button, a, input, select, textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid rgba(99, 184, 243, 0.65);
+  outline-offset: 3px;
 }
 
 button, input, select, textarea {
@@ -196,12 +215,12 @@ button, input, select, textarea {
 .container {
   max-width: var(--container-max-width);
   margin: 0 auto;
-  padding: 0 var(--container-padding);
+  padding-inline: var(--container-padding);
 }
 
 .app-main {
   flex-grow: 1;
-  padding-top: 80px;
+  padding-top: var(--navbar-height, 80px);
 }
 
 /* Typography */
@@ -212,9 +231,9 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--color-black);
 }
 
-h1 { font-size: var(--font-4xl); }
-h2 { font-size: var(--font-3xl); }
-h3 { font-size: var(--font-2xl); }
+h1 { font-size: clamp(2rem, 4vw, var(--font-5xl)); }
+h2 { font-size: clamp(1.5rem, 3vw, var(--font-4xl)); }
+h3 { font-size: clamp(1.25rem, 2.2vw, var(--font-3xl)); }
 h4 { font-size: var(--font-xl); }
 h5 { font-size: var(--font-lg); }
 h6 { font-size: var(--font-base); }
@@ -447,6 +466,7 @@ a {
 
   .btn {
     min-height: 44px;
+    padding-inline: 1rem;
   }
 
   input:not([type='checkbox']):not([type='radio']),
@@ -490,6 +510,35 @@ a {
   .quantity-selector button {
     min-width: 44px;
     min-height: 44px;
+  }
+
+  .empty-state {
+    min-height: 12rem;
+    padding: var(--space-8) var(--space-4);
+  }
+
+  .card-content {
+    padding: var(--space-4);
+  }
+}
+
+@media (min-width: 641px) and (max-width: 1099px) {
+  .container {
+    --container-padding: clamp(1.25rem, 3vw, 2rem);
+  }
+
+  .section {
+    padding-block: clamp(3rem, 6vw, var(--space-16));
+  }
+}
+
+@media (max-width: 380px) {
+  :root {
+    --container-padding: 0.875rem;
+  }
+
+  .btn {
+    width: 100%;
   }
 }
 

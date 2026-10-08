@@ -650,7 +650,9 @@ const Navbar = () => {
           justify-content: center;
         }
 
-        @media (min-width: 768px) {
+        /* Tablet widths use the touch-first menu. Five product links, search, language,
+           notifications, and account controls do not fit reliably in an iPad portrait bar. */
+        @media (min-width: 1100px) {
           .nav-links-desktop {
             display: flex;
           }
@@ -677,43 +679,13 @@ const Navbar = () => {
           }
         }
 
-        @media (max-width: 1024px) {
-          .brand-link {
-            margin-right: 0;
-          }
-          .nav-links-desktop {
-            gap: 1rem;
-          }
-          .search-form-desktop {
-            max-width: 220px;
-          }
-          .search-input {
-            font-size: 0.75rem;
-          }
-          .search-input::placeholder {
-            font-size: 0.7rem;
-          }
-        }
-
-        @media (max-width: 900px) {
-          .search-form-desktop {
-            max-width: 180px;
-          }
-          .nav-links-desktop {
-            gap: 0.75rem;
-          }
-          .nav-link {
-            font-size: 0.85rem;
-          }
-        }
-
         /* Keep the compact navigation as the same light glass surface as desktop. */
-        @media (max-width: 767px) {
+        @media (max-width: 1099px) {
           .navbar {
             --glass-bg: rgba(255, 255, 255, 0.32);
             --glass-bg-scrolled: rgba(255, 255, 255, 0.48);
             --glass-border: rgba(255, 255, 255, 0.52);
-            padding: 0.6rem 0;
+            padding: 0.65rem 0;
             backdrop-filter: blur(18px) saturate(160%);
             -webkit-backdrop-filter: blur(18px) saturate(160%);
             box-shadow: 0 8px 24px rgba(15, 23, 42, 0.045);
@@ -728,11 +700,11 @@ const Navbar = () => {
             color: #374151;
           }
           .navbar-content {
-            gap: 0.5rem;
+            gap: clamp(0.5rem, 2vw, 1rem);
           }
           .brand-link {
-            width: 8.25rem;
-            height: 2rem;
+            width: clamp(8.25rem, 23vw, 10.5rem);
+            height: 2.25rem;
           }
           .nav-icons {
             gap: 0.2rem;
@@ -752,8 +724,8 @@ const Navbar = () => {
             display: none;
           }
           .mobile-menu {
-            top: 62px;
-            max-height: calc(100dvh - 62px);
+            top: var(--navbar-height, 72px);
+            max-height: calc(100dvh - var(--navbar-height, 72px));
             overflow-y: auto;
             overscroll-behavior: contain;
             background: rgba(255, 255, 255, 0.46);
@@ -770,6 +742,26 @@ const Navbar = () => {
           .mobile-nav-link {
             min-height: 2.75rem;
             padding: 0.8rem 0;
+          }
+        }
+
+        @media (min-width: 768px) and (max-width: 1099px) {
+          .mobile-menu {
+            padding-block: 1.5rem;
+          }
+          .mobile-search-input {
+            min-height: 3rem;
+            font-size: 1rem;
+          }
+          .mobile-nav-link {
+            font-size: 1rem;
+          }
+        }
+
+        @media (max-width: 639px) {
+          .brand-link {
+            width: 8.25rem;
+            height: 2rem;
           }
         }
       `}</style>
