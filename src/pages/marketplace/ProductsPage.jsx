@@ -211,7 +211,7 @@ const ProductsPage = () => {
                   ) : (
                     <div className="image-placeholder">📦</div>
                   )}
-                  <div className="condition-badge">{conditionLabels[product.condition] || 'New'}</div>
+                  <div className="condition-badge">{conditionLabels[product.condition] || t('products.conditions.new')}</div>
                 </div>
                 <Link to={`/product/${product.id}`}><h3>{product.title}</h3></Link>
                 <p>

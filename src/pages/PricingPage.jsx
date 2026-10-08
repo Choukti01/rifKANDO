@@ -1,5 +1,6 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   AcademicCapIcon,
   ArrowRightIcon,
@@ -13,40 +14,41 @@ import {
 } from '@heroicons/react/24/outline'
 import { formatCommissionRate, WITHDRAWAL_HOLD_DAYS } from '../config/commissionPolicy'
 
-const pricingPlans = [
-  { type: 'product', title: 'Physical products', icon: ShoppingBagIcon, bestFor: 'Merchants selling tangible goods', features: ['Inventory and product listings', 'Order and fulfillment tools', 'Customer reviews'] },
-  { type: 'course', title: 'Courses', icon: AcademicCapIcon, bestFor: 'Educators and trainers', features: ['Course and lesson publishing', 'Student access management', 'Course workspace tools'] },
-  { type: 'service', title: 'Services', icon: WrenchScrewdriverIcon, bestFor: 'Freelancers and service providers', features: ['Service listings and packages', 'Client requests', 'Portfolio and review tools'] },
-  { type: 'digital', title: 'Digital products', icon: ComputerDesktopIcon, bestFor: 'Creators of digital resources', features: ['Digital product listings', 'Purchase request workflow', 'Creator workspace tools'] },
-  { type: 'findit', title: 'FINDit solutions', icon: MagnifyingGlassIcon, bestFor: 'Sellers who can source hard-to-find items', features: ['Private buyer requests', 'Quoted COD solutions', '5% commission after settlement'] },
-]
-
 const PricingPage = () => {
+  const { i18n } = useTranslation()
+  const localize = (english, arabic) => (i18n.resolvedLanguage === 'ar' ? arabic : english)
+  const pricingPlans = [
+    { type: 'product', title: localize('Physical products', 'المنتجات المادية'), icon: ShoppingBagIcon, bestFor: localize('Merchants selling tangible goods', 'التجار الذين يبيعون سلعًا مادية'), features: [localize('Inventory and product listings', 'المخزون وإعلانات المنتجات'), localize('Order and fulfillment tools', 'أدوات الطلبات والتنفيذ'), localize('Customer reviews', 'تقييمات العملاء')] },
+    { type: 'course', title: localize('Courses', 'الدورات'), icon: AcademicCapIcon, bestFor: localize('Educators and trainers', 'المعلمون والمدربون'), features: [localize('Course and lesson publishing', 'نشر الدورات والدروس'), localize('Student access management', 'إدارة وصول الطلاب'), localize('Course workspace tools', 'أدوات مساحة الدورات')] },
+    { type: 'service', title: localize('Services', 'الخدمات'), icon: WrenchScrewdriverIcon, bestFor: localize('Freelancers and service providers', 'المستقلون ومقدمو الخدمات'), features: [localize('Service listings and packages', 'إعلانات الخدمات والباقات'), localize('Client requests', 'طلبات العملاء'), localize('Portfolio and review tools', 'أدوات المعرض والتقييمات')] },
+    { type: 'digital', title: localize('Digital products', 'المنتجات الرقمية'), icon: ComputerDesktopIcon, bestFor: localize('Creators of digital resources', 'منشئو الموارد الرقمية'), features: [localize('Digital product listings', 'إعلانات المنتجات الرقمية'), localize('Purchase request workflow', 'مسار طلبات الشراء'), localize('Creator workspace tools', 'أدوات مساحة المنشئ')] },
+    { type: 'findit', title: localize('FINDit solutions', 'حلول اعثر عليها'), icon: MagnifyingGlassIcon, bestFor: localize('Sellers who can source hard-to-find items', 'البائعون القادرون على إيجاد السلع صعبة العثور'), features: [localize('Private buyer requests', 'طلبات مشترين خاصة'), localize('Quoted COD solutions', 'حلول بالدفع عند الاستلام بسعر محدد'), localize('5% commission after settlement', 'عمولة 5% بعد التسوية')] },
+  ]
   return (
     <main className="fees-page">
       <section className="fees-hero">
         <div className="container fees-hero-content">
-          <p className="fees-eyebrow"><CurrencyDollarIcon aria-hidden="true" /> Fees and pricing</p>
-          <h1>One clear commission for every way you sell.</h1>
-          <p>Choose the seller workspace that fits your business. rifKANDO shows the applicable commission clearly before seller funds enter your wallet.</p>
+          <p className="fees-eyebrow"><CurrencyDollarIcon aria-hidden="true" /> {localize('Fees and pricing', 'الرسوم والأسعار')}</p>
+          <h1>{localize('One clear commission for every way you sell.', 'عمولة واضحة واحدة لكل طريقة بيع.')}</h1>
+          <p>{localize('Choose the seller workspace that fits your business. rifKANDO shows the applicable commission clearly before seller funds enter your wallet.', 'اختر مساحة البائع المناسبة لنشاطك. تعرض rifKANDO العمولة المطبقة بوضوح قبل دخول أموال البائع إلى محفظتك.')}</p>
           <div className="fees-hero-actions">
-            <Link to="/choose-seller-type">Become a seller <ArrowRightIcon aria-hidden="true" /></Link>
-            <Link to="/seller-guidelines">Read the seller guide</Link>
+            <Link to="/choose-seller-type">{localize('Become a seller', 'كن بائعًا')} <ArrowRightIcon aria-hidden="true" /></Link>
+            <Link to="/seller-guidelines">{localize('Read the seller guide', 'اقرأ دليل البائع')}</Link>
           </div>
         </div>
       </section>
 
       <div className="container fees-content">
-        <section className="fees-principles" aria-label="Pricing principles">
-          <article><span>01</span><h2>Category-based</h2><p>Your rate is determined by the category of the sale.</p></article>
-          <article><span>02</span><h2>Visible upfront</h2><p>Seller commission is calculated before wallet settlement.</p></article>
-          <article><span>03</span><h2>Wallet based</h2><p>Seller funds are recorded in your rifKANDO wallet.</p></article>
+        <section className="fees-principles" aria-label={localize('Pricing principles', 'مبادئ التسعير')}>
+          <article><span>01</span><h2>{localize('Category-based', 'حسب الفئة')}</h2><p>{localize('Your rate is determined by the category of the sale.', 'تُحدد نسبتك حسب فئة البيع.')}</p></article>
+          <article><span>02</span><h2>{localize('Visible upfront', 'واضحة مسبقًا')}</h2><p>{localize('Seller commission is calculated before wallet settlement.', 'تُحسب عمولة البائع قبل تسوية المحفظة.')}</p></article>
+          <article><span>03</span><h2>{localize('Wallet based', 'مرتبطة بالمحفظة')}</h2><p>{localize('Seller funds are recorded in your rifKANDO wallet.', 'تُسجل أموال البائع في محفظة rifKANDO الخاصة بك.')}</p></article>
         </section>
 
         <section className="fees-section" aria-labelledby="rate-title">
           <div className="fees-section-heading">
-            <div><p>Commission rates</p><h2 id="rate-title">Pick the workspace that matches what you offer.</h2></div>
-            <span>All prices in MAD</span>
+            <div><p>{localize('Commission rates', 'نسب العمولة')}</p><h2 id="rate-title">{localize('Pick the workspace that matches what you offer.', 'اختر مساحة العمل التي تناسب ما تقدمه.')}</h2></div>
+            <span>{localize('All prices in MAD', 'كل الأسعار بالدرهم')}</span>
           </div>
           <div className="fees-grid">
             {pricingPlans.map((plan) => {
@@ -55,9 +57,9 @@ const PricingPage = () => {
                 <article className="fees-card" key={plan.type}>
                   <div className="fees-card-top"><span className="fees-icon"><Icon aria-hidden="true" /></span><span className="fees-rate">{formatCommissionRate(plan.type)}</span></div>
                   <h3>{plan.title}</h3>
-                  <p className="fees-best-for">Best for {plan.bestFor.toLowerCase()}</p>
+                  <p className="fees-best-for">{localize('Best for ', 'مناسب لـ ')}{plan.bestFor}</p>
                   <ul>{plan.features.map((feature) => <li key={feature}><CheckIcon aria-hidden="true" />{feature}</li>)}</ul>
-                  <Link to="/choose-seller-type">Choose this workspace <ArrowRightIcon aria-hidden="true" /></Link>
+                  <Link to="/choose-seller-type">{localize('Choose this workspace', 'اختر مساحة العمل هذه')} <ArrowRightIcon aria-hidden="true" /></Link>
                 </article>
               )
             })}
@@ -66,23 +68,23 @@ const PricingPage = () => {
 
         <section className="fees-wallet-section" aria-labelledby="wallet-title">
           <div className="fees-wallet-icon"><WalletIcon aria-hidden="true" /></div>
-          <div><p>Seller wallet</p><h2 id="wallet-title">Know where your earnings are.</h2><p>When a completed marketplace sale is settled, the seller amount after commission is recorded in the rifKANDO wallet. New sellers can request a withdrawal after {WITHDRAWAL_HOLD_DAYS} days.</p></div>
-          <Link to="/seller-guidelines">How payouts work <ArrowRightIcon aria-hidden="true" /></Link>
+          <div><p>{localize('Seller wallet', 'محفظة البائع')}</p><h2 id="wallet-title">{localize('Know where your earnings are.', 'اعرف أين توجد أرباحك.')}</h2><p>{localize(`When a completed marketplace sale is settled, the seller amount after commission is recorded in the rifKANDO wallet. New sellers can request a withdrawal after ${WITHDRAWAL_HOLD_DAYS} days.`, `عند تسوية عملية بيع مكتملة في السوق، يُسجل مبلغ البائع بعد العمولة في محفظة rifKANDO. يمكن للبائعين الجدد طلب السحب بعد ${WITHDRAWAL_HOLD_DAYS} يومًا.`)}</p></div>
+          <Link to="/seller-guidelines">{localize('How payouts work', 'كيف تعمل المستحقات')} <ArrowRightIcon aria-hidden="true" /></Link>
         </section>
 
         <section className="fees-section fees-faq" aria-labelledby="fees-faq-title">
-          <div className="fees-section-heading"><div><p>Questions answered</p><h2 id="fees-faq-title">The important details.</h2></div></div>
+          <div className="fees-section-heading"><div><p>{localize('Questions answered', 'إجابات عن الأسئلة')}</p><h2 id="fees-faq-title">{localize('The important details.', 'التفاصيل المهمة.')}</h2></div></div>
           <div className="fees-faq-grid">
-            <article><h3>How is my rate chosen?</h3><p>The commission matches the seller workspace and marketplace category for the completed sale.</p></article>
-            <article><h3>When can I withdraw?</h3><p>New sellers can request withdrawals after {WITHDRAWAL_HOLD_DAYS} days. Your wallet shows the exact availability date.</p></article>
-            <article><h3>What does the commission cover?</h3><p>It is rifKANDO's marketplace commission for the sale. Applicable delivery or payment details are shown during the relevant checkout flow.</p></article>
-            <article><h3>What happens with an approved refund?</h3><p>When a refund is approved, the related financial records are adjusted according to the transaction workflow.</p></article>
+            <article><h3>{localize('How is my rate chosen?', 'كيف تُحدد نسبتي؟')}</h3><p>{localize('The commission matches the seller workspace and marketplace category for the completed sale.', 'تتوافق العمولة مع مساحة عمل البائع وفئة السوق الخاصة بالبيع المكتمل.')}</p></article>
+            <article><h3>{localize('When can I withdraw?', 'متى يمكنني السحب؟')}</h3><p>{localize(`New sellers can request withdrawals after ${WITHDRAWAL_HOLD_DAYS} days. Your wallet shows the exact availability date.`, `يمكن للبائعين الجدد طلب السحب بعد ${WITHDRAWAL_HOLD_DAYS} يومًا. تعرض محفظتك تاريخ التوفر الدقيق.`)}</p></article>
+            <article><h3>{localize('What does the commission cover?', 'ماذا تغطي العمولة؟')}</h3><p>{localize("It is rifKANDO's marketplace commission for the sale. Applicable delivery or payment details are shown during the relevant checkout flow.", 'هي عمولة rifKANDO الخاصة بالسوق عن البيع. تُعرض تفاصيل التوصيل أو الدفع المطبقة ضمن مسار إتمام الشراء المعني.')}</p></article>
+            <article><h3>{localize('What happens with an approved refund?', 'ماذا يحدث عند اعتماد الاسترداد؟')}</h3><p>{localize('When a refund is approved, the related financial records are adjusted according to the transaction workflow.', 'عند اعتماد الاسترداد، تُعدّل السجلات المالية المرتبطة وفقًا لمسار المعاملة.')}</p></article>
           </div>
         </section>
 
         <section className="fees-support">
-          <div><h2>Still deciding how to sell?</h2><p>Start with the seller guide, then choose the workspace that best fits your business.</p></div>
-          <Link to="/contact">Contact support <ArrowRightIcon aria-hidden="true" /></Link>
+          <div><h2>{localize('Still deciding how to sell?', 'ما زلت تقرر كيف ستبيع؟')}</h2><p>{localize('Start with the seller guide, then choose the workspace that best fits your business.', 'ابدأ بدليل البائع، ثم اختر مساحة العمل الأنسب لنشاطك.')}</p></div>
+          <Link to="/contact">{localize('Contact support', 'تواصل مع الدعم')} <ArrowRightIcon aria-hidden="true" /></Link>
         </section>
       </div>
 

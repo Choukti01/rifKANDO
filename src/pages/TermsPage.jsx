@@ -1,44 +1,46 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { ArrowRightIcon, DocumentTextIcon, ScaleIcon, ShieldCheckIcon } from '@heroicons/react/24/outline'
 
-const termsSections = [
-  { id: 'acceptance', title: 'Acceptance of terms', text: 'By accessing or using rifKANDO, you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use our platform.' },
-  { id: 'service', title: 'Description of service', text: 'rifKANDO is a multi-service platform that connects buyers and sellers. We provide a marketplace for physical products, digital products, courses, services, and FINDit buyer requests.' },
-  { id: 'accounts', title: 'User accounts', text: 'You must create an account to use certain features. You are responsible for maintaining the security of your account and for all activities that occur under your account.' },
-  { id: 'buying-selling', title: 'Buying and selling', text: 'When you purchase an item on rifKANDO, you agree to pay the listed price plus any applicable fees. Sellers agree to deliver the item as described and within the stated timeframe.' },
-  { id: 'payments', title: 'Payments and fees', text: 'All payments are processed through our secure payment system. rifKANDO charges a commission on each sale, as outlined in our pricing page.' },
-  { id: 'refunds', title: 'Refund policy', text: 'Buyers may request refunds within 7 days of delivery for physical products, and within 14 days for digital products and services. Refunds are subject to review.' },
-  { id: 'prohibited', title: 'Prohibited activities', text: 'You may not use our platform for illegal activities, to sell prohibited items, or to harass other users. Violations may result in account suspension or termination.' },
-  { id: 'property', title: 'Intellectual property', text: 'rifKANDO and its content are protected by copyright, trademark, and other laws. You may not copy, modify, or distribute our content without permission.' },
-  { id: 'liability', title: 'Limitation of liability', text: 'rifKANDO is not liable for any damages arising from your use of our platform. We provide the platform "as is" without warranties of any kind.' },
-  { id: 'changes', title: 'Changes to these terms', text: 'We may modify these terms at any time. Continued use of the platform constitutes acceptance of the modified terms.' },
-]
-
 const TermsPage = () => {
+  const { i18n } = useTranslation()
+  const localize = (english, arabic) => (i18n.resolvedLanguage === 'ar' ? arabic : english)
+  const termsSections = [
+    { id: 'acceptance', title: localize('Acceptance of terms', 'قبول الشروط'), text: localize('By accessing or using rifKANDO, you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use our platform.', 'عند دخولك إلى rifKANDO أو استخدامك لها، فإنك توافق على الالتزام بشروط الخدمة هذه. إذا لم توافق عليها، فيرجى عدم استخدام المنصة.') },
+    { id: 'service', title: localize('Description of service', 'وصف الخدمة'), text: localize('rifKANDO is a multi-service platform that connects buyers and sellers. We provide a marketplace for physical products, digital products, courses, services, and FINDit buyer requests.', 'rifKANDO منصة متعددة الخدمات تربط المشترين بالبائعين. نوفر سوقًا للمنتجات المادية والمنتجات الرقمية والدورات والخدمات وطلبات FINDit للمشترين.') },
+    { id: 'accounts', title: localize('User accounts', 'حسابات المستخدمين'), text: localize('You must create an account to use certain features. You are responsible for maintaining the security of your account and for all activities that occur under your account.', 'يجب إنشاء حساب لاستخدام بعض المزايا. أنت مسؤول عن الحفاظ على أمان حسابك وعن جميع الأنشطة التي تتم من خلاله.') },
+    { id: 'buying-selling', title: localize('Buying and selling', 'الشراء والبيع'), text: localize('When you purchase an item on rifKANDO, you agree to pay the listed price plus any applicable fees. Sellers agree to deliver the item as described and within the stated timeframe.', 'عند شراء سلعة على rifKANDO، توافق على دفع السعر المعروض وأي رسوم مطبقة. ويوافق البائعون على تسليم السلعة كما وُصفت وضمن المدة المحددة.') },
+    { id: 'payments', title: localize('Payments and fees', 'المدفوعات والرسوم'), text: localize('All payments are processed through our secure payment system. rifKANDO charges a commission on each sale, as outlined in our pricing page.', 'تتم معالجة المدفوعات عبر نظام الدفع الآمن لدينا. تفرض rifKANDO عمولة على كل عملية بيع كما هو موضح في صفحة الأسعار.') },
+    { id: 'refunds', title: localize('Refund policy', 'سياسة الاسترداد'), text: localize('Buyers may request refunds within 7 days of delivery for physical products, and within 14 days for digital products and services. Refunds are subject to review.', 'يمكن للمشترين طلب الاسترداد خلال 7 أيام من تسليم المنتجات المادية، وخلال 14 يومًا للمنتجات والخدمات الرقمية. تخضع طلبات الاسترداد للمراجعة.') },
+    { id: 'prohibited', title: localize('Prohibited activities', 'الأنشطة المحظورة'), text: localize('You may not use our platform for illegal activities, to sell prohibited items, or to harass other users. Violations may result in account suspension or termination.', 'لا يجوز استخدام منصتنا في أنشطة غير قانونية أو لبيع سلع محظورة أو لمضايقة مستخدمين آخرين. وقد تؤدي المخالفات إلى تعليق الحساب أو إنهائه.') },
+    { id: 'property', title: localize('Intellectual property', 'الملكية الفكرية'), text: localize('rifKANDO and its content are protected by copyright, trademark, and other laws. You may not copy, modify, or distribute our content without permission.', 'تحمي قوانين حقوق النشر والعلامات التجارية وغيرها rifKANDO ومحتواها. لا يجوز نسخ محتوانا أو تعديله أو توزيعه دون إذن.') },
+    { id: 'liability', title: localize('Limitation of liability', 'حدود المسؤولية'), text: localize('rifKANDO is not liable for any damages arising from your use of our platform. We provide the platform "as is" without warranties of any kind.', 'لا تتحمل rifKANDO مسؤولية الأضرار الناتجة عن استخدامك للمنصة. نقدم المنصة كما هي دون ضمانات من أي نوع.') },
+    { id: 'changes', title: localize('Changes to these terms', 'تغييرات على هذه الشروط'), text: localize('We may modify these terms at any time. Continued use of the platform constitutes acceptance of the modified terms.', 'يجوز لنا تعديل هذه الشروط في أي وقت. ويعني استمرارك في استخدام المنصة قبولك للشروط المعدلة.') },
+  ]
   return (
     <main className="terms-page">
       <section className="terms-hero">
         <div className="container terms-hero-content">
-          <p className="terms-eyebrow"><ScaleIcon aria-hidden="true" /> Legal information</p>
-          <h1>The standards for using rifKANDO.</h1>
-          <p>These Terms of Service explain the agreement between you and rifKANDO when you access the platform, buy, sell, or use its marketplace tools.</p>
-          <div className="terms-meta"><span>Last updated: March 2026</span><span aria-hidden="true">•</span><a href="#contact">Legal contact</a></div>
+          <p className="terms-eyebrow"><ScaleIcon aria-hidden="true" />{localize('Legal information', 'معلومات قانونية')}</p>
+          <h1>{localize('The standards for using rifKANDO.', 'معايير استخدام rifKANDO.')}</h1>
+          <p>{localize('These Terms of Service explain the agreement between you and rifKANDO when you access the platform, buy, sell, or use its marketplace tools.', 'توضح شروط الخدمة هذه الاتفاق بينك وبين rifKANDO عند دخولك إلى المنصة أو الشراء أو البيع أو استخدام أدوات السوق الخاصة بها.')}</p>
+          <div className="terms-meta"><span>{localize('Last updated: March 2026', 'آخر تحديث: مارس 2026')}</span><span aria-hidden="true">•</span><a href="#contact">{localize('Legal contact', 'التواصل القانوني')}</a></div>
         </div>
       </section>
 
       <div className="container terms-layout">
-        <aside className="terms-navigation" aria-label="Terms navigation">
-          <p>On this page</p>
+        <aside className="terms-navigation" aria-label={localize('Terms navigation', 'تنقل شروط الخدمة')}>
+          <p>{localize('On this page', 'في هذه الصفحة')}</p>
           {termsSections.map((section) => <a key={section.id} href={`#${section.id}`}>{section.title}</a>)}
-          <a href="#contact">Contact information</a>
+          <a href="#contact">{localize('Contact information', 'معلومات التواصل')}</a>
         </aside>
 
         <div className="terms-content">
           <section className="terms-intro-card">
             <ShieldCheckIcon aria-hidden="true" />
-            <div><h2>Read these terms before you use the marketplace.</h2><p>They cover account responsibilities, marketplace activity, payments, refunds, and the standards that help keep rifKANDO useful and safe for everyone.</p></div>
-            <Link to="/pricing">Fees and pricing <ArrowRightIcon aria-hidden="true" /></Link>
+            <div><h2>{localize('Read these terms before you use the marketplace.', 'اقرأ هذه الشروط قبل استخدام السوق.')}</h2><p>{localize('They cover account responsibilities, marketplace activity, payments, refunds, and the standards that help keep rifKANDO useful and safe for everyone.', 'تغطي مسؤوليات الحساب ونشاط السوق والمدفوعات والاستردادات والمعايير التي تساعد على إبقاء rifKANDO مفيدة وآمنة للجميع.')}</p></div>
+            <Link to="/pricing">{localize('Fees and pricing', 'الرسوم والأسعار')} <ArrowRightIcon aria-hidden="true" /></Link>
           </section>
 
           <div className="terms-policy-card">
@@ -50,8 +52,8 @@ const TermsPage = () => {
             ))}
             <section id="contact" className="terms-contact">
               <DocumentTextIcon aria-hidden="true" />
-              <div><h2>Questions about these terms?</h2><p>Contact us at <a href="mailto:legalrifKANDO@gmail.com">legalrifKANDO@gmail.com</a> or reach our support team with the context of your question.</p></div>
-              <Link to="/contact">Contact us <ArrowRightIcon aria-hidden="true" /></Link>
+              <div><h2>{localize('Questions about these terms?', 'أسئلة حول هذه الشروط؟')}</h2><p>{localize('Contact us at ', 'تواصل معنا عبر ')}<a href="mailto:legalrifKANDO@gmail.com">legalrifKANDO@gmail.com</a>{localize(' or reach our support team with the context of your question.', ' أو تواصل مع فريق الدعم مع توضيح سؤالك.')}</p></div>
+              <Link to="/contact">{localize('Contact us', 'تواصل معنا')} <ArrowRightIcon aria-hidden="true" /></Link>
             </section>
           </div>
         </div>

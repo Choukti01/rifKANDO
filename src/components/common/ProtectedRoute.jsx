@@ -1,16 +1,18 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
+import { useTranslation } from 'react-i18next';
 
 const ProtectedRoute = ({ children, requiredRole, requiredRoles, requiredCapability }) => {
   const { isAuthenticated, user, loading } = useAuth();
+  const { t } = useTranslation();
   const location = useLocation();
 
   if (loading) {
     return (
       <div className="container text-center py-16">
         <div className="spinner"></div>
-        <p>Loading...</p>
+        <p>{t('protected.loading')}</p>
       </div>
     );
   }

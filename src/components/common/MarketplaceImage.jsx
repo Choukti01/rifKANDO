@@ -1,28 +1,11 @@
 import React, { useState } from 'react';
 import { getImageUrl } from '../../utils/imageUtils';
+import { useTranslation } from 'react-i18next';
 
-const ImageFallback = ({ alt, className, style }) => (
-  <div
-    className={`media-fallback ${className}`.trim()}
-    role="img"
-    aria-label={`No image available for ${alt || 'this listing'}`}
-    style={{
-      width: '100%',
-      height: '100%',
-      minHeight: '100%',
-      display: 'grid',
-      placeItems: 'center',
-      background: 'linear-gradient(135deg, #e8f7fc 0%, #f7fafc 100%)',
-      color: '#52707c',
-      fontSize: '0.875rem',
-      fontWeight: 600,
-      letterSpacing: '0.01em',
-      ...style,
-    }}
-  >
-    <span>No preview available</span>
-  </div>
-);
+const ImageFallback = ({ alt, className, style }) => {
+  const { t } = useTranslation();
+  return <div className={`media-fallback ${className}`.trim()} role="img" aria-label={t('media.noImageFor', { title: alt || t('products.unknownSeller') })} style={{ width: '100%', height: '100%', minHeight: '100%', display: 'grid', placeItems: 'center', background: 'linear-gradient(135deg, #e8f7fc 0%, #f7fafc 100%)', color: '#52707c', fontSize: '0.875rem', fontWeight: 600, letterSpacing: '0.01em', ...style }}><span>{t('media.noPreview')}</span></div>;
+};
 
 const ResilientImage = ({ source, alt, className, style }) => {
   const [hasFailed, setHasFailed] = useState(false);

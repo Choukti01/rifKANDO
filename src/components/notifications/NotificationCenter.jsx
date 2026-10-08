@@ -1,22 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BellIcon, CheckIcon } from '@heroicons/react/24/outline';
+import { useTranslation } from 'react-i18next';
 import api from '../../services/api';
 
-const relativeTime = (value) => {
-  const timestamp = Date.parse(value);
-  if (Number.isNaN(timestamp)) return '';
-  let amount = Math.round((timestamp - Date.now()) / 1000);
-  let unit = 'second';
-  for (const [divisor, nextUnit] of [[60, 'minute'], [60, 'hour'], [24, 'day'], [7, 'week'], [4.345, 'month'], [12, 'year']]) {
-    if (Math.abs(amount) < divisor) break;
-    amount = Math.round(amount / divisor);
-    unit = nextUnit;
-  }
-  return new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' }).format(amount, unit);
-};
-
 const NotificationCenter = () => {
+  const { t, i18n } = useTranslation();
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -82,26 +71,39 @@ const NotificationCenter = () => {
     if (item.href) navigate(item.href);
   };
 
+  const relativeTimeForLocale = (value) => {
+    const timestamp = Date.parse(value);
+    if (Number.isNaN(timestamp)) return '';
+    let amount = Math.round((timestamp - Date.now()) / 1000);
+    let unit = 'second';
+    for (const [divisor, nextUnit] of [[60, 'minute'], [60, 'hour'], [24, 'day'], [7, 'week'], [4.345, 'month'], [12, 'year']]) {
+      if (Math.abs(amount) < divisor) break;
+      amount = Math.round(amount / divisor);
+      unit = nextUnit;
+    }
+    return new Intl.RelativeTimeFormat(i18n.language, { numeric: 'auto' }).format(amount, unit);
+  };
+
   return (
     <div className="notification-center" ref={rootRef}>
-      <button type="button" className="nav-icon notification-trigger" aria-label={unreadCount ? `${unreadCount} unread notifications` : 'Notifications'} aria-expanded={open} aria-haspopup="dialog" onClick={() => { setOpen((value) => !value); if (!open) void loadNotifications(); }}>
+      <button type="button" className="nav-icon notification-trigger" aria-label={unreadCount ? t('notifications.unread', { count: unreadCount }) : t('notifications.label')} aria-expanded={open} aria-haspopup="dialog" onClick={() => { setOpen((value) => !value); if (!open) void loadNotifications(); }}>
         <BellIcon className="icon" />
         {unreadCount > 0 && <span className="notification-badge" aria-hidden="true">{unreadCount > 9 ? '9+' : unreadCount}</span>}
       </button>
 
       {open && (
-        <section className="notification-panel" aria-label="Notifications" role="dialog">
+        <section className="notification-panel" aria-label={t('notifications.label')} role="dialog">
           <header className="notification-panel-header">
-            <div><h2>Notifications</h2><p>{unreadCount ? `${unreadCount} unread` : 'You are all caught up'}</p></div>
-            {unreadCount > 0 && <button type="button" className="notification-read-all" onClick={markAllRead}><CheckIcon aria-hidden="true" /> Mark all read</button>}
+            <div><h2>{t('notifications.label')}</h2><p>{unreadCount ? t('notifications.unread', { count: unreadCount }) : t('notifications.caughtUp')}</p></div>
+            {unreadCount > 0 && <button type="button" className="notification-read-all" onClick={markAllRead}><CheckIcon aria-hidden="true" /> {t('notifications.markAllRead')}</button>}
           </header>
           <div className="notification-list" aria-live="polite">
-            {loading && <p className="notification-empty">Loading notifications…</p>}
-            {!loading && !items.length && <p className="notification-empty">Important order, FINDit, and account updates will appear here.</p>}
+            {loading && <p className="notification-empty">{t('notifications.loading')}</p>}
+            {!loading && !items.length && <p className="notification-empty">{t('notifications.empty')}</p>}
             {!loading && items.map((item) => (
               <button key={item.id} type="button" className={`notification-item ${item.read_at ? 'is-read' : 'is-unread'}`} onClick={() => void openNotification(item)}>
-                <span className="notification-item-copy"><strong>{item.title}</strong><span>{item.body}</span><time dateTime={item.created_at}>{relativeTime(item.created_at)}</time></span>
-                {!item.read_at && <span className="notification-unread-dot" aria-label="Unread" />}
+                <span className="notification-item-copy"><strong>{item.title}</strong><span>{item.body}</span><time dateTime={item.created_at}>{relativeTimeForLocale(item.created_at)}</time></span>
+                {!item.read_at && <span className="notification-unread-dot" aria-label={t('notifications.unreadItem')} />}
               </button>
             ))}
           </div>
@@ -113,7 +115,7 @@ const NotificationCenter = () => {
         .notification-trigger { width: 2.25rem; height: 2.25rem; justify-content: center; border-radius: .7rem; }
         .notification-trigger:hover { background: rgba(47,145,219,.09); }
         .notification-badge { position:absolute; top:-.3rem; right:-.35rem; min-width:1.1rem; height:1.1rem; padding:0 .22rem; display:grid; place-items:center; border-radius:999px; background:#1679c4; color:#fff; border:2px solid #fff; font-size:.62rem; font-weight:800; line-height:1; }
-        .notification-panel { position:absolute; top:calc(100% + .72rem); right:-.65rem; width:min(25rem,calc(100vw - 1.5rem)); overflow:hidden; border:1px solid rgba(18,48,76,.12); border-radius:1rem; background:rgba(255,255,255,.98); box-shadow:0 18px 48px rgba(10,35,61,.18); backdrop-filter:blur(18px); z-index:1100; animation:notification-enter 160ms ease-out; }
+        .notification-panel { position:absolute; top:calc(100% + .72rem); inset-inline-end:-.65rem; width:min(25rem,calc(100vw - 1.5rem)); overflow:hidden; border:1px solid rgba(18,48,76,.12); border-radius:1rem; background:rgba(255,255,255,.98); box-shadow:0 18px 48px rgba(10,35,61,.18); backdrop-filter:blur(18px); z-index:1100; animation:notification-enter 160ms ease-out; }
         @keyframes notification-enter { from { opacity:0; transform:translateY(-.35rem) scale(.98); } to { opacity:1; transform:translateY(0) scale(1); } }
         .notification-panel-header { display:flex; align-items:center; justify-content:space-between; gap:.75rem; padding:1rem; border-bottom:1px solid #eef3f7; }
         .notification-panel-header h2 { margin:0; color:#102a43; font-size:.96rem; font-weight:800; }
@@ -122,7 +124,7 @@ const NotificationCenter = () => {
         .notification-read-all svg { width:1rem; height:1rem; }
         .notification-read-all:hover { color:#0e5d9f; }
         .notification-list { max-height:min(28rem,65vh); overflow-y:auto; overscroll-behavior:contain; }
-        .notification-item { width:100%; display:flex; align-items:flex-start; gap:.65rem; padding:.9rem 1rem; text-align:left; border:0; border-bottom:1px solid #f0f4f7; background:#fff; cursor:pointer; transition:background 160ms ease; }
+        .notification-item { width:100%; display:flex; align-items:flex-start; gap:.65rem; padding:.9rem 1rem; text-align:start; border:0; border-bottom:1px solid #f0f4f7; background:#fff; cursor:pointer; transition:background 160ms ease; }
         .notification-item:hover { background:#f4f9fd; }
         .notification-item.is-unread { background:#eff8ff; }
         .notification-item-copy { min-width:0; display:grid; gap:.22rem; }
@@ -131,7 +133,7 @@ const NotificationCenter = () => {
         .notification-item-copy time { color:#82909d; font-size:.68rem; }
         .notification-unread-dot { flex:0 0 auto; width:.48rem; height:.48rem; margin-top:.25rem; border-radius:999px; background:#1679c4; }
         .notification-empty { margin:0; padding:1.35rem 1rem; color:#70808f; font-size:.79rem; line-height:1.5; text-align:center; }
-        @media (max-width:767px) { .notification-panel { position:fixed; top:4.6rem; right:.75rem; } }
+        @media (max-width:767px) { .notification-panel { position:fixed; top:4.6rem; inset-inline-end:.75rem; } }
       `}</style>
     </div>
   );

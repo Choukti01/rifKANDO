@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   ArrowRightIcon,
   ClockIcon,
@@ -13,6 +14,8 @@ import {
 const SUPPORT_EMAIL = 'rifKANDO@gmail.com'
 
 const ContactPage = () => {
+  const { i18n } = useTranslation()
+  const localize = (english, arabic) => (i18n.resolvedLanguage === 'ar' ? arabic : english)
   const [formData, setFormData] = useState({ name: '', email: '', subject: '', message: '' })
 
   const updateField = (field) => (event) => {
@@ -31,45 +34,45 @@ const ContactPage = () => {
       <section className="contact-hero">
         <div className="container contact-hero-grid">
           <div>
-            <p className="contact-eyebrow"><LifebuoyIcon aria-hidden="true" /> Contact support</p>
-            <h1>Tell us how we can help.</h1>
-            <p>Whether you have a marketplace question, need seller guidance, or want to report an issue, our team is here to help.</p>
+            <p className="contact-eyebrow"><LifebuoyIcon aria-hidden="true" /> {localize('Contact support', 'تواصل مع الدعم')}</p>
+            <h1>{localize('Tell us how we can help.', 'أخبرنا كيف يمكننا مساعدتك.')}</h1>
+            <p>{localize('Whether you have a marketplace question, need seller guidance, or want to report an issue, our team is here to help.', 'سواء كان لديك سؤال عن السوق أو تحتاج إلى إرشاد للبائعين أو تريد الإبلاغ عن مشكلة، فريقنا هنا لمساعدتك.')}</p>
           </div>
-          <div className="contact-hero-note"><UserGroupIcon aria-hidden="true" /><div><strong>Start with the details</strong><span>Share your account email, relevant order or listing information, and what you need help with.</span></div></div>
+          <div className="contact-hero-note"><UserGroupIcon aria-hidden="true" /><div><strong>{localize('Start with the details', 'ابدأ بالتفاصيل')}</strong><span>{localize('Share your account email, relevant order or listing information, and what you need help with.', 'شارك بريد حسابك ومعلومات الطلب أو الإعلان ذات الصلة وما تحتاج إلى مساعدة بشأنه.')}</span></div></div>
         </div>
       </section>
 
       <div className="container contact-content">
-        <section className="contact-shortcuts" aria-label="Support shortcuts">
-          <Link to="/help"><LifebuoyIcon aria-hidden="true" /><span><strong>Visit Help Center</strong><small>Browse common questions and answers</small></span><ArrowRightIcon aria-hidden="true" /></Link>
-          <Link to="/seller-guidelines"><UserGroupIcon aria-hidden="true" /><span><strong>Read the Seller Guide</strong><small>Review seller standards and fees</small></span><ArrowRightIcon aria-hidden="true" /></Link>
+        <section className="contact-shortcuts" aria-label={localize('Support shortcuts', 'اختصارات الدعم')}>
+          <Link to="/help"><LifebuoyIcon aria-hidden="true" /><span><strong>{localize('Visit Help Center', 'زيارة مركز المساعدة')}</strong><small>{localize('Browse common questions and answers', 'تصفّح الأسئلة والأجوبة الشائعة')}</small></span><ArrowRightIcon aria-hidden="true" /></Link>
+          <Link to="/seller-guidelines"><UserGroupIcon aria-hidden="true" /><span><strong>{localize('Read the Seller Guide', 'اقرأ دليل البائع')}</strong><small>{localize('Review seller standards and fees', 'راجع معايير ورسوم البائعين')}</small></span><ArrowRightIcon aria-hidden="true" /></Link>
         </section>
 
         <div className="contact-grid-redesign">
           <section className="contact-details-card" aria-labelledby="contact-details-title">
-            <p className="contact-card-kicker">Support details</p>
-            <h2 id="contact-details-title">Choose the best way to reach us.</h2>
+            <p className="contact-card-kicker">{localize('Support details', 'تفاصيل الدعم')}</p>
+            <h2 id="contact-details-title">{localize('Choose the best way to reach us.', 'اختر أفضل طريقة للتواصل معنا.')}</h2>
             <div className="contact-detail-list">
-              <a href={`mailto:${SUPPORT_EMAIL}`} className="contact-detail"><span><EnvelopeIcon aria-hidden="true" /></span><div><strong>General support</strong><small>{SUPPORT_EMAIL}</small></div></a>
-              <a href="mailto:sellersRifKANDO@gmail.com" className="contact-detail"><span><UserGroupIcon aria-hidden="true" /></span><div><strong>Seller support</strong><small>sellersRifKANDO@gmail.com</small></div></a>
-              <a href="tel:+212624483286" className="contact-detail"><span><PhoneIcon aria-hidden="true" /></span><div><strong>Phone</strong><small>+212 624 483 286</small></div></a>
-              <div className="contact-detail static"><span><ClockIcon aria-hidden="true" /></span><div><strong>Support hours</strong><small>Monday to Friday, 9:00 to 18:00<br />Saturday, 10:00 to 14:00</small></div></div>
-              <div className="contact-detail static"><span><MapPinIcon aria-hidden="true" /></span><div><strong>Based in Nador</strong><small>Nador, Morocco</small></div></div>
+              <a href={`mailto:${SUPPORT_EMAIL}`} className="contact-detail"><span><EnvelopeIcon aria-hidden="true" /></span><div><strong>{localize('General support', 'الدعم العام')}</strong><small>{SUPPORT_EMAIL}</small></div></a>
+              <a href="mailto:sellersRifKANDO@gmail.com" className="contact-detail"><span><UserGroupIcon aria-hidden="true" /></span><div><strong>{localize('Seller support', 'دعم البائعين')}</strong><small>sellersRifKANDO@gmail.com</small></div></a>
+              <a href="tel:+212624483286" className="contact-detail"><span><PhoneIcon aria-hidden="true" /></span><div><strong>{localize('Phone', 'الهاتف')}</strong><small>+212 624 483 286</small></div></a>
+              <div className="contact-detail static"><span><ClockIcon aria-hidden="true" /></span><div><strong>{localize('Support hours', 'ساعات الدعم')}</strong><small>{localize('Monday to Friday, 9:00 to 18:00', 'من الإثنين إلى الجمعة، 9:00 إلى 18:00')}<br />{localize('Saturday, 10:00 to 14:00', 'السبت، 10:00 إلى 14:00')}</small></div></div>
+              <div className="contact-detail static"><span><MapPinIcon aria-hidden="true" /></span><div><strong>{localize('Based in Nador', 'مقرنا في الناظور')}</strong><small>{localize('Nador, Morocco', 'الناظور، المغرب')}</small></div></div>
             </div>
           </section>
 
           <section className="contact-form-card" aria-labelledby="contact-form-title">
-            <p className="contact-card-kicker">Send an email</p>
-            <h2 id="contact-form-title">Write your message.</h2>
-            <p className="contact-form-intro">Submitting this form opens your email application with a message addressed to rifKANDO support. You remain in control of sending it.</p>
+            <p className="contact-card-kicker">{localize('Send an email', 'أرسل بريدًا إلكترونيًا')}</p>
+            <h2 id="contact-form-title">{localize('Write your message.', 'اكتب رسالتك.')}</h2>
+            <p className="contact-form-intro">{localize('Submitting this form opens your email application with a message addressed to rifKANDO support. You remain in control of sending it.', 'يؤدي إرسال هذا النموذج إلى فتح تطبيق البريد الإلكتروني برسالة موجهة إلى دعم rifKANDO. تبقى أنت المتحكم في إرسالها.')}</p>
             <form onSubmit={handleSubmit}>
               <div className="contact-form-row">
-                <div><label htmlFor="contact-name">Your name</label><input id="contact-name" type="text" autoComplete="name" value={formData.name} onChange={updateField('name')} required /></div>
-                <div><label htmlFor="contact-email">Email address</label><input id="contact-email" type="email" autoComplete="email" value={formData.email} onChange={updateField('email')} required /></div>
+                <div><label htmlFor="contact-name">{localize('Your name', 'اسمك')}</label><input id="contact-name" type="text" autoComplete="name" value={formData.name} onChange={updateField('name')} required /></div>
+                <div><label htmlFor="contact-email">{localize('Email address', 'البريد الإلكتروني')}</label><input id="contact-email" type="email" autoComplete="email" value={formData.email} onChange={updateField('email')} required /></div>
               </div>
-              <div><label htmlFor="contact-subject">What can we help with?</label><input id="contact-subject" type="text" value={formData.subject} onChange={updateField('subject')} placeholder="For example, a question about an order" required /></div>
-              <div><label htmlFor="contact-message">Message</label><textarea id="contact-message" rows="6" value={formData.message} onChange={updateField('message')} placeholder="Include any useful details so we can help faster." required /></div>
-              <button type="submit">Open email message <ArrowRightIcon aria-hidden="true" /></button>
+              <div><label htmlFor="contact-subject">{localize('What can we help with?', 'كيف يمكننا مساعدتك؟')}</label><input id="contact-subject" type="text" value={formData.subject} onChange={updateField('subject')} placeholder={localize('For example, a question about an order', 'مثلًا، سؤال حول طلب')} required /></div>
+              <div><label htmlFor="contact-message">{localize('Message', 'الرسالة')}</label><textarea id="contact-message" rows="6" value={formData.message} onChange={updateField('message')} placeholder={localize('Include any useful details so we can help faster.', 'أضف أي تفاصيل مفيدة لنتمكن من مساعدتك بسرعة.')} required /></div>
+              <button type="submit">{localize('Open email message', 'فتح رسالة البريد الإلكتروني')} <ArrowRightIcon aria-hidden="true" /></button>
             </form>
           </section>
         </div>

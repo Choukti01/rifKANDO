@@ -7,8 +7,10 @@ import useAuth from '../../../hooks/useAuth';
 import toast from 'react-hot-toast';
 import EmptyState from '../../../components/common/EmptyState';
 import LoadingSkeleton from '../../../components/common/LoadingSkeleton';
+import { useTranslation } from 'react-i18next';
 
 const Overview = () => {
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const [stats, setStats] = useState({
     totalProducts: 0,
@@ -52,7 +54,7 @@ const Overview = () => {
       } catch (error) {
         if (isCurrent) {
           console.error('Failed to fetch dashboard data:', error);
-          toast.error('Failed to load dashboard data');
+          toast.error(t('sellerOverview.loadFailed'));
         }
       } finally {
         if (isCurrent) setLoading(false);
@@ -64,7 +66,7 @@ const Overview = () => {
     return () => {
       isCurrent = false;
     };
-  }, []);
+  }, [t]);
 
   const getStatusColor = (status) => {
     const colors = {
@@ -82,28 +84,27 @@ const Overview = () => {
   };
 
   const getStatusText = (status) => {
-    return status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Pending';
+    return status ? t(`sellerCod.statuses.${status}`, { defaultValue: status }) : t('sellerOverview.pending');
   };
 
   if (loading) {
-    return <LoadingSkeleton variant="list" count={4} label="Loading seller dashboard" />;
+    return <LoadingSkeleton variant="list" count={4} label={t('sellerOverview.loading')} />;
   }
 
   const mainStats = [
-    { label: 'Products', value: stats.totalProducts, icon: ShoppingBagIcon, color: '#216275' },
+    { label: t('sellerOverview.products'), value: stats.totalProducts, icon: ShoppingBagIcon, color: '#216275' },
   ];
 
   const overviewStats = [
-    { label: 'Order value', value: `${stats.totalOrderValue.toLocaleString()} MAD`, icon: CurrencyDollarIcon, color: '#216275' },
-    { label: 'Orders', value: stats.totalOrders, icon: ShoppingBagIcon, color: '#216275' },
-    { label: 'Listing views', value: stats.totalViews.toLocaleString(), icon: EyeIcon, color: '#216275' },
+    { label: t('sellerOverview.orderValue'), value: `${stats.totalOrderValue.toLocaleString(i18n.language)} MAD`, icon: CurrencyDollarIcon, color: '#216275' },
+    { label: t('sellerOverview.orders'), value: stats.totalOrders, icon: ShoppingBagIcon, color: '#216275' },
+    { label: t('sellerOverview.views'), value: stats.totalViews.toLocaleString(i18n.language), icon: EyeIcon, color: '#216275' },
   ];
   const totalListings = stats.totalProducts;
   const firstListingPath = '/seller/dashboard/products/add';
-  const primaryListingLabel = 'product';
   const checklist = [
-    { label: 'Complete your profile', done: Boolean(user?.name && user?.phone && user?.city), to: '/seller/dashboard/settings' },
-    { label: 'Publish your first listing', done: totalListings > 0, to: firstListingPath },
+    { label: t('sellerOverview.profile'), done: Boolean(user?.name && user?.phone && user?.city), to: '/seller/dashboard/settings' },
+    { label: t('sellerOverview.firstListing'), done: totalListings > 0, to: firstListingPath },
   ];
   const completedSteps = checklist.filter((step) => step.done).length;
 
@@ -111,19 +112,19 @@ const Overview = () => {
     <div>
       {/* Welcome Section */}
       <div className="welcome-section">
-        <h2>Welcome back, {user?.name?.split(' ')[0] || 'Seller'}!</h2>
-        <p>{totalListings ? "Here's what's happening with your store today." : 'Almost there. Your shop is ready for its first listing.'}</p>
+        <h2>{t('sellerOverview.welcome', { name: user?.name?.split(' ')[0] || t('buyer.seller') })}</h2>
+        <p>{totalListings ? t('sellerOverview.activeLead') : t('sellerOverview.emptyLead')}</p>
         <Link to={firstListingPath} className="seller-primary-action">
-          {totalListings ? `Manage your ${primaryListingLabel}s` : `Create your first ${primaryListingLabel}`}
+          {totalListings ? t('sellerOverview.manage') : t('sellerOverview.create')}
         </Link>
       </div>
 
       {completedSteps < checklist.length && (
         <section className="seller-checklist" aria-labelledby="seller-checklist-title">
           <div>
-            <p className="seller-checklist-eyebrow">Getting started · {completedSteps}/{checklist.length}</p>
-            <h3 id="seller-checklist-title">Set up your shop</h3>
-            <p>Finish these essentials to build trust and start selling.</p>
+            <p className="seller-checklist-eyebrow">{t('sellerOverview.gettingStarted', { done: completedSteps, total: checklist.length })}</p>
+            <h3 id="seller-checklist-title">{t('sellerOverview.setup')}</h3>
+            <p>{t('sellerOverview.setupLead')}</p>
           </div>
           <div className="seller-checklist-steps">
             {checklist.map((step) => (
@@ -176,35 +177,35 @@ const Overview = () => {
       {/* Recent Orders */}
       <div className="recent-orders-card">
         <div className="card-header">
-          <h3>Recent sales</h3>
-          <Link to="/seller/dashboard/orders" className="view-all">View All</Link>
+          <h3>{t('sellerOverview.recentSales')}</h3>
+          <Link to="/seller/dashboard/orders" className="view-all">{t('sellerOverview.viewAll')}</Link>
         </div>
         {recentOrders.length === 0 ? (
-          <EmptyState title="No sales yet" description="Your first sale will appear here once a customer checks out." />
+          <EmptyState title={t('sellerOverview.noSales')} description={t('sellerOverview.noSalesLead')} />
         ) : (
           <div className="orders-table">
             <table>
               <thead>
                 <tr>
-                  <th>Order ID</th>
-                  <th>Customer</th>
-                  <th>Amount</th>
-                  <th>Status</th>
-                  <th>Date</th>
+                  <th>{t('sellerOverview.columns.id')}</th>
+                  <th>{t('sellerOverview.columns.customer')}</th>
+                  <th>{t('sellerOverview.columns.amount')}</th>
+                  <th>{t('sellerOverview.columns.status')}</th>
+                  <th>{t('sellerOverview.columns.date')}</th>
                 </tr>
               </thead>
               <tbody>
                 {recentOrders.map(order => (
                   <tr key={order.fulfillment_id || order.id}>
                     <td>{order.order_number}</td>
-                    <td>{order.buyer_name || order.customer_name || 'Customer'}</td>
-                    <td>{Number(order.seller_amount ?? order.seller_total ?? order.total ?? 0).toLocaleString()} MAD</td>
+                    <td>{order.buyer_name || order.customer_name || t('sellerOverview.customer')}</td>
+                    <td>{Number(order.seller_amount ?? order.seller_total ?? order.total ?? 0).toLocaleString(i18n.language)} MAD</td>
                     <td>
                       <span className="status-badge" style={{ background: `${getStatusColor(order.fulfillment_status || order.status)}20`, color: getStatusColor(order.fulfillment_status || order.status) }}>
                         {getStatusText(order.fulfillment_status || order.status)}
                       </span>
                     </td>
-                    <td>{new Date(order.created_at).toLocaleDateString()}</td>
+                    <td>{new Date(order.created_at).toLocaleDateString(i18n.language)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -332,7 +333,7 @@ const Overview = () => {
         .orders-table th,
         .orders-table td {
           padding: 0.875rem 1.25rem;
-          text-align: left;
+          text-align: start;
           border-bottom: 1px solid #e5e7eb;
         }
         .orders-table th {

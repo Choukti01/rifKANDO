@@ -2,26 +2,26 @@ import React, { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { CheckCircleIcon, ChatBubbleLeftRightIcon, ClockIcon, CubeIcon, TruckIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import api from '../../../services/api';
+import { useTranslation } from 'react-i18next';
 
-const statusConfig = {
-  pending_confirmation: { label: 'Needs confirmation', icon: ClockIcon, tone: 'amber' },
-  confirmed: { label: 'Pickup coordination', icon: ChatBubbleLeftRightIcon, tone: 'blue' },
-  shipped: { label: 'With delivery network', icon: TruckIcon, tone: 'violet' },
-  delivered: { label: 'Cash collected', icon: CheckCircleIcon, tone: 'emerald' },
-  refused: { label: 'Customer refused', icon: XCircleIcon, tone: 'red' },
-  returned: { label: 'Returned to seller', icon: XCircleIcon, tone: 'red' },
-  cancelled: { label: 'Cancelled', icon: XCircleIcon, tone: 'slate' },
-};
+const statusConfig = (t) => ({
+  pending_confirmation: { label: t('sellerCod.statuses.pending_confirmation'), icon: ClockIcon, tone: 'amber' },
+  confirmed: { label: t('sellerCod.statuses.confirmed'), icon: ChatBubbleLeftRightIcon, tone: 'blue' },
+  shipped: { label: t('sellerCod.statuses.shipped'), icon: TruckIcon, tone: 'violet' },
+  delivered: { label: t('sellerCod.statuses.delivered'), icon: CheckCircleIcon, tone: 'emerald' },
+  refused: { label: t('sellerCod.statuses.refused'), icon: XCircleIcon, tone: 'red' },
+  returned: { label: t('sellerCod.statuses.returned'), icon: XCircleIcon, tone: 'red' },
+  cancelled: { label: t('sellerCod.statuses.cancelled'), icon: XCircleIcon, tone: 'slate' },
+});
 
-const money = (value) => `${Number(value || 0).toLocaleString()} MAD`;
-
-const confirmationDeadline = (value) => {
-  if (!value) return 'within 24 hours of order creation';
+const confirmationDeadline = (value, locale) => {
+  if (!value) return '';
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? 'within 24 hours of order creation' : date.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+  return Number.isNaN(date.getTime()) ? '' : date.toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' });
 };
 
 const SellerOrders = () => {
+  const { t, i18n } = useTranslation();
   const [orders, setOrders] = useState([]);
   const [partner, setPartner] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -37,7 +37,7 @@ const SellerOrders = () => {
       setPartner(partnerResponse.data.partner || null);
     } catch (error) {
       console.error('Seller COD orders could not be loaded:', error);
-      toast.error(error.response?.data?.error || 'Unable to load orders.');
+      toast.error(error.response?.data?.error || t('sellerCod.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -54,13 +54,13 @@ const SellerOrders = () => {
     try {
       await api.patch(`/seller/cod-fulfillments/${fulfillmentId}`, { action });
       toast.success({
-        confirm: 'COD order confirmed. You can now arrange pickup.',
-        request_handoff: 'Pickup request recorded. Toufiq will coordinate the next steps.',
-        cancel: 'COD order cancelled.',
-      }[action] || 'COD order updated.');
+        confirm: t('sellerCod.confirmedSuccess'),
+        request_handoff: t('sellerCod.pickupRecorded'),
+        cancel: t('sellerCod.cancelledSuccess'),
+      }[action] || t('sellerCod.updatedSuccess'));
       await loadOrders();
     } catch (error) {
-      toast.error(error.response?.data?.error || 'The COD order could not be updated.');
+      toast.error(error.response?.data?.error || t('sellerCod.updateFailed'));
     } finally {
       setUpdating(null);
     }
@@ -68,59 +68,61 @@ const SellerOrders = () => {
 
   const sellerWhatsAppLink = (order) => {
     if (!partner?.whatsappNumber) return '#';
-    const message = `Hello ${partner.name}, I am the seller for rifKANDO COD order ${order.order_number}. The parcel (${order.item_title || 'COD order'}) is ready for pickup. Please confirm the handoff details and carrier tracking with me.`;
+    const message = t('sellerCod.whatsAppMessage', { name: partner.name, order: order.order_number, item: order.item_title || t('sellerCod.productOrder') });
     return `https://wa.me/${partner.whatsappNumber}?text=${encodeURIComponent(message)}`;
   };
 
-  if (loading) return <div className="seller-orders-loading" aria-label="Loading COD orders" />;
+  const money = (value) => `${Number(value || 0).toLocaleString(i18n.language)} MAD`;
+  const statuses = statusConfig(t);
+  if (loading) return <div className="seller-orders-loading" aria-label={t('sellerCod.loading')} />;
 
   return (
     <section className="seller-cod-orders">
       <header className="seller-cod-orders__header">
         <div>
-          <span className="seller-cod-orders__eyebrow">Cash on delivery</span>
-          <h2>Delivery and settlement</h2>
-          <p>rifKANDO coordinates COD through Toufiq. He collects the parcel, arranges delivery through his network, and remits collected cash to rifKANDO. We retain the 5% commission and send your seller payout manually.</p>
+          <span className="seller-cod-orders__eyebrow">{t('sellerCod.eyebrow')}</span>
+          <h2>{t('sellerCod.title')}</h2>
+          <p>{t('sellerCod.lead')}</p>
         </div>
-        <span className="seller-cod-orders__count">{orders.length} order{orders.length === 1 ? '' : 's'}</span>
+        <span className="seller-cod-orders__count">{t('sellerCod.count', { count: orders.length })}</span>
       </header>
 
       {orders.length === 0 ? (
-        <div className="seller-cod-orders__empty"><CubeIcon aria-hidden="true" /><h3>No COD orders yet</h3><p>New Product and FINDit COD orders will appear here.</p></div>
+        <div className="seller-cod-orders__empty"><CubeIcon aria-hidden="true" /><h3>{t('sellerCod.emptyTitle')}</h3><p>{t('sellerCod.emptyText')}</p></div>
       ) : (
         <div className="seller-cod-orders__list">
           {orders.map((order) => {
-            const config = statusConfig[order.fulfillment_status] || statusConfig.pending_confirmation;
+            const config = statuses[order.fulfillment_status] || statuses.pending_confirmation;
             const StatusIcon = config.icon;
             const isBusy = updating === order.fulfillment_id;
             const pickupRequested = Boolean(order.delivery_partner_contacted_at);
             return (
               <article className="seller-cod-order" key={order.fulfillment_id}>
                 <div className="seller-cod-order__topline">
-                  <div><div className="seller-cod-order__meta"><strong>{order.order_number}</strong>{order.fulfillment_source === 'findit' && <span className="seller-cod-order__findit">FINDit</span>}</div><p>{order.item_title || 'Product order'} · {order.buyer_name || 'Customer'}</p></div>
+                  <div><div className="seller-cod-order__meta"><strong>{order.order_number}</strong>{order.fulfillment_source === 'findit' && <span className="seller-cod-order__findit">FINDit</span>}</div><p>{order.item_title || t('sellerCod.productOrder')} · {order.buyer_name || t('sellerCod.customer')}</p></div>
                   <span className={`seller-cod-order__status seller-cod-order__status--${config.tone}`}><StatusIcon aria-hidden="true" /> {config.label}</span>
                 </div>
 
-                <dl className="seller-cod-order__amounts"><div><dt>Buyer pays on delivery</dt><dd>{money(order.expected_cod_amount)}</dd></div><div><dt>Your payout after 5%</dt><dd>{money(order.seller_amount)}</dd></div><div><dt>Created</dt><dd>{new Date(order.created_at).toLocaleDateString()}</dd></div></dl>
+                <dl className="seller-cod-order__amounts"><div><dt>{t('sellerCod.buyerPays')}</dt><dd>{money(order.expected_cod_amount)}</dd></div><div><dt>{t('sellerCod.payout')}</dt><dd>{money(order.seller_amount)}</dd></div><div><dt>{t('sellerCod.created')}</dt><dd>{new Date(order.created_at).toLocaleDateString(i18n.language)}</dd></div></dl>
 
-                {order.fulfillment_status === 'pending_confirmation' && <p className="seller-cod-order__deadline"><ClockIcon aria-hidden="true" /> Confirm by <strong>{confirmationDeadline(order.confirmation_expires_at)}</strong>. Unconfirmed orders expire automatically and do not enter delivery.</p>}
+                {order.fulfillment_status === 'pending_confirmation' && <p className="seller-cod-order__deadline"><ClockIcon aria-hidden="true" /> {t('sellerCod.confirmBy', { date: confirmationDeadline(order.confirmation_expires_at, i18n.language) })}</p>}
 
-                {order.fulfillment_status === 'pending_confirmation' && <div className="seller-cod-order__actions"><button className="seller-cod-order__button seller-cod-order__button--primary" disabled={isBusy} onClick={() => performAction(order, 'confirm')}>{isBusy ? 'Saving…' : 'Confirm order'}</button><button className="seller-cod-order__button seller-cod-order__button--quiet" disabled={isBusy} onClick={() => performAction(order, 'cancel')}>Cancel order</button></div>}
+                {order.fulfillment_status === 'pending_confirmation' && <div className="seller-cod-order__actions"><button className="seller-cod-order__button seller-cod-order__button--primary" disabled={isBusy} onClick={() => performAction(order, 'confirm')}>{isBusy ? t('sellerCod.saving') : t('sellerCod.confirmOrder')}</button><button className="seller-cod-order__button seller-cod-order__button--quiet" disabled={isBusy} onClick={() => performAction(order, 'cancel')}>{t('sellerCod.cancelOrder')}</button></div>}
 
                 {order.fulfillment_status === 'confirmed' && partner && (
                   <aside className="seller-cod-order__partner">
-                    <div><span>Delivery partner</span><h3>{partner.name}</h3><p>Contact {partner.name} on WhatsApp to agree pickup. He coordinates delivery through {partner.carrierNetwork} and confirms tracking with rifKANDO.</p><strong>{partner.displayPhone}</strong></div>
-                    {!pickupRequested ? <div className="seller-cod-order__partner-actions"><a href={sellerWhatsAppLink(order)} target="_blank" rel="noreferrer">Open WhatsApp</a><button className="seller-cod-order__button seller-cod-order__button--primary" disabled={isBusy} onClick={() => performAction(order, 'request_handoff')}>{isBusy ? 'Saving…' : 'I requested pickup'}</button></div> : <p className="seller-cod-order__partner-confirmed"><CheckCircleIcon aria-hidden="true" /> Pickup request recorded. Wait for Toufiq to collect the parcel and send carrier tracking.</p>}
+                    <div><span>{t('sellerCod.deliveryPartner')}</span><h3>{partner.name}</h3><p>{t('sellerCod.contactPartner', { name: partner.name, network: partner.carrierNetwork })}</p><strong>{partner.displayPhone}</strong></div>
+                    {!pickupRequested ? <div className="seller-cod-order__partner-actions"><a href={sellerWhatsAppLink(order)} target="_blank" rel="noreferrer">{t('sellerCod.openWhatsApp')}</a><button className="seller-cod-order__button seller-cod-order__button--primary" disabled={isBusy} onClick={() => performAction(order, 'request_handoff')}>{isBusy ? t('sellerCod.saving') : t('sellerCod.requestPickup')}</button></div> : <p className="seller-cod-order__partner-confirmed"><CheckCircleIcon aria-hidden="true" /> {t('sellerCod.pickupRecorded')}</p>}
                   </aside>
                 )}
-                {order.fulfillment_status === 'confirmed' && !order.delivery_partner_pickup_at && <div className="seller-cod-order__actions"><button className="seller-cod-order__button seller-cod-order__button--quiet" disabled={isBusy} onClick={() => performAction(order, 'cancel')}>{isBusy ? 'Saving…' : 'Cancel before pickup'}</button></div>}
+                {order.fulfillment_status === 'confirmed' && !order.delivery_partner_pickup_at && <div className="seller-cod-order__actions"><button className="seller-cod-order__button seller-cod-order__button--quiet" disabled={isBusy} onClick={() => performAction(order, 'cancel')}>{isBusy ? t('sellerCod.saving') : t('sellerCod.cancelBeforePickup')}</button></div>}
 
-                {order.carrier_name && order.tracking_number && <p className="seller-cod-order__tracking">Delivery network: <strong>{order.carrier_name}</strong> · Tracking: <strong>{order.tracking_number}</strong></p>}
-                {order.delivery_deadline_at && <p className="seller-cod-order__tracking">Toufiq set the buyer arrival deadline: <strong>{new Date(order.delivery_deadline_at).toLocaleString('en-MA', { dateStyle: 'medium', timeStyle: 'short' })}</strong>.</p>}
-                {order.seller_payout_status === 'due' && <p className="seller-cod-order__payout">Toufiq’s remittance is recorded. rifKANDO will send your payout of <strong>{money(order.seller_amount)}</strong> and record the transfer reference here.</p>}
-                {order.seller_payout_status === 'paid' && <p className="seller-cod-order__payout is-paid">Your payout of <strong>{money(order.seller_amount)}</strong> has been recorded. Reference: {order.seller_payout_reference}.</p>}
-                {order.commission_payment_status === 'due' && <p className="seller-cod-order__legacy">This older order uses the previous seller-managed commission flow. Contact rifKANDO support for settlement.</p>}
-                {order.settlement_status === 'void' && <p className="seller-cod-order__void">This order was not completed, so no seller payout is due.</p>}
+                {order.carrier_name && order.tracking_number && <p className="seller-cod-order__tracking">{t('sellerCod.deliveryNetwork')}: <strong>{order.carrier_name}</strong> · {t('sellerCod.tracking')}: <strong>{order.tracking_number}</strong></p>}
+                {order.delivery_deadline_at && <p className="seller-cod-order__tracking">{t('sellerCod.deadline', { date: new Date(order.delivery_deadline_at).toLocaleString(i18n.language, { dateStyle: 'medium', timeStyle: 'short' }) })}</p>}
+                {order.seller_payout_status === 'due' && <p className="seller-cod-order__payout">{t('sellerCod.payoutDue', { amount: money(order.seller_amount) })}</p>}
+                {order.seller_payout_status === 'paid' && <p className="seller-cod-order__payout is-paid">{t('sellerCod.payoutPaid', { amount: money(order.seller_amount), reference: order.seller_payout_reference })}</p>}
+                {order.commission_payment_status === 'due' && <p className="seller-cod-order__legacy">{t('sellerCod.legacy')}</p>}
+                {order.settlement_status === 'void' && <p className="seller-cod-order__void">{t('sellerCod.void')}</p>}
               </article>
             );
           })}

@@ -96,6 +96,34 @@ html[dir='rtl'] .findit-order-label {
   margin-right: 0.4rem;
 }
 
+html[dir='rtl'] .help-category-card,
+html[dir='rtl'] .help-faq-item > button,
+html[dir='rtl'] .seller-type-card {
+  text-align: right;
+}
+
+html[dir='rtl'] .terms-navigation,
+html[dir='rtl'] .privacy-navigation nav {
+  border-left: 0;
+  border-right: 1px solid #d9e4ed;
+}
+
+html[dir='rtl'] .terms-navigation p,
+html[dir='rtl'] .terms-navigation a,
+html[dir='rtl'] .privacy-navigation a {
+  border-left: 0;
+  border-right: 2px solid transparent;
+  margin-left: 0;
+  margin-right: -1px;
+}
+
+html[dir='rtl'] .terms-navigation a:hover,
+html[dir='rtl'] .terms-navigation a:focus-visible,
+html[dir='rtl'] .privacy-navigation a:hover,
+html[dir='rtl'] .privacy-navigation a:focus-visible {
+  border-right-color: var(--color-brand-blue);
+}
+
 html[dir='rtl'] .dashboard-sidebar {
   border-left: 1px solid #e5e7eb;
   border-right: 0;

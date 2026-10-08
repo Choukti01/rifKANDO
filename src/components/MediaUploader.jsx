@@ -11,6 +11,7 @@ import {
 import { uploadPublicMedia } from '../services/api';
 import toast from 'react-hot-toast';
 import { getImageUrl } from '../utils/imageUtils';
+import { useTranslation } from 'react-i18next';
 
 const EMPTY_MEDIA = [];
 const MEDIA_RULES = {
@@ -37,6 +38,7 @@ const MediaUploader = ({
   maxFiles = 10,
   allowedTypes = ['image'],
 }) => {
+  const { t } = useTranslation();
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(null);
   const fileInputRef = useRef(null);
@@ -58,7 +60,7 @@ const MediaUploader = ({
     const files = Array.from(event.target.files || []);
     if (!files.length) return;
     if (mediaList.length + files.length > maxFiles) {
-      toast.error(`You can add up to ${maxFiles} files. Remove an item before adding more.`);
+      toast.error(t('mediaUploader.upTo', { count: maxFiles }));
       event.target.value = '';
       return;
     }
@@ -70,12 +72,12 @@ const MediaUploader = ({
     for (const file of files) {
       const mediaType = mediaTypeForFile(file);
       if (!mediaType) {
-        toast.error(`${file.name} is not a supported photo or video.`);
+        toast.error(t('mediaUploader.unsupported', { name: file.name }));
         continue;
       }
       const rule = MEDIA_RULES[mediaType];
       if (file.size > rule.maxBytes) {
-        toast.error(`${file.name} exceeds the ${rule.maxBytes / (1024 * 1024)} MB ${rule.label} limit.`);
+        toast.error(t('mediaUploader.tooLarge', { name: file.name, size: rule.maxBytes / (1024 * 1024), type: rule.label }));
         continue;
       }
 
@@ -97,10 +99,10 @@ const MediaUploader = ({
         }
       } catch (error) {
         console.error('Upload error:', error);
-        toast.error(error.response?.data?.error || `Failed to upload ${file.name}`);
+        toast.error(error.response?.data?.error || t('mediaUploader.failed', { name: file.name }));
       }
     }
-    if (uploadedCount) toast.success(`${uploadedCount} ${uploadedCount === 1 ? 'file' : 'files'} uploaded.`);
+    if (uploadedCount) toast.success(t('mediaUploader.uploaded', { count: uploadedCount }));
     setUploading(false);
     setUploadProgress(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -132,20 +134,20 @@ const MediaUploader = ({
               <video src={getImageUrl(media.url)} muted playsInline preload="metadata" />
             )}
             {media.type === 'video' && <span className="video-indicator"><PlayIcon aria-hidden="true" /></span>}
-            {idx === 0 && <span className="cover-indicator"><StarIcon aria-hidden="true" /> Cover</span>}
-            <button type="button" className="remove-media" onClick={() => removeMedia(idx)} aria-label={`Remove media ${idx + 1}`}>
+            {idx === 0 && <span className="cover-indicator"><StarIcon aria-hidden="true" /> {t('mediaUploader.cover')}</span>}
+            <button type="button" className="remove-media" onClick={() => removeMedia(idx)} aria-label={t('mediaUploader.remove', { count: idx + 1 })}>
               <XMarkIcon className="w-4 h-4" />
             </button>
-            <div className="media-order-controls" aria-label={`Media ${idx + 1} ordering controls`}>
+            <div className="media-order-controls" aria-label={t('mediaUploader.controls', { count: idx + 1 })}>
               {idx > 0 && (
-                <button type="button" onClick={() => makeCover(idx)} aria-label={`Make media ${idx + 1} the cover`} title="Make cover">
+                <button type="button" onClick={() => makeCover(idx)} aria-label={t('mediaUploader.makeCover', { count: idx + 1 })} title={t('mediaUploader.cover')}>
                   <StarIcon aria-hidden="true" />
                 </button>
               )}
-              <button type="button" onClick={() => moveMedia(idx, idx - 1)} disabled={idx === 0} aria-label={`Move media ${idx + 1} earlier`} title="Move earlier">
+              <button type="button" onClick={() => moveMedia(idx, idx - 1)} disabled={idx === 0} aria-label={t('mediaUploader.moveEarlier', { count: idx + 1 })} title={t('mediaUploader.moveEarlier', { count: idx + 1 })}>
                 <ArrowLeftIcon aria-hidden="true" />
               </button>
-              <button type="button" onClick={() => moveMedia(idx, idx + 1)} disabled={idx === mediaList.length - 1} aria-label={`Move media ${idx + 1} later`} title="Move later">
+              <button type="button" onClick={() => moveMedia(idx, idx + 1)} disabled={idx === mediaList.length - 1} aria-label={t('mediaUploader.moveLater', { count: idx + 1 })} title={t('mediaUploader.moveLater', { count: idx + 1 })}>
                 <ArrowRightIcon aria-hidden="true" />
               </button>
             </div>
@@ -154,11 +156,11 @@ const MediaUploader = ({
         {mediaList.length < maxFiles && (
           <button type="button" className="upload-area" onClick={() => !uploading && fileInputRef.current?.click()} disabled={uploading}>
             {uploading ? <div className="spinner"></div> : <ArrowUpTrayIcon className="upload-icon" />}
-            <span>{uploading ? `Uploading${uploadProgress === null ? '…' : ` ${uploadProgress}%`}` : 'Add media'}</span>
+            <span>{uploading ? t('mediaUploader.uploading', { progress: uploadProgress === null ? '…' : ` ${uploadProgress}%` }) : t('mediaUploader.upload')}</span>
           </button>
         )}
       </div>
-      <div className="media-uploader__help"><PhotoIcon aria-hidden="true" /> <span>The first item is your cover. Reorder with the arrows or use the star to choose a new cover. Add up to {maxFiles} {allowedTypes.includes('video') ? 'photos or videos (MP4, MOV, M4V, or WebM; videos up to 90 MB)' : 'photos'}.</span></div>
+      <div className="media-uploader__help"><PhotoIcon aria-hidden="true" /> <span>{t('mediaUploader.help', { count: maxFiles, kind: allowedTypes.includes('video') ? t('mediaUploader.photosVideos') : t('mediaUploader.photos') })}</span></div>
       <input ref={fileInputRef} type="file" accept={acceptedMimeTypes.join(',')} multiple onChange={handleFileSelect} disabled={uploading} style={{ display: 'none' }} />
       <style>{`
         .media-uploader { width: 100%; }
@@ -166,12 +168,12 @@ const MediaUploader = ({
         .media-item { position: relative; width: 112px; height: 112px; border: 1px solid #dce8f2; border-radius: 0.65rem; overflow: hidden; background: #f3f4f6; }
         .media-item-cover { border: 2px solid var(--color-brand-blue, #168dd9); }
         .media-item img, .media-item video { width: 100%; height: 100%; object-fit: cover; }
-        .video-indicator { position:absolute;left:.45rem;bottom:.45rem;display:grid;width:1.75rem;height:1.75rem;place-items:center;border-radius:999px;background:rgba(6,22,38,.78);color:#fff; }
+        .video-indicator { position:absolute;inset-inline-start:.45rem;bottom:.45rem;display:grid;width:1.75rem;height:1.75rem;place-items:center;border-radius:999px;background:rgba(6,22,38,.78);color:#fff; }
         .video-indicator svg { width:1rem;height:1rem; }
-        .remove-media { position: absolute; top: 0; right: 0; background: rgba(0,0,0,0.6); border: none; color: white; cursor: pointer; border-radius: 0 0.5rem 0 0.5rem; padding: 4px; }
-        .cover-indicator { position:absolute; left:.35rem; top:.35rem; display:inline-flex; align-items:center; gap:.2rem; border-radius:999px; background:rgba(6,22,38,.84); color:#fff; font-size:.63rem; font-weight:800; padding:.24rem .38rem; }
+        .remove-media { position: absolute; top: 0; inset-inline-end: 0; background: rgba(0,0,0,0.6); border: none; color: white; cursor: pointer; border-radius: 0 0.5rem 0 0.5rem; padding: 4px; }
+        .cover-indicator { position:absolute; inset-inline-start:.35rem; top:.35rem; display:inline-flex; align-items:center; gap:.2rem; border-radius:999px; background:rgba(6,22,38,.84); color:#fff; font-size:.63rem; font-weight:800; padding:.24rem .38rem; }
         .cover-indicator svg { width:.75rem; height:.75rem; color:#8ed9ff; }
-        .media-order-controls { position:absolute; left:.35rem; right:.35rem; bottom:.35rem; display:flex; justify-content:center; gap:.25rem; }
+        .media-order-controls { position:absolute; inset-inline-start:.35rem; inset-inline-end:.35rem; bottom:.35rem; display:flex; justify-content:center; gap:.25rem; }
         .media-order-controls button { display:grid; width:1.7rem; height:1.7rem; place-items:center; border:0; border-radius:.38rem; background:rgba(6,22,38,.8); color:#fff; cursor:pointer; }
         .media-order-controls button:hover:not(:disabled) { background:#168dd9; }
         .media-order-controls button:disabled { cursor:not-allowed; opacity:.4; }

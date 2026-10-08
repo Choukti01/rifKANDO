@@ -1,21 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import useAuth from '../../hooks/useAuth';
 import { ShoppingBagIcon, AcademicCapIcon, WrenchScrewdriverIcon, ComputerDesktopIcon, CheckIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
 
 const SellerTypePage = () => {
+  const { i18n } = useTranslation();
+  const localize = (english, arabic) => (i18n.resolvedLanguage === 'ar' ? arabic : english);
   const [selectedType, setSelectedType] = useState(null);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { user, updateSellerType } = useAuth();
 
   const sellerTypes = [
-    { id: 'product', title: 'Product Seller', icon: ShoppingBagIcon, description: 'Sell physical products with inventory and COD order management.', features: ['Inventory', 'COD orders', 'Shipping details'], available: true },
+    { id: 'product', title: localize('Product Seller', 'بائع منتجات'), icon: ShoppingBagIcon, description: localize('Sell physical products with inventory and COD order management.', 'بع منتجات مادية مع إدارة المخزون وطلبات الدفع عند الاستلام.'), features: [localize('Inventory', 'المخزون'), localize('COD orders', 'طلبات الدفع عند الاستلام'), localize('Shipping details', 'تفاصيل التوصيل')], available: true },
     // Future seller workspaces stay visible without allowing an account to enter
     // a flow that is not operational during the focused launch.
-    { id: 'course', title: 'Course Instructor', icon: AcademicCapIcon, description: 'Publish structured online courses and lessons.', features: ['Courses', 'Lessons', 'Students'], available: false },
-    { id: 'service', title: 'Service Provider', icon: WrenchScrewdriverIcon, description: 'Offer professional services with packages and client requests.', features: ['Services', 'Packages', 'Clients'], available: false },
-    { id: 'digital', title: 'Digital Creator', icon: ComputerDesktopIcon, description: 'Sell downloadable digital products from one workspace.', features: ['Files', 'Downloads', 'Requests'], available: false },
+    { id: 'course', title: localize('Course Instructor', 'مدرّس دورات'), icon: AcademicCapIcon, description: localize('Publish structured online courses and lessons.', 'انشر دورات ودروسًا منظمة عبر الإنترنت.'), features: [localize('Courses', 'الدورات'), localize('Lessons', 'الدروس'), localize('Students', 'الطلاب')], available: false },
+    { id: 'service', title: localize('Service Provider', 'مقدّم خدمات'), icon: WrenchScrewdriverIcon, description: localize('Offer professional services with packages and client requests.', 'قدّم خدمات احترافية مع باقات وطلبات العملاء.'), features: [localize('Services', 'الخدمات'), localize('Packages', 'الباقات'), localize('Clients', 'العملاء')], available: false },
+    { id: 'digital', title: localize('Digital Creator', 'منشئ منتجات رقمية'), icon: ComputerDesktopIcon, description: localize('Sell downloadable digital products from one workspace.', 'بع منتجات رقمية قابلة للتنزيل من مساحة عمل واحدة.'), features: [localize('Files', 'الملفات'), localize('Downloads', 'التنزيلات'), localize('Requests', 'الطلبات')], available: false },
   ];
 
   // If user already has a seller type, redirect to dashboard
@@ -39,11 +42,11 @@ const SellerTypePage = () => {
     <div className="seller-type-page">
       <div className="container">
         <div className="seller-type-header">
-          <p className="seller-type-eyebrow">Seller setup · Step 1 of 3</p>
-          <h1>Choose your selling workspace</h1>
-          <p>Select the primary way you want to sell. Your dashboard will open with the tools that fit this model.</p>
+          <p className="seller-type-eyebrow">{localize('Seller setup · Step 1 of 3', 'إعداد البائع · الخطوة 1 من 3')}</p>
+          <h1>{localize('Choose your selling workspace', 'اختر مساحة عمل البيع')}</h1>
+          <p>{localize('Select the primary way you want to sell. Your dashboard will open with the tools that fit this model.', 'اختر الطريقة الأساسية التي تريد البيع بها. ستفتح لوحة التحكم بالأدوات المناسبة لهذا النموذج.')}</p>
         </div>
-        <div className="seller-type-grid" role="radiogroup" aria-label="Choose a seller type">
+        <div className="seller-type-grid" role="radiogroup" aria-label={localize('Choose a seller type', 'اختر نوع البائع')}>
           {sellerTypes.map(type => {
             const Icon = type.icon;
             const isSelected = selectedType?.id === type.id;
@@ -59,7 +62,7 @@ const SellerTypePage = () => {
               >
                 <span className="seller-type-icon"><Icon aria-hidden="true" /></span>
                 <span className="seller-type-copy">
-                  <span className="seller-type-title-row"><strong>{type.title}</strong>{isSelected ? <span className="seller-type-badge"><CheckIcon aria-hidden="true" />Selected</span> : !type.available && <span className="seller-type-badge is-coming">Under development</span>}</span>
+                  <span className="seller-type-title-row"><strong>{type.title}</strong>{isSelected ? <span className="seller-type-badge"><CheckIcon aria-hidden="true" />{localize('Selected', 'تم الاختيار')}</span> : !type.available && <span className="seller-type-badge is-coming">{localize('Under development', 'قيد التطوير')}</span>}</span>
                   <span className="seller-type-description">{type.description}</span>
                   <span className="seller-type-features">{type.features.map((feature) => <span key={feature}><CheckIcon aria-hidden="true" />{feature}</span>)}</span>
                 </span>
@@ -68,9 +71,9 @@ const SellerTypePage = () => {
           })}
         </div>
         <div className="seller-type-action">
-          <p>{selectedType ? `${selectedType.title} selected` : 'Select a workspace to continue'}</p>
+          <p>{selectedType ? localize(`${selectedType.title} selected`, `تم اختيار ${selectedType.title}`) : localize('Select a workspace to continue', 'اختر مساحة عمل للمتابعة')}</p>
           <button type="button" onClick={handleContinue} className="continue-btn" disabled={!selectedType || loading}>
-            {loading ? 'Saving your workspace...' : selectedType ? `Continue as ${selectedType.title}` : 'Continue'} <ArrowRightIcon aria-hidden="true" />
+            {loading ? localize('Saving your workspace...', 'جارٍ حفظ مساحة العمل...') : selectedType ? localize(`Continue as ${selectedType.title}`, `المتابعة كبائع ${selectedType.title}`) : localize('Continue', 'متابعة')} <ArrowRightIcon aria-hidden="true" />
           </button>
         </div>
       </div>

@@ -85,7 +85,7 @@ const ProductDetailsPage = () => {
         setQuantity(1);
       } else {
         console.error('Error fetching product:', productResult.reason);
-        toast.error('Failed to load product');
+        toast.error(t('productDetails.notFound'));
       }
 
       if (reviewsResult.status === 'fulfilled') {
@@ -111,11 +111,11 @@ const ProductDetailsPage = () => {
     return () => {
       isCurrent = false;
     };
-  }, [checkPurchaseStatus, fetchProduct, fetchReviews, isAuthenticated, user?.id]);
+  }, [checkPurchaseStatus, fetchProduct, fetchReviews, isAuthenticated, t, user?.id]);
 
   const submitReview = async () => {
     if (!reviewRating) {
-      toast.error('Please select a rating');
+      toast.error(t('productDetails.reviewRating'));
       return;
     }
     setSubmittingReview(true);
@@ -124,7 +124,7 @@ const ProductDetailsPage = () => {
         rating: reviewRating,
         comment: reviewComment
       });
-      toast.success('Review submitted successfully!');
+      toast.success(t('productDetails.reviewSent'));
       setReviewRating(0);
       setReviewComment('');
       const nextReviews = await fetchReviews();
@@ -134,7 +134,7 @@ const ProductDetailsPage = () => {
       setProduct(nextProduct);
     } catch (error) {
       console.error('Error submitting review:', error);
-      toast.error(error.response?.data?.error || 'Failed to submit review');
+      toast.error(error.response?.data?.error || t('productDetails.reviewFailed'));
     } finally {
       setSubmittingReview(false);
     }
@@ -142,7 +142,7 @@ const ProductDetailsPage = () => {
 
   const handleAddToCart = () => {
     if (!isAuthenticated) {
-      toast.error('Please login to add items to cart');
+      toast.error(t('productDetails.signInCart'));
       return;
     }
     if (Number(product.seller_id) === Number(user?.id)) {
@@ -158,7 +158,7 @@ const ProductDetailsPage = () => {
 
   const handleMakeOffer = () => {
     if (!isAuthenticated) {
-      toast.error('Please login to make an offer');
+      toast.error(t('productDetails.signInOffer'));
       return;
     }
     if (Number(product.seller_id) === Number(user?.id)) {
@@ -172,11 +172,11 @@ const ProductDetailsPage = () => {
 
   const submitOffer = async () => {
     if (!offerAmount || parseFloat(offerAmount) <= 0) {
-      toast.error('Please enter a valid offer amount');
+      toast.error(t('productDetails.offerAmount'));
       return;
     }
     if (parseFloat(offerAmount) > product.price) {
-      toast.error(`Offer cannot exceed the original price of ${product.price} MAD`);
+      toast.error(t('productDetails.offerTooHigh', { price: product.price }));
       return;
     }
     setSubmittingOffer(true);
@@ -185,11 +185,11 @@ const ProductDetailsPage = () => {
         amount: parseFloat(offerAmount),
         message: offerMessage
       });
-      toast.success(`Offer of ${offerAmount} MAD sent to seller!`);
+      toast.success(t('productDetails.offerSent', { amount: offerAmount }));
       setShowOfferModal(false);
     } catch (error) {
       console.error('Error submitting offer:', error);
-      toast.error(error.response?.data?.error || 'Failed to submit offer');
+      toast.error(error.response?.data?.error || t('productDetails.offerFailed'));
     } finally {
       setSubmittingOffer(false);
     }
@@ -197,7 +197,7 @@ const ProductDetailsPage = () => {
 
   const handleFavorite = async () => {
     if (!isAuthenticated) {
-      toast.error('Please login to add to favorites');
+      toast.error(t('productDetails.signInFavorite'));
       return;
     }
     if (isFavorite(product.id, 'product')) {
@@ -208,23 +208,23 @@ const ProductDetailsPage = () => {
   };
 
   const submitReport = async () => {
-    if (!isAuthenticated) return toast.error('Please sign in to report a listing.');
-    if (reportDetails.trim().length < 10) return toast.error('Please provide at least a short explanation.');
+    if (!isAuthenticated) return toast.error(t('productDetails.reportSignIn'));
+    if (reportDetails.trim().length < 10) return toast.error(t('productDetails.reportDetails'));
     setSubmittingReport(true);
     try {
       await api.post(`/products/${id}/reports`, { reason: reportReason, details: reportDetails.trim() });
-      toast.success('Thanks. Our moderation team will review this listing.');
+      toast.success(t('productDetails.reportThanks'));
       setShowReportModal(false);
       setReportDetails('');
     } catch (error) {
-      toast.error(error.response?.data?.error || 'Unable to submit this report.');
+      toast.error(error.response?.data?.error || t('productDetails.reportFailed'));
     } finally {
       setSubmittingReport(false);
     }
   };
 
-  if (loading) return <div className="container text-center py-16"><div className="spinner"></div><p>Loading product...</p></div>;
-  if (!product) return <div className="container text-center py-16"><p>Product not found</p><Link to="/products" className="btn btn-primary">Back</Link></div>;
+  if (loading) return <div className="container text-center py-16"><div className="spinner"></div><p>{t('productDetails.loading')}</p></div>;
+  if (!product) return <div className="container text-center py-16"><p>{t('productDetails.notFound')}</p><Link to="/products" className="btn btn-primary">{t('productDetails.back')}</Link></div>;
 
   const media = product.media || [];
   const primaryMedia = media.find((item) => item.id === activeMediaId) || media.find((item) => item.is_primary) || media[0];
@@ -233,9 +233,9 @@ const ProductDetailsPage = () => {
   const isJoutiya = product.condition === 'joutiya';
   const stock = Number(product.stock) || 0;
   const productPrice = Number(product.price || 0);
-  const categoryLabel = product.category ? product.category.charAt(0).toUpperCase() + product.category.slice(1) : null;
+  const categoryLabel = product.category ? t(`productForm.categoryOptions.${product.category}`, { defaultValue: product.category }) : null;
   const canOpenGallery = media.length > 0 && primaryMedia?.media_type !== 'video';
-  const conditionLabel = product.condition === 'used_as_new' ? 'Used as New' : product.condition === 'joutiya' ? 'Joutiya (Haggle)' : 'New';
+  const conditionLabel = t(`productForm.conditionOptions.${product.condition || 'new'}`);
   const isFav = isAuthenticated && isFavorite(product.id, 'product');
   const isOwnListing = Number(product.seller_id) === Number(user?.id);
   const isUnavailable = stock < 1 || isOwnListing;
@@ -248,9 +248,9 @@ const ProductDetailsPage = () => {
     <div className="product-details">
       <div className="container">
         <nav className="product-breadcrumb" aria-label="Breadcrumb">
-          <Link to="/">Home</Link>
+          <Link to="/">{t('productDetails.home')}</Link>
           <span aria-hidden="true">/</span>
-          <Link to="/products">Products</Link>
+          <Link to="/products">{t('productDetails.products')}</Link>
           {categoryLabel && <><span aria-hidden="true">/</span><span>{categoryLabel}</span></>}
         </nav>
         <div className="product-grid">
@@ -259,7 +259,7 @@ const ProductDetailsPage = () => {
               className={`main-image ${canOpenGallery ? 'main-image-interactive' : ''}`}
               role={canOpenGallery ? 'button' : undefined}
               tabIndex={canOpenGallery ? 0 : undefined}
-              aria-label={canOpenGallery ? `Open media gallery for ${product.title}` : undefined}
+              aria-label={canOpenGallery ? t('productDetails.openGallery', { title: product.title }) : undefined}
               onClick={() => canOpenGallery && setShowGallery(true)}
               onKeyDown={(event) => {
                 if (canOpenGallery && (event.key === 'Enter' || event.key === ' ')) {
@@ -285,11 +285,11 @@ const ProductDetailsPage = () => {
                     key={mediaItem.id || index}
                     type="button"
                     className={`thumbnail ${primaryMedia?.id === mediaItem.id ? 'thumbnail-active' : ''}`}
-                    aria-label={`Show media ${index + 1} for ${product.title}`}
+                    aria-label={t('productDetails.showMedia', { count: index + 1, title: product.title })}
                     aria-pressed={primaryMedia?.id === mediaItem.id}
                     onClick={() => setActiveMediaId(mediaItem.id)}
                   >
-                    {mediaItem.media_type === 'video' ? <div className="video-thumb">Video</div> : <MarketplaceImage source={mediaItem.media_url} alt="" />}
+                    {mediaItem.media_type === 'video' ? <div className="video-thumb">{t('productDetails.video')}</div> : <MarketplaceImage source={mediaItem.media_url} alt="" />}
                   </button>
                 ))}
               </div>
@@ -299,19 +299,19 @@ const ProductDetailsPage = () => {
           <div className="product-info">
             {/* Condition Badge */}
             <div className="product-condition-badge">
-              {product.condition === 'used_as_new' && <span className="badge used">Used as New</span>}
-              {product.condition === 'joutiya' && <span className="badge joutiya">Joutiya (Haggle)</span>}
-              {(!product.condition || product.condition === 'new') && <span className="badge new">New</span>}
+              {product.condition === 'used_as_new' && <span className="badge used">{t('productForm.conditionOptions.used_as_new')}</span>}
+              {product.condition === 'joutiya' && <span className="badge joutiya">{t('productForm.conditionOptions.joutiya')}</span>}
+              {(!product.condition || product.condition === 'new') && <span className="badge new">{t('productForm.conditionOptions.new')}</span>}
             </div>
             <h1>{product.title}</h1>
             <div className="product-meta">
               <div className="product-rating">
                 <StarIcon className="star-icon" />
                 <span>{averageRating}</span>
-                <span className="review-count">({totalReviews} reviews)</span>
+                <span className="review-count">({t('productDetails.reviews', { count: totalReviews })})</span>
               </div>
               <div className="product-seller">
-                Sold by <Link to={`/profile/${product.seller_id}`} className="seller-link">{product.seller_name || 'Unknown Seller'}</Link>
+                {t('productDetails.soldBy')} <Link to={`/profile/${product.seller_id}`} className="seller-link">{product.seller_name || t('products.unknownSeller')}</Link>
               </div>
             </div>
             <div className="product-purchase-panel">
@@ -326,11 +326,11 @@ const ProductDetailsPage = () => {
               </div>
               {!isJoutiya && (
                 <div className="product-quantity">
-                  <span className="quantity-label">Quantity</span>
-                  <div className="quantity-selector" role="group" aria-label="Select quantity">
-                    <button type="button" onClick={() => setQuantity(Math.max(1, quantity - 1))} disabled={quantity <= 1} aria-label="Decrease quantity">-</button>
+                  <span className="quantity-label">{t('productDetails.quantity')}</span>
+                  <div className="quantity-selector" role="group" aria-label={t('productDetails.selectQuantity')}>
+                    <button type="button" onClick={() => setQuantity(Math.max(1, quantity - 1))} disabled={quantity <= 1} aria-label={t('productDetails.decrease')}>-</button>
                     <output aria-live="polite">{quantity}</output>
-                    <button type="button" onClick={() => setQuantity(Math.min(stock, quantity + 1))} disabled={quantity >= stock} aria-label="Increase quantity">+</button>
+                    <button type="button" onClick={() => setQuantity(Math.min(stock, quantity + 1))} disabled={quantity >= stock} aria-label={t('productDetails.increase')}>+</button>
                   </div>
                 </div>
               )}
@@ -340,13 +340,13 @@ const ProductDetailsPage = () => {
                 ) : (
                   <button className="add-to-cart-btn" onClick={handleAddToCart} disabled={isUnavailable}>{stock < 1 ? t('products.outOfStock') : isOwnListing ? t('products.yourListing') : t('products.addToCart')}</button>
                 )}
-                <button type="button" className="favorite-btn" onClick={handleFavorite} aria-label={isFav ? 'Remove from favorites' : 'Add to favorites'} aria-pressed={isFav}><HeartIcon className={`heart-icon ${isFav ? 'text-red-500 fill-current' : ''}`} /></button>
+                <button type="button" className="favorite-btn" onClick={handleFavorite} aria-label={isFav ? t('productDetails.favoriteRemove') : t('productDetails.favoriteAdd')} aria-pressed={isFav}><HeartIcon className={`heart-icon ${isFav ? 'text-red-500 fill-current' : ''}`} /></button>
               </div>
               <p className="purchase-note">{isJoutiya ? t('products.offerDeliveryNote') : t('products.itemPayNote', { item: `${formatAmount(productPrice)} MAD` })}</p>
-              {!isOwnListing && <button type="button" className="report-listing-btn" onClick={() => isAuthenticated ? setShowReportModal(true) : toast.error('Please sign in to report a listing.')}><FlagIcon aria-hidden="true" /> Report this listing</button>}
+              {!isOwnListing && <button type="button" className="report-listing-btn" onClick={() => isAuthenticated ? setShowReportModal(true) : toast.error(t('productDetails.reportSignIn'))}><FlagIcon aria-hidden="true" /> {t('productDetails.report.title')}</button>}
               <div className="product-shipping">
-                {product.origin_city && <div className="shipping-item"><TruckIcon className="shipping-icon" /><span>Ships from {product.origin_city}</span></div>}
-                <div className="shipping-item"><ArrowPathIcon className="shipping-icon" /><span>Seller prepares in {Number(product.preparation_days || 1) === 0 ? 'the same day' : `${Number(product.preparation_days || 1)} day${Number(product.preparation_days || 1) === 1 ? '' : 's'}`}. rifKANDO COD Operations confirms the delivery fee and arrival deadline after the order is confirmed.</span></div>
+                {product.origin_city && <div className="shipping-item"><TruckIcon className="shipping-icon" /><span>{t('productDetails.shipping.shipsFrom', { city: product.origin_city })}</span></div>}
+                <div className="shipping-item"><ArrowPathIcon className="shipping-icon" /><span>{t('productDetails.shipping.prepares', { time: Number(product.preparation_days || 1) === 0 ? t('productDetails.shipping.sameDay') : t('productDetails.shipping.days', { count: Number(product.preparation_days || 1) }) })}</span></div>
                 <div className="shipping-item"><TruckIcon className="shipping-icon" /><span>{t('products.deliveryCheckoutNote')}</span></div>
                 <div className="shipping-item"><ShieldCheckIcon className="shipping-icon" /><span>{t('products.codProtectionNote')}</span></div>
                 <div className="shipping-item"><ArrowPathIcon className="shipping-icon" /><span>{t('products.orderTrackingNote')}</span></div>
@@ -368,32 +368,32 @@ const ProductDetailsPage = () => {
         </div>
 
         <div className="product-tabs">
-          <div className="tabs-header" role="tablist" aria-label="Product information">
-            <button type="button" id="description-tab" role="tab" aria-selected={activeTab === 'description'} aria-controls="description-panel" className={`tab-btn ${activeTab==='description'?'active':''}`} onClick={()=>setActiveTab('description')}>Description</button>
-            <button type="button" id="specifications-tab" role="tab" aria-selected={activeTab === 'specifications'} aria-controls="specifications-panel" className={`tab-btn ${activeTab==='specifications'?'active':''}`} onClick={()=>setActiveTab('specifications')}>Specifications</button>
-            <button type="button" id="reviews-tab" role="tab" aria-selected={activeTab === 'reviews'} aria-controls="reviews-panel" className={`tab-btn ${activeTab==='reviews'?'active':''}`} onClick={()=>setActiveTab('reviews')}>Reviews ({totalReviews})</button>
+          <div className="tabs-header" role="tablist" aria-label={t('productDetails.productInformation')}>
+            <button type="button" id="description-tab" role="tab" aria-selected={activeTab === 'description'} aria-controls="description-panel" className={`tab-btn ${activeTab==='description'?'active':''}`} onClick={()=>setActiveTab('description')}>{t('productDetails.tabs.description')}</button>
+            <button type="button" id="specifications-tab" role="tab" aria-selected={activeTab === 'specifications'} aria-controls="specifications-panel" className={`tab-btn ${activeTab==='specifications'?'active':''}`} onClick={()=>setActiveTab('specifications')}>{t('productDetails.tabs.specifications')}</button>
+            <button type="button" id="reviews-tab" role="tab" aria-selected={activeTab === 'reviews'} aria-controls="reviews-panel" className={`tab-btn ${activeTab==='reviews'?'active':''}`} onClick={()=>setActiveTab('reviews')}>{t('productDetails.tabs.reviews', { count: totalReviews })}</button>
           </div>
           <div className="tabs-content" role="tabpanel" tabIndex={0} id={`${activeTab}-panel`} aria-labelledby={`${activeTab}-tab`}>
-            {activeTab==='description' && <p>{product.description || 'The seller has not added a description yet.'}</p>}
+            {activeTab==='description' && <p>{product.description || t('productDetails.noDescription')}</p>}
             {activeTab==='specifications' && (
               <div className="specs-list">
-                <div className="spec-item"><span className="spec-label">Category</span><span className="spec-value">{categoryLabel || 'Not specified'}</span></div>
-                <div className="spec-item"><span className="spec-label">Condition</span><span className="spec-value">
+                <div className="spec-item"><span className="spec-label">{t('productDetails.shipping.category')}</span><span className="spec-value">{categoryLabel || t('products.notSpecified')}</span></div>
+                <div className="spec-item"><span className="spec-label">{t('productDetails.shipping.condition')}</span><span className="spec-value">
                   {conditionLabel}
                 </span></div>
-                <div className="spec-item"><span className="spec-label">Availability</span><span className="spec-value">{stock > 0 ? `${stock} units available` : 'Out of stock'}</span></div>
-                <div className="spec-item"><span className="spec-label">Sold</span><span className="spec-value">{product.sold || 0} units</span></div>
-                <div className="spec-item"><span className="spec-label">Dispatch</span><span className="spec-value">{product.origin_city || 'Seller location shared at checkout'} · prepares in {Number(product.preparation_days || 1) === 0 ? 'same day' : `${Number(product.preparation_days || 1)} day(s)`}</span></div>
-                <div className="spec-item"><span className="spec-label">Delivery plan</span><span className="spec-value">Set by rifKANDO COD Operations after confirmation</span></div>
+                <div className="spec-item"><span className="spec-label">{t('productDetails.shipping.availability')}</span><span className="spec-value">{stock > 0 ? t('productDetails.shipping.unitsAvailable', { count: stock }) : t('products.outOfStock')}</span></div>
+                <div className="spec-item"><span className="spec-label">{t('productDetails.shipping.sold')}</span><span className="spec-value">{t('productDetails.shipping.units', { count: product.sold || 0 })}</span></div>
+                <div className="spec-item"><span className="spec-label">{t('productDetails.shipping.dispatch')}</span><span className="spec-value">{product.origin_city || t('productDetails.shipping.sellerLocation')} · {t('productDetails.shipping.prepares', { time: Number(product.preparation_days || 1) === 0 ? t('productDetails.shipping.sameDay') : t('productDetails.shipping.days', { count: Number(product.preparation_days || 1) }) })}</span></div>
+                <div className="spec-item"><span className="spec-label">{t('productDetails.shipping.deliveryPlan')}</span><span className="spec-value">{t('productDetails.shipping.deliveryPlanValue')}</span></div>
               </div>
             )}
             {activeTab==='reviews' && (
               <div className="reviews-section">
                 {isAuthenticated && hasPurchased && !hasReviewed && (
                   <div className="write-review">
-                    <h3>Write a Review</h3>
+                    <h3>{t('productDetails.review.write')}</h3>
                     <div className="rating-input">
-                      <label>Your Rating:</label>
+                      <label>{t('productDetails.review.rating')}</label>
                       <div className="stars">
                         {[1,2,3,4,5].map(star => (
                           <button
@@ -408,42 +408,42 @@ const ProductDetailsPage = () => {
                       </div>
                     </div>
                     <div className="review-comment">
-                      <label>Your Review:</label>
+                      <label>{t('productDetails.review.comment')}</label>
                       <textarea
                         value={reviewComment}
                         onChange={(e) => setReviewComment(e.target.value)}
-                        placeholder="Share your experience with this product..."
+                        placeholder={t('productDetails.review.commentPlaceholder')}
                         rows="4"
                       />
                     </div>
                     <button onClick={submitReview} disabled={submittingReview} className="submit-review-btn">
-                      {submittingReview ? 'Submitting...' : 'Submit Review'}
+                      {submittingReview ? t('productDetails.review.submitting') : t('productDetails.review.submit')}
                     </button>
                   </div>
                 )}
                 
                 {isAuthenticated && hasPurchased && hasReviewed && (
                   <div className="already-reviewed">
-                    <p>✅ You have already reviewed this product. Thank you for your feedback!</p>
+                    <p>✅ {t('productDetails.review.already')}</p>
                   </div>
                 )}
                 
                 {isAuthenticated && !hasPurchased && (
                   <div className="review-notice">
-                    <p>📝 You can only review this product after purchasing and receiving it.</p>
+                    <p>📝 {t('productDetails.review.eligibility')}</p>
                   </div>
                 )}
                 
                 {!isAuthenticated && (
                   <div className="review-notice">
-                    <p>Sign in after delivery to leave a review.</p>
+                    <p>{t('productDetails.review.signIn')}</p>
                   </div>
                 )}
 
                 <div className="reviews-list">
-                  <h3>Customer Reviews</h3>
+                  <h3>{t('productDetails.review.customer')}</h3>
                   {reviews.length === 0 ? (
-                    <p className="no-reviews">No reviews yet. Be the first to review!</p>
+                    <p className="no-reviews">{t('productDetails.review.empty')}</p>
                   ) : (
                     reviews.map(review => (
                       <div key={review.id} className="review-item">
@@ -454,7 +454,7 @@ const ProductDetailsPage = () => {
                               {"★".repeat(review.rating)}{"☆".repeat(5-review.rating)}
                             </div>
                           </div>
-                          <span className="review-date">{new Date(review.created_at).toLocaleDateString()}</span>
+                          <span className="review-date">{new Date(review.created_at).toLocaleDateString(i18n.language)}</span>
                         </div>
                         {review.comment && <p className="review-comment-text">{review.comment}</p>}
                       </div>
@@ -472,40 +472,40 @@ const ProductDetailsPage = () => {
         <div className="offer-modal" onClick={() => setShowOfferModal(false)}>
           <div className="offer-container" role="dialog" aria-modal="true" aria-labelledby="offer-modal-title" onClick={(e) => e.stopPropagation()}>
             <div className="offer-header">
-              <h3 id="offer-modal-title">Make an Offer</h3>
-              <button type="button" onClick={() => setShowOfferModal(false)} className="close-offer-btn" aria-label="Close offer form"><XMarkIcon className="w-5 h-5" /></button>
+              <h3 id="offer-modal-title">{t('productDetails.offer.title')}</h3>
+              <button type="button" onClick={() => setShowOfferModal(false)} className="close-offer-btn" aria-label={t('productDetails.offer.close')}><XMarkIcon className="w-5 h-5" /></button>
             </div>
             <div className="offer-body">
-              <p>Product: <strong>{product.title}</strong></p>
-              <p>Original price: <strong>{product.price} MAD</strong></p>
+              <p>{t('productDetails.offer.product')} <strong>{product.title}</strong></p>
+              <p>{t('productDetails.offer.originalPrice')} <strong>{product.price} MAD</strong></p>
               <div className="offer-field">
-                <label htmlFor="offer-amount">Your offer (MAD):</label>
+                <label htmlFor="offer-amount">{t('productDetails.offer.amount')}</label>
                 <input
                   id="offer-amount"
                   type="number"
                   value={offerAmount}
                   onChange={(e) => setOfferAmount(e.target.value)}
-                  placeholder="e.g., 50"
+                  placeholder={t('productDetails.offer.amountPlaceholder')}
                   min="1"
                   step="0.01"
                   max={product.price}
                 />
               </div>
               <div className="offer-field">
-                <label htmlFor="offer-message">Message to seller (optional):</label>
+                <label htmlFor="offer-message">{t('productDetails.offer.message')}</label>
                 <textarea
                   id="offer-message"
                   value={offerMessage}
                   onChange={(e) => setOfferMessage(e.target.value)}
-                  placeholder="e.g., I love this product, can you do a better price?"
+                  placeholder={t('productDetails.offer.messagePlaceholder')}
                   rows="3"
                 />
               </div>
             </div>
             <div className="offer-footer">
-              <button type="button" onClick={() => setShowOfferModal(false)} className="cancel-offer-btn">Cancel</button>
+              <button type="button" onClick={() => setShowOfferModal(false)} className="cancel-offer-btn">{t('productDetails.offer.cancel')}</button>
               <button type="button" onClick={submitOffer} disabled={submittingOffer} className="submit-offer-btn">
-                {submittingOffer ? 'Sending...' : 'Submit Offer'}
+                {submittingOffer ? t('productDetails.offer.sending') : t('productDetails.offer.submit')}
               </button>
             </div>
           </div>
@@ -515,9 +515,9 @@ const ProductDetailsPage = () => {
       {showReportModal && (
         <div className="offer-modal" onClick={() => setShowReportModal(false)}>
           <div className="offer-container report-dialog" role="dialog" aria-modal="true" aria-labelledby="report-listing-title" onClick={(event) => event.stopPropagation()}>
-            <div className="offer-header"><h3 id="report-listing-title">Report this listing</h3><button type="button" onClick={() => setShowReportModal(false)} className="close-offer-btn" aria-label="Close report form"><XMarkIcon className="w-5 h-5" /></button></div>
-            <div className="offer-body"><p>Reports are private. Please describe only what our moderation team needs to review.</p><div className="offer-field"><label htmlFor="report-reason">Reason</label><select id="report-reason" value={reportReason} onChange={(event) => setReportReason(event.target.value)}><option value="scam">Possible scam</option><option value="prohibited">Prohibited or unsafe item</option><option value="misleading">Misleading listing</option><option value="counterfeit">Suspected counterfeit</option><option value="other">Other concern</option></select></div><div className="offer-field"><label htmlFor="report-details">What should we review?</label><textarea id="report-details" value={reportDetails} onChange={(event) => setReportDetails(event.target.value)} maxLength="1000" rows="4" placeholder="Give clear details (at least 10 characters)." /></div></div>
-            <div className="offer-footer"><button type="button" onClick={() => setShowReportModal(false)} className="cancel-offer-btn">Cancel</button><button type="button" onClick={submitReport} disabled={submittingReport} className="submit-offer-btn">{submittingReport ? 'Submitting…' : 'Submit report'}</button></div>
+            <div className="offer-header"><h3 id="report-listing-title">{t('productDetails.report.title')}</h3><button type="button" onClick={() => setShowReportModal(false)} className="close-offer-btn" aria-label={t('productDetails.report.close')}><XMarkIcon className="w-5 h-5" /></button></div>
+            <div className="offer-body"><p>{t('productDetails.report.lead')}</p><div className="offer-field"><label htmlFor="report-reason">{t('productDetails.report.reason')}</label><select id="report-reason" value={reportReason} onChange={(event) => setReportReason(event.target.value)}>{['scam', 'prohibited', 'misleading', 'counterfeit', 'other'].map((reason) => <option key={reason} value={reason}>{t(`productDetails.report.reasons.${reason}`)}</option>)}</select></div><div className="offer-field"><label htmlFor="report-details">{t('productDetails.report.details')}</label><textarea id="report-details" value={reportDetails} onChange={(event) => setReportDetails(event.target.value)} maxLength="1000" rows="4" placeholder={t('productDetails.report.detailsPlaceholder')} /></div></div>
+            <div className="offer-footer"><button type="button" onClick={() => setShowReportModal(false)} className="cancel-offer-btn">{t('productDetails.report.cancel')}</button><button type="button" onClick={submitReport} disabled={submittingReport} className="submit-offer-btn">{submittingReport ? t('productDetails.report.submitting') : t('productDetails.report.submit')}</button></div>
           </div>
         </div>
       )}

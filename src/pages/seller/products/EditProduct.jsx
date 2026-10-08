@@ -3,10 +3,12 @@ import { useNavigate, useParams } from 'react-router-dom';
 import api from '../../../services/api';
 import toast from 'react-hot-toast';
 import MediaUploader from '../../../components/MediaUploader';
+import { useTranslation } from 'react-i18next';
 
 const EditProduct = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
   const [media, setMedia] = useState([]);
@@ -46,7 +48,7 @@ const EditProduct = () => {
       } catch (error) {
         if (isCurrent) {
           console.error('Error fetching product:', error);
-          toast.error('Failed to load product data');
+          toast.error(t('productForm.loadFailed'));
           navigate('/seller/dashboard/products');
         }
       } finally {
@@ -59,7 +61,7 @@ const EditProduct = () => {
     return () => {
       isCurrent = false;
     };
-  }, [id, navigate]);
+  }, [id, navigate, t]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -73,14 +75,14 @@ const EditProduct = () => {
     const stock = Number(formData.stock);
     const oldPrice = formData.old_price === '' ? undefined : Number(formData.old_price);
 
-    if (title.length < 2) return toast.error('Product title must contain at least 2 characters.');
-    if (description.length < 10) return toast.error('Description must contain at least 10 characters.');
-    if (!Number.isFinite(price) || price <= 0) return toast.error('Enter a valid product price.');
-    if (!Number.isInteger(stock) || stock < 0) return toast.error('Stock must be a whole number of 0 or more.');
+    if (title.length < 2) return toast.error(t('productForm.validation.title'));
+    if (description.length < 10) return toast.error(t('productForm.validation.description'));
+    if (!Number.isFinite(price) || price <= 0) return toast.error(t('productForm.validation.price'));
+    if (!Number.isInteger(stock) || stock < 0) return toast.error(t('productForm.validation.stock'));
     if (oldPrice !== undefined && (!Number.isFinite(oldPrice) || oldPrice < price)) {
-      return toast.error('Original price must be at least the current product price.');
+      return toast.error(t('productForm.validation.originalPrice'));
     }
-    if (!media.length) return toast.error('Keep at least one clear product photo before saving.');
+    if (!media.length) return toast.error(t('productForm.validation.saveMedia'));
 
     setLoading(true);
     try {
@@ -98,11 +100,11 @@ const EditProduct = () => {
       if (oldPrice !== undefined) productData.old_price = oldPrice;
       else delete productData.old_price;
       await api.put(`/products/${id}`, productData);
-      toast.success('Product updated successfully!');
+      toast.success(t('productForm.updated'));
       navigate('/seller/dashboard/products');
     } catch (error) {
       console.error('Error updating product:', error);
-      toast.error(error.response?.data?.error || 'Failed to update product');
+      toast.error(error.response?.data?.error || t('productForm.updateFailed'));
     } finally {
       setLoading(false);
     }
@@ -117,17 +119,17 @@ const EditProduct = () => {
     return (
       <div className="text-center py-16">
         <div className="spinner"></div>
-        <p>Loading product data...</p>
+        <p>{t('productForm.loading')}</p>
       </div>
     );
   }
 
   return (
     <div className="edit-product">
-      <h2>Edit Product</h2>
+      <h2>{t('productForm.editTitle')}</h2>
       <form onSubmit={handleSubmit} className="product-form">
         <div className="form-group">
-          <label>Product Title *</label>
+          <label>{t('productForm.title')} *</label>
           <input
             type="text"
             name="title"
@@ -139,7 +141,7 @@ const EditProduct = () => {
         </div>
 
         <div className="form-group">
-          <label>Description *</label>
+          <label>{t('productForm.description')} *</label>
           <textarea
             name="description"
             value={formData.description}
@@ -152,7 +154,7 @@ const EditProduct = () => {
 
         <div className="form-row">
           <div className="form-group">
-            <label>Price (MAD) *</label>
+            <label>{t('productForm.price')} *</label>
             <input
               type="number"
               name="price"
@@ -163,7 +165,7 @@ const EditProduct = () => {
             />
           </div>
           <div className="form-group">
-            <label>Original Price (Optional)</label>
+            <label>{t('productForm.originalPrice')}</label>
             <input
               type="number"
               name="old_price"
@@ -174,22 +176,22 @@ const EditProduct = () => {
           </div>
         </div>
         <div className="form-row">
-          <div className="form-group"><label>Dispatch city</label><input name="origin_city" value={formData.origin_city} onChange={handleChange} className="form-input" maxLength="100" placeholder="e.g. Nador" /><small className="form-hint">Shown to buyers as the seller’s dispatch location.</small></div>
-          <div className="form-group"><label>Preparation time</label><select name="preparation_days" value={formData.preparation_days} onChange={handleChange} className="form-input"><option value="0">Same day</option>{[1,2,3,4,5,7,10,14].map((days) => <option key={days} value={days}>{days} day{days === 1 ? '' : 's'}</option>)}</select><small className="form-hint">rifKANDO COD Operations sets the buyer delivery deadline after you confirm the order.</small></div>
+          <div className="form-group"><label>{t('productForm.dispatchCity')}</label><input name="origin_city" value={formData.origin_city} onChange={handleChange} className="form-input" maxLength="100" placeholder={t('productForm.dispatchCityPlaceholder')} /><small className="form-hint">{t('productForm.dispatchCityHelp')}</small></div>
+          <div className="form-group"><label>{t('productForm.preparation')}</label><select name="preparation_days" value={formData.preparation_days} onChange={handleChange} className="form-input"><option value="0">{t('productForm.sameDay')}</option>{[1,2,3,4,5,7,10,14].map((days) => <option key={days} value={days}>{t('productForm.dayCount', { count: days })}</option>)}</select><small className="form-hint">{t('productForm.preparationHelp')}</small></div>
         </div>
 
         <aside className="listing-estimate" aria-live="polite">
           <div>
-            <span>COD listing estimate</span>
-            <strong>{hasValidPrice ? `${sellerNet.toFixed(2)} MAD` : 'Enter a product price'}</strong>
+            <span>{t('productForm.estimate')}</span>
+            <strong>{hasValidPrice ? `${sellerNet.toFixed(2)} MAD` : t('productForm.enterPrice')}</strong>
           </div>
-          <p>rifKANDO commission is 5% of the item price only ({hasValidPrice ? `${platformCommission.toFixed(2)} MAD` : '—'}). rifKANDO COD Operations quotes delivery after an order is confirmed.</p>
-          <small>Update the cover image or order below to control what buyers see first.</small>
+          <p>{t('productForm.commission', { amount: hasValidPrice ? `${platformCommission.toFixed(2)} MAD` : '—' })} {t('productForm.deliveryQuote')}</p>
+          <small>{t('productForm.coverHelp')}</small>
         </aside>
 
         <div className="form-row">
           <div className="form-group">
-            <label>Category *</label>
+            <label>{t('productForm.category')} *</label>
             <select
               name="category"
               value={formData.category}
@@ -197,15 +199,11 @@ const EditProduct = () => {
               className="form-input"
               required
             >
-              <option value="electronics">Electronics</option>
-              <option value="fashion">Fashion</option>
-              <option value="handicrafts">Handicrafts</option>
-              <option value="books">Books</option>
-              <option value="home">Home & Living</option>
+              {['electronics', 'fashion', 'handicrafts', 'books', 'home'].map((category) => <option key={category} value={category}>{t(`productForm.categoryOptions.${category}`)}</option>)}
             </select>
           </div>
           <div className="form-group">
-            <label>Stock Quantity *</label>
+            <label>{t('productForm.stock')} *</label>
             <input
               type="number"
               name="stock"
@@ -219,7 +217,7 @@ const EditProduct = () => {
 
         {/* Condition selector (NEW) */}
         <div className="form-group">
-          <label>Condition *</label>
+          <label>{t('productForm.condition')} *</label>
           <select
             name="condition"
             value={formData.condition}
@@ -227,32 +225,28 @@ const EditProduct = () => {
             className="form-input"
             required
           >
-            <option value="new">New</option>
-            <option value="used_as_new">Used as New</option>
-            <option value="joutiya">Joutiya (Haggle)</option>
+            {['new', 'used_as_new', 'joutiya'].map((condition) => <option key={condition} value={condition}>{t(`productForm.conditionOptions.${condition}`)}</option>)}
           </select>
           <small className="form-hint">
-            {formData.condition === 'joutiya' && "Buyers can make offers instead of buying directly."}
-            {formData.condition === 'used_as_new' && "Item is pre‑owned but in perfect condition."}
-            {formData.condition === 'new' && "Brand new, never used."}
+            {t(`productForm.conditionHelp.${formData.condition}`)}
           </small>
         </div>
 
         <div className="form-group">
-          <label>Product Photos & Videos (max 10)</label>
+          <label>{t('productForm.media')}</label>
           <MediaUploader onMediaUploaded={setMedia} existingMedia={media} maxFiles={10} allowedTypes={['image', 'video']} />
         </div>
 
         <div className="form-actions">
           <button type="submit" className="btn btn-primary" disabled={loading}>
-            {loading ? 'Saving...' : 'Update Product'}
+            {loading ? t('productForm.saving') : t('productForm.save')}
           </button>
           <button
             type="button"
             onClick={() => navigate('/seller/dashboard/products')}
             className="btn btn-outline"
           >
-            Cancel
+            {t('productForm.cancel')}
           </button>
         </div>
       </form>

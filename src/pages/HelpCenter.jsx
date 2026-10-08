@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   AcademicCapIcon,
   ArrowRightIcon,
@@ -13,28 +14,28 @@ import {
   UserCircleIcon,
 } from '@heroicons/react/24/outline'
 
-const categories = [
-  { id: 'account', title: 'Account basics', description: 'Registration, profile, and access', icon: UserCircleIcon },
-  { id: 'buying', title: 'Buying on rifKANDO', description: 'Orders, checkout, and delivery', icon: ShoppingBagIcon },
-  { id: 'selling', title: 'Selling on rifKANDO', description: 'Seller setup and listings', icon: AcademicCapIcon },
-  { id: 'wallet', title: 'Wallet and payouts', description: 'Earnings, fees, and withdrawals', icon: CurrencyDollarIcon },
-  { id: 'security', title: 'Safety and privacy', description: 'Account protection and data', icon: ShieldCheckIcon },
-]
-
-const faqs = [
-  { id: 'create-account', category: 'account', question: 'How do I create an account?', answer: 'Use the Register option in the navigation, provide your details, and complete the account verification steps shown to you.' },
-  { id: 'profile', category: 'account', question: 'How do I update my profile?', answer: 'Open your profile after signing in to update the information that is available for your account.' },
-  { id: 'order', category: 'buying', question: 'How do I place an order?', answer: 'Add an available physical product to your cart, review the checkout details, choose an available payment method, and confirm your order.' },
-  { id: 'refund', category: 'buying', question: 'How do refunds work?', answer: 'Refund requests are reviewed against the relevant transaction and marketplace policy. The status of an approved refund is reflected in the order and financial records.' },
-  { id: 'seller', category: 'selling', question: 'How do I become a seller?', answer: 'Choose Become a Seller, select the workspace that matches your business, and complete the requested profile and verification steps.' },
-  { id: 'listing', category: 'selling', question: 'What makes a strong listing?', answer: 'Use honest titles, accurate descriptions, clear media, correct prices, and realistic availability. Read the Seller Guide before publishing.' },
-  { id: 'fees', category: 'wallet', question: 'How are seller fees calculated?', answer: 'rifKANDO applies the commission rate for the relevant seller category. The rate is recorded before seller funds enter the wallet.' },
-  { id: 'withdrawal', category: 'wallet', question: 'When can I request a withdrawal?', answer: 'New sellers can request a withdrawal after 14 days. Your seller wallet shows the exact eligibility date and available balance.' },
-  { id: 'security', category: 'security', question: 'How do you protect my account?', answer: 'rifKANDO uses authenticated access controls and secure sessions. Keep your password private and contact support if you notice unexpected account activity.' },
-  { id: 'privacy', category: 'security', question: 'Where can I read the privacy policy?', answer: 'The Privacy Policy explains the information we collect, how it is used, and the choices available to you.' },
-]
-
 const HelpCenter = () => {
+  const { i18n } = useTranslation()
+  const localize = (english, arabic) => (i18n.resolvedLanguage === 'ar' ? arabic : english)
+  const categories = [
+    { id: 'account', title: localize('Account basics', 'أساسيات الحساب'), description: localize('Registration, profile, and access', 'التسجيل والملف الشخصي والوصول'), icon: UserCircleIcon },
+    { id: 'buying', title: localize('Buying on rifKANDO', 'الشراء على rifKANDO'), description: localize('Orders, checkout, and delivery', 'الطلبات وإتمام الشراء والتوصيل'), icon: ShoppingBagIcon },
+    { id: 'selling', title: localize('Selling on rifKANDO', 'البيع على rifKANDO'), description: localize('Seller setup and listings', 'إعداد البائع والإعلانات'), icon: AcademicCapIcon },
+    { id: 'wallet', title: localize('Wallet and payouts', 'المحفظة والمستحقات'), description: localize('Earnings, fees, and withdrawals', 'الأرباح والرسوم والسحوبات'), icon: CurrencyDollarIcon },
+    { id: 'security', title: localize('Safety and privacy', 'الأمان والخصوصية'), description: localize('Account protection and data', 'حماية الحساب والبيانات'), icon: ShieldCheckIcon },
+  ]
+  const faqs = [
+    { id: 'create-account', category: 'account', question: localize('How do I create an account?', 'كيف أنشئ حسابًا؟'), answer: localize('Use the Register option in the navigation, provide your details, and complete the account verification steps shown to you.', 'استخدم خيار إنشاء حساب في القائمة، أدخل بياناتك، ثم أكمل خطوات التحقق التي تظهر لك.') },
+    { id: 'profile', category: 'account', question: localize('How do I update my profile?', 'كيف أحدّث ملفي الشخصي؟'), answer: localize('Open your profile after signing in to update the information that is available for your account.', 'افتح ملفك الشخصي بعد تسجيل الدخول لتحديث المعلومات المتاحة لحسابك.') },
+    { id: 'order', category: 'buying', question: localize('How do I place an order?', 'كيف أقدّم طلبًا؟'), answer: localize('Add an available physical product to your cart, review the checkout details, choose an available payment method, and confirm your order.', 'أضف منتجًا ماديًا متاحًا إلى السلة، راجع تفاصيل إتمام الشراء، اختر طريقة الدفع المتاحة، ثم أكّد طلبك.') },
+    { id: 'refund', category: 'buying', question: localize('How do refunds work?', 'كيف تعمل طلبات الاسترداد؟'), answer: localize('Refund requests are reviewed against the relevant transaction and marketplace policy. The status of an approved refund is reflected in the order and financial records.', 'تُراجع طلبات الاسترداد وفقًا للمعاملة المعنية وسياسة السوق. وتظهر حالة الاسترداد المعتمد في سجل الطلب والسجلات المالية.') },
+    { id: 'seller', category: 'selling', question: localize('How do I become a seller?', 'كيف أصبح بائعًا؟'), answer: localize('Choose Become a Seller, select the workspace that matches your business, and complete the requested profile and verification steps.', 'اختر كن بائعًا، وحدد مساحة العمل المناسبة لنشاطك، ثم أكمل الملف الشخصي وخطوات التحقق المطلوبة.') },
+    { id: 'listing', category: 'selling', question: localize('What makes a strong listing?', 'ما الذي يجعل الإعلان قويًا؟'), answer: localize('Use honest titles, accurate descriptions, clear media, correct prices, and realistic availability. Read the Seller Guide before publishing.', 'استخدم عناوين صادقة وأوصافًا دقيقة ووسائط واضحة وأسعارًا صحيحة وتوفّرًا واقعيًا. اقرأ دليل البائع قبل النشر.') },
+    { id: 'fees', category: 'wallet', question: localize('How are seller fees calculated?', 'كيف تُحسب رسوم البائع؟'), answer: localize('rifKANDO applies the commission rate for the relevant seller category. The rate is recorded before seller funds enter the wallet.', 'تطبّق rifKANDO نسبة العمولة الخاصة بفئة البائع المعنية. تُسجل النسبة قبل دخول أموال البائع إلى المحفظة.') },
+    { id: 'withdrawal', category: 'wallet', question: localize('When can I request a withdrawal?', 'متى يمكنني طلب سحب؟'), answer: localize('New sellers can request a withdrawal after 14 days. Your seller wallet shows the exact eligibility date and available balance.', 'يمكن للبائعين الجدد طلب السحب بعد 14 يومًا. تعرض محفظة البائع تاريخ الأهلية الدقيق والرصيد المتاح.') },
+    { id: 'security', category: 'security', question: localize('How do you protect my account?', 'كيف تحمون حسابي؟'), answer: localize('rifKANDO uses authenticated access controls and secure sessions. Keep your password private and contact support if you notice unexpected account activity.', 'تستخدم rifKANDO ضوابط وصول موثقة وجلسات آمنة. حافظ على خصوصية كلمة مرورك واتصل بالدعم إذا لاحظت نشاطًا غير متوقع في الحساب.') },
+    { id: 'privacy', category: 'security', question: localize('Where can I read the privacy policy?', 'أين يمكنني قراءة سياسة الخصوصية؟'), answer: localize('The Privacy Policy explains the information we collect, how it is used, and the choices available to you.', 'توضح سياسة الخصوصية المعلومات التي نجمعها وكيف نستخدمها والخيارات المتاحة لك.') },
+  ]
   const [searchQuery, setSearchQuery] = useState('')
   const [activeCategory, setActiveCategory] = useState('all')
   const [openFaq, setOpenFaq] = useState(null)
@@ -58,19 +59,19 @@ const HelpCenter = () => {
     <main className="help-page">
       <section className="help-hero">
         <div className="container help-hero-content">
-          <p className="help-eyebrow"><LifebuoyIcon aria-hidden="true" /> rifKANDO help center</p>
-          <h1>Answers for every step of your rifKANDO journey.</h1>
-          <p>Search the essentials, browse a topic, or reach our support team when you need a hand.</p>
+          <p className="help-eyebrow"><LifebuoyIcon aria-hidden="true" /> rifKANDO {localize('help center', 'مركز المساعدة')}</p>
+          <h1>{localize('Answers for every step of your rifKANDO journey.', 'إجابات لكل خطوة في رحلتك مع rifKANDO.')}</h1>
+          <p>{localize('Search the essentials, browse a topic, or reach our support team when you need a hand.', 'ابحث عن الأساسيات، وتصفّح موضوعًا، أو تواصل مع فريق الدعم عند الحاجة إلى المساعدة.')}</p>
           <label className="help-search" htmlFor="help-search-input">
             <MagnifyingGlassIcon aria-hidden="true" />
-            <input id="help-search-input" type="search" placeholder="Search account, order, seller, or wallet help" value={searchQuery} onChange={(event) => { setSearchQuery(event.target.value); setActiveCategory('all'); setOpenFaq(null) }} />
+            <input id="help-search-input" type="search" placeholder={localize('Search account, order, seller, or wallet help', 'ابحث في مساعدة الحساب أو الطلب أو البائع أو المحفظة')} value={searchQuery} onChange={(event) => { setSearchQuery(event.target.value); setActiveCategory('all'); setOpenFaq(null) }} />
           </label>
         </div>
       </section>
 
       <div className="container help-content">
         <section aria-labelledby="help-topic-title">
-          <div className="help-section-heading"><div><p>Choose a topic</p><h2 id="help-topic-title">Find the right kind of help.</h2></div><button type="button" className={activeCategory === 'all' ? 'help-all-topics active' : 'help-all-topics'} onClick={() => selectCategory('all')}>All topics</button></div>
+          <div className="help-section-heading"><div><p>{localize('Choose a topic', 'اختر موضوعًا')}</p><h2 id="help-topic-title">{localize('Find the right kind of help.', 'اعثر على نوع المساعدة المناسب.')}</h2></div><button type="button" className={activeCategory === 'all' ? 'help-all-topics active' : 'help-all-topics'} onClick={() => selectCategory('all')}>{localize('All topics', 'كل المواضيع')}</button></div>
           <div className="help-category-grid">
             {categories.map((category) => {
               const Icon = category.icon
@@ -81,10 +82,10 @@ const HelpCenter = () => {
         </section>
 
         <section className="help-faq-section" aria-labelledby="help-faq-title">
-          <div className="help-section-heading"><div><p>Common questions</p><h2 id="help-faq-title">Helpful answers, without the searching.</h2></div><span className="help-result-count">{visibleFaqs.length} {visibleFaqs.length === 1 ? 'answer' : 'answers'}</span></div>
+          <div className="help-section-heading"><div><p>{localize('Common questions', 'أسئلة شائعة')}</p><h2 id="help-faq-title">{localize('Helpful answers, without the searching.', 'إجابات مفيدة دون بحث طويل.')}</h2></div><span className="help-result-count">{visibleFaqs.length} {visibleFaqs.length === 1 ? localize('answer', 'إجابة') : localize('answers', 'إجابات')}</span></div>
           <div className="help-faq-list">
             {visibleFaqs.length === 0 ? (
-              <div className="help-empty-state"><MagnifyingGlassIcon aria-hidden="true" /><h3>No matching answer yet</h3><p>Try another term or contact support with the details of your question.</p><Link to="/contact">Contact support</Link></div>
+              <div className="help-empty-state"><MagnifyingGlassIcon aria-hidden="true" /><h3>{localize('No matching answer yet', 'لا توجد إجابة مطابقة بعد')}</h3><p>{localize('Try another term or contact support with the details of your question.', 'جرّب مصطلحًا آخر أو تواصل مع الدعم مع تفاصيل سؤالك.')}</p><Link to="/contact">{localize('Contact support', 'تواصل مع الدعم')}</Link></div>
             ) : visibleFaqs.map((faq) => {
               const isOpen = openFaq === faq.id
               return <article className={`help-faq-item ${isOpen ? 'open' : ''}`} key={faq.id}>
@@ -96,8 +97,8 @@ const HelpCenter = () => {
         </section>
 
         <section className="help-support-card">
-          <div><LifebuoyIcon aria-hidden="true" /><h2>Need personal support?</h2><p>Send our team the details, and we will help point you in the right direction.</p></div>
-          <div className="help-support-actions"><Link to="/contact">Contact support <ArrowRightIcon aria-hidden="true" /></Link><Link to="/seller-guidelines">Seller guide</Link></div>
+          <div><LifebuoyIcon aria-hidden="true" /><h2>{localize('Need personal support?', 'هل تحتاج إلى دعم شخصي؟')}</h2><p>{localize('Send our team the details, and we will help point you in the right direction.', 'أرسل إلى فريقنا التفاصيل وسنساعدك على الوصول إلى الحل المناسب.')}</p></div>
+          <div className="help-support-actions"><Link to="/contact">{localize('Contact support', 'تواصل مع الدعم')} <ArrowRightIcon aria-hidden="true" /></Link><Link to="/seller-guidelines">{localize('Seller guide', 'دليل البائع')}</Link></div>
         </section>
       </div>
 

@@ -2,8 +2,10 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon, XMarkIcon, PlayIcon } from '@heroicons/react/24/outline';
 import MarketplaceImage from './common/MarketplaceImage';
 import { getImageUrl } from '../utils/imageUtils';   // ✅ added
+import { useTranslation } from 'react-i18next';
 
 const MediaGallery = ({ media = [], onClose }) => {
+  const { t } = useTranslation();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const touchStartX = useRef(0);
@@ -58,11 +60,11 @@ const MediaGallery = ({ media = [], onClose }) => {
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-        <button className="close-btn" onClick={onClose} aria-label="Close gallery"><XMarkIcon className="w-6 h-6" /></button>
+        <button className="close-btn" onClick={onClose} aria-label={t('gallery.close')}><XMarkIcon className="w-6 h-6" /></button>
         {media.length > 1 && (
           <>
-            <button className="nav prev" onClick={prevSlide} aria-label="Previous image"><ChevronLeftIcon className="w-8 h-8" /></button>
-            <button className="nav next" onClick={nextSlide} aria-label="Next image"><ChevronRightIcon className="w-8 h-8" /></button>
+            <button className="nav prev" onClick={prevSlide} aria-label={t('gallery.previous')}><ChevronLeftIcon className="w-8 h-8" /></button>
+            <button className="nav next" onClick={nextSlide} aria-label={t('gallery.next')}><ChevronRightIcon className="w-8 h-8" /></button>
           </>
         )}
         <div className="media-viewer">
@@ -75,7 +77,7 @@ const MediaGallery = ({ media = [], onClose }) => {
               }
             </div>
           ) : (
-            <MarketplaceImage source={current.url} alt="Gallery image" className="gallery-image" />
+            <MarketplaceImage source={current.url} alt={t('gallery.image')} className="gallery-image" />
           )}
         </div>
         <div className="counter">{currentIndex+1} / {media.length}</div>
@@ -91,7 +93,7 @@ const MediaGallery = ({ media = [], onClose }) => {
             >
               {item.type === 'video' ? 
                 <div className="video-thumb">🎬</div> : 
-                <MarketplaceImage source={item.url} alt="Gallery thumbnail" />
+                <MarketplaceImage source={item.url} alt={t('gallery.thumbnail')} />
               }
             </div>
           ))}

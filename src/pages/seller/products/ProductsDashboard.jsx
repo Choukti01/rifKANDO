@@ -7,8 +7,10 @@ import toast from 'react-hot-toast';
 import { getImageUrl } from '../../../utils/imageUtils';
 import EmptyState from '../../../components/common/EmptyState';
 import LoadingSkeleton from '../../../components/common/LoadingSkeleton';
+import { useTranslation } from 'react-i18next';
 
 const ProductsDashboard = () => {
+  const { t, i18n } = useTranslation();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -38,7 +40,7 @@ const ProductsDashboard = () => {
       } catch (error) {
         if (isCurrent) {
           console.error('Failed to fetch products:', error);
-          toast.error('Failed to load products');
+          toast.error(t('sellerProducts.loadFailed'));
         }
       } finally {
         if (isCurrent) setLoading(false);
@@ -50,7 +52,7 @@ const ProductsDashboard = () => {
     return () => {
       isCurrent = false;
     };
-  }, []);
+  }, [t]);
 
   const fetchProducts = async () => {
     try {
@@ -69,32 +71,32 @@ const ProductsDashboard = () => {
       });
     } catch (error) {
       console.error('Failed to fetch products:', error);
-      toast.error('Failed to load products');
+      toast.error(t('sellerProducts.loadFailed'));
     } finally {
       setLoading(false);
     }
   };
 
   const handleEndItem = async (id, type) => {
-    if (window.confirm('Mark this product as ended? It will no longer appear in marketplace listings.')) {
+    if (window.confirm(t('sellerProducts.endConfirm'))) {
       try {
         await api.patch(`/${type}/${id}/status`, { status: 'ended' });
-        toast.success('Product marked as ended');
+        toast.success(t('sellerProducts.ended'));
         fetchProducts();
       } catch {
-        toast.error('Failed to update status');
+        toast.error(t('sellerProducts.updateFailed'));
       }
     }
   };
 
   const handleDelete = async (productId) => {
-    if (window.confirm('Are you sure you want to delete this product?')) {
+    if (window.confirm(t('sellerProducts.deleteConfirm'))) {
       try {
         const response = await deleteProduct(productId);
-        toast.success(response.data?.message || 'Product deleted successfully');
+        toast.success(response.data?.message || t('sellerProducts.deleted'));
         fetchProducts();
       } catch {
-        toast.error('Failed to delete product');
+        toast.error(t('sellerProducts.deleteFailed'));
       }
     }
   };
@@ -106,14 +108,14 @@ const ProductsDashboard = () => {
   // Helper to display condition label
   const getConditionLabel = (condition) => {
     switch (condition) {
-      case 'used_as_new': return 'Used as New';
-      case 'joutiya': return 'Joutiya';
-      default: return 'New';
+      case 'used_as_new': return t('productForm.conditionOptions.used_as_new');
+      case 'joutiya': return t('productForm.conditionOptions.joutiya');
+      default: return t('productForm.conditionOptions.new');
     }
   };
 
   if (loading) {
-    return <LoadingSkeleton variant="list" count={4} label="Loading your products" />;
+    return <LoadingSkeleton variant="list" count={4} label={t('sellerProducts.loading')} />;
   }
 
   return (
@@ -121,54 +123,54 @@ const ProductsDashboard = () => {
       {/* Stats Grid */}
       <div className="stats-grid">
         <div className="stat-card">
-          <div className="stat-label">Total Products</div>
+          <div className="stat-label">{t('sellerProducts.stats.total')}</div>
           <div className="stat-value">{stats.totalProducts}</div>
-          <div className="stat-change">Active listings</div>
+          <div className="stat-change">{t('sellerProducts.stats.active')}</div>
         </div>
         <div className="stat-card">
-          <div className="stat-label">Inventory Value</div>
-          <div className="stat-value">{stats.totalValue.toLocaleString()} MAD</div>
-          <div className="stat-change">Total stock value</div>
+          <div className="stat-label">{t('sellerProducts.stats.value')}</div>
+          <div className="stat-value">{stats.totalValue.toLocaleString(i18n.language)} MAD</div>
+          <div className="stat-change">{t('sellerProducts.stats.stockValue')}</div>
         </div>
         <div className="stat-card">
-          <div className="stat-label">Total Sold</div>
+          <div className="stat-label">{t('sellerProducts.stats.sold')}</div>
           <div className="stat-value">{stats.totalSold}</div>
-          <div className="stat-change">Units sold</div>
+          <div className="stat-change">{t('sellerProducts.stats.unitsSold')}</div>
         </div>
         <div className="stat-card">
-          <div className="stat-label">Low Stock Items</div>
+          <div className="stat-label">{t('sellerProducts.stats.low')}</div>
           <div className="stat-value">{stats.lowStock}</div>
-          <div className="stat-change">Need restock</div>
+          <div className="stat-change">{t('sellerProducts.stats.restock')}</div>
         </div>
       </div>
 
       {/* Products Table */}
       <div className="products-card">
         <div className="card-header">
-          <h3>Your Products</h3>
+          <h3>{t('sellerProducts.title')}</h3>
           <button onClick={handleAddNew} className="btn btn-primary btn-sm">
-            <PlusIcon className="w-4 h-4" /> Add Product
+            <PlusIcon className="w-4 h-4" /> {t('sellerProducts.add')}
           </button>
         </div>
 
         {products.length === 0 ? (
           <EmptyState
-            title="Your shop is ready for its first listing"
-            description="Add a product with clear photos and details to start reaching customers."
-            action={<button onClick={handleAddNew} className="btn btn-primary">Add your first product</button>}
+            title={t('sellerProducts.emptyTitle')}
+            description={t('sellerProducts.emptyLead')}
+            action={<button onClick={handleAddNew} className="btn btn-primary">{t('sellerProducts.first')}</button>}
           />
         ) : (
           <div className="products-table">
             <table>
               <thead>
                 <tr>
-                  <th>Product</th>
-                  <th>Price</th>
-                  <th>Condition</th>
-                  <th>Stock</th>
-                  <th>Sold</th>
-                  <th>Status</th>
-                  <th>Actions</th>
+                  <th>{t('sellerProducts.columns.product')}</th>
+                  <th>{t('sellerProducts.columns.price')}</th>
+                  <th>{t('sellerProducts.columns.condition')}</th>
+                  <th>{t('sellerProducts.columns.stock')}</th>
+                  <th>{t('sellerProducts.columns.sold')}</th>
+                  <th>{t('sellerProducts.columns.status')}</th>
+                  <th>{t('sellerProducts.columns.actions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -201,28 +203,28 @@ const ProductsDashboard = () => {
                     </td>
                     <td className={product.stock < 10 ? 'text-warning' : ''}>
                       {product.stock}
-                      {product.stock < 5 && <span className="stock-badge low">Low stock!</span>}
+                      {product.stock < 5 && <span className="stock-badge low">{t('sellerProducts.lowStock')}</span>}
                     </td>
                     <td>{product.sold || 0}</td>
                     <td>
                       <span className={`status-badge ${product.status === 'published' ? 'published' : 'ended'}`}>
-                        {product.status === 'published' ? 'Active' : 'Ended'}
+                        {product.status === 'published' ? t('sellerProducts.active') : t('sellerProducts.endedStatus')}
                       </span>
                     </td>
                     <td>
                       <div className="action-buttons">
-                        <Link to={`/product/${product.id}`} className="action-btn view" title="View Product" target="_blank">
+                        <Link to={`/product/${product.id}`} className="action-btn view" title={t('sellerProducts.view')} target="_blank">
                           <EyeIcon className="w-4 h-4" />
                         </Link>
-                        <Link to={`/seller/dashboard/products/${product.id}/edit`} className="action-btn edit" title="Edit Product">
+                        <Link to={`/seller/dashboard/products/${product.id}/edit`} className="action-btn edit" title={t('sellerProducts.edit')}>
                           <PencilIcon className="w-4 h-4" />
                         </Link>
                         {product.status !== 'ended' && (
-                          <button onClick={() => handleEndItem(product.id, 'products')} className="action-btn end" title="Mark as Ended">
+                          <button onClick={() => handleEndItem(product.id, 'products')} className="action-btn end" title={t('sellerProducts.end')}>
                             <XMarkIcon className="w-4 h-4" />
                           </button>
                         )}
-                        <button onClick={() => handleDelete(product.id)} className="action-btn delete" title="Delete Permanently">
+                        <button onClick={() => handleDelete(product.id)} className="action-btn delete" title={t('sellerProducts.remove')}>
                           <TrashIcon className="w-4 h-4" />
                         </button>
                       </div>
@@ -290,7 +292,7 @@ const ProductsDashboard = () => {
         .products-table th,
         .products-table td {
           padding: 1rem;
-          text-align: left;
+          text-align: start;
           border-bottom: 1px solid #e5e7eb;
         }
         .products-table th {
@@ -332,7 +334,7 @@ const ProductsDashboard = () => {
         }
         .stock-badge {
           display: inline-block;
-          margin-left: 0.5rem;
+          margin-inline-start: 0.5rem;
           padding: 0.125rem 0.375rem;
           background: #fee2e2;
           color: #ef4444;
