@@ -475,7 +475,7 @@ const createProductRoutes = ({
     db.get(
       `SELECT u.id, u.name, u.bio, u.city, u.country, u.seller_type,
               u.profilePicture AS profile_picture,
-              COALESCE(u.seller_started_at, u.created_at) AS seller_since,
+              u.created_at AS seller_since,
               COUNT(p.id) AS product_count,
               COALESCE(SUM(COALESCE(p.review_count, 0)), 0) AS review_count,
               COALESCE(
@@ -489,7 +489,7 @@ const createProductRoutes = ({
        FROM users u
        LEFT JOIN products p ON p.seller_id = u.id AND ${visibleListingClause}
        WHERE u.id = ?
-       GROUP BY u.id, u.name, u.bio, u.city, u.country, u.seller_type, u.profilePicture, u.seller_started_at, u.created_at`,
+       GROUP BY u.id, u.name, u.bio, u.city, u.country, u.seller_type, u.profilePicture, u.created_at`,
       [sellerId],
       (sellerError, seller) => {
         if (sellerError) return res.status(500).json({ error: 'Unable to load this seller storefront.' });

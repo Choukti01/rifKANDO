@@ -26,10 +26,51 @@ const PublicProfilePage = () => {
     }
 
     try {
-      const response = await api.get(`/sellers/${userId}/storefront`, {
-        params: { page, limit: STORE_PAGE_SIZE },
-      });
-      const payload = response.data;
+      let payload;
+      try {
+        const response = await api.get(`/sellers/${userId}/storefront`, {
+          params: { page, limit: STORE_PAGE_SIZE },
+        });
+        payload = response.data;
+      } catch (storefrontError) {
+        // Keep public seller pages available while a new frontend reaches an
+        // older API instance during a rolling deployment. The fallback uses
+        // only the established public profile and published-listing routes.
+        const status = storefrontError.response?.status;
+        if (append || ![404, 500, 502, 503, 504].includes(status)) throw storefrontError;
+
+        const [profileResponse, productsResponse] = await Promise.all([
+          api.get(`/users/${userId}`),
+          api.get(`/users/${userId}/products`),
+        ]);
+        const legacySeller = profileResponse.data.user;
+        const legacyProducts = productsResponse.data.products || [];
+        const reviewCount = legacyProducts.reduce(
+          (total, product) => total + Number(product.review_count ?? product.reviews_count ?? 0),
+          0,
+        );
+        const ratingTotal = legacyProducts.reduce(
+          (total, product) => total + (Number(product.rating || 0) * Number(product.review_count ?? product.reviews_count ?? 0)),
+          0,
+        );
+        payload = {
+          seller: {
+            id: legacySeller.id,
+            name: legacySeller.name,
+            bio: legacySeller.bio || '',
+            city: legacySeller.city || '',
+            country: legacySeller.country || '',
+            sellerType: legacySeller.seller_type || 'product',
+            profilePicture: legacySeller.profilePicture || '',
+            sellerSince: legacySeller.created_at,
+            activeListings: legacyProducts.length,
+            reviewCount,
+            averageRating: reviewCount ? Math.round((ratingTotal / reviewCount) * 10) / 10 : 0,
+          },
+          products: legacyProducts,
+          pagination: { page: 1, limit: legacyProducts.length, total: legacyProducts.length, totalPages: 1 },
+        };
+      }
       setSeller(payload.seller);
       setProducts((current) => (append ? [...current, ...(payload.products || [])] : (payload.products || [])));
       setPagination(payload.pagination || null);
