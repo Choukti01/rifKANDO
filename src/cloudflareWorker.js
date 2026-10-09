@@ -143,7 +143,18 @@ const applySeo = async (request, response, path) => {
     .on('meta[property="og:url"]', { element: (element) => element.setAttribute('content', canonical) })
     .on('head', { element: (element) => element.append(headMarkup, { html: true }) })
     .transform(response);
-  return withCrawlerHeaders(path, rewritten);
+
+  // The application shell is personalised at the edge per URL. Do not allow a
+  // zone-level cache rule to reuse an old `/` shell for `/products` or another
+  // route after a deployment. Versioned JS, CSS, and media assets keep their
+  // normal long-lived cache behaviour.
+  const headers = new Headers(rewritten.headers);
+  headers.set('Cache-Control', 'no-store, max-age=0');
+  return withCrawlerHeaders(path, new Response(rewritten.body, {
+    headers,
+    status: rewritten.status,
+    statusText: rewritten.statusText,
+  }));
 };
 
 const applyServiceWorkerRecovery = (request, response) => {
