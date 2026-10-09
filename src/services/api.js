@@ -8,6 +8,8 @@ import {
 
 const unsafeMethods = new Set(['post', 'put', 'patch', 'delete']);
 const offlineActionMessage = 'rifKANDO is temporarily unavailable for live actions. You can keep browsing and try again shortly.';
+const DEFAULT_API_TIMEOUT_MS = 25_000;
+const MEDIA_UPLOAD_TIMEOUT_MS = 10 * 60_000;
 const nonRefreshableAuthPaths = [
   '/auth/login',
   '/auth/register',
@@ -38,6 +40,7 @@ export const clearCsrfToken = () => {
 const api = axios.create({
   baseURL: API_URL,
   withCredentials: true,
+  timeout: DEFAULT_API_TIMEOUT_MS,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -47,6 +50,7 @@ const api = axios.create({
 // FormData. Leaving the JSON header in place makes Multer see an empty body on
 // some mobile browsers, even though the selected file is valid.
 export const uploadPublicMedia = (formData, onUploadProgress) => api.post('/upload-media', formData, {
+  timeout: MEDIA_UPLOAD_TIMEOUT_MS,
   headers: { 'Content-Type': undefined },
   transformRequest: [(data, headers) => {
     if (typeof headers?.setContentType === 'function') {
@@ -192,6 +196,7 @@ export const purchaseDigitalProduct = (id) => api.post(`/digital/${id}/purchase`
 export const getMyPurchases = () => api.get('/my-purchases');
 export const getDigitalProductForManagement = (id) => api.get(`/digital/${id}/manage`);
 export const uploadDigitalFile = (formData, onUploadProgress) => api.post('/upload-digital-file', formData, {
+  timeout: MEDIA_UPLOAD_TIMEOUT_MS,
   headers: { 'Content-Type': 'multipart/form-data' },
   onUploadProgress,
 });
@@ -208,6 +213,7 @@ export const createFinditRequest = (requestData) => api.post('/findit/requests',
 export const getMyFinditRequests = () => api.get('/findit/my-requests');
 export const cancelFinditRequest = (id) => api.post(`/findit/requests/${id}/cancel`);
 export const uploadFinditMedia = (formData, onUploadProgress) => api.post('/upload-findit-media', formData, {
+  timeout: MEDIA_UPLOAD_TIMEOUT_MS,
   headers: { 'Content-Type': 'multipart/form-data' },
   onUploadProgress,
 });

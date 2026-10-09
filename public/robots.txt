@@ -1,15 +1,20 @@
-# robots.txt for rifKANDO
+# Search only public, useful rifKANDO pages. Account, operational, payment,
+# and filter pages are intentionally excluded from search results.
 User-agent: *
 Allow: /
-Disallow: /checkout
+Disallow: /admin/
 Disallow: /cart
+Disallow: /checkout
+Disallow: /favorites
+Disallow: /findit/dashboard/
 Disallow: /login
+Disallow: /messages/
+Disallow: /operations/
+Disallow: /orders/
+Disallow: /payment/
 Disallow: /register
-Disallow: /seller/dashboard
-Disallow: /admin
+Disallow: /search
+Disallow: /seller/
+Disallow: /settings/
 
-# Sitemap
-Sitemap: https://rifkando.com/sitemap.xml
-
-# Crawl delay for search engines
-Crawl-delay: 5s
+Sitemap: https://www.rifkando.com/sitemap.xml

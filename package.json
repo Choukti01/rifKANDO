@@ -13,6 +13,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:seo": "node scripts/verifySeo.cjs",
     "test:repository-hygiene": "node scripts/verifyRepositoryHygiene.cjs",
     "build": "vite build",
     "postbuild": "node scripts/removeCloudflareRedirect.cjs",

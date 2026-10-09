@@ -11,6 +11,8 @@ import toast from 'react-hot-toast';
 import MediaGallery from '../../components/MediaGallery';
 import MarketplaceImage from '../../components/common/MarketplaceImage';
 import { getImageUrl } from '../../utils/imageUtils';
+import SeoHead from '../../components/seo/SeoHead';
+import { SEO_ORIGIN as seoOrigin } from '../../components/seo/seoConfig';
 
 const ProductDetailsPage = () => {
   const { t, i18n } = useTranslation();
@@ -271,7 +273,54 @@ const ProductDetailsPage = () => {
     { maximumFractionDigits: 2 }
   ).format(Number(amount || 0));
 
+  const productPath = `/product/${product.id}`;
+  const primarySeoMedia = media.find((item) => item.media_type === 'image') || primaryMedia;
+  const seoImage = primarySeoMedia?.media_url ? getImageUrl(primarySeoMedia.media_url) : `${seoOrigin}/rifkando-app-icon-512.png`;
+  const seoDescription = String(product.description || `${product.title} available on rifKANDO.`).replace(/\s+/g, ' ').trim().slice(0, 160);
+  const reviewCount = Number(totalReviews || 0);
+  const productSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: product.title,
+    image: primarySeoMedia?.media_url ? [seoImage] : undefined,
+    description: seoDescription,
+    url: `${seoOrigin}${productPath}`,
+    offers: {
+      '@type': 'Offer',
+      priceCurrency: 'MAD',
+      price: Number(productPrice).toFixed(2),
+      availability: stock > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+      url: `${seoOrigin}${productPath}`,
+      seller: { '@type': 'Organization', name: product.seller_name || 'rifKANDO seller' },
+    },
+    ...(reviewCount > 0 ? {
+      aggregateRating: {
+        '@type': 'AggregateRating',
+        ratingValue: Number(averageRating || 0).toFixed(1),
+        reviewCount,
+      },
+    } : {}),
+  };
+  const breadcrumbSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'rifKANDO', item: seoOrigin },
+      { '@type': 'ListItem', position: 2, name: 'Products', item: `${seoOrigin}/products` },
+      { '@type': 'ListItem', position: 3, name: product.title, item: `${seoOrigin}${productPath}` },
+    ],
+  };
+
   return (
+    <>
+      <SeoHead
+        path={productPath}
+        title={`${product.title} | rifKANDO`}
+        description={seoDescription}
+        image={seoImage}
+        type="product"
+        jsonLd={[productSchema, breadcrumbSchema]}
+      />
     <div className="product-details">
       <div className="container">
         <nav className="product-breadcrumb" aria-label="Breadcrumb">
@@ -728,6 +777,7 @@ const ProductDetailsPage = () => {
         }
       `}</style>
     </div>
+    </>
   );
 };
 

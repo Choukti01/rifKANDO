@@ -39,6 +39,33 @@ describe('Cloudflare Worker catalog snapshot route', () => {
     expect(assetsFetch).not.toHaveBeenCalled();
   });
 
+  it('serves a canonical sitemap even while the catalogue API is unavailable', async () => {
+    const upstreamFetch = vi.fn().mockRejectedValue(new Error('offline'));
+    const assetsFetch = vi.fn();
+    vi.stubGlobal('fetch', upstreamFetch);
+
+    const response = await worker.fetch(
+      new Request('https://www.rifkando.com/sitemap.xml'),
+      { ASSETS: { fetch: assetsFetch } },
+    );
+
+    const sitemap = await response.text();
+    expect(response.headers.get('content-type')).toContain('application/xml');
+    expect(sitemap).toContain('<loc>https://www.rifkando.com/products</loc>');
+    expect(sitemap).toContain('<loc>https://www.rifkando.com/findit</loc>');
+    expect(sitemap).not.toContain('/login</loc>');
+    expect(assetsFetch).not.toHaveBeenCalled();
+  });
+
+  it('adds a noindex header to private app pages', async () => {
+    const response = await worker.fetch(
+      new Request('https://www.rifkando.com/checkout', { headers: { Accept: 'text/html' } }),
+      { ASSETS: { fetch: vi.fn().mockResolvedValue(new Response('<!doctype html>', { headers: { 'Content-Type': 'text/html' } })) } },
+    );
+
+    expect(response.headers.get('x-robots-tag')).toBe('noindex, nofollow, noarchive');
+  });
+
   it('removes the legacy service worker once for a browser navigation', async () => {
     const response = await worker.fetch(
       new Request('https://www.rifkando.com/', { headers: { Accept: 'text/html' } }),

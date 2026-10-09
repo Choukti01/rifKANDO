@@ -79,6 +79,7 @@ import PageTransition from './components/common/PageTransition'
 import UnderDevelopment from './components/common/UnderDevelopment'
 import MarketplaceBrowsingNotice from './components/common/MarketplaceBrowsingNotice'
 import NotFoundPage from './components/common/NotFoundPage'
+import RouteSeo from './components/seo/RouteSeo'
 import { API_ORIGIN } from './config/apiUrl'
 
 const PageLoadingFallback = () => (
@@ -136,6 +137,7 @@ function AppContent() {
         <CartProvider>
           <FavoritesProvider>
             <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+              <RouteSeo />
               <Navbar />
               {apiAvailable === false && <MarketplaceBrowsingNotice onRetry={() => { setApiAvailable(null); setAvailabilityAttempt((attempt) => attempt + 1) }} />}
               <main className="app-main">

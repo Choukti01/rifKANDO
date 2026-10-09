@@ -5,6 +5,8 @@ import { useTranslation } from 'react-i18next';
 import api from '../../services/api';
 import MarketplaceImage from '../../components/common/MarketplaceImage';
 import { getImageUrl } from '../../utils/imageUtils';
+import SeoHead from '../../components/seo/SeoHead';
+import { SEO_ORIGIN as seoOrigin } from '../../components/seo/seoConfig';
 
 const STORE_PAGE_SIZE = 24;
 
@@ -121,8 +123,40 @@ const PublicProfilePage = () => {
   const joinedDate = formatJoinedDate(seller.sellerSince);
   const location = [seller.city, seller.country].filter(Boolean).join(', ');
   const hasMore = pagination && pagination.page < pagination.totalPages;
+  const storefrontPath = `/profile/${seller.id}`;
+  const storefrontDescription = String(seller.bio || `${seller.name} sells products on rifKANDO.`).replace(/\s+/g, ' ').trim().slice(0, 160);
+  const storefrontImage = seller.profilePicture ? getImageUrl(seller.profilePicture) : `${seoOrigin}/rifkando-app-icon-512.png`;
+  const storefrontReviewCount = Number(seller.reviewCount || 0);
+  const storefrontSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'ProfilePage',
+    name: `${seller.name} | rifKANDO seller storefront`,
+    description: storefrontDescription,
+    url: `${seoOrigin}${storefrontPath}`,
+    mainEntity: {
+      '@type': 'Person',
+      name: seller.name,
+      image: storefrontImage,
+      ...(location ? { address: { '@type': 'PostalAddress', addressLocality: seller.city || undefined, addressCountry: seller.country || 'Morocco' } } : {}),
+      ...(storefrontReviewCount > 0 ? {
+        aggregateRating: {
+          '@type': 'AggregateRating',
+          ratingValue: Number(seller.averageRating || 0).toFixed(1),
+          reviewCount: storefrontReviewCount,
+        },
+      } : {}),
+    },
+  };
 
   return (
+    <>
+      <SeoHead
+        path={storefrontPath}
+        title={`${seller.name} | rifKANDO Seller Storefront`}
+        description={storefrontDescription}
+        image={storefrontImage}
+        jsonLd={storefrontSchema}
+      />
     <main className="seller-storefront">
       <div className="storefront-shell">
         <Link to="/products" className="storefront-back">← {t('storefront.backToProducts')}</Link>
@@ -251,6 +285,7 @@ const PublicProfilePage = () => {
         @media (max-width: 390px) { .storefront-hero { grid-template-columns: 1fr; text-align: center; } .storefront-avatar { margin: 0 auto; } .storefront-meta { justify-content: center; } .storefront-product-grid { grid-template-columns: 1fr; } .storefront-product-media { height: 12rem; } }
       `}</style>
     </main>
+    </>
   );
 };
 
