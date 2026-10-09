@@ -1,5 +1,3 @@
-/* global HTMLRewriter */
-
 const CANONICAL_ORIGIN = 'https://www.rifkando.com';
 const API_ORIGIN = 'https://api.rifkando.com/api';
 const PUBLIC_CATALOG_SNAPSHOT_URL = 'https://media.rifkando.com/public/catalog/latest.json';
@@ -122,7 +120,7 @@ const withCrawlerHeaders = (path, response) => {
 
 const applySeo = async (request, response, path) => {
   const contentType = response.headers.get('content-type') || '';
-  if (!isHtmlNavigation(request) || !contentType.includes('text/html') || typeof HTMLRewriter !== 'function') return withCrawlerHeaders(path, response);
+  if (!isHtmlNavigation(request) || !contentType.includes('text/html')) return withCrawlerHeaders(path, response);
 
   const metadata = await getPageMetadata(path);
   const canonical = `${CANONICAL_ORIGIN}${path}`;
@@ -136,24 +134,27 @@ const applySeo = async (request, response, path) => {
     `<meta name="twitter:description" content="${escapeHtml(metadata.description)}">`, `<meta name="twitter:image" content="${escapeHtml(metadata.image)}">`, schema,
   ].join('');
 
-  const rewritten = new HTMLRewriter()
-    .on('title', { element: (element) => element.setInnerContent(metadata.title) })
-    .on('meta[name="description"]', { element: (element) => element.setAttribute('content', metadata.description) })
-    .on('link[rel="canonical"]', { element: (element) => element.setAttribute('href', canonical) })
-    .on('meta[property="og:url"]', { element: (element) => element.setAttribute('content', canonical) })
-    .on('head', { element: (element) => element.append(headMarkup, { html: true }) })
-    .transform(response);
+  // The application shell is deliberately small. Rewriting this known static
+  // document avoids depending on a platform-specific HTML streaming API and
+  // ensures metadata is present before React starts on every public route.
+  const html = await response.text();
+  const rewrittenHtml = html
+    .replace(/<title>[\s\S]*?<\/title>/i, `<title>${escapeHtml(metadata.title)}</title>`)
+    .replace(/<meta\s+name=["']description["'][^>]*>/i, `<meta name="description" content="${escapeHtml(metadata.description)}" />`)
+    .replace(/<link\s+rel=["']canonical["'][^>]*>/i, `<link rel="canonical" href="${canonical}" />`)
+    .replace(/<meta\s+property=["']og:url["'][^>]*>/i, `<meta property="og:url" content="${canonical}" />`)
+    .replace(/<\/head>/i, `${headMarkup}</head>`);
 
   // The application shell is personalised at the edge per URL. Do not allow a
   // zone-level cache rule to reuse an old `/` shell for `/products` or another
   // route after a deployment. Versioned JS, CSS, and media assets keep their
   // normal long-lived cache behaviour.
-  const headers = new Headers(rewritten.headers);
+  const headers = new Headers(response.headers);
   headers.set('Cache-Control', 'no-store, max-age=0');
-  return withCrawlerHeaders(path, new Response(rewritten.body, {
+  return withCrawlerHeaders(path, new Response(rewrittenHtml, {
     headers,
-    status: rewritten.status,
-    statusText: rewritten.statusText,
+    status: response.status,
+    statusText: response.statusText,
   }));
 };
 

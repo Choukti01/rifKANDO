@@ -66,6 +66,20 @@ describe('Cloudflare Worker catalog snapshot route', () => {
     expect(response.headers.get('x-robots-tag')).toBe('noindex, nofollow, noarchive');
   });
 
+  it('writes route-specific metadata into public HTML before React loads', async () => {
+    const document = '<!doctype html><html><head><meta name="description" content="old"><link rel="canonical" href="https://www.rifkando.com/"><meta property="og:url" content="https://www.rifkando.com/"><title>old</title></head><body><div id="root"></div></body></html>';
+    const response = await worker.fetch(
+      new Request('https://www.rifkando.com/products', { headers: { Accept: 'text/html' } }),
+      { ASSETS: { fetch: vi.fn().mockResolvedValue(new Response(document, { headers: { 'Content-Type': 'text/html' } })) } },
+    );
+
+    const html = await response.text();
+    expect(html).toContain('<title>Products in Morocco | New, Used as New and Joutiya | rifKANDO</title>');
+    expect(html).toContain('<link rel="canonical" href="https://www.rifkando.com/products" />');
+    expect(html).toContain('name="robots" content="index,follow,max-image-preview:large"');
+    expect(response.headers.get('cache-control')).toBe('no-store, max-age=0');
+  });
+
   it('removes the legacy service worker once for a browser navigation', async () => {
     const response = await worker.fetch(
       new Request('https://www.rifkando.com/', { headers: { Accept: 'text/html' } }),
