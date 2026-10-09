@@ -1,3 +1,5 @@
+/* global HTMLRewriter */
+
 const CANONICAL_ORIGIN = 'https://www.rifkando.com';
 const API_ORIGIN = 'https://api.rifkando.com/api';
 const PUBLIC_CATALOG_SNAPSHOT_URL = 'https://media.rifkando.com/public/catalog/latest.json';
@@ -120,8 +122,7 @@ const withCrawlerHeaders = (path, response) => {
 
 const applySeo = async (request, response, path) => {
   const contentType = response.headers.get('content-type') || '';
-  const HtmlRewriter = globalThis.HTMLRewriter;
-  if (!isHtmlNavigation(request) || !contentType.includes('text/html') || typeof HtmlRewriter !== 'function') return withCrawlerHeaders(path, response);
+  if (!isHtmlNavigation(request) || !contentType.includes('text/html') || typeof HTMLRewriter !== 'function') return withCrawlerHeaders(path, response);
 
   const metadata = await getPageMetadata(path);
   const canonical = `${CANONICAL_ORIGIN}${path}`;
@@ -135,7 +136,7 @@ const applySeo = async (request, response, path) => {
     `<meta name="twitter:description" content="${escapeHtml(metadata.description)}">`, `<meta name="twitter:image" content="${escapeHtml(metadata.image)}">`, schema,
   ].join('');
 
-  const rewritten = new HtmlRewriter()
+  const rewritten = new HTMLRewriter()
     .on('title', { element: (element) => element.setInnerContent(metadata.title) })
     .on('meta[name="description"]', { element: (element) => element.setAttribute('content', metadata.description) })
     .on('link[rel="canonical"]', { element: (element) => element.setAttribute('href', canonical) })
