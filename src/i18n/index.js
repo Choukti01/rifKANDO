@@ -84,6 +84,7 @@ Object.assign(resources.en.translation, {
       openRequests: 'Open buyer requests',
       requestsHeading: 'Requests sellers can solve now',
       requestsDescription: 'Each request is independent from Products and only shows the details needed to make an offer.',
+      discoverLabel: 'Find buyer requests', searchPlaceholder: 'Search buyer requests...', allCategories: 'All categories', cityPlaceholder: 'Filter by delivery city', sort: 'Sort requests', sortNewest: 'Newest first', sortOffers: 'Most seller offers', sortBudgetAsc: 'Lowest budget first', sortBudgetDesc: 'Highest budget first', emptyFiltered: 'No open request matches those filters. Clear them or post the request you need.',
       dashboard: 'My FINDit dashboard',
       loading: 'Loading FINDit requests...',
       emptyTitle: 'No open requests yet',
@@ -566,7 +567,7 @@ Object.assign(resources.en.translation, {
   products: {
     loading: 'Loading products', title: 'Products', lead: 'Discover trusted products from Moroccan sellers.',
     search: 'Search', searchPlaceholder: 'Search products...', filters: 'Filters', clearFilters: 'Clear filters',
-    category: 'Category', allCategories: 'All categories', minPrice: 'Min price', maxPrice: 'Max price', sort: 'Sort products',
+    category: 'Category', allCategories: 'All categories', city: 'Seller city', cityPlaceholder: 'Filter by city', browseByCity: 'Browse by city', fromCity: 'From {{city}}', minPrice: 'Min price', maxPrice: 'Max price', sort: 'Sort products',
     sortNewest: 'Newest first', sortPriceAsc: 'Price: low to high', sortPriceDesc: 'Price: high to low', sortRating: 'Top rated', sortPopular: 'Most popular',
     activeFilters: 'Active filters', from: 'From', upTo: 'Up to', results: '{{count}} products found{{filters}}', withFilters: 'with {{count}} active filters',
     viewMedia: 'View media for {{title}}', video: 'Video', itemCount: '{{count}} items', by: 'by', unknownSeller: 'Unknown seller', reviewCount: '{{count}} reviews',
@@ -580,7 +581,7 @@ Object.assign(resources.fr.translation, {
   products: {
     loading: 'Chargement des produits', title: 'Produits', lead: 'Découvrez des produits fiables proposés par des vendeurs marocains.',
     search: 'Rechercher', searchPlaceholder: 'Rechercher des produits...', filters: 'Filtres', clearFilters: 'Effacer les filtres',
-    category: 'Catégorie', allCategories: 'Toutes les catégories', minPrice: 'Prix minimum', maxPrice: 'Prix maximum', sort: 'Trier les produits',
+    category: 'Catégorie', allCategories: 'Toutes les catégories', city: 'Ville du vendeur', cityPlaceholder: 'Filtrer par ville', browseByCity: 'Parcourir par ville', fromCity: 'Depuis {{city}}', minPrice: 'Prix minimum', maxPrice: 'Prix maximum', sort: 'Trier les produits',
     sortNewest: 'Plus récents', sortPriceAsc: 'Prix : croissant', sortPriceDesc: 'Prix : décroissant', sortRating: 'Mieux notés', sortPopular: 'Les plus populaires',
     activeFilters: 'Filtres actifs', from: 'À partir de', upTo: 'Jusqu’à', results: '{{count}} produits trouvés{{filters}}', withFilters: 'avec {{count}} filtres actifs',
     viewMedia: 'Voir les médias de {{title}}', video: 'Vidéo', itemCount: '{{count}} éléments', by: 'par', unknownSeller: 'Vendeur inconnu', reviewCount: '{{count}} avis',
@@ -594,7 +595,7 @@ Object.assign(resources.ar.translation, {
   products: {
     loading: 'جارٍ تحميل المنتجات', title: 'المنتجات', lead: 'اكتشف منتجات موثوقة من بائعين مغاربة.',
     search: 'بحث', searchPlaceholder: 'ابحث عن منتجات...', filters: 'التصفية', clearFilters: 'مسح التصفية',
-    category: 'الفئة', allCategories: 'كل الفئات', minPrice: 'أقل سعر', maxPrice: 'أعلى سعر', sort: 'ترتيب المنتجات',
+    category: 'الفئة', allCategories: 'كل الفئات', city: 'مدينة البائع', cityPlaceholder: 'التصفية حسب المدينة', browseByCity: 'تصفّح حسب المدينة', fromCity: 'من {{city}}', minPrice: 'أقل سعر', maxPrice: 'أعلى سعر', sort: 'ترتيب المنتجات',
     sortNewest: 'الأحدث أولًا', sortPriceAsc: 'السعر: من الأقل إلى الأعلى', sortPriceDesc: 'السعر: من الأعلى إلى الأقل', sortRating: 'الأعلى تقييمًا', sortPopular: 'الأكثر رواجًا',
     activeFilters: 'الفلاتر النشطة', from: 'من', upTo: 'حتى', results: 'تم العثور على {{count}} منتج{{filters}}', withFilters: 'مع {{count}} فلترًا نشطًا',
     viewMedia: 'عرض وسائط {{title}}', video: 'فيديو', itemCount: '{{count}} عناصر', by: 'بواسطة', unknownSeller: 'بائع غير معروف', reviewCount: '{{count}} مراجعات',
@@ -746,6 +747,15 @@ Object.assign(resources.ar.translation, {
   storefront: {
     loading: 'جارٍ تحميل واجهة البائع…', notFound: 'واجهة هذا البائع غير متاحة', loadFailed: 'تعذر تحميل واجهة البائع', errorLead: 'حاول مرة أخرى بعد لحظات أو واصل تصفح الإعلانات النشطة.', backToProducts: 'العودة إلى المنتجات', eyebrow: 'واجهة بائع rifKANDO', sellingSince: 'يبيع منذ {{date}}', reputationLabel: 'سمعة البائع', reviews_one: '{{count}} مراجعة موثّقة', reviews_other: '{{count}} مراجعة موثّقة', activeListings: 'إعلانات نشطة', listingsEyebrow: 'متاح الآن', listingsTitle: 'إعلانات {{name}}', listingCount_one: '{{count}} إعلان', listingCount_other: '{{count}} إعلانات', emptyTitle: 'لا توجد إعلانات نشطة حاليًا', emptyLead: 'لا يملك هذا البائع منتجات متاحة الآن. اكتشف منتجات أخرى على rifKANDO.', browseProducts: 'تصفح المنتجات', loadMore: 'تحميل مزيد من الإعلانات', loadingMore: 'جارٍ تحميل الإعلانات…',
   },
+});
+
+resources.fr.translation.findit = resources.fr.translation.findit || {};
+resources.fr.translation.findit.public = resources.fr.translation.findit.public || {};
+Object.assign(resources.fr.translation.findit.public, {
+  discoverLabel: 'Trouver des demandes d’acheteurs', searchPlaceholder: 'Rechercher des demandes…', allCategories: 'Toutes les catégories', cityPlaceholder: 'Filtrer par ville de livraison', sort: 'Trier les demandes', sortNewest: 'Plus récentes', sortOffers: 'Le plus d’offres vendeurs', sortBudgetAsc: 'Budget le plus bas', sortBudgetDesc: 'Budget le plus élevé', emptyFiltered: 'Aucune demande ouverte ne correspond à ces filtres. Effacez-les ou publiez votre demande.',
+});
+Object.assign(resources.ar.translation.findit.public, {
+  discoverLabel: 'البحث في طلبات المشترين', searchPlaceholder: 'ابحث في طلبات المشترين...', allCategories: 'كل الفئات', cityPlaceholder: 'التصفية حسب مدينة التوصيل', sort: 'ترتيب الطلبات', sortNewest: 'الأحدث أولًا', sortOffers: 'أكبر عدد من عروض البائعين', sortBudgetAsc: 'أقل ميزانية أولًا', sortBudgetDesc: 'أعلى ميزانية أولًا', emptyFiltered: 'لا يوجد طلب مفتوح يطابق هذه التصفية. امسحها أو انشر طلبك.',
 });
 
 const replaceArabicFinditBrand = (value) => {

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import useCart from '../../hooks/useCart';
 import useAuth from '../../hooks/useAuth';
@@ -10,25 +10,29 @@ import { getImageUrl } from '../../utils/imageUtils';
 import LoadingSkeleton from '../../components/common/LoadingSkeleton';
 import MarketplaceImage from '../../components/common/MarketplaceImage';
 import ServiceUnavailableState from '../../components/common/ServiceUnavailableState';
+import { featuredMarketplaceCities, marketplaceCities } from '../../constants/marketplaceLocations';
 
 const ProductsPage = () => {
   const { t, i18n } = useTranslation();
+  const [urlSearchParams, setUrlSearchParams] = useSearchParams();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [galleryProduct, setGalleryProduct] = useState(null);
   const { addToCart } = useCart();
   const { isAuthenticated, user } = useAuth();
   
-  const [activeCondition, setActiveCondition] = useState('new');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [minPrice, setMinPrice] = useState('');
-  const [maxPrice, setMaxPrice] = useState('');
-  const [sortBy, setSortBy] = useState('newest');
+  const [activeCondition, setActiveCondition] = useState(() => urlSearchParams.get('condition') || 'new');
+  const [searchTerm, setSearchTerm] = useState(() => urlSearchParams.get('search') || '');
+  const [selectedCategory, setSelectedCategory] = useState(() => urlSearchParams.get('category') || '');
+  const [city, setCity] = useState(() => urlSearchParams.get('city') || '');
+  const [minPrice, setMinPrice] = useState(() => urlSearchParams.get('minPrice') || '');
+  const [maxPrice, setMaxPrice] = useState(() => urlSearchParams.get('maxPrice') || '');
+  const [sortBy, setSortBy] = useState(() => urlSearchParams.get('sortBy') || 'newest');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalProducts, setTotalProducts] = useState(0);
-  const [searchInput, setSearchInput] = useState('');
+  const [searchInput, setSearchInput] = useState(() => urlSearchParams.get('search') || '');
+  const [cityInput, setCityInput] = useState(() => urlSearchParams.get('city') || '');
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [loadError, setLoadError] = useState(null);
   const [retryKey, setRetryKey] = useState(0);
@@ -39,6 +43,7 @@ const ProductsPage = () => {
     const params = new URLSearchParams();
     if (searchTerm) params.append('search', searchTerm);
     if (selectedCategory) params.append('category', selectedCategory);
+    if (city) params.append('city', city);
     if (minPrice) params.append('minPrice', minPrice);
     if (maxPrice) params.append('maxPrice', maxPrice);
     if (sortBy) params.append('sortBy', sortBy);
@@ -48,7 +53,20 @@ const ProductsPage = () => {
 
     const response = await api.get(`/products?${params.toString()}`);
     return response.data;
-  }, [activeCondition, currentPage, maxPrice, minPrice, searchTerm, selectedCategory, sortBy]);
+  }, [activeCondition, city, currentPage, maxPrice, minPrice, searchTerm, selectedCategory, sortBy]);
+
+  useEffect(() => {
+    const next = new URLSearchParams();
+    if (activeCondition !== 'new') next.set('condition', activeCondition);
+    if (searchTerm) next.set('search', searchTerm);
+    if (selectedCategory) next.set('category', selectedCategory);
+    if (city) next.set('city', city);
+    if (minPrice) next.set('minPrice', minPrice);
+    if (maxPrice) next.set('maxPrice', maxPrice);
+    if (sortBy !== 'newest') next.set('sortBy', sortBy);
+    const current = urlSearchParams.toString();
+    if (current !== next.toString()) setUrlSearchParams(next, { replace: true });
+  }, [activeCondition, city, maxPrice, minPrice, searchTerm, selectedCategory, setUrlSearchParams, sortBy, urlSearchParams]);
 
   useEffect(() => {
     let isCurrent = true;
@@ -104,13 +122,15 @@ const ProductsPage = () => {
   };
   const categoryLabel = (category) => t(`products.categories.${category}`);
 
-  const hasActiveFilters = Boolean(searchTerm || selectedCategory || minPrice || maxPrice);
-  const activeFilterCount = [searchTerm, selectedCategory, minPrice, maxPrice].filter(Boolean).length;
+  const hasActiveFilters = Boolean(searchTerm || selectedCategory || city || minPrice || maxPrice);
+  const activeFilterCount = [searchTerm, selectedCategory, city, minPrice, maxPrice].filter(Boolean).length;
 
   const clearFilters = () => {
     setSearchInput('');
+    setCityInput('');
     setSearchTerm('');
     setSelectedCategory('');
+    setCity('');
     setMinPrice('');
     setMaxPrice('');
     setCurrentPage(1);
@@ -120,6 +140,13 @@ const ProductsPage = () => {
   const applySearch = (event) => {
     event.preventDefault();
     setSearchTerm(searchInput.trim());
+    setCity(cityInput.trim());
+    setCurrentPage(1);
+  };
+
+  const selectCity = (nextCity) => {
+    setCityInput(nextCity);
+    setCity(nextCity);
     setCurrentPage(1);
   };
 
@@ -156,6 +183,7 @@ const ProductsPage = () => {
                 <option value="">{t('products.allCategories')}</option>
                 {categories.map(cat => <option key={cat} value={cat}>{categoryLabel(cat)}</option>)}
               </select>
+              <input type="text" list="marketplace-city-options" maxLength="100" placeholder={t('products.cityPlaceholder')} value={cityInput} onChange={(e) => setCityInput(e.target.value)} className="filter-select" aria-label={t('products.city')} />
               <input type="number" min="0" placeholder={t('products.minPrice')} value={minPrice} onChange={(e) => { setMinPrice(e.target.value); setCurrentPage(1); }} className="price-input" aria-label={t('products.minPrice')} />
               <input type="number" min="0" placeholder={t('products.maxPrice')} value={maxPrice} onChange={(e) => { setMaxPrice(e.target.value); setCurrentPage(1); }} className="price-input" aria-label={t('products.maxPrice')} />
               <select value={sortBy} onChange={(e) => { setSortBy(e.target.value); setCurrentPage(1); }} className="filter-select" aria-label={t('products.sort')}>
@@ -167,10 +195,22 @@ const ProductsPage = () => {
               </select>
             </div>
           </div>
+          <div className="location-shortcuts" aria-label={t('products.browseByCity')}>
+            <span>{t('products.browseByCity')}</span>
+            <div>
+              {featuredMarketplaceCities.map((featuredCity) => (
+                <button key={featuredCity} type="button" className={city === featuredCity ? 'is-active' : ''} onClick={() => selectCity(featuredCity)}>{featuredCity}</button>
+              ))}
+            </div>
+          </div>
+          <datalist id="marketplace-city-options">
+            {marketplaceCities.map((marketplaceCity) => <option key={marketplaceCity} value={marketplaceCity} />)}
+          </datalist>
           {hasActiveFilters && (
             <div className="active-filters" aria-label={t('products.activeFilters')}>
               {searchTerm && <button type="button" className="filter-chip" onClick={() => { setSearchInput(''); setSearchTerm(''); setCurrentPage(1); }}>{t('products.search')}: {searchTerm} <span aria-hidden="true">×</span></button>}
               {selectedCategory && <button type="button" className="filter-chip" onClick={() => { setSelectedCategory(''); setCurrentPage(1); }}>{selectedCategory} <span aria-hidden="true">×</span></button>}
+              {city && <button type="button" className="filter-chip" onClick={() => { setCityInput(''); setCity(''); setCurrentPage(1); }}>{t('products.city')}: {city} <span aria-hidden="true">×</span></button>}
               {minPrice && <button type="button" className="filter-chip" onClick={() => { setMinPrice(''); setCurrentPage(1); }}>{t('products.from')} {minPrice} MAD <span aria-hidden="true">×</span></button>}
               {maxPrice && <button type="button" className="filter-chip" onClick={() => { setMaxPrice(''); setCurrentPage(1); }}>{t('products.upTo')} {maxPrice} MAD <span aria-hidden="true">×</span></button>}
             </div>
@@ -217,6 +257,7 @@ const ProductsPage = () => {
                 <p>
                   {t('products.by')} <Link to={`/profile/${product.seller_id}`} className="seller-link">{product.seller_name || t('products.unknownSeller')}</Link>
                 </p>
+                {product.listing_city && <p className="product-location">{t('products.fromCity', { city: product.listing_city })}</p>}
                 <div className="product-rating">⭐ {product.rating || 0} ({t('products.reviewCount', { count: product.review_count ?? product.reviews_count ?? 0 })})</div>
                 <div className="product-price">
                   <span className="current-price">{formatAmount(productPrice)} MAD</span>
@@ -283,6 +324,11 @@ const ProductsPage = () => {
         .active-filters { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0 0 1rem; }
         .filter-chip { display: inline-flex; min-height: 32px; align-items: center; gap: 0.35rem; padding: 0.35rem 0.65rem; background: rgba(135, 206, 235, 0.2); border: 1px solid rgba(95, 158, 160, 0.28); border-radius: 999px; color: #1f2937; font-size: 0.8rem; font-weight: 600; cursor: pointer; }
         .filter-chip:hover { background: rgba(135, 206, 235, 0.34); }
+        .location-shortcuts { align-items: center; display: flex; flex-wrap: wrap; gap: .55rem; margin: 0 0 1rem; }
+        .location-shortcuts > span { color: #53657a; font-size: .78rem; font-weight: 700; }
+        .location-shortcuts > div { display: flex; flex-wrap: wrap; gap: .4rem; }
+        .location-shortcuts button { background: #f4f8fb; border: 1px solid #d7e4ed; border-radius: 999px; color: #355467; cursor: pointer; font-size: .75rem; font-weight: 700; min-height: 32px; padding: .3rem .6rem; }
+        .location-shortcuts button:hover, .location-shortcuts button:focus-visible, .location-shortcuts button.is-active { background: rgba(74, 166, 225, .16); border-color: var(--color-brand-blue); color: var(--color-brand-ink); outline: none; }
         .results-count { font-size: 0.875rem; color: #6b7280; text-align: right; }
         .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
         .product-card { display: flex; flex-direction: column; background: white; border-radius: 1rem; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); transition: all 0.3s; position: relative; }
@@ -295,6 +341,7 @@ const ProductsPage = () => {
         .condition-badge { position: absolute; top: 0.5rem; right: 0.5rem; background: #87CEEB; color: #1a1a1a; padding: 0.25rem 0.5rem; border-radius: 0.5rem; font-size: 0.7rem; font-weight: 500; }
         .product-card h3 { font-size: 1rem; margin: 0.75rem 1rem 0.25rem; }
         .product-card p { font-size: 0.75rem; color: #6b7280; margin: 0 1rem 0.5rem; }
+        .product-card .product-location { color: #426274; font-weight: 650; margin-top: -0.2rem; }
         .seller-link { color: #87CEEB; text-decoration: none; }
         .product-rating { font-size: 0.7rem; color: #f59e0b; margin: 0 1rem 0.5rem; }
         .product-price { margin: 0 1rem 0.5rem; display: flex; gap: 0.5rem; align-items: baseline; }
@@ -316,6 +363,7 @@ const ProductsPage = () => {
         @media (max-width: 768px) {
           .condition-tabs { gap: 0.25rem; }
           .condition-tabs .tab-btn { flex: 1; min-height: 44px; padding: 0.5rem; font-size: 0.8rem; }
+          .location-shortcuts { align-items: flex-start; flex-direction: column; }
           .filters-toggle { display: inline-flex; align-items: center; }
           .filter-fields { display: none; }
           .filter-fields.filter-fields-open { display: block; }

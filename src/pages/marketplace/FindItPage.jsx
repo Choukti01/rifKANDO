@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useCallback, useEffect, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
   ArrowRightIcon,
@@ -14,6 +14,7 @@ import MarketplaceImage from '../../components/common/MarketplaceImage';
 import ServiceUnavailableState from '../../components/common/ServiceUnavailableState';
 import useAuth from '../../hooks/useAuth';
 import { useTranslation } from 'react-i18next';
+import { featuredMarketplaceCities, marketplaceCities } from '../../constants/marketplaceLocations';
 
 const formatExpiry = (expiresAt, language) => new Date(expiresAt).toLocaleDateString(language === 'ar' ? 'ar-MA' : undefined, {
   month: 'short',
@@ -25,22 +26,57 @@ const formatMoney = (value) => `${Number(value || 0).toLocaleString()} MAD`;
 const FindItPage = () => {
   const { isAuthenticated, user } = useAuth();
   const { t, i18n } = useTranslation();
+  const [urlSearchParams, setUrlSearchParams] = useSearchParams();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [loadError, setLoadError] = useState(null);
   const [retryKey, setRetryKey] = useState(0);
   const [pagination, setPagination] = useState({ page: 1, hasNextPage: false });
+  const [search, setSearch] = useState(() => urlSearchParams.get('search') || '');
+  const [searchInput, setSearchInput] = useState(() => urlSearchParams.get('search') || '');
+  const [category, setCategory] = useState(() => urlSearchParams.get('category') || '');
+  const [city, setCity] = useState(() => urlSearchParams.get('city') || '');
+  const [cityInput, setCityInput] = useState(() => urlSearchParams.get('city') || '');
+  const [sortBy, setSortBy] = useState(() => urlSearchParams.get('sortBy') || 'newest');
+
+  const categories = ['Auto & Parts', 'Phones & Electronics', 'Home & Appliances', 'Tools & Equipment', 'Fashion & Accessories', 'Other'];
+  const hasFilters = Boolean(search || category || city || sortBy !== 'newest');
+
+  const requestParams = useCallback((page) => ({
+    page,
+    limit: 24,
+    ...(search ? { search } : {}),
+    ...(category ? { category } : {}),
+    ...(city ? { city } : {}),
+    ...(sortBy !== 'newest' ? { sortBy } : {}),
+  }), [category, city, search, sortBy]);
+
+  const fetchRequests = useCallback(async (page = 1) => {
+    const response = await getFinditRequests(requestParams(page));
+    return {
+      requests: response.data.requests || [],
+      pagination: response.data.pagination || { page, hasNextPage: false },
+    };
+  }, [requestParams]);
+
+  useEffect(() => {
+    const next = new URLSearchParams();
+    if (search) next.set('search', search);
+    if (category) next.set('category', category);
+    if (city) next.set('city', city);
+    if (sortBy !== 'newest') next.set('sortBy', sortBy);
+    if (next.toString() !== urlSearchParams.toString()) setUrlSearchParams(next, { replace: true });
+  }, [category, city, search, setUrlSearchParams, sortBy, urlSearchParams]);
 
   useEffect(() => {
     let current = true;
 
-    getFinditRequests({ page: 1, limit: 24 })
-      .then((response) => {
-        if (current) {
-          setRequests(response.data.requests || []);
-          setPagination(response.data.pagination || { page: 1, hasNextPage: false });
-        }
+    fetchRequests()
+      .then((data) => {
+        if (!current) return;
+        setRequests(data.requests);
+        setPagination(data.pagination);
       })
       .catch((error) => {
         if (current) {
@@ -55,7 +91,7 @@ const FindItPage = () => {
     return () => {
       current = false;
     };
-  }, [retryKey]);
+  }, [fetchRequests, retryKey]);
 
   const retryFinditRequests = () => {
     setLoading(true);
@@ -67,13 +103,12 @@ const FindItPage = () => {
     if (loadingMore || !pagination.hasNextPage) return;
     setLoadingMore(true);
     try {
-      const response = await getFinditRequests({ page: Number(pagination.page || 1) + 1, limit: 24 });
-      const nextRequests = response.data.requests || [];
+      const data = await fetchRequests(Number(pagination.page || 1) + 1);
       setRequests((current) => {
         const seen = new Set(current.map((request) => request.id));
-        return [...current, ...nextRequests.filter((request) => !seen.has(request.id))];
+        return [...current, ...data.requests.filter((request) => !seen.has(request.id))];
       });
-      setPagination(response.data.pagination || { page: Number(pagination.page || 1) + 1, hasNextPage: false });
+      setPagination(data.pagination);
     } catch {
       toast.error(t('findit.public.loadMoreError'));
     } finally {
@@ -82,6 +117,9 @@ const FindItPage = () => {
   };
 
   const dashboardPath = isAuthenticated ? '/findit/dashboard' : '/login';
+  const applySearch = (event) => { event.preventDefault(); setSearch(searchInput.trim()); setCity(cityInput.trim()); };
+  const clearFilters = () => { setSearch(''); setSearchInput(''); setCategory(''); setCity(''); setCityInput(''); setSortBy('newest'); };
+  const selectCity = (nextCity) => { setCityInput(nextCity); setCity(nextCity); };
 
   return (
     <main className="findit-page">
@@ -128,6 +166,34 @@ const FindItPage = () => {
             <Link to={dashboardPath} className="findit-dashboard-link">{t('findit.public.dashboard')} <ArrowRightIcon aria-hidden="true" /></Link>
           </div>
 
+          <div className="findit-discovery" aria-label={t('findit.public.discoverLabel')}>
+            <form className="findit-search" onSubmit={applySearch}>
+              <input type="search" value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder={t('findit.public.searchPlaceholder')} aria-label={t('findit.public.searchPlaceholder')} />
+              <button type="submit">{t('products.search')}</button>
+            </form>
+            <div className="findit-filters">
+              <select value={category} onChange={(event) => setCategory(event.target.value)} aria-label={t('findit.form.category')}>
+                <option value="">{t('findit.public.allCategories')}</option>
+                {categories.map((value) => <option key={value} value={value}>{value}</option>)}
+              </select>
+              <input type="text" list="marketplace-city-options" maxLength="100" value={cityInput} onChange={(event) => setCityInput(event.target.value)} placeholder={t('findit.public.cityPlaceholder')} aria-label={t('findit.form.city')} />
+              <select value={sortBy} onChange={(event) => setSortBy(event.target.value)} aria-label={t('findit.public.sort')}>
+                <option value="newest">{t('findit.public.sortNewest')}</option>
+                <option value="offers">{t('findit.public.sortOffers')}</option>
+                <option value="budget_asc">{t('findit.public.sortBudgetAsc')}</option>
+                <option value="budget_desc">{t('findit.public.sortBudgetDesc')}</option>
+              </select>
+              {hasFilters && <button type="button" className="findit-clear" onClick={clearFilters}>{t('products.clearFilters')}</button>}
+            </div>
+            <div className="findit-location-shortcuts" aria-label={t('products.browseByCity')}>
+              <span>{t('products.browseByCity')}</span>
+              <div>{featuredMarketplaceCities.map((featuredCity) => <button key={featuredCity} type="button" className={city === featuredCity ? 'is-active' : ''} onClick={() => selectCity(featuredCity)}>{featuredCity}</button>)}</div>
+            </div>
+            <datalist id="marketplace-city-options">
+              {marketplaceCities.map((marketplaceCity) => <option key={marketplaceCity} value={marketplaceCity} />)}
+            </datalist>
+          </div>
+
           {loading ? (
             <div className="findit-loading" aria-live="polite">{t('findit.public.loading')}</div>
           ) : loadError ? (
@@ -136,7 +202,7 @@ const FindItPage = () => {
             <div className="findit-empty">
               <MagnifyingGlassIcon aria-hidden="true" />
               <h2>{t('findit.public.emptyTitle')}</h2>
-              <p>{t('findit.public.emptyText')}</p>
+              <p>{hasFilters ? t('findit.public.emptyFiltered') : t('findit.public.emptyText')}</p>
               <Link to={dashboardPath}>{t('findit.public.createRequest')}</Link>
             </div>
           ) : (
@@ -218,6 +284,19 @@ const FindItPage = () => {
         .findit-list-heading h2 { font-size: clamp(1.45rem, 3vw, 2.1rem); letter-spacing: -.04em; margin: 0; }
         .findit-list-heading > div > span { color: #637489; display: block; font-size: .84rem; line-height: 1.5; margin-top: .5rem; max-width: 38rem; }
         .findit-dashboard-link { color: var(--color-brand-ink); white-space: nowrap; }
+        .findit-discovery { background:#fff; border:1px solid #dce8f2; border-radius:.85rem; display:grid; gap:.7rem; margin:0 0 1.2rem; padding:.8rem; }
+        .findit-search { display:flex; gap:.55rem; }
+        .findit-search input,.findit-filters input,.findit-filters select { background:#fff; border:1px solid #cbdbe7; border-radius:.6rem; color:var(--color-brand-ink); font:inherit; min-height:2.7rem; min-width:0; padding:.55rem .65rem; }
+        .findit-search input { flex:1; }
+        .findit-search button,.findit-clear { background:var(--color-brand-ink); border:0; border-radius:.6rem; color:#fff; cursor:pointer; font:inherit; font-size:.8rem; font-weight:800; min-height:2.7rem; padding:.55rem .85rem; }
+        .findit-filters { display:flex; flex-wrap:wrap; gap:.55rem; }
+        .findit-filters input,.findit-filters select { flex:1 1 11rem; }
+        .findit-clear { background:#eef5f8; color:#284354; }
+        .findit-location-shortcuts { align-items:center; display:flex; flex-wrap:wrap; gap:.5rem; }
+        .findit-location-shortcuts > span { color:#53657a; font-size:.76rem; font-weight:750; }
+        .findit-location-shortcuts > div { display:flex; flex-wrap:wrap; gap:.4rem; }
+        .findit-location-shortcuts button { background:#f4f8fb; border:1px solid #d7e4ed; border-radius:999px; color:#355467; cursor:pointer; font:inherit; font-size:.73rem; font-weight:750; min-height:32px; padding:.28rem .58rem; }
+        .findit-location-shortcuts button:hover,.findit-location-shortcuts button:focus-visible,.findit-location-shortcuts button.is-active { background:rgba(74,166,225,.16); border-color:var(--color-brand-blue); color:var(--color-brand-ink); outline:none; }
         .findit-dashboard-link:hover, .findit-dashboard-link:focus-visible, .findit-request-footer a:hover, .findit-request-footer a:focus-visible { color: var(--color-brand-blue); }
         .findit-request-grid { display: grid; gap: 1rem; grid-template-columns: repeat(3, minmax(0, 1fr)); }
         .findit-request-card { background: #fff; border: 1px solid #dce8f2; border-radius: .9rem; box-shadow: 0 4px 14px rgba(10, 27, 53, .035); overflow: hidden; transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease; }
@@ -244,7 +323,7 @@ const FindItPage = () => {
         .findit-empty a { background: var(--color-brand-ink); border-radius: .6rem; color: #fff; display: inline-block; font-size: .8rem; font-weight: 800; padding: .68rem .82rem; text-decoration: none; }
         .findit-load-more { display:flex; justify-content:center; margin-top:1.35rem; }.findit-load-more button { background:#fff; border:1px solid #cbdbe7; border-radius:.65rem; color:var(--color-brand-ink); cursor:pointer; font:inherit; font-size:.84rem; font-weight:800; min-height:44px; padding:.68rem 1rem; }.findit-load-more button:hover:not(:disabled),.findit-load-more button:focus-visible { border-color:var(--color-brand-blue); box-shadow:0 0 0 3px rgba(65,173,255,.16); outline:none; }.findit-load-more button:disabled { cursor:not-allowed; opacity:.6; }
         @media (max-width: 900px) { .findit-hero { grid-template-columns: 1fr; } .findit-process-card { grid-template-columns: auto minmax(0, 1fr); } .findit-process-card ul { grid-column: 1 / -1; } .findit-request-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-        @media (max-width: 640px) { .findit-page { padding-top: 1rem; } .findit-hero { border-radius: .85rem; padding: 1.2rem; } .findit-hero h1 { font-size: 2.2rem; } .findit-hero-actions, .findit-list-heading { align-items: stretch; flex-direction: column; } .findit-primary-action, .findit-secondary-action, .findit-dashboard-link { justify-content: center; } .findit-list-heading { align-items: flex-start; } .findit-request-grid { grid-template-columns: 1fr; } .findit-process-card { display: block; } .findit-process-card > div + div { margin-top: .75rem; } .findit-process-card ul { margin-top: .85rem; } }
+        @media (max-width: 640px) { .findit-page { padding-top: 1rem; } .findit-hero { border-radius: .85rem; padding: 1.2rem; } .findit-hero h1 { font-size: 2.2rem; } .findit-hero-actions, .findit-list-heading { align-items: stretch; flex-direction: column; } .findit-primary-action, .findit-secondary-action, .findit-dashboard-link { justify-content: center; } .findit-list-heading { align-items: flex-start; } .findit-request-grid { grid-template-columns: 1fr; } .findit-process-card { display: block; } .findit-process-card > div + div { margin-top: .75rem; } .findit-process-card ul { margin-top: .85rem; } .findit-search { flex-direction:column; } .findit-search button,.findit-clear { width:100%; } .findit-location-shortcuts { align-items:flex-start; flex-direction:column; } }
       `}</style>
     </main>
   );
