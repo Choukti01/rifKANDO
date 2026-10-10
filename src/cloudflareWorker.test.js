@@ -80,6 +80,22 @@ describe('Cloudflare Worker catalog snapshot route', () => {
     expect(response.headers.get('cache-control')).toBe('no-store, max-age=0');
   });
 
+  it('serves the application shell when Assets redirects a browser deep link', async () => {
+    const document = '<!doctype html><html><head><meta name="description" content="old"><link rel="canonical" href="https://www.rifkando.com/"><title>old</title></head><body><div id="root"></div></body></html>';
+    const assetsFetch = vi.fn()
+      .mockResolvedValueOnce(new Response(null, { status: 307, headers: { Location: '/' } }))
+      .mockResolvedValueOnce(new Response(document, { headers: { 'Content-Type': 'text/html' } }));
+
+    const response = await worker.fetch(
+      new Request('https://www.rifkando.com/products', { headers: { Accept: 'text/html' } }),
+      { ASSETS: { fetch: assetsFetch } },
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.text()).resolves.toContain('<title>Products in Morocco | New, Used as New and Joutiya | rifKANDO</title>');
+    expect(assetsFetch).toHaveBeenCalledTimes(2);
+  });
+
   it('removes the legacy service worker once for a browser navigation', async () => {
     const response = await worker.fetch(
       new Request('https://www.rifkando.com/', { headers: { Accept: 'text/html' } }),

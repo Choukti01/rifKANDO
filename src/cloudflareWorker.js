@@ -210,6 +210,16 @@ export default {
     if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname === '/sitemap.xml') return sitemapResponse(request);
 
     const assetResponse = await env.ASSETS.fetch(request);
+    // Cloudflare Assets may return a redirect for an unknown browser route.
+    // That redirect is correct for a missing file, but incorrect for a React
+    // application route such as `/products`: serve the application shell so
+    // React and the edge SEO layer can render the requested route.
+    if (isHtmlNavigation(request) && (!assetResponse.ok || assetResponse.status >= 300)) {
+      url.pathname = '/index.html';
+      url.search = '';
+      const appShell = await env.ASSETS.fetch(new Request(url, request));
+      return applyServiceWorkerRecovery(request, await applySeo(request, appShell, normalisePath(new URL(request.url).pathname)));
+    }
     if (assetResponse.status !== 404) return applyServiceWorkerRecovery(request, await applySeo(request, assetResponse, normalisePath(url.pathname)));
     if (isHtmlNavigation(request)) {
       url.pathname = '/index.html';
