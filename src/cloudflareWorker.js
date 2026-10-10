@@ -215,14 +215,14 @@ export default {
     // application route such as `/products`: serve the application shell so
     // React and the edge SEO layer can render the requested route.
     if (isHtmlNavigation(request) && (!assetResponse.ok || assetResponse.status >= 300)) {
-      url.pathname = '/index.html';
+      url.pathname = '/';
       url.search = '';
       const appShell = await env.ASSETS.fetch(new Request(url, request));
       return applyServiceWorkerRecovery(request, await applySeo(request, appShell, normalisePath(new URL(request.url).pathname)));
     }
     if (assetResponse.status !== 404) return applyServiceWorkerRecovery(request, await applySeo(request, assetResponse, normalisePath(url.pathname)));
     if (isHtmlNavigation(request)) {
-      url.pathname = '/index.html';
+      url.pathname = '/';
       url.search = '';
       const appShell = await env.ASSETS.fetch(new Request(url, request));
       return applyServiceWorkerRecovery(request, await applySeo(request, appShell, normalisePath(new URL(request.url).pathname)));
