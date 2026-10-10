@@ -865,11 +865,34 @@ const validateProductQuery = validate((req) => {
       limit: parseQueryInteger('limit', 20, 1, 100),
       search: optionalText(query.search, 'query.search', 120),
       category: optionalText(query.category, 'query.category', 64),
+      city: optionalText(query.city, 'query.city', 100),
       minPrice,
       maxPrice,
       minRating: query.minRating === undefined || query.minRating === '' ? undefined : money(Number(query.minRating), 'query.minRating', { min: 0, max: 5 }),
       sortBy: query.sortBy === undefined || query.sortBy === '' ? 'newest' : enumValue(query.sortBy, 'query.sortBy', ['newest', 'price_asc', 'price_desc', 'rating', 'popular']),
       condition: query.condition === undefined || query.condition === '' ? '' : enumValue(query.condition, 'query.condition', ['new', 'used_as_new', 'joutiya']),
+    },
+  };
+});
+
+const validateFinditCatalogQuery = validate((req) => {
+  const query = req.query || {};
+  const parseQueryInteger = (name, fallback, min, max) => {
+    if (query[name] === undefined || query[name] === '') return fallback;
+    if (!/^[1-9]\d*$/.test(String(query[name]))) fail(`query.${name}`, 'must be a positive integer.');
+    const value = Number(query[name]);
+    if (value < min || value > max) fail(`query.${name}`, `must be between ${min} and ${max}.`);
+    return value;
+  };
+
+  return {
+    query: {
+      page: parseQueryInteger('page', 1, 1, 100_000),
+      limit: parseQueryInteger('limit', 24, 1, 100),
+      search: optionalText(query.search, 'query.search', 120),
+      category: optionalText(query.category, 'query.category', 64),
+      city: optionalText(query.city, 'query.city', 100),
+      sortBy: query.sortBy === undefined || query.sortBy === '' ? 'newest' : enumValue(query.sortBy, 'query.sortBy', ['newest', 'budget_asc', 'budget_desc', 'offers']),
     },
   };
 });
@@ -923,6 +946,7 @@ module.exports = {
   validateDigitalAccessRequest,
   validateDigitalAccessDecision,
   validateFinditRequestCreate,
+  validateFinditCatalogQuery,
   validateFinditOfferCreate,
   validateFinditOfferUpdate,
   validateFinditCheckout,

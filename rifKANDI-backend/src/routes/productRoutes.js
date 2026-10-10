@@ -118,6 +118,7 @@ const createProductRoutes = ({
     const offset = (page - 1) * limit;
     const search = req.query.search || '';
     const category = req.query.category || '';
+    const city = req.query.city || '';
     const minPrice = req.query.minPrice ? Money.toMinor(req.query.minPrice) : null;
     const maxPrice = req.query.maxPrice ? Money.toMinor(req.query.maxPrice) : null;
     const minRating = req.query.minRating ? parseFloat(req.query.minRating) : null;
@@ -146,6 +147,10 @@ const createProductRoutes = ({
     if (category) {
       whereClause += ' AND p.category = ?';
       params.push(category);
+    }
+    if (city) {
+      whereClause += " AND LOWER(TRIM(COALESCE(NULLIF(p.origin_city, ''), u.city, ''))) = LOWER(TRIM(?))";
+      params.push(city);
     }
     if (minPrice !== null) {
       whereClause += ' AND p.price_minor >= ?';
@@ -176,7 +181,8 @@ const createProductRoutes = ({
         const total = countResult.total;
         const totalPages = Math.ceil(total / limit);
         db.all(
-          `SELECT p.*, u.name as seller_name, u.id as seller_id
+          `SELECT p.*, u.name as seller_name, u.id as seller_id,
+                  COALESCE(NULLIF(p.origin_city, ''), u.city, '') AS listing_city
            FROM products p
            JOIN users u ON p.seller_id = u.id
            WHERE ${whereClause}

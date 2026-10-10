@@ -104,6 +104,7 @@ const createFindItRoutes = ({
   requireSeller,
   validateIdParams,
   validateFinditRequestCreate,
+  validateFinditCatalogQuery,
   validateFinditOfferCreate,
   validateFinditOfferUpdate,
   validateFinditCheckout,
@@ -138,18 +139,41 @@ const createFindItRoutes = ({
     FROM findit_requests r
   `;
 
-  router.get('/findit/requests', async (req, res) => {
+  router.get('/findit/requests', validateFinditCatalogQuery, async (req, res) => {
     try {
       const { page, limit, offset } = getPagination(req.query);
       const now = new Date().toISOString();
+      const search = req.query.search || '';
+      const category = req.query.category || '';
+      const city = req.query.city || '';
+      const sortBy = req.query.sortBy || 'newest';
+      let whereClause = "r.status = 'active' AND r.expires_at > ?";
+      const params = [now];
+      if (search) {
+        whereClause += ' AND (r.title LIKE ? OR r.description LIKE ?)';
+        params.push(`%${search}%`, `%${search}%`);
+      }
+      if (category) {
+        whereClause += ' AND r.category = ?';
+        params.push(category);
+      }
+      if (city) {
+        whereClause += ' AND LOWER(TRIM(r.city)) = LOWER(TRIM(?))';
+        params.push(city);
+      }
+      const orderBy = {
+        budget_asc: 'ORDER BY r.budget_max_minor ASC, r.created_at DESC',
+        budget_desc: 'ORDER BY r.budget_max_minor DESC, r.created_at DESC',
+        offers: 'ORDER BY offer_count DESC, r.created_at DESC',
+      }[sortBy] || 'ORDER BY r.created_at DESC';
       const count = await get(db,
-        "SELECT COUNT(*) AS total FROM findit_requests WHERE status = 'active' AND expires_at > ?",
-        [now]
+        `SELECT COUNT(*) AS total FROM findit_requests r WHERE ${whereClause}`,
+        params,
       );
       const requests = await all(db, `${requestSelect}
-        WHERE r.status = 'active' AND r.expires_at > ?
-        ORDER BY r.created_at DESC
-        LIMIT ? OFFSET ?`, [now, limit, offset]);
+        WHERE ${whereClause}
+        ${orderBy}
+        LIMIT ? OFFSET ?`, [...params, limit, offset]);
       const results = await Promise.all(requests.map((request) => attachMedia(db, request)));
       res.set('Cache-Control', 'private, max-age=30');
       return res.json({

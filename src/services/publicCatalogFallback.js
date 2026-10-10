@@ -80,6 +80,7 @@ const productResponse = (snapshot, url) => {
 
   const condition = url.searchParams.get('condition') || '';
   const category = url.searchParams.get('category') || '';
+  const city = (url.searchParams.get('city') || '').trim().toLocaleLowerCase();
   const search = (url.searchParams.get('search') || '').trim().toLocaleLowerCase();
   const minPrice = Number(url.searchParams.get('minPrice'));
   const maxPrice = Number(url.searchParams.get('maxPrice'));
@@ -89,6 +90,7 @@ const productResponse = (snapshot, url) => {
   let products = snapshot.products.filter((product) => {
     if (condition && product.condition !== condition) return false;
     if (category && product.category !== category) return false;
+    if (city && String(product.origin_city || product.listing_city || product.city || '').trim().toLocaleLowerCase() !== city) return false;
     if (search && !`${product.title || ''} ${product.description || ''}`.toLocaleLowerCase().includes(search)) return false;
     if (Number.isFinite(minPrice) && Number(product.price) < minPrice) return false;
     if (Number.isFinite(maxPrice) && Number(product.price) > maxPrice) return false;
@@ -119,10 +121,26 @@ const finditResponse = (snapshot, url) => {
   }
   const page = asPositiveInteger(url.searchParams.get('page'), 1);
   const limit = Math.min(asPositiveInteger(url.searchParams.get('limit'), 24), 100);
-  const total = snapshot.finditRequests.length;
+  const search = (url.searchParams.get('search') || '').trim().toLocaleLowerCase();
+  const category = url.searchParams.get('category') || '';
+  const city = (url.searchParams.get('city') || '').trim().toLocaleLowerCase();
+  const sortBy = url.searchParams.get('sortBy') || 'newest';
+  let requests = snapshot.finditRequests.filter((request) => {
+    if (category && request.category !== category) return false;
+    if (city && String(request.city || '').trim().toLocaleLowerCase() !== city) return false;
+    if (search && !`${request.title || ''} ${request.description || ''}`.toLocaleLowerCase().includes(search)) return false;
+    return true;
+  });
+  const compare = {
+    budget_asc: (left, right) => Number(left.budget_max || 0) - Number(right.budget_max || 0),
+    budget_desc: (left, right) => Number(right.budget_max || 0) - Number(left.budget_max || 0),
+    offers: (left, right) => Number(right.offer_count || 0) - Number(left.offer_count || 0),
+  }[sortBy] || ((left, right) => Date.parse(right.created_at || 0) - Date.parse(left.created_at || 0));
+  requests = [...requests].sort(compare);
+  const total = requests.length;
   return {
     success: true,
-    requests: snapshot.finditRequests.slice((page - 1) * limit, page * limit),
+    requests: requests.slice((page - 1) * limit, page * limit),
     pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)), hasNextPage: page * limit < total },
     snapshotGeneratedAt: snapshot.generatedAt,
   };

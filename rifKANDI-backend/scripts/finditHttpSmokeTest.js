@@ -90,19 +90,23 @@ async function run() {
     assert.equal(publicRequest.email, undefined, 'public FINDit board must not disclose buyer email');
     assert.equal(publicRequest.phone, undefined, 'public FINDit board must not disclose buyer phone');
 
+    const filteredCatalog = await request(port, '/api/findit/requests?search=Dacia&category=Auto%20%26%20Parts&city=tangier&sortBy=offers');
+    assert.equal(filteredCatalog.status, 200, 'public FINDit board accepts bounded discovery filters');
+    assert.equal((await filteredCatalog.json()).requests.length, 1, 'FINDit filters return matching city, category, and search results');
+
     const offerCreate = await request(port, `/api/findit/requests/${finditRequest.id}/offers`, {
       method: 'POST', cookies: sellerSession.cookies, csrfToken: sellerSession.csrfToken,
       body: {
         title: 'Compatible original left headlight',
         description: 'Original compatible part, inspected and ready to ship from Tangier.',
-        price: 2000, condition: 'used', estimated_delivery_days: 2,
+        price: 2000, condition: 'used',
       },
     });
     assert.equal(offerCreate.status, 201, 'seller can send a private FINDit solution');
     const offer = (await offerCreate.json()).offer;
     const duplicateOffer = await request(port, `/api/findit/requests/${finditRequest.id}/offers`, {
       method: 'POST', cookies: sellerSession.cookies, csrfToken: sellerSession.csrfToken,
-      body: { title: 'Duplicate', description: 'This duplicate offer must be blocked.', price: 1900, condition: 'used', estimated_delivery_days: 2 },
+      body: { title: 'Duplicate', description: 'This duplicate offer must be blocked.', price: 1900, condition: 'used' },
     });
     assert.equal(duplicateOffer.status, 409, 'one seller may have only one active solution per request');
 
@@ -158,14 +162,23 @@ async function run() {
     assert.equal(confirmed.status, 200, 'selected FINDit seller can confirm the COD order');
     const quote = await request(port, `/api/operations/cod-fulfillments/${fulfillment.id}/quote-delivery`, {
       method: 'POST', cookies: operationsSession.cookies, csrfToken: operationsSession.csrfToken,
-      body: { deliveryFee: 50, note: 'Quoted from parcel and Tangier destination.' },
+      body: {
+        deliveryFee: 50,
+        deliveryDeadline: new Date(Date.now() + (3 * 24 * 60 * 60 * 1000)).toISOString(),
+        note: 'Quoted from parcel and Tangier destination.',
+      },
     });
     assert.equal(quote.status, 200, 'COD Operations can quote the delivery fee after seller confirmation');
-    const dispatched = await request(port, `/api/seller/cod-fulfillments/${fulfillment.id}`, {
+    const handoffRequested = await request(port, `/api/seller/cod-fulfillments/${fulfillment.id}`, {
       method: 'PATCH', cookies: sellerSession.cookies, csrfToken: sellerSession.csrfToken,
-      body: { action: 'dispatch', carrierName: 'Test Carrier', trackingNumber: 'TRACK-FINDIT-1001' },
+      body: { action: 'request_handoff' },
     });
-    assert.equal(dispatched.status, 200, 'selected FINDit seller must attach tracking before dispatching');
+    assert.equal(handoffRequested.status, 200, 'selected FINDit seller can request a Toufiq pickup');
+    const pickup = await request(port, `/api/operations/cod-fulfillments/${fulfillment.id}/confirm-pickup`, {
+      method: 'POST', cookies: operationsSession.cookies, csrfToken: operationsSession.csrfToken,
+      body: { carrierName: 'Test Carrier', trackingNumber: 'TRACK-FINDIT-1001' },
+    });
+    assert.equal(pickup.status, 200, 'COD Operations confirms the handoff with the carrier tracking number');
     const delivery = await request(port, `/api/admin/cod-fulfillments/${fulfillment.id}/confirm-delivery`, {
       method: 'POST', cookies: financeSession.cookies, csrfToken: financeSession.csrfToken,
       body: { note: 'Carrier tracking confirmed as delivered.' },
