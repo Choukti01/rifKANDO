@@ -170,7 +170,7 @@ const MediaUploader = ({
         .media-item img, .media-item video { width: 100%; height: 100%; object-fit: cover; }
         .video-indicator { position:absolute;inset-inline-start:.45rem;bottom:.45rem;display:grid;width:1.75rem;height:1.75rem;place-items:center;border-radius:999px;background:rgba(6,22,38,.78);color:#fff; }
         .video-indicator svg { width:1rem;height:1rem; }
-        .remove-media { position: absolute; top: 0; inset-inline-end: 0; background: rgba(0,0,0,0.6); border: none; color: white; cursor: pointer; border-radius: 0 0.5rem 0 0.5rem; padding: 4px; }
+        .remove-media { position: absolute; top: 0; inset-inline-end: 0; display:grid; width:32px; height:32px; place-items:center; background: rgba(0,0,0,0.6); border: none; color: white; cursor: pointer; border-radius: 0 0.5rem 0 0.5rem; padding: 4px; }
         .cover-indicator { position:absolute; inset-inline-start:.35rem; top:.35rem; display:inline-flex; align-items:center; gap:.2rem; border-radius:999px; background:rgba(6,22,38,.84); color:#fff; font-size:.63rem; font-weight:800; padding:.24rem .38rem; }
         .cover-indicator svg { width:.75rem; height:.75rem; color:#8ed9ff; }
         .media-order-controls { position:absolute; inset-inline-start:.35rem; inset-inline-end:.35rem; bottom:.35rem; display:flex; justify-content:center; gap:.25rem; }
@@ -187,6 +187,15 @@ const MediaUploader = ({
         .media-uploader__help { display:flex;align-items:center;gap:.4rem;margin-top:.65rem;color:#60758b;font-size:.78rem;line-height:1.4; }
         .media-uploader__help svg { width:1rem;height:1rem;color:#168dd9;flex:0 0 auto; }
         @keyframes spin { to { transform: rotate(360deg); } }
+        @media (max-width: 640px) {
+          .media-grid { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:.65rem; }
+          .media-item, .upload-area { width:100%; height:auto; aspect-ratio:1; min-width:0; }
+          .upload-area { min-height:0; }
+          .remove-media { width:36px; height:36px; }
+          .media-order-controls button { width:2rem; height:2rem; }
+          .cover-indicator { max-width:calc(100% - .7rem); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        }
+        @media (max-width: 360px) { .media-grid { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
       `}</style>
     </div>
   );

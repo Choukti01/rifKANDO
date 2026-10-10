@@ -4,6 +4,7 @@ import App from "./App";
 import { GOOGLE_CLIENT_ID } from "./config/googleAuth";
 import "./i18n";
 import "./styles/globals.css";
+import "./styles/mobileUx.css";
 
 const application = <App />;
 

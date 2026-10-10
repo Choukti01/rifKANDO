@@ -190,7 +190,7 @@ const DashboardLayout = () => {
 
       <style>{`
         .dashboard-container {
-          min-height: calc(100dvh - 80px);
+          min-height: calc(100dvh - var(--navbar-height, 80px));
           background: #f6f8fb;
           display: block;
           position: relative;
@@ -201,7 +201,7 @@ const DashboardLayout = () => {
         .mobile-dashboard-header {
           display: none;
           position: fixed;
-          top: 80px;
+          top: var(--navbar-height, 80px);
           left: 0;
           right: 0;
           min-height: 64px;
@@ -253,10 +253,10 @@ const DashboardLayout = () => {
         /* Overlay for mobile */
         .mobile-overlay {
           position: fixed;
-          top: 80px;
+          top: var(--navbar-height, 80px);
           left: 0;
           width: 100%;
-          height: calc(100dvh - 80px);
+          height: calc(100dvh - var(--navbar-height, 80px));
           background: rgba(0, 0, 0, 0.5);
           z-index: 50;
           opacity: 0;
@@ -271,7 +271,7 @@ const DashboardLayout = () => {
         /* Sidebar modifications */
         .dashboard-sidebar {
           position: fixed;
-          top: 80px;
+          top: var(--navbar-height, 80px);
           bottom: 0;
           height: auto;
           background: white;
@@ -293,7 +293,7 @@ const DashboardLayout = () => {
         /* Mobile sidebar behaviour */
         @media (max-width: 768px) {
           .dashboard-sidebar {
-            top: 80px;
+            top: var(--navbar-height, 64px);
             bottom: 0;
             position: fixed;
             transform: translateX(-100%);
@@ -318,7 +318,7 @@ const DashboardLayout = () => {
           }
           .dashboard-container {
             display: block;
-            min-height: calc(100dvh - 80px);
+            min-height: calc(100dvh - var(--navbar-height, 64px));
             padding-top: 64px;
           }
           .dashboard-main {
@@ -501,7 +501,7 @@ const DashboardLayout = () => {
           display: none;
         }
         .dashboard-main {
-          min-height: calc(100dvh - 80px);
+          min-height: calc(100dvh - var(--navbar-height, 80px));
           min-width: 0;
           padding: 1.5rem clamp(1rem, 2.5vw, 2rem) 2.5rem;
           transition: margin-left 0.3s ease;

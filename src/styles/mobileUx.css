@@ -1,0 +1,354 @@
+/*
+ * Mobile interaction layer
+ *
+ * Page components keep ownership of their visual identity. These rules provide
+ * a consistent touch-first baseline across marketplace, buyer, seller, and
+ * operations screens without changing business behaviour.
+ */
+
+:root {
+  --touch-target: 44px;
+  --page-mobile-gutter: max(1rem, env(safe-area-inset-left));
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  touch-action: manipulation;
+}
+
+input,
+select,
+textarea {
+  max-width: 100%;
+}
+
+.app-main {
+  overflow: clip;
+}
+
+/* Long titles, order references, seller names, and translated labels should
+   never force the viewport wider than the device. */
+.product-card,
+.findit-request-card,
+.cart-item,
+.order-card,
+.info-card,
+.items-card,
+.dashboard-content,
+.cod-ops__card,
+.cod-finance__card,
+.notification-panel {
+  min-width: 0;
+}
+
+.product-card h3,
+.findit-request-card h3,
+.cart-item-title,
+.order-number,
+.sidebar-user-info h4,
+.dropdown-email,
+.notification-item__title,
+.notification-item__body {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding-inline: var(--page-mobile-gutter);
+  }
+
+  .back-to-top-btn {
+    right: max(1rem, env(safe-area-inset-right));
+    bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+
+  /* Make dense chips and tab rows deliberate horizontal carousels instead of
+     wrapping into uneven, hard-to-scan rows. */
+  .condition-tabs,
+  .tabs-header,
+  .location-shortcuts > div,
+  .findit-location-shortcuts > div,
+  .active-filters {
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .condition-tabs::-webkit-scrollbar,
+  .tabs-header::-webkit-scrollbar,
+  .location-shortcuts > div::-webkit-scrollbar,
+  .findit-location-shortcuts > div::-webkit-scrollbar,
+  .active-filters::-webkit-scrollbar {
+    display: none;
+  }
+
+  .condition-tabs {
+    justify-content: flex-start;
+    overflow-x: auto;
+    padding-inline: 0.15rem;
+    scroll-snap-type: x proximity;
+  }
+
+  .condition-tabs .tab-btn {
+    flex: 0 0 auto;
+    min-width: max-content;
+    padding-inline: 1rem;
+    scroll-snap-align: start;
+  }
+
+  .location-shortcuts,
+  .findit-location-shortcuts {
+    align-items: stretch;
+  }
+
+  .location-shortcuts > div,
+  .findit-location-shortcuts > div,
+  .active-filters {
+    flex-wrap: nowrap;
+    max-width: 100%;
+    overflow-x: auto;
+    padding-bottom: 0.2rem;
+  }
+
+  .location-shortcuts button,
+  .findit-location-shortcuts button,
+  .filter-chip {
+    flex: 0 0 auto;
+  }
+
+  .product-search-form,
+  .findit-search {
+    align-items: stretch;
+  }
+
+  .product-search-input,
+  .findit-search input {
+    min-width: 0;
+  }
+
+  .filter-toolbar {
+    margin-bottom: 0.75rem;
+  }
+
+  .filters-toggle,
+  .clear-filters-btn {
+    min-height: var(--touch-target);
+  }
+
+  .products-page .product-card,
+  .findit-request-card {
+    border-radius: 0.9rem;
+  }
+
+  .product-card:hover,
+  .findit-request-card:hover {
+    transform: none;
+  }
+
+  .product-image,
+  .findit-request-image-wrap {
+    aspect-ratio: 4 / 3;
+    height: auto;
+  }
+
+  .product-breadcrumb {
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .product-breadcrumb::-webkit-scrollbar {
+    display: none;
+  }
+
+  .thumbnail-strip {
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .thumbnail-strip::-webkit-scrollbar {
+    display: none;
+  }
+
+  .product-actions,
+  .form-buttons,
+  .offer-footer,
+  .seller-reply-editor__actions {
+    align-items: stretch;
+  }
+
+  .offer-modal {
+    align-items: flex-end;
+    padding: max(0.75rem, env(safe-area-inset-top)) 0.75rem max(0.75rem, env(safe-area-inset-bottom));
+  }
+
+  .offer-container {
+    width: min(100%, 34rem);
+    max-height: min(85dvh, 44rem);
+    border-radius: 1rem;
+  }
+
+  .offer-body {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .cart-summary,
+  .order-summary,
+  .checkout-summary,
+  .checkout-page .order-summary {
+    position: static !important;
+  }
+
+  .checkout-steps {
+    overflow-x: auto;
+    padding-bottom: 0.35rem;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .checkout-steps::-webkit-scrollbar {
+    display: none;
+  }
+
+  .step-item {
+    flex: 0 0 auto;
+  }
+
+  .orders-table-container,
+  .items-table-wrapper,
+  .admin-table-wrapper {
+    border: 1px solid var(--color-gray-200);
+    border-radius: var(--radius-lg);
+    background: var(--color-white);
+  }
+
+  .mobile-dashboard-header {
+    padding-inline: var(--page-mobile-gutter) !important;
+    padding-top: max(0.6rem, env(safe-area-inset-top));
+  }
+
+  .dashboard-sidebar {
+    max-width: min(86vw, 20rem);
+  }
+
+  .dashboard-main {
+    padding-inline: var(--page-mobile-gutter) !important;
+    padding-bottom: max(2rem, env(safe-area-inset-bottom)) !important;
+  }
+
+  .footer {
+    padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
+  }
+}
+
+@media (max-width: 640px) {
+  .app-main {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  input:not([type='checkbox']):not([type='radio']),
+  select,
+  textarea {
+    min-height: var(--touch-target);
+  }
+
+  .form-group > label,
+  .form-field > label,
+  .offer-field > label {
+    line-height: 1.35;
+  }
+
+  .form-actions,
+  .form-buttons,
+  .offer-footer,
+  .seller-reply-editor__actions {
+    flex-direction: column;
+  }
+
+  .form-actions > *,
+  .form-buttons > *,
+  .offer-footer > *,
+  .seller-reply-editor__actions > * {
+    justify-content: center;
+    min-height: var(--touch-target);
+    width: 100%;
+  }
+
+  .cart-item,
+  .review-item,
+  .notification-item,
+  .cod-tracking-item {
+    gap: 0.85rem;
+  }
+
+  .cart-item-remove,
+  .notification-close,
+  .remove-media,
+  .close-offer-btn {
+    min-width: var(--touch-target);
+    min-height: var(--touch-target);
+  }
+
+  .product-cod-summary,
+  .cod-price-breakdown,
+  .listing-estimate,
+  .shipping-note,
+  .secure-badge {
+    border-radius: 0.75rem;
+  }
+
+  .footer-grid {
+    padding-bottom: 2rem;
+  }
+
+  .footer-link {
+    min-height: var(--touch-target);
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .back-to-top-btn {
+    width: var(--touch-target);
+    height: var(--touch-target);
+  }
+}
+
+@media (max-width: 380px) {
+  .mobile-dashboard-title h1,
+  .mobile-dashboard-title span {
+    max-width: 13rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .product-purchase-panel,
+  .product-form,
+  .checkout-form,
+  .auth-card {
+    border-radius: 0.85rem;
+  }
+}
+
+/* Keep layout direction and the visual reading order coherent in Arabic. */
+html[dir='rtl'] .dashboard-sidebar {
+  box-shadow: -14px 0 38px rgba(15, 23, 42, 0.16);
+}
+
+html[dir='rtl'] .location-shortcuts > div,
+html[dir='rtl'] .findit-location-shortcuts > div,
+html[dir='rtl'] .condition-tabs,
+html[dir='rtl'] .tabs-header {
+  direction: rtl;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .product-card,
+  .findit-request-card,
+  .offer-container,
+  .dashboard-sidebar {
+    transition: none !important;
+  }
+}
