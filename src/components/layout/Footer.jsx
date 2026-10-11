@@ -124,7 +124,7 @@ const Footer = () => {
           background:
             linear-gradient(135deg, rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0.32)),
             linear-gradient(120deg, var(--color-primary), var(--color-primary-light));
-          border-top: 1px solid rgba(95, 158, 160, 0.48);
+          border-top: 0;
           box-shadow: 0 -18px 50px rgba(95, 158, 160, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.58);
           backdrop-filter: blur(20px) saturate(145%);
           -webkit-backdrop-filter: blur(20px) saturate(145%);
@@ -151,15 +151,13 @@ const Footer = () => {
           top: 0;
           right: 0;
           left: 0;
-          height: 1px;
-          background: linear-gradient(90deg, transparent, rgba(26, 26, 26, 0.26), transparent);
+          display: none;
         }
 
         .footer.footer-visible {
           background:
             linear-gradient(135deg, rgba(255, 255, 255, 0.84), rgba(255, 255, 255, 0.4)),
             linear-gradient(120deg, var(--color-primary), var(--color-primary-light));
-          border-top-color: rgba(95, 158, 160, 0.62);
         }
 
         .footer-grid {
