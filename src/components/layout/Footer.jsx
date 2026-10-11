@@ -106,7 +106,7 @@ const Footer = () => {
       </footer>
 
       {showBackToTop && (
-        <button type="button" className="back-to-top-btn" onClick={scrollToTop} aria-label={t('common.backToTop')}>
+        <button type="button" className="back-to-top-btn" onClick={scrollToTop} aria-label={t('common.backToTop')} title={t('common.backToTop')}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" aria-hidden="true">
             <path d="m18 15-6-6-6 6" />
           </svg>
@@ -338,17 +338,17 @@ const Footer = () => {
           display: flex;
           align-items: center;
           justify-content: center;
-          width: 2.85rem;
-          height: 2.85rem;
-          color: #06111a;
-          background: rgba(176, 224, 230, 0.93);
-          border: 1px solid rgba(255, 255, 255, 0.56);
-          border-radius: 0.9rem;
-          box-shadow: 0 10px 24px rgba(3, 8, 15, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.55);
+          width: 3rem;
+          height: 3rem;
+          color: var(--color-brand-action-hover);
+          background: linear-gradient(145deg, rgba(244, 250, 255, 0.86), rgba(185, 223, 247, 0.7));
+          border: 1px solid rgba(99, 184, 243, 0.72);
+          border-radius: 1rem;
+          box-shadow: 0 10px 26px rgba(10, 27, 53, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.9);
           cursor: pointer;
-          backdrop-filter: blur(12px);
-          -webkit-backdrop-filter: blur(12px);
-          transition: transform 180ms ease, background 180ms ease, box-shadow 180ms ease;
+          backdrop-filter: blur(16px) saturate(150%);
+          -webkit-backdrop-filter: blur(16px) saturate(150%);
+          transition: transform 180ms ease, color 180ms ease, background 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
         }
 
         .back-to-top-btn svg {
@@ -357,9 +357,16 @@ const Footer = () => {
         }
 
         .back-to-top-btn:hover {
-          background: #ffffff;
-          box-shadow: 0 14px 30px rgba(3, 8, 15, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+          color: var(--color-brand-ink);
+          background: linear-gradient(145deg, rgba(255, 255, 255, 0.95), rgba(221, 243, 255, 0.88));
+          border-color: var(--color-brand-action);
+          box-shadow: 0 14px 30px rgba(10, 27, 53, 0.22), inset 0 1px 0 rgba(255, 255, 255, 1);
           transform: translateY(-3px);
+        }
+
+        .back-to-top-btn:active {
+          background: rgba(185, 223, 247, 0.9);
+          transform: translateY(-1px) scale(0.97);
         }
 
         @media (min-width: 640px) {
