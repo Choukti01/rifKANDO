@@ -5,6 +5,7 @@ import { GOOGLE_CLIENT_ID } from "./config/googleAuth";
 import "./i18n";
 import "./styles/globals.css";
 import "./styles/mobileUx.css";
+import "./styles/brandPolish.css";
 
 const application = <App />;
 

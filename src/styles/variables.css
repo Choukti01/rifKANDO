@@ -6,6 +6,14 @@
   --color-brand-blue: #63B8F3;
   --color-brand-soft: #EAF7FF;
   --color-brand-ink: #0A1B35;
+  /* Brand system: a deliberate blue scale for consistent marketplace UI. */
+  --color-brand-action: #168DD9;
+  --color-brand-action-hover: #0877BF;
+  --color-brand-action-active: #075CA0;
+  --color-brand-surface: #F4FAFF;
+  --color-brand-border: #B9DFF7;
+  --color-brand-focus: rgba(22, 141, 217, 0.34);
+  --color-brand-shadow: rgba(10, 27, 53, 0.14);
   --color-black: #0A1B35;
   --color-black-light: #2C2C2C;
   --color-white: #FFFFFF;

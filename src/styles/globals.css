@@ -203,7 +203,7 @@ a:focus-visible,
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
-  outline: 3px solid rgba(99, 184, 243, 0.65);
+  outline: 3px solid var(--color-brand-focus);
   outline-offset: 3px;
 }
 
@@ -266,45 +266,58 @@ a {
   font-weight: 600;
   font-size: var(--font-base);
   cursor: pointer;
-  transition: all var(--transition-base);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
 }
 
 .btn-primary {
-  background-color: var(--color-black);
+  background-color: var(--color-brand-action);
   color: var(--color-white);
+  box-shadow: 0 6px 16px rgba(22, 141, 217, 0.2);
 }
 
 .btn-primary:hover {
-  background-color: var(--color-black-light);
+  background-color: var(--color-brand-action-hover);
   transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
+  box-shadow: 0 10px 22px rgba(22, 141, 217, 0.26);
 }
 
+.btn-primary:active { background-color: var(--color-brand-action-active); transform: translateY(0); }
+
 .btn-secondary {
-  background-color: var(--color-primary);
-  color: var(--color-black);
+  background-color: var(--color-brand-soft);
+  color: var(--color-brand-ink);
+  border: 1px solid var(--color-brand-border);
 }
 
 .btn-secondary:hover {
-  background-color: var(--color-primary-dark);
+  background-color: var(--color-primary-light);
   transform: translateY(-1px);
 }
 
 .btn-outline {
   background-color: transparent;
-  border: 2px solid var(--color-black);
-  color: var(--color-black);
+  border: 1px solid var(--color-brand-action);
+  color: var(--color-brand-action-hover);
 }
 
 .btn-outline:hover {
-  background-color: var(--color-black);
+  background-color: var(--color-brand-action);
   color: var(--color-white);
   transform: translateY(-1px);
+}
+
+.btn:disabled,
+.btn[aria-disabled='true'] {
+  box-shadow: none;
+  cursor: not-allowed;
+  opacity: 0.58;
+  transform: none;
 }
 
 /* Cards */
 .card {
   background: var(--color-white);
+  border: 1px solid rgba(185, 223, 247, 0.64);
   border-radius: var(--radius-xl);
   overflow: hidden;
   transition: all var(--transition-base);
@@ -315,7 +328,7 @@ a {
 
 .card:hover {
   transform: translateY(-2px);
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 14px 30px var(--color-brand-shadow);
 }
 
 .sr-only {
@@ -760,8 +773,8 @@ a {
 
 .form-input:focus {
   outline: none;
-  border-color: #87CEEB;
-  box-shadow: 0 0 0 3px rgba(135, 206, 235, 0.1);
+  border-color: var(--color-brand-action);
+  box-shadow: 0 0 0 3px var(--color-brand-focus);
 }
 
 .form-input.error {

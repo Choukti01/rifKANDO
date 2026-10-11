@@ -1,0 +1,73 @@
+/* Shared marketplace polish. It uses the same rifKANDO blue system across
+   pages without changing the business logic owned by each feature. */
+
+::selection {
+  background: var(--color-brand-blue);
+  color: var(--color-brand-ink);
+}
+
+input:not([type='checkbox']):not([type='radio']),
+select,
+textarea {
+  border-color: #cbddea;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background-color var(--transition-fast);
+}
+
+input:not([type='checkbox']):not([type='radio']):focus,
+select:focus,
+textarea:focus {
+  border-color: var(--color-brand-action) !important;
+  box-shadow: 0 0 0 3px var(--color-brand-focus) !important;
+}
+
+button:not(:disabled),
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.listing-card-action {
+  border-color: var(--color-brand-action);
+  color: var(--color-brand-action-hover);
+}
+
+.listing-card-action:hover {
+  background: var(--color-brand-action);
+  border-color: var(--color-brand-action);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .card:hover,
+  .category-card:hover,
+  .listing-card-action:hover {
+    will-change: transform;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 1024px) {
+  .container {
+    padding-inline: clamp(1.25rem, 4vw, 2.5rem);
+  }
+
+  .btn {
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 640px) {
+  .card,
+  .category-card,
+  .empty-state {
+    border-radius: 0.9rem;
+  }
+
+  .btn,
+  .listing-card-action {
+    min-height: var(--touch-target);
+  }
+
+  .card:hover,
+  .category-card:hover,
+  .listing-card-action:hover {
+    transform: none;
+  }
+}
