@@ -567,7 +567,7 @@ Object.assign(resources.en.translation, {
   products: {
     loading: 'Loading products', title: 'Products', lead: 'Discover trusted products from Moroccan sellers.',
     search: 'Search', searchPlaceholder: 'Search products...', filters: 'Filters', clearFilters: 'Clear filters',
-    category: 'Category', allCategories: 'All categories', city: 'Seller city', cityPlaceholder: 'Filter by city', browseByCity: 'Browse by city', fromCity: 'From {{city}}', minPrice: 'Min price', maxPrice: 'Max price', sort: 'Sort products',
+    category: 'Category', allCategories: 'All categories', city: 'Seller city', cityPlaceholder: 'Filter by city', browseByCity: 'Browse by city', fromCity: 'From {{city}}', minPrice: 'Min price', maxPrice: 'Max price', minRating: 'Minimum rating', anyRating: 'Any rating', ratingAndUp: '{{rating}} stars and up', sort: 'Sort products',
     sortNewest: 'Newest first', sortPriceAsc: 'Price: low to high', sortPriceDesc: 'Price: high to low', sortRating: 'Top rated', sortPopular: 'Most popular',
     activeFilters: 'Active filters', from: 'From', upTo: 'Up to', results: '{{count}} products found{{filters}}', withFilters: 'with {{count}} active filters',
     viewMedia: 'View media for {{title}}', video: 'Video', itemCount: '{{count}} items', by: 'by', unknownSeller: 'Unknown seller', reviewCount: '{{count}} reviews',
@@ -581,7 +581,7 @@ Object.assign(resources.fr.translation, {
   products: {
     loading: 'Chargement des produits', title: 'Produits', lead: 'Découvrez des produits fiables proposés par des vendeurs marocains.',
     search: 'Rechercher', searchPlaceholder: 'Rechercher des produits...', filters: 'Filtres', clearFilters: 'Effacer les filtres',
-    category: 'Catégorie', allCategories: 'Toutes les catégories', city: 'Ville du vendeur', cityPlaceholder: 'Filtrer par ville', browseByCity: 'Parcourir par ville', fromCity: 'Depuis {{city}}', minPrice: 'Prix minimum', maxPrice: 'Prix maximum', sort: 'Trier les produits',
+    category: 'Catégorie', allCategories: 'Toutes les catégories', city: 'Ville du vendeur', cityPlaceholder: 'Filtrer par ville', browseByCity: 'Parcourir par ville', fromCity: 'Depuis {{city}}', minPrice: 'Prix minimum', maxPrice: 'Prix maximum', minRating: 'Note minimum', anyRating: 'Toutes les notes', ratingAndUp: '{{rating}} étoiles et plus', sort: 'Trier les produits',
     sortNewest: 'Plus récents', sortPriceAsc: 'Prix : croissant', sortPriceDesc: 'Prix : décroissant', sortRating: 'Mieux notés', sortPopular: 'Les plus populaires',
     activeFilters: 'Filtres actifs', from: 'À partir de', upTo: 'Jusqu’à', results: '{{count}} produits trouvés{{filters}}', withFilters: 'avec {{count}} filtres actifs',
     viewMedia: 'Voir les médias de {{title}}', video: 'Vidéo', itemCount: '{{count}} éléments', by: 'par', unknownSeller: 'Vendeur inconnu', reviewCount: '{{count}} avis',
@@ -595,7 +595,7 @@ Object.assign(resources.ar.translation, {
   products: {
     loading: 'جارٍ تحميل المنتجات', title: 'المنتجات', lead: 'اكتشف منتجات موثوقة من بائعين مغاربة.',
     search: 'بحث', searchPlaceholder: 'ابحث عن منتجات...', filters: 'التصفية', clearFilters: 'مسح التصفية',
-    category: 'الفئة', allCategories: 'كل الفئات', city: 'مدينة البائع', cityPlaceholder: 'التصفية حسب المدينة', browseByCity: 'تصفّح حسب المدينة', fromCity: 'من {{city}}', minPrice: 'أقل سعر', maxPrice: 'أعلى سعر', sort: 'ترتيب المنتجات',
+    category: 'الفئة', allCategories: 'كل الفئات', city: 'مدينة البائع', cityPlaceholder: 'التصفية حسب المدينة', browseByCity: 'تصفّح حسب المدينة', fromCity: 'من {{city}}', minPrice: 'أقل سعر', maxPrice: 'أعلى سعر', minRating: 'أدنى تقييم', anyRating: 'أي تقييم', ratingAndUp: '{{rating}} نجوم فأكثر', sort: 'ترتيب المنتجات',
     sortNewest: 'الأحدث أولًا', sortPriceAsc: 'السعر: من الأقل إلى الأعلى', sortPriceDesc: 'السعر: من الأعلى إلى الأقل', sortRating: 'الأعلى تقييمًا', sortPopular: 'الأكثر رواجًا',
     activeFilters: 'الفلاتر النشطة', from: 'من', upTo: 'حتى', results: 'تم العثور على {{count}} منتج{{filters}}', withFilters: 'مع {{count}} فلترًا نشطًا',
     viewMedia: 'عرض وسائط {{title}}', video: 'فيديو', itemCount: '{{count}} عناصر', by: 'بواسطة', unknownSeller: 'بائع غير معروف', reviewCount: '{{count}} مراجعات',

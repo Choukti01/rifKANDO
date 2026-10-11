@@ -5,8 +5,7 @@ import { StarIcon, HeartIcon, TruckIcon, ShieldCheckIcon, ArrowPathIcon, XMarkIc
 import useCart from '../../hooks/useCart';
 import useFavorites from '../../hooks/useFavorites';
 import useAuth from '../../hooks/useAuth';
-import { getProduct } from '../../services/api';
-import api from '../../services/api';
+import api, { getProduct, getProducts } from '../../services/api';
 import toast from 'react-hot-toast';
 import MediaGallery from '../../components/MediaGallery';
 import MarketplaceImage from '../../components/common/MarketplaceImage';
@@ -41,6 +40,7 @@ const ProductDetailsPage = () => {
   const [submittingReview, setSubmittingReview] = useState(false);
   const [hasPurchased, setHasPurchased] = useState(false);
   const [hasReviewed, setHasReviewed] = useState(false);
+  const [relatedProducts, setRelatedProducts] = useState([]);
   const [replyingToReviewId, setReplyingToReviewId] = useState(null);
   const [sellerReplyDraft, setSellerReplyDraft] = useState('');
   const [savingSellerReply, setSavingSellerReply] = useState(false);
@@ -64,6 +64,19 @@ const ProductDetailsPage = () => {
     return response.data;
   }, [id]);
 
+  const fetchRelatedProducts = useCallback(async (catalogProduct) => {
+    if (!catalogProduct?.category) return [];
+    const response = await getProducts({
+      category: catalogProduct.category,
+      condition: catalogProduct.condition || 'new',
+      sortBy: 'newest',
+      limit: 4,
+    });
+    return (response.data.products || [])
+      .filter((item) => Number(item.id) !== Number(catalogProduct.id))
+      .slice(0, 3);
+  }, []);
+
   useEffect(() => {
     let isCurrent = true;
 
@@ -84,6 +97,10 @@ const ProductDetailsPage = () => {
           return (nextProduct.media?.find((media) => media.is_primary) || nextProduct.media?.[0])?.id || null;
         });
         setQuantity(1);
+        setRelatedProducts([]);
+        void fetchRelatedProducts(nextProduct)
+          .then((items) => { if (isCurrent) setRelatedProducts(items); })
+          .catch(() => { if (isCurrent) setRelatedProducts([]); });
       } else {
         console.error('Error fetching product:', productResult.reason);
         toast.error(t('productDetails.notFound'));
@@ -114,7 +131,7 @@ const ProductDetailsPage = () => {
     return () => {
       isCurrent = false;
     };
-  }, [checkReviewEligibility, fetchProduct, fetchReviews, isAuthenticated, t]);
+  }, [checkReviewEligibility, fetchProduct, fetchRelatedProducts, fetchReviews, isAuthenticated, t]);
 
   const submitReview = async () => {
     if (!reviewRating) {
@@ -563,6 +580,36 @@ const ProductDetailsPage = () => {
             )}
           </div>
         </div>
+
+        {relatedProducts.length > 0 && (
+          <section className="related-products" aria-labelledby="related-products-heading">
+            <div className="related-products-heading">
+              <div>
+                <p>{t('products.relatedEyebrow')}</p>
+                <h2 id="related-products-heading">{t('products.relatedTitle')}</h2>
+              </div>
+              <Link to={`/products?category=${encodeURIComponent(product.category || '')}&condition=${encodeURIComponent(product.condition || 'new')}`}>
+                {t('products.viewAll')}
+              </Link>
+            </div>
+            <div className="related-products-grid">
+              {relatedProducts.map((item) => (
+                <Link key={item.id} to={`/product/${item.id}`} className="related-product-card">
+                  <div className="related-product-image">
+                    {item.media?.[0]
+                      ? <MarketplaceImage source={item.media[0].media_url} alt={item.title} />
+                      : <span aria-hidden="true">📦</span>}
+                  </div>
+                  <div className="related-product-copy">
+                    <h3>{item.title}</h3>
+                    {item.listing_city && <span>{t('products.fromCity', { city: item.listing_city })}</span>}
+                    <strong>{formatAmount(item.price)} MAD</strong>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
       </div>
 
       {/* Make Offer Modal for Joutiya Products */}

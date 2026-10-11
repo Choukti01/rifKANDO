@@ -52,6 +52,23 @@ const FindItPage = () => {
     ...(sortBy !== 'newest' ? { sortBy } : {}),
   }), [category, city, search, sortBy]);
 
+  // Let sellers share a filtered buyer-request view and keep browser
+  // Back/Forward behaviour truthful to the URL.
+  useEffect(() => {
+    const next = {
+      search: urlSearchParams.get('search') || '',
+      category: urlSearchParams.get('category') || '',
+      city: urlSearchParams.get('city') || '',
+      sortBy: urlSearchParams.get('sortBy') || 'newest',
+    };
+    setSearch((current) => current === next.search ? current : next.search);
+    setSearchInput((current) => current === next.search ? current : next.search);
+    setCategory((current) => current === next.category ? current : next.category);
+    setCity((current) => current === next.city ? current : next.city);
+    setCityInput((current) => current === next.city ? current : next.city);
+    setSortBy((current) => current === next.sortBy ? current : next.sortBy);
+  }, [urlSearchParams]);
+
   const fetchRequests = useCallback(async (page = 1) => {
     const response = await getFinditRequests(requestParams(page));
     return {

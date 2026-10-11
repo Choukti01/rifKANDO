@@ -153,7 +153,11 @@ export const getSession = () => api.get('/auth/session');
 export const getAuthMethods = () => api.get('/auth/methods');
 
 // ==================== PRODUCT APIs ====================
-export const getProducts = () => api.get('/products');
+export const getProducts = (params) => (
+  params && Object.keys(params).length > 0
+    ? api.get('/products', { params })
+    : api.get('/products')
+);
 export const getProduct = (id) => api.get(`/products/${id}`);
 export const createProduct = (productData) => api.post('/products', productData);
 export const updateProduct = (id, productData) => api.put(`/products/${id}`, productData);

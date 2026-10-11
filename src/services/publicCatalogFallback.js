@@ -84,6 +84,7 @@ const productResponse = (snapshot, url) => {
   const search = (url.searchParams.get('search') || '').trim().toLocaleLowerCase();
   const minPrice = Number(url.searchParams.get('minPrice'));
   const maxPrice = Number(url.searchParams.get('maxPrice'));
+  const minRating = Number(url.searchParams.get('minRating'));
   const sortBy = url.searchParams.get('sortBy') || 'newest';
   const page = asPositiveInteger(url.searchParams.get('page'), 1);
   const limit = Math.min(asPositiveInteger(url.searchParams.get('limit'), 20), 100);
@@ -94,6 +95,7 @@ const productResponse = (snapshot, url) => {
     if (search && !`${product.title || ''} ${product.description || ''}`.toLocaleLowerCase().includes(search)) return false;
     if (Number.isFinite(minPrice) && Number(product.price) < minPrice) return false;
     if (Number.isFinite(maxPrice) && Number(product.price) > maxPrice) return false;
+    if (Number.isFinite(minRating) && Number(product.rating || 0) < minRating) return false;
     return true;
   });
   const compare = {

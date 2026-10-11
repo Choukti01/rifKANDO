@@ -27,6 +27,7 @@ const ProductsPage = () => {
   const [city, setCity] = useState(() => urlSearchParams.get('city') || '');
   const [minPrice, setMinPrice] = useState(() => urlSearchParams.get('minPrice') || '');
   const [maxPrice, setMaxPrice] = useState(() => urlSearchParams.get('maxPrice') || '');
+  const [minRating, setMinRating] = useState(() => urlSearchParams.get('minRating') || '');
   const [sortBy, setSortBy] = useState(() => urlSearchParams.get('sortBy') || 'newest');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -46,6 +47,7 @@ const ProductsPage = () => {
     if (city) params.append('city', city);
     if (minPrice) params.append('minPrice', minPrice);
     if (maxPrice) params.append('maxPrice', maxPrice);
+    if (minRating) params.append('minRating', minRating);
     if (sortBy) params.append('sortBy', sortBy);
     params.append('page', currentPage);
     params.append('limit', 20);
@@ -53,7 +55,36 @@ const ProductsPage = () => {
 
     const response = await api.get(`/products?${params.toString()}`);
     return response.data;
-  }, [activeCondition, city, currentPage, maxPrice, minPrice, searchTerm, selectedCategory, sortBy]);
+  }, [activeCondition, city, currentPage, maxPrice, minPrice, minRating, searchTerm, selectedCategory, sortBy]);
+
+  // The URL is the portable catalogue state. Keeping browser navigation in
+  // sync means shared links, Back, and Forward all show the same results.
+  useEffect(() => {
+    const condition = urlSearchParams.get('condition') || 'new';
+    const page = Math.max(1, Number.parseInt(urlSearchParams.get('page') || '1', 10) || 1);
+    const next = {
+      condition,
+      search: urlSearchParams.get('search') || '',
+      category: urlSearchParams.get('category') || '',
+      city: urlSearchParams.get('city') || '',
+      minPrice: urlSearchParams.get('minPrice') || '',
+      maxPrice: urlSearchParams.get('maxPrice') || '',
+      minRating: urlSearchParams.get('minRating') || '',
+      sortBy: urlSearchParams.get('sortBy') || 'newest',
+    };
+
+    setActiveCondition((current) => current === next.condition ? current : next.condition);
+    setSearchTerm((current) => current === next.search ? current : next.search);
+    setSearchInput((current) => current === next.search ? current : next.search);
+    setSelectedCategory((current) => current === next.category ? current : next.category);
+    setCity((current) => current === next.city ? current : next.city);
+    setCityInput((current) => current === next.city ? current : next.city);
+    setMinPrice((current) => current === next.minPrice ? current : next.minPrice);
+    setMaxPrice((current) => current === next.maxPrice ? current : next.maxPrice);
+    setMinRating((current) => current === next.minRating ? current : next.minRating);
+    setSortBy((current) => current === next.sortBy ? current : next.sortBy);
+    setCurrentPage((current) => current === page ? current : page);
+  }, [urlSearchParams]);
 
   useEffect(() => {
     const next = new URLSearchParams();
@@ -63,10 +94,12 @@ const ProductsPage = () => {
     if (city) next.set('city', city);
     if (minPrice) next.set('minPrice', minPrice);
     if (maxPrice) next.set('maxPrice', maxPrice);
+    if (minRating) next.set('minRating', minRating);
     if (sortBy !== 'newest') next.set('sortBy', sortBy);
+    if (currentPage > 1) next.set('page', String(currentPage));
     const current = urlSearchParams.toString();
     if (current !== next.toString()) setUrlSearchParams(next, { replace: true });
-  }, [activeCondition, city, maxPrice, minPrice, searchTerm, selectedCategory, setUrlSearchParams, sortBy, urlSearchParams]);
+  }, [activeCondition, city, currentPage, maxPrice, minPrice, minRating, searchTerm, selectedCategory, setUrlSearchParams, sortBy, urlSearchParams]);
 
   useEffect(() => {
     let isCurrent = true;
@@ -122,8 +155,8 @@ const ProductsPage = () => {
   };
   const categoryLabel = (category) => t(`products.categories.${category}`);
 
-  const hasActiveFilters = Boolean(searchTerm || selectedCategory || city || minPrice || maxPrice);
-  const activeFilterCount = [searchTerm, selectedCategory, city, minPrice, maxPrice].filter(Boolean).length;
+  const hasActiveFilters = Boolean(searchTerm || selectedCategory || city || minPrice || maxPrice || minRating);
+  const activeFilterCount = [searchTerm, selectedCategory, city, minPrice, maxPrice, minRating].filter(Boolean).length;
 
   const clearFilters = () => {
     setSearchInput('');
@@ -133,6 +166,7 @@ const ProductsPage = () => {
     setCity('');
     setMinPrice('');
     setMaxPrice('');
+    setMinRating('');
     setCurrentPage(1);
     setShowMobileFilters(false);
   };
@@ -186,6 +220,12 @@ const ProductsPage = () => {
               <input type="text" list="marketplace-city-options" maxLength="100" placeholder={t('products.cityPlaceholder')} value={cityInput} onChange={(e) => setCityInput(e.target.value)} className="filter-select" aria-label={t('products.city')} />
               <input type="number" min="0" placeholder={t('products.minPrice')} value={minPrice} onChange={(e) => { setMinPrice(e.target.value); setCurrentPage(1); }} className="price-input" aria-label={t('products.minPrice')} />
               <input type="number" min="0" placeholder={t('products.maxPrice')} value={maxPrice} onChange={(e) => { setMaxPrice(e.target.value); setCurrentPage(1); }} className="price-input" aria-label={t('products.maxPrice')} />
+              <select value={minRating} onChange={(e) => { setMinRating(e.target.value); setCurrentPage(1); }} className="filter-select" aria-label={t('products.minRating')}>
+                <option value="">{t('products.anyRating')}</option>
+                <option value="4.5">{t('products.ratingAndUp', { rating: '4.5' })}</option>
+                <option value="4">{t('products.ratingAndUp', { rating: '4' })}</option>
+                <option value="3">{t('products.ratingAndUp', { rating: '3' })}</option>
+              </select>
               <select value={sortBy} onChange={(e) => { setSortBy(e.target.value); setCurrentPage(1); }} className="filter-select" aria-label={t('products.sort')}>
                 <option value="newest">{t('products.sortNewest')}</option>
                 <option value="price_asc">{t('products.sortPriceAsc')}</option>
@@ -213,6 +253,7 @@ const ProductsPage = () => {
               {city && <button type="button" className="filter-chip" onClick={() => { setCityInput(''); setCity(''); setCurrentPage(1); }}>{t('products.city')}: {city} <span aria-hidden="true">×</span></button>}
               {minPrice && <button type="button" className="filter-chip" onClick={() => { setMinPrice(''); setCurrentPage(1); }}>{t('products.from')} {minPrice} MAD <span aria-hidden="true">×</span></button>}
               {maxPrice && <button type="button" className="filter-chip" onClick={() => { setMaxPrice(''); setCurrentPage(1); }}>{t('products.upTo')} {maxPrice} MAD <span aria-hidden="true">×</span></button>}
+              {minRating && <button type="button" className="filter-chip" onClick={() => { setMinRating(''); setCurrentPage(1); }}>{t('products.ratingAndUp', { rating: minRating })} <span aria-hidden="true">×</span></button>}
             </div>
           )}
           {!loadError && <div className="results-count" aria-live="polite">{t('products.results', { count: totalProducts, filters: hasActiveFilters ? ` ${t('products.withFilters', { count: activeFilterCount })}` : '' })}</div>}
