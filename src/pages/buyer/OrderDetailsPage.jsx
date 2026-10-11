@@ -18,6 +18,7 @@ import {
   XCircleIcon,
   InformationCircleIcon
 } from '@heroicons/react/24/outline';
+import OrderDisputes from './OrderDisputes';
 
 const money = (value) => `${Number(value || 0).toLocaleString()} MAD`;
 const dateTime = (value) => value ? new Date(value).toLocaleString('en-MA', { dateStyle: 'medium', timeStyle: 'short' }) : null;
@@ -214,6 +215,8 @@ const OrderDetailsPage = () => {
           </aside>}
           <div className="cod-tracking-card__help"><InformationCircleIcon aria-hidden="true" /><span>Need help with this delivery?</span><a href={supportHref}>Email support with this order</a><Link to="/contact">Other contact options</Link></div>
         </section>}
+
+        <OrderDisputes order={order} />
 
         <div className="details-grid">
           {/* Order Info */}

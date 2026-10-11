@@ -95,6 +95,25 @@ class CodFulfillmentService {
     );
   }
 
+  // Disputes are operational evidence, not a replacement for finance. While a
+  // case is active, however, no irreversible COD cash or payout action may be
+  // recorded. Keep this inside the same transaction as the protected action so
+  // a concurrently opened dispute cannot race a settlement through.
+  static async assertNoActiveDisputeTx(tx, fulfillmentId) {
+    const active = await tx.get(
+      WalletService.lockForUpdate(`
+        SELECT id
+        FROM order_disputes
+        WHERE fulfillment_id = ? AND status IN ('open', 'in_review', 'return_required')
+        LIMIT 1
+      `),
+      [fulfillmentId]
+    );
+    if (active) {
+      throw new Error('This COD delivery has an active dispute. Resolve the case before recording cash, remittance, or a seller payout.');
+    }
+  }
+
   static async syncOrderStateTx(tx, orderId) {
     const fulfillments = await tx.all(
       WalletService.lockForUpdate('SELECT status, settlement_status, seller_payout_status FROM cod_fulfillments WHERE order_id = ? ORDER BY id ASC'),
@@ -353,6 +372,7 @@ class CodFulfillmentService {
       if (fulfillment.delivery_reported_at && fulfillment.delivery_report_outcome !== 'delivered') {
         throw new Error(`Toufiq reported this parcel as ${fulfillment.delivery_report_outcome}. Record the matching delivery exception instead of a cash collection.`);
       }
+      await this.assertNoActiveDisputeTx(tx, fulfillment.id);
       const expectedAmount = getAmountMinor(fulfillment, 'expected_cod_amount_minor', 'expected_cod_amount');
       if (collectionMinor !== expectedAmount) {
         throw new Error(`Collected COD must equal the expected amount of ${Money.formatMinor(expectedAmount)} MAD.`);
@@ -456,6 +476,7 @@ class CodFulfillmentService {
       if (fulfillment.status !== 'shipped') {
         throw new Error('Only a shipped COD fulfilment can be confirmed as delivered.');
       }
+      await this.assertNoActiveDisputeTx(tx, fulfillment.id);
       if (!cleanText(fulfillment.carrier_name, 120) || !cleanText(fulfillment.tracking_number, 128)) {
         throw new Error('Carrier and tracking evidence are required before delivery can be confirmed.');
       }
@@ -528,6 +549,7 @@ class CodFulfillmentService {
       if (fulfillment.commission_payment_status !== 'submitted') {
         throw new Error('Verify the seller\'s actual Attijari transfer only after they submit its reference.');
       }
+      await this.assertNoActiveDisputeTx(tx, fulfillment.id);
       const operation = await WalletService.createOperationTx(tx, {
         operationKey: `seller-managed-cod-commission:${safeFulfillmentId}`,
         operationType: 'seller_managed_cod_commission',
@@ -572,6 +594,7 @@ class CodFulfillmentService {
       if (fulfillment.status !== 'delivered' || fulfillment.settlement_status !== 'awaiting_remittance') {
         throw new Error('Only carrier-collected COD fulfilments can be settled.');
       }
+      await this.assertNoActiveDisputeTx(tx, fulfillment.id);
       const collectedMinor = getAmountMinor(fulfillment, 'collected_amount_minor', 'collected_amount');
       const carrierDeliveryMinor = getAmountMinor(fulfillment, 'carrier_delivery_fee_minor', 'carrier_delivery_fee');
       const expectedRemittanceMinor = Money.assertMinor(collectedMinor - carrierDeliveryMinor, { allowZero: true });
@@ -679,6 +702,7 @@ class CodFulfillmentService {
       if (fulfillment.status !== 'delivered' || fulfillment.settlement_status !== 'awaiting_remittance') {
         throw new Error('Only a delivered COD fulfilment awaiting remittance can be reconciled.');
       }
+      await this.assertNoActiveDisputeTx(tx, fulfillment.id);
       const collectedMinor = getAmountMinor(fulfillment, 'collected_amount_minor', 'collected_amount');
       const deliveryFeeMinor = getAmountMinor(fulfillment, 'carrier_delivery_fee_minor', 'carrier_delivery_fee');
       const expectedRemittanceMinor = Money.assertMinor(collectedMinor - deliveryFeeMinor, { allowZero: true });
@@ -746,6 +770,7 @@ class CodFulfillmentService {
       if (fulfillment.settlement_status !== 'settled' || fulfillment.seller_payout_status !== 'due') {
         throw new Error('Record the Toufiq remittance before recording the seller payout.');
       }
+      await this.assertNoActiveDisputeTx(tx, fulfillment.id);
       const duplicate = await tx.get(
         WalletService.lockForUpdate('SELECT id FROM cod_fulfillments WHERE seller_payout_reference = ?'),
         [safeReference]

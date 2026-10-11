@@ -44,12 +44,15 @@ function extractPostgresColumns(sql, table) {
     })
     .filter(Boolean));
 
-  const alterColumnPattern = new RegExp(
-    `ALTER TABLE\\s+${table}\\s+ADD COLUMN(?: IF NOT EXISTS)?\\s+(?:"([A-Za-z_][A-Za-z0-9_]*)"|([A-Za-z_][A-Za-z0-9_]*))`,
-    'gi'
-  );
-  for (const alterMatch of sql.matchAll(alterColumnPattern)) {
-    columns.add(alterMatch[1] || alterMatch[2]);
+  // ALTER TABLE statements frequently add several columns in a single
+  // migration. Inspect the complete statement rather than only the first ADD
+  // COLUMN clause, otherwise this test can report a false schema gap.
+  const alterTablePattern = new RegExp(`ALTER TABLE\\s+${table}\\s+([\\s\\S]*?);`, 'gi');
+  const addColumnPattern = /ADD COLUMN(?: IF NOT EXISTS)?\s+(?:"([A-Za-z_][A-Za-z0-9_]*)"|([A-Za-z_][A-Za-z0-9_]*))/gi;
+  for (const alterStatement of sql.matchAll(alterTablePattern)) {
+    for (const alterMatch of alterStatement[1].matchAll(addColumnPattern)) {
+      columns.add(alterMatch[1] || alterMatch[2]);
+    }
   }
   return columns;
 }

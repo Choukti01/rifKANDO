@@ -36,8 +36,10 @@ const SearchPage = lazy(() => import('./pages/search/SearchPage'))
 const PaymentSuccess = lazy(() => import('./pages/PaymentSuccess'))
 const PaymentFailed = lazy(() => import('./pages/PaymentFailed'))
 const SellerOrders = lazy(() => import('./pages/seller/dashboard/Orders'))
+const SellerDisputes = lazy(() => import('./pages/seller/dashboard/Disputes'))
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'))
 const CODReconciliation = lazy(() => import('./pages/admin/CODReconciliation'))
+const CODDisputesPage = lazy(() => import('./pages/admin/CODDisputesPage'))
 const OperationsTeamPage = lazy(() => import('./pages/admin/OperationsTeamPage'))
 const ProductReportsPage = lazy(() => import('./pages/admin/ProductReportsPage'))
 const CODOperationsDesk = lazy(() => import('./pages/operations/CODOperationsDesk'))
@@ -171,6 +173,11 @@ function AppContent() {
                       <CODReconciliation />
                     </ProtectedRoute>
                   } />
+                  <Route path="/admin/disputes" element={
+                    <ProtectedRoute requiredCapability="canReconcileCod">
+                      <CODDisputesPage />
+                    </ProtectedRoute>
+                  } />
                   <Route path="/admin/operations-team" element={
                     <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
                       <OperationsTeamPage />
@@ -184,6 +191,11 @@ function AppContent() {
                   <Route path="/operations/cod" element={
                     <ProtectedRoute requiredCapability="canOperateCod">
                       <CODOperationsDesk />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/operations/disputes" element={
+                    <ProtectedRoute requiredCapability="canOperateCod">
+                      <CODDisputesPage />
                     </ProtectedRoute>
                   } />
                   <Route path="/payment/success" element={<PaymentSuccess />} />
@@ -272,6 +284,7 @@ function AppContent() {
                     <Route path="settings" element={<Settings />} />
                     <Route path="wallet" element={<Wallet />} />
                     <Route path="orders" element={<SellerOrders />} />
+                    <Route path="disputes" element={<SellerDisputes />} />
                     <Route path="offers" element={<SellerOffers />} />
                     <Route path="messages" element={<MessagesInbox />} />
                     <Route path="messages/:userId" element={<ChatPage />} />

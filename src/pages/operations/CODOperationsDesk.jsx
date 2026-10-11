@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
+import { Link } from 'react-router-dom';
 import api from '../../services/api';
 
 const money = (value, language) => `${Number(value || 0).toLocaleString(language === 'ar' ? 'ar-MA' : language === 'fr' ? 'fr-MA' : 'en-MA', { maximumFractionDigits: 2 })} MAD`;
@@ -133,7 +134,7 @@ const CODOperationsDesk = () => {
           <h1>{t('codOps.title')}</h1>
           <p><strong>Operations lead: {partner?.name || 'Toufiq Zariohi'}</strong></p><p>{t('codOps.lead')}</p>
         </div>
-        <button type="button" onClick={() => void loadQueue()}>{t('codOps.refresh')}</button>
+        <div className="cod-ops__header-actions"><Link to="/operations/disputes">{t('codOps.disputes')}</Link><button type="button" onClick={() => void loadQueue()}>{t('codOps.refresh')}</button></div>
       </header>
 
       <section className="cod-ops__partner" aria-label="Delivery partner">

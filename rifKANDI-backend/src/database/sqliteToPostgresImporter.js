@@ -33,6 +33,8 @@ const SQLITE_IMPORT_ORDER = Object.freeze([
   'orders',
   'order_items',
   'cod_fulfillments',
+  'order_disputes',
+  'order_dispute_events',
   'order_status_history',
   'order_invoices',
   'checkout_requests',

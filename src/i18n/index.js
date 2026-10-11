@@ -774,6 +774,16 @@ Object.assign(resources.ar.translation, {
   },
 });
 
+Object.assign(resources.en.translation.sellerDashboard, { disputes: 'Disputes' });
+Object.assign(resources.fr.translation, {
+  sellerDashboard: { ...(resources.fr.translation.sellerDashboard || {}), disputes: 'Litiges' },
+});
+Object.assign(resources.ar.translation.sellerDashboard, { disputes: 'النزاعات' });
+
+Object.assign(resources.en.translation.codOps, { disputes: 'Delivery disputes' });
+Object.assign(resources.fr.translation.codOps, { disputes: 'Litiges de livraison' });
+Object.assign(resources.ar.translation.codOps, { disputes: 'نزاعات التوصيل' });
+
 const replaceArabicFinditBrand = (value) => {
   if (typeof value === 'string') return value.replaceAll('FINDit', resources.ar.translation.findit.navigation);
   if (value && typeof value === 'object') Object.values(value).forEach(replaceArabicFinditBrand);

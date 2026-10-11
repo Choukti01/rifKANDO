@@ -84,8 +84,8 @@ const { getCodDeliveryPartner, getCodReconciliationControllers, createSellerHand
 const FeatureFlags = require('./services/featureFlagService');
 const PasskeyService = require('./services/passkeyService');
 const { log: logObservability, snapshot: getObservabilitySnapshot } = require('./services/observabilityService');
-const { requireCodReconciliationAccess } = require('./middleware/codReconciliationAccess');
-const { requireCodOperationsAccess } = require('./middleware/codOperationsAccess');
+const { requireCodReconciliationAccess, canAccessCodReconciliation } = require('./middleware/codReconciliationAccess');
+const { requireCodOperationsAccess, canAccessCodOperations } = require('./middleware/codOperationsAccess');
 const {
   OTP_MAX_ATTEMPTS,
   OTP_MAX_SENDS_PER_HOUR,
@@ -103,6 +103,7 @@ const createCourseRoutes = require('./routes/courseRoutes');
 const createServiceRoutes = require('./routes/serviceRoutes');
 const createDigitalRoutes = require('./routes/digitalRoutes');
 const createFindItRoutes = require('./routes/finditRoutes');
+const createDisputeRoutes = require('./routes/disputeRoutes');
 const { PublicCatalogSnapshotService } = require('./services/publicCatalogSnapshotService');
 // const EmailService = require('./services/emailService');
 
@@ -1899,6 +1900,16 @@ app.use('/api', createProductRoutes({
   AuditService,
   NotificationService,
   CodFulfillmentService,
+}));
+
+app.use('/api', createDisputeRoutes({
+  db,
+  protect,
+  AuditService,
+  NotificationService,
+  canAccessCodOperations,
+  canAccessCodReconciliation,
+  notifyCodTeam,
 }));
 
 app.use('/api', createCourseRoutes({

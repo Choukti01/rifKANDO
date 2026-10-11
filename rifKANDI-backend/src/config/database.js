@@ -1067,6 +1067,48 @@ db.serialize(() => {
     )
   `, (err) => { if (err) console.error('Error creating order_status_history:', err); else console.log('✅ order_status_history table ready'); });
 
+  // A dispute is linked to exactly one COD parcel, never directly to a mutable
+  // listing. This preserves the buyer, seller and delivery evidence needed to
+  // make a safe decision after a listing changes or is removed.
+  db.run(`
+    CREATE TABLE IF NOT EXISTS order_disputes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      fulfillment_id INTEGER NOT NULL,
+      order_id INTEGER NOT NULL,
+      buyer_id INTEGER NOT NULL,
+      seller_id INTEGER NOT NULL,
+      opened_by INTEGER NOT NULL,
+      reason TEXT NOT NULL CHECK(reason IN ('not_received', 'wrong_item', 'damaged', 'not_as_described', 'delivery_issue', 'other')),
+      description TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'open'
+        CHECK(status IN ('open', 'in_review', 'resolved_buyer', 'resolved_seller', 'return_required', 'closed')),
+      resolution TEXT,
+      resolved_by INTEGER,
+      resolved_at DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (fulfillment_id) REFERENCES cod_fulfillments(id),
+      FOREIGN KEY (order_id) REFERENCES orders(id),
+      FOREIGN KEY (buyer_id) REFERENCES users(id),
+      FOREIGN KEY (seller_id) REFERENCES users(id),
+      FOREIGN KEY (opened_by) REFERENCES users(id),
+      FOREIGN KEY (resolved_by) REFERENCES users(id)
+    )
+  `, (err) => { if (err) console.error('Error creating order_disputes:', err); else console.log('✅ order_disputes table ready'); });
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS order_dispute_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      dispute_id INTEGER NOT NULL,
+      actor_user_id INTEGER,
+      event_type TEXT NOT NULL CHECK(event_type IN ('opened', 'message', 'decision')),
+      body TEXT NOT NULL DEFAULT '',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (dispute_id) REFERENCES order_disputes(id) ON DELETE CASCADE,
+      FOREIGN KEY (actor_user_id) REFERENCES users(id)
+    )
+  `, (err) => { if (err) console.error('Error creating order_dispute_events:', err); else console.log('✅ order_dispute_events table ready'); });
+
   // Add product_title and product_image columns to order_items
   db.run("ALTER TABLE order_items ADD COLUMN product_title TEXT", (err) => {
     if (err && !err.message.includes('duplicate column name')) {
@@ -1491,6 +1533,9 @@ db.serialize(() => {
     ['idx_digital_products_catalog_created', 'digital_products(status, created_at DESC)'],
     ['idx_bookings_catalog_created', 'bookings(status, created_at DESC)'],
     ['idx_orders_buyer_created', 'orders(user_id, created_at DESC)'],
+    ['idx_order_disputes_participant', 'order_disputes(buyer_id, seller_id, updated_at DESC)'],
+    ['idx_order_disputes_queue', 'order_disputes(status, updated_at ASC)'],
+    ['idx_order_dispute_events_dispute', 'order_dispute_events(dispute_id, created_at ASC)'],
     ['idx_digital_purchases_buyer_created', 'digital_purchases(buyer_id, created_at DESC)'],
     ['idx_digital_purchases_product_buyer', 'digital_purchases(product_id, buyer_id, id DESC)'],
     ['idx_digital_requests_product_buyer_status', 'digital_requests(digital_id, buyer_id, status, id DESC)'],
@@ -1539,6 +1584,12 @@ db.serialize(() => {
     (err) => {
       if (err) console.error('Error creating verified product review index:', err.message);
     },
+  );
+  db.run(
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_order_disputes_one_active_per_fulfillment
+     ON order_disputes(fulfillment_id)
+     WHERE status IN ('open', 'in_review', 'return_required')`,
+    (err) => { if (err) console.error('Error creating active dispute index:', err.message); }
   );
   db.run(
     `CREATE UNIQUE INDEX IF NOT EXISTS idx_cod_fulfillments_collection_reference

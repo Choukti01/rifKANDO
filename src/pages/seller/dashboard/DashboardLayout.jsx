@@ -5,7 +5,7 @@ import {
   WrenchScrewdriverIcon, CurrencyDollarIcon, Cog6ToothIcon, 
   ArrowLeftOnRectangleIcon, ComputerDesktopIcon, MagnifyingGlassIcon,
   ChatBubbleLeftRightIcon, Bars3Icon, XMarkIcon, ClipboardDocumentListIcon,
-  HeartIcon, ShoppingCartIcon, TagIcon
+  HeartIcon, ShoppingCartIcon, TagIcon, ShieldExclamationIcon
 } from '@heroicons/react/24/outline';
 import useAuth from '../../../hooks/useAuth';
 import useCart from '../../../hooks/useCart';
@@ -75,6 +75,7 @@ const DashboardLayout = () => {
     { name: t('sellerDashboard.overview'), icon: HomeIcon, path: 'overview' },
     ...selectedWorkspaceItems,
     { name: t('sellerDashboard.orders'), icon: ClipboardDocumentListIcon, path: 'orders' },
+    { name: t('sellerDashboard.disputes'), icon: ShieldExclamationIcon, path: 'disputes' },
     { name: t('sellerDashboard.findit'), icon: MagnifyingGlassIcon, path: 'findit' },
     { name: t('sellerDashboard.offers'), icon: TagIcon, path: 'offers' },
     { name: t('sellerDashboard.messages'), icon: ChatBubbleLeftRightIcon, path: 'messages', unreadCount },

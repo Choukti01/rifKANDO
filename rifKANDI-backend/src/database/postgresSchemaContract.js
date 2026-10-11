@@ -35,6 +35,8 @@ const EXPECTED_POSTGRES_TABLES = Object.freeze([
   'messages',
   'notifications',
   'order_invoices',
+  'order_dispute_events',
+  'order_disputes',
   'order_items',
   'order_status_history',
   'orders',
