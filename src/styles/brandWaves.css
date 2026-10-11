@@ -1,0 +1,102 @@
+/* rifKANDO wave language: calm separation between broad public surfaces. */
+
+.wave-divider {
+  display: block;
+  width: 100%;
+  height: clamp(2rem, 4vw, 4.4rem);
+  overflow: hidden;
+  line-height: 0;
+  pointer-events: none;
+}
+
+.wave-divider svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.wave-divider__back,
+.wave-divider__front {
+  transition: fill var(--transition-slow);
+}
+
+.wave-divider--soft .wave-divider__back { fill: #e4f4fe; }
+.wave-divider--soft .wave-divider__front { fill: var(--color-brand-soft); }
+
+.wave-divider--blue .wave-divider__back { fill: #9ed8fa; }
+.wave-divider--blue .wave-divider__front { fill: var(--color-brand-blue); }
+
+.wave-divider--ink .wave-divider__back { fill: #123f6d; }
+.wave-divider--ink .wave-divider__front { fill: var(--color-brand-ink); }
+
+.app-header-wave {
+  margin-top: -0.5rem;
+  margin-bottom: clamp(0.45rem, 1.4vw, 1.25rem);
+  background: linear-gradient(180deg, rgba(234, 247, 255, 0.9), rgba(255, 255, 255, 0));
+}
+
+.app-footer-wave {
+  position: relative;
+  z-index: 1;
+  margin-top: clamp(1rem, 3vw, 2.75rem);
+  margin-bottom: -1px;
+}
+
+/* Large public canvases get a quiet wave wash without affecting form or
+   dashboard density. */
+.home-page,
+.products-page,
+.findit-page,
+.product-details {
+  position: relative;
+  isolation: isolate;
+}
+
+.home-page::before,
+.products-page::before,
+.findit-page::before,
+.product-details::before {
+  position: absolute;
+  z-index: -1;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: clamp(9rem, 20vw, 17rem);
+  background:
+    radial-gradient(70% 100% at 12% 0%, rgba(99, 184, 243, 0.18), transparent 70%),
+    radial-gradient(48% 76% at 91% 12%, rgba(22, 141, 217, 0.1), transparent 72%);
+  border-radius: 0 0 48% 44% / 0 0 18% 16%;
+  content: '';
+  pointer-events: none;
+}
+
+@media (max-width: 640px) {
+  .wave-divider { height: 2.5rem; }
+
+  .app-header-wave {
+    margin-top: -0.2rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .app-footer-wave { margin-top: 1.25rem; }
+
+  .home-page::before,
+  .products-page::before,
+  .findit-page::before,
+  .product-details::before {
+    height: 10rem;
+    border-radius: 0 0 44% 38% / 0 0 12% 10%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wave-divider__back,
+  .wave-divider__front { transition: none; }
+}
+
+html[dir='rtl'] .home-page::before,
+html[dir='rtl'] .products-page::before,
+html[dir='rtl'] .findit-page::before,
+html[dir='rtl'] .product-details::before {
+  transform: scaleX(-1);
+}

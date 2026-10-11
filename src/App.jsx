@@ -81,6 +81,7 @@ import PageTransition from './components/common/PageTransition'
 import UnderDevelopment from './components/common/UnderDevelopment'
 import MarketplaceBrowsingNotice from './components/common/MarketplaceBrowsingNotice'
 import NotFoundPage from './components/common/NotFoundPage'
+import WaveDivider from './components/common/WaveDivider'
 import RouteSeo from './components/seo/RouteSeo'
 import { API_ORIGIN } from './config/apiUrl'
 
@@ -113,6 +114,7 @@ function AppContent() {
   const location = useLocation()
   const [apiAvailable, setApiAvailable] = useState(null)
   const [availabilityAttempt, setAvailabilityAttempt] = useState(0)
+  const isWorkspaceRoute = /^\/(?:admin|operations|seller|cart|checkout|orders|findit\/dashboard|login|register)/.test(location.pathname)
 
   useEffect(() => {
     let active = true
@@ -138,11 +140,12 @@ function AppContent() {
       <AuthProvider>
         <CartProvider>
           <FavoritesProvider>
-            <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+            <div className="app-shell" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
               <RouteSeo />
               <Navbar />
               {apiAvailable === false && <MarketplaceBrowsingNotice onRetry={() => { setApiAvailable(null); setAvailabilityAttempt((attempt) => attempt + 1) }} />}
               <main className="app-main">
+                {!isWorkspaceRoute && <WaveDivider className="app-header-wave" tone="soft" />}
                 <AnimatePresence mode="wait" initial={false}>
                   <PageTransition key={location.pathname}>
                     <Suspense fallback={<PageLoadingFallback />}>
@@ -297,6 +300,7 @@ function AppContent() {
                   </PageTransition>
                 </AnimatePresence>
               </main>
+              <WaveDivider className="app-footer-wave" tone="blue" />
               <Footer />
             </div>
             <Toaster 

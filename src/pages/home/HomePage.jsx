@@ -6,6 +6,7 @@ import MediaGallery from '../../components/MediaGallery';
 import { getImageUrl } from '../../utils/imageUtils';
 import MarketplaceImage from '../../components/common/MarketplaceImage';
 import ServiceUnavailableState from '../../components/common/ServiceUnavailableState';
+import WaveDivider from '../../components/common/WaveDivider';
 import { useTranslation } from 'react-i18next';
 
 const HomePage = () => {
@@ -134,6 +135,7 @@ const HomePage = () => {
           </div>
         </div>
       </section>
+      <WaveDivider className="home-section-wave" tone="soft" />
 
       {hasUnavailableLiveData && (
         <section className="section home-service-status">
@@ -251,6 +253,7 @@ const HomePage = () => {
           </div>
         </div>
       </section>
+      <WaveDivider className="home-section-wave home-section-wave--ink" tone="ink" />
 
       {/* CTA Section */}
       <section className="cta-section">
@@ -275,6 +278,8 @@ const HomePage = () => {
         /* your existing styles – unchanged */
         .home-page { min-height: calc(100vh - 80px); }
         .hero-section { background: radial-gradient(circle at 18% 18%, rgba(99,184,243,.2), transparent 28rem), linear-gradient(135deg, var(--color-brand-surface) 0%, #ffffff 64%); padding: clamp(4rem, 8vw, 6.25rem) 0; }
+        .home-section-wave { margin-top: -1px; margin-bottom: -1px; }
+        .home-section-wave--ink { background: linear-gradient(180deg, var(--color-brand-ink), #103861); }
         .hero-content { text-align: center; max-width: 800px; margin: 0 auto; }
         .hero-title { font-size: 3rem; font-weight: 800; margin-bottom: 1rem; }
         .brand-wordmark { color: #111827; letter-spacing: -0.055em; white-space: nowrap; }
