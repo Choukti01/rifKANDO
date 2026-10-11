@@ -2,8 +2,8 @@ import React from 'react';
 
 const WaveDivider = ({ className = '', tone = 'soft' }) => (
   <div className={`wave-divider wave-divider--${tone} ${className}`.trim()} aria-hidden="true">
-    <svg viewBox="0 0 1440 88" preserveAspectRatio="none" focusable="false">
-      <path className="wave-divider__front" d="M0 42C166 17 334 21 500 47C674 74 820 73 990 44C1157 15 1304 18 1440 39V88H0Z" />
+    <svg viewBox="0 0 1440 32" preserveAspectRatio="none" focusable="false">
+      <path className="wave-divider__line" d="M0 16C175 4 344 4 512 16C680 28 849 28 1018 16C1185 4 1325 5 1440 14" />
     </svg>
   </div>
 );

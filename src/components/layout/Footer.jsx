@@ -309,7 +309,7 @@ const Footer = () => {
           justify-content: center;
           gap: 1rem;
           padding-top: 1.35rem;
-          border-top: 1px solid rgba(26, 26, 26, 0.16);
+          border-top: 0;
           color: rgba(26, 26, 26, 0.64);
           font-size: 0.78rem;
         }

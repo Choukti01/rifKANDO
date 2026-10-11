@@ -223,7 +223,7 @@ const Navbar = () => {
           background: var(--glass-bg);
           backdrop-filter: blur(12px);
           -webkit-backdrop-filter: blur(12px);
-          border-bottom: 1px solid var(--glass-border);
+          border-bottom: 0;
           z-index: 1000;
           padding: 0.75rem 0;
           transition: all 0.3s ease;
@@ -234,7 +234,6 @@ const Navbar = () => {
           backdrop-filter: blur(16px);
           -webkit-backdrop-filter: blur(16px);
           box-shadow: var(--glass-shadow-scrolled);
-          border-bottom-color: rgba(0, 0, 0, 0.05);
         }
 
         @media (prefers-color-scheme: dark) {

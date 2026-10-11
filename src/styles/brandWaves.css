@@ -3,7 +3,7 @@
 .wave-divider {
   display: block;
   width: 100%;
-  height: clamp(1.35rem, 2.4vw, 2.5rem);
+  height: clamp(0.7rem, 1.35vw, 1.1rem);
   overflow: hidden;
   line-height: 0;
   pointer-events: none;
@@ -14,18 +14,22 @@
   height: 100%;
 }
 
-.wave-divider__front {
-  transition: fill var(--transition-slow);
+.wave-divider__line {
+  fill: none;
+  stroke: var(--color-brand-blue);
+  stroke-linecap: round;
+  stroke-width: 2.2;
+  vector-effect: non-scaling-stroke;
+  transition: opacity var(--transition-slow);
 }
 
-.wave-divider--soft .wave-divider__front { fill: #edf8ff; }
-.wave-divider--blue .wave-divider__front { fill: var(--color-brand-blue); }
-.wave-divider--ink .wave-divider__front { fill: var(--color-brand-ink); }
+.wave-divider--soft .wave-divider__line { opacity: 0.54; }
+.wave-divider--blue .wave-divider__line { opacity: 0.86; }
+.wave-divider--ink .wave-divider__line { stroke: var(--color-brand-ink); opacity: 0.35; }
 
 .app-header-wave {
-  margin-top: -0.2rem;
-  margin-bottom: clamp(0.35rem, 1vw, 0.8rem);
-  opacity: 0.94;
+  margin-top: 0;
+  margin-bottom: clamp(0.45rem, 1.15vw, 0.85rem);
 }
 
 .app-footer-wave {
@@ -36,7 +40,7 @@
 }
 
 @media (max-width: 640px) {
-  .wave-divider { height: 1.45rem; }
+  .wave-divider { height: 0.7rem; }
 
   .app-header-wave {
     margin-top: 0;
@@ -47,6 +51,5 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .wave-divider__back,
-  .wave-divider__front { transition: none; }
+  .wave-divider__line { transition: none; }
 }
