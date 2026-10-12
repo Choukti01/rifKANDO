@@ -841,6 +841,155 @@ const DashboardLayout = () => {
           outline-offset: 3px;
         }
 
+        /* Blue glass seller workspace shell */
+        .dashboard-sidebar {
+          border-inline-end-color: rgba(156, 219, 255, 0.2);
+          background:
+            radial-gradient(circle at 8% 0%, rgba(99, 184, 243, 0.42), transparent 17rem),
+            radial-gradient(circle at 108% 60%, rgba(20, 125, 195, 0.42), transparent 20rem),
+            linear-gradient(165deg, rgba(7, 79, 135, 0.98), rgba(5, 52, 94, 0.98) 52%, rgba(3, 27, 61, 0.99));
+          box-shadow: 16px 0 42px rgba(2, 24, 53, 0.18);
+        }
+
+        .sidebar-header {
+          border-bottom-color: rgba(191, 231, 255, 0.17);
+        }
+
+        .sidebar-brand-lockup {
+          color: #ffffff;
+        }
+
+        .sidebar-brand-lockup small,
+        .sidebar-user-info p,
+        .sidebar-section-label {
+          color: rgba(225, 245, 255, 0.74);
+        }
+
+        .sidebar-brand-mark {
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          background: rgba(255, 255, 255, 0.14);
+          box-shadow: 0 9px 22px rgba(1, 22, 49, 0.24);
+        }
+
+        .sidebar-toggle {
+          border-color: rgba(191, 231, 255, 0.26);
+          color: #effaff;
+          background: rgba(255, 255, 255, 0.1);
+          box-shadow: none;
+        }
+
+        .sidebar-toggle:hover {
+          border-color: rgba(255, 255, 255, 0.48);
+          color: #ffffff;
+          background: rgba(255, 255, 255, 0.18);
+        }
+
+        .sidebar-user {
+          border-color: rgba(191, 231, 255, 0.16);
+          background: rgba(255, 255, 255, 0.1);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.11);
+        }
+
+        .sidebar-avatar {
+          border: 2px solid rgba(255, 255, 255, 0.2);
+          background: linear-gradient(135deg, #9cddff, #2b93d8);
+          box-shadow: 0 8px 18px rgba(1, 22, 49, 0.26);
+        }
+
+        .sidebar-user-info h4 {
+          color: #ffffff;
+        }
+
+        .sidebar-nav-group + .sidebar-nav-group {
+          border-top-color: rgba(191, 231, 255, 0.12);
+        }
+
+        .sidebar-nav-link {
+          color: rgba(242, 250, 255, 0.84);
+        }
+
+        .sidebar-nav-link:hover {
+          border-color: rgba(191, 231, 255, 0.18);
+          color: #ffffff;
+          background: rgba(255, 255, 255, 0.1);
+        }
+
+        .sidebar-nav-link.active {
+          border-color: rgba(209, 240, 255, 0.3);
+          color: #ffffff;
+          background: linear-gradient(90deg, rgba(120, 204, 249, 0.34), rgba(255, 255, 255, 0.13));
+          box-shadow: inset 3px 0 0 #b7e8ff, 0 6px 16px rgba(1, 25, 57, 0.14);
+        }
+
+        .sidebar-unread-badge {
+          color: #07558d;
+          background: #ffffff;
+          box-shadow: 0 3px 10px rgba(1, 22, 49, 0.2);
+        }
+
+        .sidebar-footer {
+          border-top-color: rgba(191, 231, 255, 0.14);
+        }
+
+        .sidebar-logout {
+          color: #ffe0df;
+        }
+
+        .sidebar-logout:hover {
+          color: #fff;
+          background: rgba(255, 122, 122, 0.15);
+        }
+
+        @media (min-width: 769px) and (max-width: 1180px) {
+          .dashboard-sidebar.open {
+            width: 248px;
+          }
+
+          .dashboard-main.with-sidebar {
+            margin-inline-start: 248px;
+          }
+
+          .dashboard-main {
+            padding: 1.25rem;
+          }
+
+          .sidebar-user {
+            margin: 0.65rem;
+            padding: 0.72rem;
+          }
+
+          .sidebar-nav {
+            padding: 0.7rem 0.6rem 0.8rem;
+          }
+
+          .sidebar-nav-link {
+            gap: 0.62rem;
+            padding: 0.68rem;
+          }
+
+          .seller-workspace-topbar {
+            margin-bottom: 1rem;
+          }
+        }
+
+        @media (min-width: 1440px) {
+          .dashboard-sidebar.open {
+            width: 292px;
+          }
+
+          .dashboard-main.with-sidebar {
+            margin-inline-start: 292px;
+          }
+
+          .dashboard-main {
+            padding: 1.75rem clamp(1.5rem, 3vw, 3rem) 3rem;
+          }
+
+          .dashboard-content {
+            width: min(100%, 1510px);
+          }
+        }
+
         @media (max-width: 768px) {
           .dashboard-container {
             padding-top: 70px;
