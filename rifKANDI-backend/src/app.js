@@ -84,8 +84,10 @@ const { getCodDeliveryPartner, getCodReconciliationControllers, createSellerHand
 const FeatureFlags = require('./services/featureFlagService');
 const PasskeyService = require('./services/passkeyService');
 const { log: logObservability, snapshot: getObservabilitySnapshot } = require('./services/observabilityService');
+const ErrorTrackingService = require('./services/errorTrackingService');
 const { requireCodReconciliationAccess, canAccessCodReconciliation } = require('./middleware/codReconciliationAccess');
 const { requireCodOperationsAccess, canAccessCodOperations } = require('./middleware/codOperationsAccess');
+const { requireErrorTrackingAccess } = require('./middleware/errorTrackingAccess');
 const {
   OTP_MAX_ATTEMPTS,
   OTP_MAX_SENDS_PER_HOUR,
@@ -206,6 +208,15 @@ const phoneCodeRateLimit = createRateLimiter({
   windowMs: 60 * 60 * 1000,
   max: 8,
   message: 'Too many SMS code requests. Please try again later.'
+});
+
+// Browser errors can be submitted without a valid session, because an auth
+// failure is itself useful operational evidence. The small in-memory limit
+// prevents the endpoint from becoming a telemetry abuse channel.
+const clientErrorTrackingRateLimit = createRateLimiter({
+  windowMs: 60 * 1000,
+  max: 12,
+  message: 'Too many error reports. Please try again shortly.',
 });
 
 const googleVerificationExpiryMs = 10 * 60 * 1000;
@@ -396,6 +407,45 @@ app.get('/metrics', (req, res) => {
     requestId: req.requestId,
     ...getObservabilitySnapshot(),
   });
+});
+
+app.post('/api/error-tracking/client-events', clientErrorTrackingRateLimit, optionalProtect, async (req, res) => {
+  const body = req.body || {};
+  const allowedKeys = new Set(['errorName', 'message', 'route']);
+  if (Object.keys(body).some((key) => !allowedKeys.has(key))) {
+    return res.status(422).json({ error: 'Unsupported client error report fields.', requestId: req.requestId });
+  }
+  if (typeof body.errorName !== 'string' || typeof body.message !== 'string' || typeof body.route !== 'string') {
+    return res.status(422).json({ error: 'Client error report is invalid.', requestId: req.requestId });
+  }
+
+  try {
+    await ErrorTrackingService.record({
+      source: 'frontend',
+      severity: 'error',
+      errorName: body.errorName,
+      message: body.message,
+      route: body.route,
+      requestId: req.requestId,
+      userId: req.user?.id,
+    });
+    return res.status(202).json({ accepted: true, requestId: req.requestId });
+  } catch (error) {
+    // Never surface database diagnostics to a browser error reporter.
+    return res.status(503).json({ error: 'Error tracking is temporarily unavailable.', requestId: req.requestId });
+  }
+});
+
+app.get('/api/admin/error-tracking', protect, requireErrorTrackingAccess, async (req, res) => {
+  try {
+    const report = await ErrorTrackingService.dashboard({
+      hours: req.query.hours,
+      limit: req.query.limit,
+    });
+    return res.json({ success: true, requestId: req.requestId, ...report });
+  } catch (error) {
+    return res.status(500).json({ error: 'Unable to load rifKANDO Error Tracking.', requestId: req.requestId });
+  }
 });
 
 

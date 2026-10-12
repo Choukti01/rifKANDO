@@ -42,6 +42,7 @@ const CODReconciliation = lazy(() => import('./pages/admin/CODReconciliation'))
 const CODDisputesPage = lazy(() => import('./pages/admin/CODDisputesPage'))
 const OperationsTeamPage = lazy(() => import('./pages/admin/OperationsTeamPage'))
 const ProductReportsPage = lazy(() => import('./pages/admin/ProductReportsPage'))
+const ErrorTrackingPage = lazy(() => import('./pages/admin/ErrorTrackingPage'))
 const CODOperationsDesk = lazy(() => import('./pages/operations/CODOperationsDesk'))
 // const PackagesManager = lazy(() => import('./pages/seller/services/PackagesManager'))
 // const LessonsManager = lazy(() => import('./pages/seller/courses/LessonsManager'))
@@ -189,6 +190,11 @@ function AppContent() {
                   <Route path="/admin/product-reports" element={
                     <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
                       <ProductReportsPage />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/admin/error-tracking" element={
+                    <ProtectedRoute requiredCapability="canTrackErrors">
+                      <ErrorTrackingPage />
                     </ProtectedRoute>
                   } />
                   <Route path="/operations/cod" element={

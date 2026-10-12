@@ -243,6 +243,27 @@ db.serialize(() => {
     )
   `, (err) => { if (err) console.error('Error creating notifications:', err); else console.log('✅ notifications table ready'); });
 
+  // Operational error events are deliberately separate from immutable audit
+  // records. They contain only redacted diagnostics and never block a user
+  // action if this observability store is unavailable.
+  db.run(`
+    CREATE TABLE IF NOT EXISTS application_error_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      occurred_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      source TEXT NOT NULL CHECK(source IN ('backend', 'frontend')),
+      severity TEXT NOT NULL CHECK(severity IN ('error', 'warning')),
+      fingerprint TEXT NOT NULL,
+      error_name TEXT NOT NULL,
+      message TEXT NOT NULL,
+      route TEXT NOT NULL,
+      method TEXT,
+      status_code INTEGER,
+      request_id TEXT,
+      user_id INTEGER,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+    )
+  `, (err) => { if (err) console.error('Error creating application_error_events:', err); else console.log('✅ application_error_events table ready'); });
+
   // Cart table
   db.run(`
     CREATE TABLE IF NOT EXISTS cart (
@@ -1550,6 +1571,8 @@ db.serialize(() => {
     ['idx_product_reviews_product_created', 'product_reviews(product_id, created_at DESC)'],
     ['idx_product_reports_queue', 'product_reports(status, created_at ASC)'],
     ['idx_notifications_user_unread_created', 'notifications(user_id, read_at, created_at DESC)'],
+    ['idx_application_error_events_recent', 'application_error_events(occurred_at DESC)'],
+    ['idx_application_error_events_fingerprint', 'application_error_events(fingerprint, occurred_at DESC)'],
     ['idx_course_media_listing', 'course_media(course_id, display_order, id)'],
     ['idx_service_media_listing', 'service_media(service_id, display_order, id)'],
     ['idx_digital_media_listing', 'digital_media(digital_id, display_order, id)'],

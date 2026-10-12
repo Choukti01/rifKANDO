@@ -1,4 +1,5 @@
 import { Component } from 'react';
+import { reportClientError } from '../../services/errorTracking';
 
 /**
  * Last-resort client recovery for rendering failures. It deliberately does not
@@ -19,6 +20,7 @@ export default class AppErrorBoundary extends Component {
     // Keep diagnostic data local to the browser console. Do not expose stack
     // traces or internal API details to marketplace visitors.
     console.error('rifKANDO application render failed.', error, info);
+    void reportClientError(error);
   }
 
   reload = () => {

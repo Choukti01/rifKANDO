@@ -2,6 +2,7 @@ import ReactDOM from "react-dom/client";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import App from "./App";
 import AppErrorBoundary from "./components/common/AppErrorBoundary";
+import { installClientErrorTracking } from './services/errorTracking';
 import { GOOGLE_CLIENT_ID } from "./config/googleAuth";
 import "./i18n";
 import "./styles/globals.css";
@@ -14,6 +15,8 @@ const application = (
     <App />
   </AppErrorBoundary>
 );
+
+installClientErrorTracking();
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   GOOGLE_CLIENT_ID

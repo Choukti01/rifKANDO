@@ -70,6 +70,7 @@ const Navbar = () => {
   const isSeller = user?.role === 'seller' || user?.roles?.includes('seller');
   const canOperateCod = Boolean(user?.canOperateCod);
   const canReconcileCod = Boolean(user?.canReconcileCod);
+  const canTrackErrors = Boolean(user?.canTrackErrors);
   const accountPath = isSeller ? '/seller/dashboard' : '/profile';
   const accountLabel = isSeller ? t('common.sellerDashboard') : t('common.profile');
 
@@ -137,6 +138,7 @@ const Navbar = () => {
                         <Link to="/findit/dashboard" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>{t('common.myFinditRequests')}</Link>
                         {canOperateCod && <Link to="/operations/cod" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>COD Operations Desk</Link>}
                         {canReconcileCod && <Link to="/admin/cod-reconciliation" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>COD Reconciliation</Link>}
+                        {canTrackErrors && <Link to="/admin/error-tracking" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>rifKANDO Error Tracking</Link>}
                         {!isSeller && <>
                           <Link to="/favorites" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>{t('common.savedItems')}</Link>
                           <Link to="/cart" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>{t('nav.cart')}</Link>
@@ -191,6 +193,7 @@ const Navbar = () => {
                 <Link to="/findit/dashboard" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>{t('common.myFinditRequests')}</Link>
                 {canOperateCod && <Link to="/operations/cod" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>COD Operations Desk</Link>}
                 {canReconcileCod && <Link to="/admin/cod-reconciliation" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>COD Reconciliation</Link>}
+                {canTrackErrors && <Link to="/admin/error-tracking" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>rifKANDO Error Tracking</Link>}
                 {!isSeller && <>
                   <Link to="/favorites" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>{t('common.savedItems')}</Link>
                   <Link to="/cart" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>{t('nav.cart')}</Link>

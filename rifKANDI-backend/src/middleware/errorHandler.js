@@ -25,6 +25,12 @@ module.exports = (err, req, res, next) => {
   };
   if (!isOperational) logFields.stack = error.stack;
   log(statusCode >= 500 ? 'error' : 'warn', 'request_failed', logFields);
+  if (statusCode >= 500) {
+    res.locals.errorTracking = {
+      errorName: error.name,
+      message: error.message,
+    };
+  }
 
   if (res.headersSent) return next(error);
   if (process.env.NODE_ENV === 'development') {
