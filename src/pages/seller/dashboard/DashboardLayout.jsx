@@ -841,106 +841,95 @@ const DashboardLayout = () => {
           outline-offset: 3px;
         }
 
-        /* Blue glass seller workspace shell */
+        /* Light glass seller workspace shell */
         .dashboard-sidebar {
-          border-inline-end-color: rgba(156, 219, 255, 0.2);
+          border-inline-end-color: rgba(255, 255, 255, 0.72);
           background:
-            radial-gradient(circle at 8% 0%, rgba(99, 184, 243, 0.42), transparent 17rem),
-            radial-gradient(circle at 108% 60%, rgba(20, 125, 195, 0.42), transparent 20rem),
-            linear-gradient(165deg, rgba(7, 79, 135, 0.98), rgba(5, 52, 94, 0.98) 52%, rgba(3, 27, 61, 0.99));
-          box-shadow: 16px 0 42px rgba(2, 24, 53, 0.18);
+            linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(238, 249, 255, 0.64)),
+            radial-gradient(circle at 12% 0%, rgba(99, 184, 243, 0.24), transparent 18rem);
+          backdrop-filter: blur(24px) saturate(160%);
+          -webkit-backdrop-filter: blur(24px) saturate(160%);
+          box-shadow: 16px 0 42px rgba(7, 27, 53, 0.12);
         }
 
-        .sidebar-header {
-          border-bottom-color: rgba(191, 231, 255, 0.17);
+        .sidebar-header,
+        .sidebar-footer {
+          border-color: rgba(8, 119, 191, 0.11);
         }
 
-        .sidebar-brand-lockup {
-          color: #ffffff;
+        .sidebar-brand-lockup,
+        .sidebar-user-info h4 {
+          color: var(--seller-ink);
         }
 
         .sidebar-brand-lockup small,
         .sidebar-user-info p,
         .sidebar-section-label {
-          color: rgba(225, 245, 255, 0.74);
+          color: #607995;
         }
 
         .sidebar-brand-mark {
-          border: 1px solid rgba(255, 255, 255, 0.2);
-          background: rgba(255, 255, 255, 0.14);
-          box-shadow: 0 9px 22px rgba(1, 22, 49, 0.24);
+          border: 1px solid rgba(255, 255, 255, 0.7);
+          background: linear-gradient(135deg, rgba(99, 184, 243, 0.92), rgba(8, 119, 191, 0.94));
+          box-shadow: 0 9px 22px rgba(8, 119, 191, 0.2);
         }
 
         .sidebar-toggle {
-          border-color: rgba(191, 231, 255, 0.26);
-          color: #effaff;
-          background: rgba(255, 255, 255, 0.1);
-          box-shadow: none;
+          border-color: rgba(8, 119, 191, 0.16);
+          color: var(--seller-blue);
+          background: rgba(255, 255, 255, 0.56);
+          box-shadow: 0 5px 13px rgba(8, 119, 191, 0.08);
         }
 
         .sidebar-toggle:hover {
-          border-color: rgba(255, 255, 255, 0.48);
-          color: #ffffff;
-          background: rgba(255, 255, 255, 0.18);
+          border-color: rgba(8, 119, 191, 0.32);
+          color: var(--seller-blue-strong);
+          background: rgba(234, 247, 255, 0.78);
         }
 
         .sidebar-user {
-          border-color: rgba(191, 231, 255, 0.16);
-          background: rgba(255, 255, 255, 0.1);
-          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.11);
+          border-color: rgba(255, 255, 255, 0.7);
+          background: rgba(255, 255, 255, 0.44);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72), 0 7px 18px rgba(7, 27, 53, 0.04);
         }
 
         .sidebar-avatar {
-          border: 2px solid rgba(255, 255, 255, 0.2);
-          background: linear-gradient(135deg, #9cddff, #2b93d8);
-          box-shadow: 0 8px 18px rgba(1, 22, 49, 0.26);
-        }
-
-        .sidebar-user-info h4 {
-          color: #ffffff;
+          border: 2px solid rgba(255, 255, 255, 0.72);
+          background: linear-gradient(135deg, #63b8f3, #0877bf);
         }
 
         .sidebar-nav-group + .sidebar-nav-group {
-          border-top-color: rgba(191, 231, 255, 0.12);
+          border-top-color: rgba(8, 119, 191, 0.09);
         }
 
         .sidebar-nav-link {
-          color: rgba(242, 250, 255, 0.84);
+          color: #425a73;
         }
 
         .sidebar-nav-link:hover {
-          border-color: rgba(191, 231, 255, 0.18);
-          color: #ffffff;
-          background: rgba(255, 255, 255, 0.1);
+          border-color: rgba(8, 119, 191, 0.11);
+          color: var(--seller-blue-strong);
+          background: rgba(255, 255, 255, 0.62);
         }
 
         .sidebar-nav-link.active {
-          border-color: rgba(209, 240, 255, 0.3);
-          color: #ffffff;
-          background: linear-gradient(90deg, rgba(120, 204, 249, 0.34), rgba(255, 255, 255, 0.13));
-          box-shadow: inset 3px 0 0 #b7e8ff, 0 6px 16px rgba(1, 25, 57, 0.14);
+          border-color: rgba(8, 119, 191, 0.16);
+          color: var(--seller-blue-strong);
+          background: linear-gradient(90deg, rgba(99, 184, 243, 0.26), rgba(255, 255, 255, 0.6));
+          box-shadow: inset 3px 0 0 var(--seller-blue), 0 6px 16px rgba(8, 119, 191, 0.08);
         }
 
         .sidebar-unread-badge {
-          color: #07558d;
-          background: #ffffff;
-          box-shadow: 0 3px 10px rgba(1, 22, 49, 0.2);
+          color: #ffffff;
+          background: var(--seller-blue);
+          box-shadow: 0 3px 10px rgba(8, 119, 191, 0.22);
         }
 
-        .sidebar-footer {
-          border-top-color: rgba(191, 231, 255, 0.14);
+        .dashboard-main {
+          transition: margin-inline-start 300ms ease, padding 300ms ease;
         }
 
-        .sidebar-logout {
-          color: #ffe0df;
-        }
-
-        .sidebar-logout:hover {
-          color: #fff;
-          background: rgba(255, 122, 122, 0.15);
-        }
-
-        @media (min-width: 769px) and (max-width: 1180px) {
+        @media (min-width: 1025px) and (max-width: 1240px) {
           .dashboard-sidebar.open {
             width: 248px;
           }
@@ -950,25 +939,11 @@ const DashboardLayout = () => {
           }
 
           .dashboard-main {
-            padding: 1.25rem;
-          }
-
-          .sidebar-user {
-            margin: 0.65rem;
-            padding: 0.72rem;
-          }
-
-          .sidebar-nav {
-            padding: 0.7rem 0.6rem 0.8rem;
-          }
-
-          .sidebar-nav-link {
-            gap: 0.62rem;
-            padding: 0.68rem;
+            padding: 1.15rem;
           }
 
           .seller-workspace-topbar {
-            margin-bottom: 1rem;
+            margin-bottom: 0.95rem;
           }
         }
 
@@ -987,6 +962,67 @@ const DashboardLayout = () => {
 
           .dashboard-content {
             width: min(100%, 1510px);
+          }
+        }
+
+        @media (max-width: 1024px) {
+          .dashboard-sidebar {
+            top: var(--navbar-height, 64px);
+            bottom: 0;
+            width: min(19rem, 88vw) !important;
+            height: auto;
+            border-radius: 0 1.25rem 1.25rem 0;
+            border-inline-end: 0;
+            position: fixed;
+            transform: translateX(-105%);
+            z-index: 60;
+          }
+
+          .dashboard-sidebar.mobile-open {
+            transform: translateX(0);
+          }
+
+          [dir='rtl'] .dashboard-sidebar {
+            border-radius: 1.25rem 0 0 1.25rem;
+            transform: translateX(105%);
+          }
+
+          [dir='rtl'] .dashboard-sidebar.mobile-open {
+            transform: translateX(0);
+          }
+
+          .mobile-dashboard-header {
+            display: flex;
+          }
+
+          .mobile-close-btn {
+            display: block;
+            color: var(--seller-blue);
+          }
+
+          .sidebar-toggle {
+            display: none;
+          }
+
+          .dashboard-container {
+            min-height: calc(100dvh - var(--navbar-height, 64px));
+            padding-top: 70px;
+          }
+
+          .dashboard-main.with-sidebar,
+          .dashboard-main.without-sidebar {
+            margin-inline-start: 0;
+            margin-left: 0;
+          }
+
+          .dashboard-main {
+            min-height: calc(100dvh - 144px);
+            padding: clamp(0.85rem, 2.4vw, 1.25rem);
+          }
+
+          .seller-workspace-topbar {
+            min-height: 4rem;
+            margin-bottom: 0.9rem;
           }
         }
 
