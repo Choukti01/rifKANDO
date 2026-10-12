@@ -784,6 +784,9 @@ Object.assign(resources.en.translation.codOps, { disputes: 'Delivery disputes' }
 Object.assign(resources.fr.translation.codOps, { disputes: 'Litiges de livraison' });
 Object.assign(resources.ar.translation.codOps, { disputes: 'نزاعات التوصيل' });
 
+resources.fr.translation.productForm = resources.fr.translation.productForm || {};
+resources.fr.translation.productDetails = resources.fr.translation.productDetails || {};
+
 Object.assign(resources.en.translation.productForm, {
   quality: {
     eyebrow: 'Listing quality', title: 'Ready for buyers', ready: 'Ready to publish', incomplete: 'Needs attention',
