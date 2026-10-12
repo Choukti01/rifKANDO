@@ -15,8 +15,7 @@ import api from '../../../services/api';
 import { useTranslation } from 'react-i18next';
 
 const DashboardLayout = () => {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isWorkspaceMenuOpen, setIsWorkspaceMenuOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const navigate = useNavigate();
   const location = useLocation();
@@ -24,28 +23,6 @@ const DashboardLayout = () => {
   const { cartCount } = useCart();
   const { favoritesCount } = useFavorites();
   const { t } = useTranslation();
-
-  useEffect(() => {
-    if (!isMobileMenuOpen) return undefined;
-
-    const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = originalOverflow;
-    };
-  }, [isMobileMenuOpen]);
-
-  // Auto‑close mobile menu when resizing to desktop
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth >= 768) {
-        setIsMobileMenuOpen(false);
-        setIsSidebarOpen(true);
-      }
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
   useEffect(() => {
     const fetchUnreadCount = async () => {
@@ -107,48 +84,48 @@ const DashboardLayout = () => {
     navigate('/');
   };
 
-  const toggleMobileMenu = () => {
-    setIsSidebarOpen(true);
-    setIsMobileMenuOpen((isOpen) => !isOpen);
-  };
-  const closeMobileMenu = () => setIsMobileMenuOpen(false);
+  const toggleWorkspaceMenu = () => setIsWorkspaceMenuOpen((isOpen) => !isOpen);
+  const closeWorkspaceMenu = () => setIsWorkspaceMenuOpen(false);
 
   return (
-    <div className="dashboard-container">
-      {/* Mobile header with hamburger */}
-      <div className="mobile-dashboard-header">
-        <button className="mobile-menu-btn" onClick={toggleMobileMenu} aria-label={t('sellerDashboard.open')} aria-controls="seller-workspace-navigation" aria-expanded={isMobileMenuOpen}>
-          <Bars3Icon className="icon" />
-        </button>
-        <div className="mobile-dashboard-title">
+    <div className="dashboard-container dashboard-container--top-menu">
+      <header className="seller-workspace-topbar">
+        <div className="seller-workspace-heading">
           <span>{t('sellerDashboard.title')}</span>
           <h1>{activeSection}</h1>
         </div>
-        <div className="placeholder" />
-      </div>
-
-      {/* Overlay for mobile sidebar */}
-      <div className={`mobile-overlay ${isMobileMenuOpen ? 'open' : ''}`} onClick={closeMobileMenu} />
-
-      {/* Sidebar */}
-      <aside id="seller-workspace-navigation" className={`dashboard-sidebar ${isSidebarOpen ? 'open' : 'closed'} ${isMobileMenuOpen ? 'mobile-open' : ''}`} aria-label={t('sellerDashboard.title')}>
-        <div className="sidebar-header">
-          <div className="sidebar-brand-lockup" aria-hidden={!isSidebarOpen}>
-            {isSidebarOpen && <strong>{t('sellerDashboard.title')}</strong>}
-          </div>
-          <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="sidebar-toggle" aria-label={isSidebarOpen ? t('sellerDashboard.collapse') : t('sellerDashboard.expand')}>
-            {isSidebarOpen ? '←' : '→'}
-          </button>
-          {/* Close button for mobile */}
-          <button className="mobile-close-btn" onClick={closeMobileMenu} aria-label={t('sellerDashboard.close')}>
-            <XMarkIcon className="icon" />
+        <div className="seller-workspace-actions">
+          {canCreateProduct && (
+            <Link to="products/add" className="seller-workspace-primary-action">
+              <PlusIcon aria-hidden="true" />
+              <span>{t('sellerProducts.add')}</span>
+            </Link>
+          )}
+          <button
+            type="button"
+            className={`seller-workspace-menu-toggle ${isWorkspaceMenuOpen ? 'is-open' : ''}`}
+            onClick={toggleWorkspaceMenu}
+            aria-label={isWorkspaceMenuOpen ? t('sellerDashboard.close') : t('sellerDashboard.open')}
+            aria-controls="seller-workspace-navigation"
+            aria-expanded={isWorkspaceMenuOpen}
+          >
+            {isWorkspaceMenuOpen ? <XMarkIcon aria-hidden="true" /> : <Bars3Icon aria-hidden="true" />}
+            <span>{isWorkspaceMenuOpen ? t('sellerDashboard.close') : t('sellerDashboard.open')}</span>
           </button>
         </div>
+      </header>
 
-        <div className="sidebar-user">
-          <div className="sidebar-avatar">
+      <section
+        id="seller-workspace-navigation"
+        className={`seller-workspace-menu ${isWorkspaceMenuOpen ? 'is-open' : ''}`}
+        aria-label={t('sellerDashboard.title')}
+      >
+        <div className="seller-workspace-menu-inner">
+          <div className="seller-workspace-menu-panel">
+            <div className="seller-workspace-user">
+              <div className="sidebar-avatar">
             {user?.profilePicture ? (
-              <img 
+              <img
                 src={getImageUrl(user.profilePicture)}
                 alt={user?.name}
                 className="sidebar-avatar-img"
@@ -156,65 +133,50 @@ const DashboardLayout = () => {
             ) : (
               <span>{user?.name?.charAt(0) || t('sellerDashboard.seller').charAt(0)}</span>
             )}
-          </div>
-          {isSidebarOpen && (
-            <div className="sidebar-user-info">
+              </div>
+              <div className="seller-workspace-user-info">
               <h4>{user?.name || t('sellerDashboard.seller')}</h4>
               <p>{user?.sellerType === 'product' ? t('sellerDashboard.productSeller') :
                      user?.sellerType === 'course' ? t('sellerDashboard.courseInstructor') :
                      user?.sellerType === 'service' ? t('sellerDashboard.serviceProvider') :
                      user?.sellerType === 'digital' ? t('sellerDashboard.digitalCreator') : t('sellerDashboard.seller')}</p>
+              </div>
+              <button type="button" onClick={handleLogout} className="seller-workspace-logout">
+                <ArrowLeftOnRectangleIcon aria-hidden="true" />
+                <span>{t('sellerDashboard.exit')}</span>
+              </button>
             </div>
-          )}
-        </div>
 
-        <nav className="sidebar-nav">
-          {navGroups.map((group) => (
-            <div className="sidebar-nav-group" key={group.name}>
-              {isSidebarOpen && <p className="sidebar-section-label">{group.name}</p>}
+            <nav className="seller-workspace-nav">
+              {navGroups.map((group) => (
+                <section className="seller-workspace-nav-group" key={group.name}>
+                  <p className="seller-workspace-section-label">{group.name}</p>
               {group.items.map((item) => {
                 const Icon = item.icon;
                 return (
                   <NavLink
                     key={item.name}
                     to={item.path}
-                    className={({ isActive }) => `sidebar-nav-link ${isActive ? 'active' : ''}`}
-                    onClick={closeMobileMenu}
+                    className={({ isActive }) => `seller-workspace-nav-link ${isActive ? 'active' : ''}`}
+                    onClick={closeWorkspaceMenu}
                   >
-                    <Icon className="sidebar-nav-icon" />
-                    {isSidebarOpen && <span>{item.name}</span>}
-                    {item.unreadCount > 0 && <span className="sidebar-unread-badge">{item.unreadCount}</span>}
-                    {item.count > 0 && <span className="sidebar-unread-badge">{item.count}</span>}
+                    <Icon aria-hidden="true" />
+                    <span>{item.name}</span>
+                    {item.unreadCount > 0 && <span className="seller-workspace-count">{item.unreadCount}</span>}
+                    {item.count > 0 && <span className="seller-workspace-count">{item.count}</span>}
                   </NavLink>
                 );
               })}
-            </div>
-          ))}
-        </nav>
-
-        <div className="sidebar-footer">
-          <button onClick={handleLogout} className="sidebar-logout">
-            <ArrowLeftOnRectangleIcon className="sidebar-nav-icon" />
-            {isSidebarOpen && <span>{t('sellerDashboard.exit')}</span>}
-          </button>
+                </section>
+              ))}
+            </nav>
+          </div>
         </div>
-      </aside>
+      </section>
 
       {/* Main Content */}
-      <main className={`dashboard-main ${isSidebarOpen ? 'with-sidebar' : 'without-sidebar'}`}>
+      <main className="dashboard-main">
         <div className="dashboard-content">
-          <header className="seller-workspace-topbar">
-            <div>
-              <span>rifKANDO</span>
-              <h1>{activeSection}</h1>
-            </div>
-            {canCreateProduct && (
-              <Link to="products/add" className="seller-workspace-primary-action">
-                <PlusIcon aria-hidden="true" />
-                <span>{t('sellerProducts.add')}</span>
-              </Link>
-            )}
-          </header>
           <Outlet />
         </div>
       </main>
@@ -1076,6 +1038,457 @@ const DashboardLayout = () => {
 
           .seller-workspace-topbar h1 {
             font-size: 1.08rem;
+          }
+        }
+      `}</style>
+      <style>{`
+        /* Top workspace navigation: the menu remains in document flow on every screen. */
+        .dashboard-container--top-menu {
+          --seller-dashboard-width: min(1440px, calc(100% - clamp(1rem, 4vw, 4rem)));
+          min-height: calc(100dvh - var(--navbar-height, 80px));
+          padding: clamp(0.85rem, 2vw, 1.75rem) 0 clamp(2rem, 5vw, 4rem);
+          background:
+            radial-gradient(circle at 92% 0%, rgba(76, 170, 255, 0.13), transparent 28rem),
+            linear-gradient(180deg, #f8fbff 0%, #f4f8fd 55%, #f8fafc 100%);
+        }
+
+        .dashboard-container--top-menu .seller-workspace-topbar {
+          position: sticky;
+          top: calc(var(--navbar-height, 80px) + 0.55rem);
+          z-index: 30;
+          width: var(--seller-dashboard-width);
+          min-height: 76px;
+          margin: 0 auto;
+          padding: 0.85rem 1rem 0.85rem 1.25rem;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 1rem;
+          border: 1px solid rgba(25, 102, 179, 0.13);
+          border-radius: 22px;
+          background: rgba(255, 255, 255, 0.82);
+          box-shadow: 0 14px 36px rgba(17, 56, 95, 0.09);
+          backdrop-filter: blur(18px) saturate(145%);
+          -webkit-backdrop-filter: blur(18px) saturate(145%);
+        }
+
+        .dashboard-container--top-menu .seller-workspace-heading {
+          min-width: 0;
+        }
+
+        .dashboard-container--top-menu .seller-workspace-heading > span {
+          display: block;
+          color: #397ebb;
+          font-size: 0.7rem;
+          font-weight: 800;
+          letter-spacing: 0.09em;
+          line-height: 1.2;
+          text-transform: uppercase;
+        }
+
+        .dashboard-container--top-menu .seller-workspace-heading h1 {
+          margin: 0.2rem 0 0;
+          color: #102a43;
+          font-size: clamp(1.05rem, 1.5vw, 1.35rem);
+          font-weight: 800;
+          letter-spacing: -0.025em;
+          line-height: 1.2;
+        }
+
+        .seller-workspace-actions {
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+          gap: 0.65rem;
+          flex-wrap: wrap;
+        }
+
+        .dashboard-container--top-menu .seller-workspace-primary-action,
+        .seller-workspace-menu-toggle {
+          min-height: 43px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.45rem;
+          border-radius: 13px;
+          font-size: 0.83rem;
+          font-weight: 800;
+          text-decoration: none;
+          transition: transform 180ms ease, background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+        }
+
+        .dashboard-container--top-menu .seller-workspace-primary-action {
+          padding: 0.65rem 0.9rem;
+          color: #fff;
+          border: 1px solid #1675bf;
+          background: linear-gradient(135deg, #0d5f9f, #278fd5);
+          box-shadow: 0 8px 18px rgba(22, 117, 191, 0.22);
+        }
+
+        .dashboard-container--top-menu .seller-workspace-primary-action svg,
+        .seller-workspace-menu-toggle svg {
+          width: 1.08rem;
+          height: 1.08rem;
+          flex: 0 0 auto;
+        }
+
+        .seller-workspace-menu-toggle {
+          padding: 0.65rem 0.85rem;
+          color: #164d79;
+          border: 1px solid rgba(21, 103, 171, 0.2);
+          background: rgba(245, 250, 255, 0.88);
+          cursor: pointer;
+        }
+
+        .seller-workspace-menu-toggle:hover,
+        .seller-workspace-menu-toggle.is-open {
+          color: #0e5c9c;
+          border-color: rgba(20, 119, 196, 0.4);
+          background: #eaf6ff;
+          box-shadow: 0 8px 20px rgba(17, 102, 173, 0.12);
+        }
+
+        .dashboard-container--top-menu .seller-workspace-primary-action:hover,
+        .seller-workspace-menu-toggle:hover {
+          transform: translateY(-1px);
+        }
+
+        .seller-workspace-menu-toggle:focus-visible,
+        .seller-workspace-nav-link:focus-visible,
+        .seller-workspace-logout:focus-visible {
+          outline: 3px solid rgba(59, 154, 226, 0.35);
+          outline-offset: 2px;
+        }
+
+        .seller-workspace-menu {
+          width: var(--seller-dashboard-width);
+          margin: 0 auto;
+          display: grid;
+          grid-template-rows: 0fr;
+          transition: grid-template-rows 250ms ease, margin 250ms ease;
+        }
+
+        .seller-workspace-menu.is-open {
+          grid-template-rows: 1fr;
+          margin-top: 0.7rem;
+          margin-bottom: 0.85rem;
+        }
+
+        .seller-workspace-menu-inner {
+          min-height: 0;
+          overflow: hidden;
+        }
+
+        .seller-workspace-menu-panel {
+          display: grid;
+          grid-template-columns: minmax(12rem, 0.8fr) minmax(0, 3.2fr);
+          gap: 0.85rem;
+          padding: 0.85rem;
+          border: 1px solid rgba(25, 102, 179, 0.13);
+          border-radius: 22px;
+          background: rgba(255, 255, 255, 0.78);
+          box-shadow: 0 18px 34px rgba(17, 56, 95, 0.08);
+          backdrop-filter: blur(18px) saturate(145%);
+          -webkit-backdrop-filter: blur(18px) saturate(145%);
+          opacity: 0;
+          visibility: hidden;
+          transform: translateY(-0.5rem);
+          transition: opacity 180ms ease, transform 250ms ease, visibility 0s linear 250ms;
+        }
+
+        .seller-workspace-menu.is-open .seller-workspace-menu-panel {
+          opacity: 1;
+          visibility: visible;
+          transform: translateY(0);
+          transition-delay: 60ms, 0s, 0s;
+        }
+
+        .seller-workspace-user {
+          min-width: 0;
+          min-height: 100%;
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 0.72rem;
+          padding: 1rem;
+          border: 1px solid rgba(25, 102, 179, 0.13);
+          border-radius: 17px;
+          background: linear-gradient(145deg, rgba(236, 248, 255, 0.94), rgba(255, 255, 255, 0.82));
+        }
+
+        .seller-workspace-user .sidebar-avatar {
+          width: 48px;
+          height: 48px;
+          margin: 0;
+          flex: 0 0 auto;
+          color: #fff;
+          border: 2px solid rgba(255, 255, 255, 0.94);
+          box-shadow: 0 5px 16px rgba(17, 83, 137, 0.16);
+        }
+
+        .seller-workspace-user-info {
+          min-width: 0;
+        }
+
+        .seller-workspace-user-info h4 {
+          margin: 0;
+          overflow: hidden;
+          color: #123b5b;
+          font-size: 0.95rem;
+          font-weight: 800;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .seller-workspace-user-info p {
+          margin: 0.2rem 0 0;
+          color: #58809e;
+          font-size: 0.77rem;
+          font-weight: 650;
+          line-height: 1.4;
+        }
+
+        .seller-workspace-logout {
+          width: 100%;
+          margin-top: auto;
+          padding: 0.62rem 0.7rem;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.45rem;
+          color: #a93838;
+          border: 1px solid rgba(186, 65, 65, 0.18);
+          border-radius: 11px;
+          background: rgba(255, 249, 249, 0.72);
+          cursor: pointer;
+          font-size: 0.8rem;
+          font-weight: 800;
+          transition: background-color 180ms ease, border-color 180ms ease;
+        }
+
+        .seller-workspace-logout:hover {
+          border-color: rgba(186, 65, 65, 0.38);
+          background: #fff2f2;
+        }
+
+        .seller-workspace-logout svg {
+          width: 1rem;
+          height: 1rem;
+        }
+
+        .seller-workspace-nav {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 0.7rem;
+        }
+
+        .seller-workspace-nav-group {
+          min-width: 0;
+          padding: 0.78rem;
+          border: 1px solid rgba(25, 102, 179, 0.1);
+          border-radius: 15px;
+          background: rgba(255, 255, 255, 0.54);
+        }
+
+        .seller-workspace-section-label {
+          margin: 0 0 0.48rem;
+          color: #3d78a5;
+          font-size: 0.67rem;
+          font-weight: 850;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+        }
+
+        .seller-workspace-nav-link {
+          min-width: 0;
+          min-height: 38px;
+          margin-top: 0.2rem;
+          padding: 0.45rem 0.5rem;
+          display: flex;
+          align-items: center;
+          gap: 0.48rem;
+          color: #315a78;
+          border-radius: 10px;
+          font-size: 0.78rem;
+          font-weight: 700;
+          line-height: 1.25;
+          text-decoration: none;
+          transition: color 180ms ease, background-color 180ms ease, transform 180ms ease;
+        }
+
+        .seller-workspace-nav-link:hover {
+          color: #075a9e;
+          background: #edf8ff;
+          transform: translateX(2px);
+        }
+
+        [dir='rtl'] .seller-workspace-nav-link:hover {
+          transform: translateX(-2px);
+        }
+
+        .seller-workspace-nav-link.active {
+          color: #075a9e;
+          background: linear-gradient(135deg, #def2ff, #edf8ff);
+          box-shadow: inset 3px 0 0 #218ed3;
+        }
+
+        [dir='rtl'] .seller-workspace-nav-link.active {
+          box-shadow: inset -3px 0 0 #218ed3;
+        }
+
+        .seller-workspace-nav-link svg {
+          width: 1rem;
+          height: 1rem;
+          flex: 0 0 auto;
+        }
+
+        .seller-workspace-nav-link > span:not(.seller-workspace-count) {
+          min-width: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .seller-workspace-count {
+          min-width: 1.3rem;
+          height: 1.3rem;
+          margin-inline-start: auto;
+          padding: 0 0.25rem;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          color: #fff;
+          border-radius: 999px;
+          background: #1883ca;
+          font-size: 0.64rem;
+          font-weight: 850;
+        }
+
+        .dashboard-container--top-menu .dashboard-main,
+        .dashboard-container--top-menu .dashboard-main.with-sidebar,
+        .dashboard-container--top-menu .dashboard-main.without-sidebar {
+          min-height: auto;
+          margin: 0 !important;
+          padding: 0;
+        }
+
+        .dashboard-container--top-menu .dashboard-content {
+          width: var(--seller-dashboard-width);
+          max-width: none;
+          margin: 0 auto;
+          padding: clamp(0.7rem, 1.6vw, 1.25rem) 0 0;
+        }
+
+        @media (max-width: 1180px) {
+          .seller-workspace-menu-panel {
+            grid-template-columns: 1fr;
+          }
+
+          .seller-workspace-user {
+            min-height: auto;
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr) auto;
+            align-items: center;
+          }
+
+          .seller-workspace-logout {
+            width: auto;
+            margin-top: 0;
+          }
+
+          .seller-workspace-nav {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+        }
+
+        @media (max-width: 720px) {
+          .dashboard-container--top-menu {
+            --seller-dashboard-width: min(100% - 1rem, 1440px);
+            padding-top: 0.5rem;
+          }
+
+          .dashboard-container--top-menu .seller-workspace-topbar {
+            top: calc(var(--navbar-height, 68px) + 0.35rem);
+            min-height: 66px;
+            padding: 0.65rem 0.72rem 0.65rem 0.9rem;
+            gap: 0.7rem;
+            border-radius: 17px;
+          }
+
+          .seller-workspace-actions {
+            gap: 0.4rem;
+          }
+
+          .dashboard-container--top-menu .seller-workspace-primary-action,
+          .seller-workspace-menu-toggle {
+            min-height: 39px;
+            padding: 0.55rem 0.64rem;
+            border-radius: 11px;
+          }
+
+          .dashboard-container--top-menu .seller-workspace-primary-action span,
+          .seller-workspace-menu-toggle span {
+            display: none;
+          }
+
+          .dashboard-container--top-menu .seller-workspace-primary-action svg,
+          .seller-workspace-menu-toggle svg {
+            width: 1.16rem;
+            height: 1.16rem;
+          }
+
+          .seller-workspace-menu.is-open {
+            margin-top: 0.5rem;
+          }
+
+          .seller-workspace-menu-panel {
+            padding: 0.6rem;
+            border-radius: 17px;
+          }
+
+          .seller-workspace-user {
+            padding: 0.78rem;
+            grid-template-columns: auto minmax(0, 1fr) auto;
+            gap: 0.55rem;
+          }
+
+          .seller-workspace-user .sidebar-avatar {
+            width: 42px;
+            height: 42px;
+          }
+
+          .seller-workspace-logout {
+            min-width: 38px;
+            padding: 0.55rem;
+          }
+
+          .seller-workspace-logout span {
+            display: none;
+          }
+
+          .seller-workspace-nav {
+            grid-template-columns: 1fr;
+            gap: 0.55rem;
+          }
+
+          .seller-workspace-nav-group {
+            padding: 0.65rem;
+            border-radius: 13px;
+          }
+
+          .seller-workspace-nav-link {
+            min-height: 40px;
+            font-size: 0.82rem;
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .seller-workspace-menu,
+          .seller-workspace-menu-panel,
+          .seller-workspace-nav-link,
+          .seller-workspace-menu-toggle,
+          .dashboard-container--top-menu .seller-workspace-primary-action {
+            transition: none;
           }
         }
       `}</style>
