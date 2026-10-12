@@ -5,7 +5,7 @@ import {
   WrenchScrewdriverIcon, CurrencyDollarIcon, Cog6ToothIcon, 
   ArrowLeftOnRectangleIcon, ComputerDesktopIcon, MagnifyingGlassIcon,
   ChatBubbleLeftRightIcon, Bars3Icon, XMarkIcon, ClipboardDocumentListIcon,
-  HeartIcon, ShoppingCartIcon, TagIcon, ShieldExclamationIcon, PlusIcon, SparklesIcon
+  HeartIcon, ShoppingCartIcon, TagIcon, ShieldExclamationIcon, PlusIcon
 } from '@heroicons/react/24/outline';
 import useAuth from '../../../hooks/useAuth';
 import useCart from '../../../hooks/useCart';
@@ -134,8 +134,7 @@ const DashboardLayout = () => {
       <aside id="seller-workspace-navigation" className={`dashboard-sidebar ${isSidebarOpen ? 'open' : 'closed'} ${isMobileMenuOpen ? 'mobile-open' : ''}`} aria-label={t('sellerDashboard.title')}>
         <div className="sidebar-header">
           <div className="sidebar-brand-lockup" aria-hidden={!isSidebarOpen}>
-            <span className="sidebar-brand-mark"><SparklesIcon /></span>
-            {isSidebarOpen && <div><strong>rifKANDO</strong><small>{t('sellerDashboard.title')}</small></div>}
+            {isSidebarOpen && <strong>{t('sellerDashboard.title')}</strong>}
           </div>
           <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="sidebar-toggle" aria-label={isSidebarOpen ? t('sellerDashboard.collapse') : t('sellerDashboard.expand')}>
             {isSidebarOpen ? '←' : '→'}
@@ -620,24 +619,6 @@ const DashboardLayout = () => {
           text-transform: uppercase;
         }
 
-        .sidebar-brand-mark {
-          width: 2.2rem;
-          height: 2.2rem;
-          display: grid;
-          place-items: center;
-          flex: 0 0 auto;
-          color: #fff;
-          border-radius: 0.78rem;
-          background: linear-gradient(135deg, #63b8f3, #0877bf 58%, #0665a6);
-          box-shadow: 0 9px 20px rgba(8, 119, 191, 0.23);
-        }
-
-        .sidebar-brand-mark svg {
-          width: 1.15rem;
-          height: 1.15rem;
-          stroke-width: 2.25;
-        }
-
         .sidebar-toggle,
         .mobile-menu-btn {
           border-color: rgba(8, 119, 191, 0.16);
@@ -866,12 +847,6 @@ const DashboardLayout = () => {
         .sidebar-user-info p,
         .sidebar-section-label {
           color: #607995;
-        }
-
-        .sidebar-brand-mark {
-          border: 1px solid rgba(255, 255, 255, 0.7);
-          background: linear-gradient(135deg, rgba(99, 184, 243, 0.92), rgba(8, 119, 191, 0.94));
-          box-shadow: 0 9px 22px rgba(8, 119, 191, 0.2);
         }
 
         .sidebar-toggle {
