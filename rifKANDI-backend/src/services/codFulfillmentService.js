@@ -45,7 +45,7 @@ class CodFulfillmentService {
 
   // Safe to run from both a timer and request paths: each update is conditional
   // and wrapped in the same serializable financial transaction as COD actions.
-  static async expirePendingConfirmations({ now = Date.now(), limit = 100 } = {}) {
+  static async expirePendingConfirmations({ now = Date.now(), limit = 100, onExpired = null } = {}) {
     const candidates = await WalletService.all(
       `SELECT id, created_at, confirmation_expires_at FROM cod_fulfillments
        WHERE status = 'pending_confirmation' ORDER BY created_at ASC LIMIT ?`,
@@ -68,9 +68,27 @@ class CodFulfillmentService {
         await this.addHistoryTx(tx, fulfillment.order_id, 'cancelled', `Seller confirmation expired after ${this.confirmationWindowHours()} hours.`, null);
         await this.cancelFinancialSplitsIfTerminalTx(tx, fulfillment.order_id);
         await this.syncOrderStateTx(tx, fulfillment.order_id);
-        return true;
+        // Return the authoritative row captured inside the same transaction.
+        // Callers can safely notify after commit without guessing who owns the
+        // order or sending a notification for a concurrent no-op.
+        return fulfillment;
       });
-      if (changed) expired += 1;
+      if (!changed) continue;
+      expired += 1;
+      if (typeof onExpired === 'function') {
+        try {
+          await onExpired(changed);
+        } catch (error) {
+          // Notifications are intentionally best effort. A notification-store
+          // outage must never reverse an already committed expiry transition.
+          console.error(JSON.stringify({
+            level: 'error',
+            event: 'cod_confirmation_expiry_notification_failed',
+            fulfillmentId: changed.id,
+            error: error.message,
+          }));
+        }
+      }
     }
     return expired;
   }
@@ -313,6 +331,9 @@ class CodFulfillmentService {
       if (!fulfillment) throw new Error('COD fulfilment was not found.');
       if (fulfillment.status !== 'confirmed' || fulfillment.delivery_partner_pickup_at) {
         throw new Error('A delivery quote can be set only before pickup for a confirmed COD order.');
+      }
+      if (!fulfillment.delivery_partner_contacted_at) {
+        throw new Error('Wait for the seller to request a Toufiq pickup before setting the delivery plan.');
       }
 
       const grossMinor = getAmountMinor(fulfillment, 'gross_amount_minor', 'gross_amount');

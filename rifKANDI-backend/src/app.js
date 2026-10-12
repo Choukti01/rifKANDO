@@ -146,6 +146,33 @@ const notifyCodParticipants = ({ fulfillment, kind, title, body, includeBuyer = 
   }
 };
 
+const notifyCodConfirmationExpired = (fulfillment) => {
+  const metadata = codNotificationMetadata(fulfillment);
+  const buyerId = Number(fulfillment.buyer_id);
+  const sellerId = Number(fulfillment.seller_id);
+
+  if (Number.isSafeInteger(buyerId) && buyerId > 0) {
+    notify({
+      userId: buyerId,
+      kind: 'cod.confirmation_expired',
+      title: 'COD order cancelled',
+      body: 'The seller did not confirm this COD order in time. No payment is due.',
+      href: `/orders/${fulfillment.order_id}`,
+      metadata,
+    });
+  }
+  if (Number.isSafeInteger(sellerId) && sellerId > 0) {
+    notify({
+      userId: sellerId,
+      kind: 'cod.confirmation_expired',
+      title: 'COD confirmation window ended',
+      body: 'This COD order was cancelled because it was not confirmed before the deadline.',
+      href: '/seller/dashboard/orders',
+      metadata,
+    });
+  }
+};
+
 const configuredCodEmails = (environmentKey) => [...new Set(
   String(process.env[environmentKey] || '')
     .split(',')
@@ -3494,7 +3521,7 @@ app.get('/api/seller/cod-fulfillments/:id/delivery-handoff', protect, requireSel
 
 app.patch('/api/seller/cod-fulfillments/:id', protect, requireSeller, validateIdParams('id'), validateCodSellerAction, async (req, res) => {
   try {
-    await CodFulfillmentService.expirePendingConfirmations();
+    await CodFulfillmentService.expirePendingConfirmations({ onExpired: notifyCodConfirmationExpired });
     const result = await CodFulfillmentService.sellerAction({
       fulfillmentId: req.params.id,
       sellerId: req.user.id,

@@ -73,6 +73,14 @@ async function run() {
 
   await CodFulfillmentService.sellerAction({ fulfillmentId: fulfillment.id, sellerId: flow.sellerId, action: 'confirm' });
   await assert.rejects(
+    () => CodFulfillmentService.quoteDeliveryFee({
+      fulfillmentId: fulfillment.id, operationsUserId: flow.operationsId, deliveryFee: 50,
+      deliveryDeadline: deliveryDeadline(),
+    }),
+    /seller to request a Toufiq pickup/,
+    'Toufiq cannot quote a delivery plan before the seller asks for pickup'
+  );
+  await assert.rejects(
     () => CodFulfillmentService.sellerAction({
       fulfillmentId: fulfillment.id, sellerId: flow.sellerId, action: 'dispatch',
     }),
@@ -253,6 +261,26 @@ async function run() {
   assert.equal(returnedOrder.status, 'returned', 'a returned COD order is visible to the buyer as returned');
   assert.equal(returnedProduct.stock, 3, 'a returned parcel restores stock');
   assert.equal(returnedProduct.sold, 0, 'a returned parcel reverses sold count');
+
+  const expiryFlow = await createUsersAndProduct('Expired confirmation product');
+  const expiryCheckout = await WalletService.createMarketplaceOrder({
+    buyerId: expiryFlow.buyerId,
+    orderNumber: 'RIF-COD-EXPIRY-1001',
+    paymentMethod: 'cash',
+    shippingAddress: address('expired-confirmation@buyer.test'),
+    items: [{ id: expiryFlow.productId, quantity: 1 }],
+    expectedTotal: 100,
+    idempotencyKey: 'cod-fulfillment-expiry-1001',
+  });
+  let expiredNotification = null;
+  const expiredCount = await CodFulfillmentService.expirePendingConfirmations({
+    now: Date.now() + (25 * 60 * 60 * 1000),
+    onExpired: async (expiredFulfillment) => { expiredNotification = expiredFulfillment; },
+  });
+  assert.equal(expiredCount, 1, 'an ignored seller confirmation expires automatically');
+  assert.equal(expiredNotification?.order_id, expiryCheckout.order.id, 'expiry notifications receive the committed fulfilment owner data');
+  const expiredFulfillment = await WalletService.get('SELECT status, settlement_status FROM cod_fulfillments WHERE order_id = ?', [expiryCheckout.order.id]);
+  assert.deepEqual(expiredFulfillment, { status: 'cancelled', settlement_status: 'void' }, 'expired COD orders are safely voided');
 
   console.log('COD fulfilment smoke test passed.');
 }
