@@ -25,6 +25,24 @@ const createProductRoutes = ({
 }) => {
   const router = express.Router();
   const reportReasons = new Set(['scam', 'prohibited', 'misleading', 'counterfeit', 'other']);
+  const requiredListingPhotos = (condition) => (condition === 'new' ? 1 : 2);
+
+  const listingMediaQualityError = (media, condition) => {
+    if (!Array.isArray(media) || media.length === 0) return 'Add at least one clear product photo.';
+    if (media[0]?.type !== 'image') return 'The first listing media must be a product photo. Videos can be added after the cover photo.';
+    const imageCount = media.filter((item) => item?.type === 'image').length;
+    const requiredPhotos = requiredListingPhotos(condition);
+    if (imageCount < requiredPhotos) {
+      return `${condition === 'new' ? 'New' : 'Pre-owned'} listings need at least ${requiredPhotos} clear product photo${requiredPhotos === 1 ? '' : 's'}.`;
+    }
+    return null;
+  };
+
+  const sendListingQualityError = (res, field, message) => res.status(422).json({
+    error: message,
+    code: 'VALIDATION_ERROR',
+    fields: [{ field, message }],
+  });
 
   // Reviews are evidence of a completed marketplace transaction, not a general
   // comment system. A COD fulfilment is the authoritative delivery record for
@@ -204,7 +222,8 @@ const createProductRoutes = ({
 
   router.get('/products/:id', validateIdParams('id'), (req, res) => {
     db.get(
-      `SELECT p.*, u.name as seller_name, u.id as seller_id
+      `SELECT p.*, u.name as seller_name, u.id as seller_id,
+              u.city AS seller_city, u.created_at AS seller_since
        FROM products p
        JOIN users u ON p.seller_id = u.id
        WHERE p.id = ? AND p.status = 'published'
@@ -228,6 +247,9 @@ const createProductRoutes = ({
 
   router.post('/products', protect, requireSeller, validateProductCreate, (req, res) => {
     const { title, description, price, old_price: oldPrice, category, stock, media, condition, origin_city: originCity, preparation_days: preparationDays } = req.body;
+    if (!originCity) return sendListingQualityError(res, 'origin_city', 'Dispatch city is required so buyers know where the parcel starts.');
+    const listingMediaError = listingMediaQualityError(media, condition || 'new');
+    if (listingMediaError) return sendListingQualityError(res, 'media', listingMediaError);
     const priceMinor = Money.toMinor(price);
     const oldPriceMinor = oldPrice === undefined ? null : Money.toMinor(oldPrice);
 
@@ -282,13 +304,17 @@ const createProductRoutes = ({
     const priceMinor = price === undefined ? undefined : Money.toMinor(price);
     const oldPriceMinor = oldPrice === undefined ? undefined : Money.toMinor(oldPrice);
 
-    db.get('SELECT seller_id FROM products WHERE id = ?', [req.params.id], (lookupError, product) => {
+    db.get('SELECT seller_id, condition FROM products WHERE id = ?', [req.params.id], (lookupError, product) => {
       if (lookupError || !product) return res.status(404).json({ error: 'Product not found' });
       if (product.seller_id !== req.user.id && !isAdmin(req.user)) {
         return res.status(403).json({ error: 'Not authorized' });
       }
 
-      db.run(
+      const validateEffectiveMedia = (effectiveMedia) => {
+        const listingMediaError = listingMediaQualityError(effectiveMedia, condition || product.condition || 'new');
+        if (listingMediaError) return sendListingQualityError(res, 'media', listingMediaError);
+
+        return db.run(
         `UPDATE products SET
            title = COALESCE(?, title),
            description = COALESCE(?, description),
@@ -316,7 +342,7 @@ const createProductRoutes = ({
           preparationDays,
           req.params.id,
         ],
-        (updateError) => {
+          (updateError) => {
           if (updateError) return res.status(400).json({ error: updateError.message });
           // Omitted media means a normal partial edit. Do not erase existing
           // images unless the seller explicitly supplied a replacement list.
@@ -344,8 +370,25 @@ const createProductRoutes = ({
               );
             });
           });
-        },
-      );
+          },
+        );
+      };
+
+      // A seller may change either the media or the condition. Validate the
+      // resulting listing in both cases so a crafted partial update cannot
+      // downgrade the evidence required for Used as New or Joutiya listings.
+      if (media !== undefined) return validateEffectiveMedia(media);
+      if (condition !== undefined && condition !== product.condition) {
+        return db.all(
+          'SELECT media_url AS url, media_type AS type FROM product_media WHERE product_id = ? ORDER BY display_order, id',
+          [req.params.id],
+          (mediaError, existingMedia) => {
+            if (mediaError) return res.status(500).json({ error: 'Unable to verify existing listing media.' });
+            return validateEffectiveMedia(existingMedia || []);
+          },
+        );
+      }
+      return validateEffectiveMedia([{ type: 'image' }, ...Array(requiredListingPhotos(product.condition || 'new') - 1).fill({ type: 'image' })]);
     });
   });
 

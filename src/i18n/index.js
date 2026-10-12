@@ -784,6 +784,40 @@ Object.assign(resources.en.translation.codOps, { disputes: 'Delivery disputes' }
 Object.assign(resources.fr.translation.codOps, { disputes: 'Litiges de livraison' });
 Object.assign(resources.ar.translation.codOps, { disputes: 'نزاعات التوصيل' });
 
+Object.assign(resources.en.translation.productForm, {
+  quality: {
+    eyebrow: 'Listing quality', title: 'Ready for buyers', ready: 'Ready to publish', incomplete: 'Needs attention',
+    details: 'Clear title and description', city: 'Dispatch city is included', cover: 'First media is a clear product photo', photos: '{{current}} of {{required}} required product photos',
+    condition: { new: 'New listings need one clear photo. Add videos after the cover photo.', used_as_new: 'Used as New listings need at least two real photos that show the item clearly.', joutiya: 'Joutiya listings need at least two real photos so buyers can make informed offers.' },
+  },
+  validation: { city: 'Add the city where this parcel will be dispatched.', cover: 'Choose a clear product photo as the first media item.', photos: 'Add at least {{count}} clear product photos for this condition.' },
+});
+Object.assign(resources.fr.translation.productForm, {
+  quality: {
+    eyebrow: 'Qualité de l’annonce', title: 'Prêt pour les acheteurs', ready: 'Prête à publier', incomplete: 'À compléter',
+    details: 'Titre et description clairs', city: 'Ville d’expédition indiquée', cover: 'Le premier média est une photo claire du produit', photos: '{{current}} photo sur {{required}} requise(s)',
+    condition: { new: 'Les produits neufs nécessitent une photo claire. Ajoutez les vidéos après la photo de couverture.', used_as_new: 'Les annonces comme neuves nécessitent au moins deux vraies photos montrant clairement l’article.', joutiya: 'Les annonces Joutiya nécessitent au moins deux vraies photos pour des offres informées.' },
+  },
+  validation: { city: 'Ajoutez la ville depuis laquelle le colis sera expédié.', cover: 'Choisissez une photo claire du produit comme premier média.', photos: 'Ajoutez au moins {{count}} photos claires pour cet état.' },
+});
+Object.assign(resources.ar.translation.productForm, {
+  quality: {
+    eyebrow: 'جودة الإعلان', title: 'جاهز للمشترين', ready: 'جاهز للنشر', incomplete: 'يحتاج إلى إكمال',
+    details: 'عنوان ووصف واضحان', city: 'تم تحديد مدينة الإرسال', cover: 'الوسيط الأول صورة واضحة للمنتج', photos: '{{current}} من {{required}} صور مطلوبة للمنتج',
+    condition: { new: 'تحتاج المنتجات الجديدة إلى صورة واضحة واحدة. أضف الفيديوهات بعد صورة الغلاف.', used_as_new: 'تحتاج إعلانات المستعمل كالجديد إلى صورتين حقيقيتين على الأقل تظهران المنتج بوضوح.', joutiya: 'تحتاج إعلانات الجوطية إلى صورتين حقيقيتين على الأقل حتى يقدم المشترون عروضًا واعية.' },
+  },
+  validation: { city: 'أضف المدينة التي سيُرسل منها هذا الطرد.', cover: 'اختر صورة واضحة للمنتج لتكون الوسيط الأول.', photos: 'أضف {{count}} صور واضحة على الأقل لهذه الحالة.' },
+});
+Object.assign(resources.en.translation.productDetails, {
+  trust: { sellerCity: 'Seller based in {{city}}', sellerSince: 'Selling since {{date}}', codTitle: 'How COD works', codSteps: { confirm: 'Place your order. The seller confirms the item is ready.', quote: 'rifKANDO COD Operations confirms the delivery price and delivery plan.', deliver: 'Receive the parcel and pay cash only when it arrives.', review: 'After verified delivery, leave a review based on your real experience.' } },
+});
+Object.assign(resources.fr.translation.productDetails, {
+  trust: { sellerCity: 'Vendeur basé à {{city}}', sellerSince: 'Vendeur depuis {{date}}', codTitle: 'Comment fonctionne le paiement à la livraison', codSteps: { confirm: 'Passez votre commande. Le vendeur confirme que l’article est prêt.', quote: 'Les opérations COD de rifKANDO confirment le prix et le plan de livraison.', deliver: 'Recevez le colis et payez uniquement à son arrivée.', review: 'Après une livraison vérifiée, laissez un avis basé sur votre expérience réelle.' } },
+});
+Object.assign(resources.ar.translation.productDetails, {
+  trust: { sellerCity: 'البائع موجود في {{city}}', sellerSince: 'يبيع منذ {{date}}', codTitle: 'كيف يعمل الدفع عند الاستلام', codSteps: { confirm: 'أرسل طلبك. يؤكد البائع أن المنتج جاهز.', quote: 'يؤكد فريق عمليات الدفع عند الاستلام في rifKANDO سعر التوصيل وخطة التسليم.', deliver: 'استلم الطرد وادفع نقدًا فقط عند وصوله.', review: 'بعد تسليم موثّق، أضف تقييمك بناءً على تجربتك الحقيقية.' } },
+});
+
 const replaceArabicFinditBrand = (value) => {
   if (typeof value === 'string') return value.replaceAll('FINDit', resources.ar.translation.findit.navigation);
   if (value && typeof value === 'object') Object.values(value).forEach(replaceArabicFinditBrand);

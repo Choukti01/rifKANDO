@@ -3,6 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import api from '../../../services/api';
 import toast from 'react-hot-toast';
 import MediaUploader from '../../../components/MediaUploader';
+import ListingQualityChecklist from '../../../components/common/ListingQualityChecklist';
+import { getListingQuality } from '../../../utils/productListingQuality';
 import { useTranslation } from 'react-i18next';
 
 const EditProduct = () => {
@@ -82,7 +84,10 @@ const EditProduct = () => {
     if (oldPrice !== undefined && (!Number.isFinite(oldPrice) || oldPrice < price)) {
       return toast.error(t('productForm.validation.originalPrice'));
     }
-    if (!media.length) return toast.error(t('productForm.validation.saveMedia'));
+    const listingQuality = getListingQuality({ ...formData, title, description }, media);
+    if (!listingQuality.checks.city) return toast.error(t('productForm.validation.city'));
+    if (!listingQuality.checks.cover) return toast.error(t('productForm.validation.cover'));
+    if (!listingQuality.checks.photos) return toast.error(t('productForm.validation.photos', { count: listingQuality.requiredImages }));
 
     setLoading(true);
     try {
@@ -176,7 +181,7 @@ const EditProduct = () => {
           </div>
         </div>
         <div className="form-row">
-          <div className="form-group"><label>{t('productForm.dispatchCity')}</label><input name="origin_city" value={formData.origin_city} onChange={handleChange} className="form-input" maxLength="100" placeholder={t('productForm.dispatchCityPlaceholder')} /><small className="form-hint">{t('productForm.dispatchCityHelp')}</small></div>
+          <div className="form-group"><label>{t('productForm.dispatchCity')} *</label><input name="origin_city" value={formData.origin_city} onChange={handleChange} className="form-input" minLength="2" maxLength="100" placeholder={t('productForm.dispatchCityPlaceholder')} required /><small className="form-hint">{t('productForm.dispatchCityHelp')}</small></div>
           <div className="form-group"><label>{t('productForm.preparation')}</label><select name="preparation_days" value={formData.preparation_days} onChange={handleChange} className="form-input"><option value="0">{t('productForm.sameDay')}</option>{[1,2,3,4,5,7,10,14].map((days) => <option key={days} value={days}>{t('productForm.dayCount', { count: days })}</option>)}</select><small className="form-hint">{t('productForm.preparationHelp')}</small></div>
         </div>
 
@@ -236,6 +241,8 @@ const EditProduct = () => {
           <label>{t('productForm.media')}</label>
           <MediaUploader onMediaUploaded={setMedia} existingMedia={media} maxFiles={10} allowedTypes={['image', 'video']} />
         </div>
+
+        <ListingQualityChecklist formData={formData} media={media} />
 
         <div className="form-actions">
           <button type="submit" className="btn btn-primary" disabled={loading}>
@@ -298,6 +305,7 @@ const EditProduct = () => {
         .listing-estimate span { color:#216275; font-size:.72rem; font-weight:800; letter-spacing:.06em; text-transform:uppercase; }
         .listing-estimate strong { color:#102a43; font-size:1.05rem; }
         .listing-estimate p, .listing-estimate small { margin:0; color:#526579; font-size:.78rem; line-height:1.5; }
+        .listing-quality { margin:1.15rem 0 0; padding:1rem; border:1px solid #d6e7f3; border-radius:.8rem; background:#fbfdff; }.listing-quality-ready { border-color:#bde5d2; background:#f5fcf8; }.listing-quality__heading { align-items:start; display:flex; gap:1rem; justify-content:space-between; }.listing-quality__heading span { color:var(--color-brand-action); display:block; font-size:.68rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }.listing-quality__heading h3 { color:var(--color-brand-ink); font-size:.95rem; margin:.2rem 0 0; }.listing-quality__heading strong { color:#8a5a00; font-size:.72rem; }.listing-quality-ready .listing-quality__heading strong { color:#087a52; }.listing-quality>p { color:#5b6d81; font-size:.77rem; line-height:1.45; margin:.65rem 0; }.listing-quality ul { display:grid; gap:.45rem; list-style:none; margin:0; padding:0; }.listing-quality li { align-items:center; color:#6d5360; display:flex; font-size:.78rem; gap:.4rem; }.listing-quality li svg { color:#b7791f; height:1rem; width:1rem; }.listing-quality li.is-complete { color:#265c49; }.listing-quality li.is-complete svg { color:#087a52; }
         .listing-estimate small { color:#216275; }
         .form-actions {
           display: flex;

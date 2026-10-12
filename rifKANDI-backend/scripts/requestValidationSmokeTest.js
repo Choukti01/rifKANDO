@@ -125,11 +125,43 @@ const run = async () => {
       method: 'POST', cookies: seller.cookies, csrfToken: seller.csrfToken,
       body: {
         title: 'Video product listing', description: 'This description is long enough for a product video listing.',
-        price: 100, category: 'Home', stock: 1, condition: 'new',
-        media: [{ url: '/uploads/media/product-preview.mp4', type: 'video' }],
+        price: 100, category: 'Home', stock: 1, condition: 'new', origin_city: 'Nador',
+        media: [
+          { url: '/uploads/media/product-photo.jpg', type: 'image' },
+          { url: '/uploads/media/product-preview.mp4', type: 'video' },
+        ],
       },
     });
-    assert.equal(productVideo.status, 200, 'products must accept uploaded MP4 video references');
+    assert.equal(productVideo.status, 200, 'products must accept uploaded MP4 video references after a photo cover');
+    const productVideoBody = await productVideo.json();
+    await assertValidationError(await request(port, `/api/products/${productVideoBody.product.id}`, {
+      method: 'PUT', cookies: seller.cookies, csrfToken: seller.csrfToken,
+      body: { condition: 'used_as_new' },
+    }), 'a partial update must not bypass the extra photo requirement for Used as New listings');
+    await assertValidationError(await request(port, '/api/products', {
+      method: 'POST', cookies: seller.cookies, csrfToken: seller.csrfToken,
+      body: {
+        title: 'No dispatch city', description: 'This listing must include a real dispatch city for buyers.',
+        price: 100, category: 'Home', stock: 1, condition: 'new',
+        media: [{ url: '/uploads/media/product-photo.jpg', type: 'image' }],
+      },
+    }), 'seller listings must identify the dispatch city');
+    await assertValidationError(await request(port, '/api/products', {
+      method: 'POST', cookies: seller.cookies, csrfToken: seller.csrfToken,
+      body: {
+        title: 'Used listing without enough photos', description: 'Pre-owned listings must provide enough evidence for buyers.',
+        price: 100, category: 'Home', stock: 1, condition: 'used_as_new', origin_city: 'Nador',
+        media: [{ url: '/uploads/media/product-photo.jpg', type: 'image' }],
+      },
+    }), 'Used as New listings must require two clear photos');
+    await assertValidationError(await request(port, '/api/products', {
+      method: 'POST', cookies: seller.cookies, csrfToken: seller.csrfToken,
+      body: {
+        title: 'Video only cover', description: 'A product video is useful but it cannot be the only cover media.',
+        price: 100, category: 'Home', stock: 1, condition: 'new', origin_city: 'Nador',
+        media: [{ url: '/uploads/media/product-preview.mp4', type: 'video' }],
+      },
+    }), 'seller listings must use a product photo as the first media item');
     await assertValidationError(await request(port, '/api/products', {
       method: 'POST', cookies: seller.cookies, csrfToken: seller.csrfToken,
       body: {

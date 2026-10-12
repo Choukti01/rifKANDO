@@ -285,10 +285,14 @@ const ProductDetailsPage = () => {
   const isFav = isAuthenticated && isFavorite(product.id, 'product');
   const isOwnListing = Number(product.seller_id) === Number(user?.id);
   const isUnavailable = stock < 1 || isOwnListing;
+  const sellerCity = product.seller_city || product.origin_city || '';
   const formatAmount = (amount) => new Intl.NumberFormat(
     i18n.language === 'ar' ? 'ar-MA' : i18n.language === 'fr' ? 'fr-MA' : 'en-MA',
     { maximumFractionDigits: 2 }
   ).format(Number(amount || 0));
+  const sellerSince = product.seller_since
+    ? new Intl.DateTimeFormat(i18n.language === 'ar' ? 'ar-MA' : i18n.language === 'fr' ? 'fr-MA' : 'en-MA', { month: 'short', year: 'numeric' }).format(new Date(product.seller_since))
+    : '';
 
   const productPath = `/product/${product.id}`;
   const primarySeoMedia = media.find((item) => item.media_type === 'image') || primaryMedia;
@@ -407,6 +411,10 @@ const ProductDetailsPage = () => {
                 {t('productDetails.soldBy')} <Link to={`/profile/${product.seller_id}`} className="seller-link">{product.seller_name || t('products.unknownSeller')}</Link>
               </div>
             </div>
+            {(sellerCity || sellerSince) && <div className="seller-trust-meta">
+              {sellerCity && <span>{t('productDetails.trust.sellerCity', { city: sellerCity })}</span>}
+              {sellerSince && <span>{t('productDetails.trust.sellerSince', { date: sellerSince })}</span>}
+            </div>}
             <div className="product-purchase-panel">
               <div className="product-price"><span className="price-label">{t('products.price')}</span><span className="current-price">{formatAmount(productPrice)} MAD</span>{product.old_price && <span className="old-price">{formatAmount(product.old_price)} MAD</span>}</div>
               <div className="cod-price-breakdown" aria-label={t('products.codBreakdown')}>
@@ -444,6 +452,15 @@ const ProductDetailsPage = () => {
                 <div className="shipping-item"><ShieldCheckIcon className="shipping-icon" /><span>{t('products.codProtectionNote')}</span></div>
                 <div className="shipping-item"><ArrowPathIcon className="shipping-icon" /><span>{t('products.orderTrackingNote')}</span></div>
               </div>
+              <section className="buyer-cod-journey" aria-label={t('productDetails.trust.codTitle')}>
+                <h2>{t('productDetails.trust.codTitle')}</h2>
+                <ol>
+                  <li>{t('productDetails.trust.codSteps.confirm')}</li>
+                  <li>{t('productDetails.trust.codSteps.quote')}</li>
+                  <li>{t('productDetails.trust.codSteps.deliver')}</li>
+                  <li>{t('productDetails.trust.codSteps.review')}</li>
+                </ol>
+              </section>
             </div>
           </div>
         </div>
@@ -704,6 +721,7 @@ const ProductDetailsPage = () => {
         .product-rating { display: flex; align-items: center; gap: 0.25rem; color: #f59e0b; }
         .star-icon { width: 1rem; height: 1rem; fill: #f59e0b; }
         .product-seller { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 0.35rem; color: #4b5563; }
+        .seller-trust-meta { display:flex; flex-wrap:wrap; gap:.45rem; margin:-.35rem 0 .9rem; }.seller-trust-meta span { border:1px solid #d8e8f4; border-radius:999px; color:#49667c; font-size:.72rem; font-weight:700; padding:.28rem .5rem; }
         .seller-link { color: #216275; text-decoration: none; font-weight: 700; }
         .seller-link:hover { text-decoration: underline; }
         .verified-seller-copy { color: #216275; font-size: 0.75rem; font-weight: 700; }
@@ -740,6 +758,7 @@ const ProductDetailsPage = () => {
         .report-listing-btn { display:inline-flex;align-items:center;gap:.38rem;margin-top:.85rem;padding:0;border:0;background:none;color:#5c6c7b;font:inherit;font-size:.82rem;cursor:pointer;text-decoration:underline; }.report-listing-btn svg { width:1rem; }.report-listing-btn:hover { color:#b42318; }.report-dialog select { width:100%;padding:.65rem;border:1px solid #d3dee6;border-radius:.5rem;background:#fff;font:inherit; }
         .shipping-item { display: flex; align-items: flex-start; gap: 0.55rem; font-size: 0.8rem; color: #4b5563; line-height: 1.4; }
         .shipping-icon { flex: 0 0 auto; width: 1rem; height: 1rem; margin-top: 0.05rem; color: #216275; }
+        .buyer-cod-journey { margin-top:1rem; padding:.85rem; border-radius:.75rem; background:#f2f9fe; }.buyer-cod-journey h2 { color:#173f5f; font-size:.78rem; letter-spacing:.06em; margin:0 0 .55rem; text-transform:uppercase; }.buyer-cod-journey ol { display:grid; gap:.38rem; list-style:none; margin:0; padding:0; counter-reset:cod-step; }.buyer-cod-journey li { align-items:flex-start; color:#4d6377; counter-increment:cod-step; display:flex; font-size:.76rem; gap:.5rem; line-height:1.42; }.buyer-cod-journey li::before { align-items:center; background:#d7efff; border-radius:50%; color:#0877bf; content:counter(cod-step); display:inline-flex; flex:0 0 auto; font-size:.65rem; font-weight:850; height:1.2rem; justify-content:center; width:1.2rem; }
         .mobile-purchase-bar { display: none; }
         .product-tabs { background: white; border-radius: 1rem; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-top: 2rem; }
         .tabs-header { display: flex; border-bottom: 1px solid #e5e7eb; flex-wrap: wrap; }
