@@ -1268,6 +1268,16 @@ db.serialize(() => {
       FOREIGN KEY (buyer_id) REFERENCES users(id)
     )
   `, (err) => { if (err) console.error('Error creating findit_requests:', err); });
+  // FINDit is a standing demand board, not a countdown listing. Re-open legacy
+  // expiry-only records and give every existing request a permanent sentinel
+  // date while the column remains required for SQLite/PostgreSQL compatibility.
+  db.run(`
+    UPDATE findit_requests
+    SET status = CASE WHEN status = 'expired' THEN 'active' ELSE status END,
+        expires_at = '9999-12-31T23:59:59.999Z',
+        updated_at = CURRENT_TIMESTAMP
+    WHERE status = 'expired' OR expires_at <> '9999-12-31T23:59:59.999Z'
+  `, (err) => { if (err) console.error('Error making FINDit requests permanent:', err.message); });
   db.run(`
     CREATE TABLE IF NOT EXISTS findit_request_media (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1546,6 +1556,9 @@ db.serialize(() => {
   // These indexes match the live catalogue, media, purchase, appointment, and
   // buyer-history queries. They make the current single-node SQLite service
   // materially faster without changing API responses or business behavior.
+  // The catalogue no longer filters FINDit by time. Rebuild this legacy index
+  // once per startup so existing SQLite databases match the live query shape.
+  db.run('DROP INDEX IF EXISTS idx_findit_requests_catalog');
   const queryIndexes = [
     ['idx_products_catalog_created', 'products(status, created_at DESC)'],
     ['idx_products_catalog_condition_created', 'products(status, condition, created_at DESC)'],
@@ -1577,7 +1590,7 @@ db.serialize(() => {
     ['idx_service_media_listing', 'service_media(service_id, display_order, id)'],
     ['idx_digital_media_listing', 'digital_media(digital_id, display_order, id)'],
     ['idx_booking_media_listing', 'booking_media(booking_id, display_order, id)'],
-    ['idx_findit_requests_catalog', 'findit_requests(status, expires_at, created_at DESC)'],
+    ['idx_findit_requests_catalog', 'findit_requests(status, created_at DESC)'],
     ['idx_findit_requests_buyer', 'findit_requests(buyer_id, created_at DESC)'],
     ['idx_findit_request_media_request', 'findit_request_media(request_id, display_order, id)'],
     ['idx_findit_offers_request_status', 'findit_offers(request_id, status, created_at DESC)'],

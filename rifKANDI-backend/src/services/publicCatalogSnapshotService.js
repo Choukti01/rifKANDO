@@ -66,7 +66,7 @@ class PublicCatalogSnapshotService {
                r.preferred_condition, r.budget_max, r.budget_max_minor, r.status, r.expires_at, r.created_at,
                (SELECT COUNT(*) FROM findit_offers fo WHERE fo.request_id = r.id AND fo.status = 'active') AS offer_count
         FROM findit_requests r
-        WHERE r.status = 'active' AND r.expires_at > CURRENT_TIMESTAMP
+        WHERE r.status = 'active'
         ORDER BY r.created_at DESC
         LIMIT ?
       `, [MAX_CATALOG_ITEMS]),
@@ -127,6 +127,8 @@ class PublicCatalogSnapshotService {
       })),
       finditRequests: finditRequests.map((request) => ({
         ...request,
+        is_permanent: true,
+        expires_at: null,
         budget_max: numeric(request.budget_max),
         budget_max_minor: numeric(request.budget_max_minor),
         offer_count: numeric(request.offer_count),

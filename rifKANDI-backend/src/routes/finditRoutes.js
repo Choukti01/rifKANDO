@@ -6,6 +6,11 @@ const { calculateCommissionMinor } = require('../services/commissionPolicyServic
 const { all, get, run } = require('../services/bookingProtocolService');
 const { createPaginationMetadata, getPagination } = require('../utils/pagination');
 
+// FINDit requests stay open until their buyer cancels one or accepts an offer.
+// The column remains in the database temporarily for cross-database backwards
+// compatibility, but it is no longer part of marketplace business logic.
+const FINDIT_PERMANENT_EXPIRY = '9999-12-31T23:59:59.999Z';
+
 class FindItError extends Error {
   constructor(message, statusCode = 400) {
     super(message);
@@ -32,10 +37,7 @@ const minorFromRow = (row, minorColumn, decimalColumn) => {
   return Money.toMinor(Number(row?.[decimalColumn] || 0), { allowZero: true });
 };
 
-const effectiveStatus = (request, now = Date.now()) => {
-  if (request.status === 'active' && Date.parse(request.expires_at) <= now) return 'expired';
-  return request.status;
-};
+const effectiveStatus = (request) => request.status;
 
 const safeRequest = (request) => ({
   id: request.id,
@@ -48,7 +50,8 @@ const safeRequest = (request) => ({
   budget_max: Number(request.budget_max || 0),
   budget_max_minor: minorFromRow(request, 'budget_max_minor', 'budget_max'),
   status: effectiveStatus(request),
-  expires_at: request.expires_at,
+  is_permanent: true,
+  expires_at: null,
   created_at: request.created_at,
   offer_count: Number(request.offer_count || 0),
   media: request.media || [],
@@ -93,8 +96,9 @@ const safeOfferForSeller = (offer) => ({
     title: offer.request_title,
     category: offer.request_category,
     city: offer.request_city,
-    status: effectiveStatus({ status: offer.request_status, expires_at: offer.request_expires_at }),
-    expires_at: offer.request_expires_at,
+    status: effectiveStatus({ status: offer.request_status }),
+    is_permanent: true,
+    expires_at: null,
   },
 });
 
@@ -142,13 +146,12 @@ const createFindItRoutes = ({
   router.get('/findit/requests', validateFinditCatalogQuery, async (req, res) => {
     try {
       const { page, limit, offset } = getPagination(req.query);
-      const now = new Date().toISOString();
       const search = req.query.search || '';
       const category = req.query.category || '';
       const city = req.query.city || '';
       const sortBy = req.query.sortBy || 'newest';
-      let whereClause = "r.status = 'active' AND r.expires_at > ?";
-      const params = [now];
+      let whereClause = "r.status = 'active'";
+      const params = [];
       if (search) {
         whereClause += ' AND (r.title LIKE ? OR r.description LIKE ?)';
         params.push(`%${search}%`, `%${search}%`);
@@ -190,8 +193,7 @@ const createFindItRoutes = ({
   router.get('/findit/requests/:id', validateIdParams('id'), async (req, res) => {
     try {
       const request = await get(db, `${requestSelect}
-        WHERE r.id = ? AND r.status = 'active' AND r.expires_at > ?`,
-      [req.params.id, new Date().toISOString()]);
+        WHERE r.id = ? AND r.status = 'active'`, [req.params.id]);
       if (!request) return res.status(404).json({ error: 'FINDit request not found.' });
       return res.json({ success: true, request: safeRequest(await attachMedia(db, request)) });
     } catch (error) {
@@ -201,7 +203,7 @@ const createFindItRoutes = ({
 
   router.post('/findit/requests', protect, validateFinditRequestCreate, async (req, res) => {
     try {
-      const expiresAt = new Date(Date.now() + (req.body.expires_in_days * 24 * 60 * 60 * 1000)).toISOString();
+      const expiresAt = FINDIT_PERMANENT_EXPIRY;
       const budgetMinor = Money.toMinor(req.body.budget_max, { allowZero: true });
       const request = await WalletService.withFinancialTransaction(async (transaction) => {
         const inserted = await transaction.run(`
@@ -225,7 +227,7 @@ const createFindItRoutes = ({
       await record(req, 'findit.request_created', 'findit_request', request.id, {
         category: request.category,
         city: request.city,
-        expiresAt,
+        permanent: true,
       });
       return res.status(201).json({ success: true, request: result });
     } catch (error) {
@@ -297,7 +299,7 @@ const createFindItRoutes = ({
           WalletService.lockForUpdate('SELECT * FROM findit_requests WHERE id = ?'),
           [req.params.id]
         );
-        if (!request || request.status !== 'active' || Date.parse(request.expires_at) <= Date.now()) {
+        if (!request || request.status !== 'active') {
           throw new FindItError('This FINDit request is no longer accepting offers.', 409);
         }
         if (Number(request.buyer_id) === Number(req.user.id)) {
@@ -371,7 +373,7 @@ const createFindItRoutes = ({
           WHERE fo.id = ? AND fo.seller_id = ?
         `), [req.params.id, req.user.id]);
         if (!existing) throw new FindItError('FINDit offer not found.', 404);
-        if (existing.status !== 'active' || effectiveStatus({ status: existing.request_status, expires_at: existing.request_expires_at }) !== 'active') {
+        if (existing.status !== 'active' || effectiveStatus({ status: existing.request_status }) !== 'active') {
           throw new FindItError('This offer can no longer be changed.', 409);
         }
         const next = {
@@ -446,7 +448,7 @@ const createFindItRoutes = ({
             )
         `), [req.params.id]);
         if (!offer || Number(offer.buyer_id) !== Number(req.user.id)) throw new FindItError('FINDit offer not found.', 404);
-        if (offer.status !== 'active' || effectiveStatus({ status: offer.request_status, expires_at: offer.request_expires_at }) !== 'active') {
+        if (offer.status !== 'active' || effectiveStatus({ status: offer.request_status }) !== 'active') {
           throw new FindItError('This FINDit offer is no longer available.', 409);
         }
         if (Number(offer.seller_id) === Number(req.user.id)) throw new FindItError('You cannot accept your own offer.', 422);

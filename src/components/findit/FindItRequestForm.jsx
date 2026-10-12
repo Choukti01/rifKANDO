@@ -7,7 +7,7 @@ import { getImageUrl } from '../../utils/imageUtils';
 
 const initialForm = {
   title: '', description: '', category: 'Auto & Parts', city: '',
-  preferred_condition: 'any', budget_max: '0', expires_in_days: 7,
+  preferred_condition: 'any', budget_max: '0',
 };
 
 const FindItRequestForm = ({ onCreated }) => {
@@ -55,13 +55,8 @@ const FindItRequestForm = ({ onCreated }) => {
   const submit = async (event) => {
     event.preventDefault();
     const budget = Number(form.budget_max || 0);
-    const expiresInDays = Number.parseInt(form.expires_in_days, 10);
     if (!Number.isFinite(budget) || budget < 0) {
       toast.error(t('findit.form.validBudget'));
-      return;
-    }
-    if (!Number.isInteger(expiresInDays) || expiresInDays < 1 || expiresInDays > 14) {
-      toast.error(t('findit.form.validDuration'));
       return;
     }
     setSubmitting(true);
@@ -73,7 +68,6 @@ const FindItRequestForm = ({ onCreated }) => {
         city: form.city.trim(),
         preferred_condition: form.preferred_condition,
         budget_max: budget,
-        expires_in_days: expiresInDays,
         media: media.map((item) => ({ url: item.url, type: 'image' })),
       });
       setForm(initialForm);
@@ -101,7 +95,6 @@ const FindItRequestForm = ({ onCreated }) => {
         <label className="findit-field"><span>{t('findit.form.city')}</span><input name="city" value={form.city} onChange={update} minLength="2" maxLength="100" placeholder={t('findit.form.cityPlaceholder')} required /></label>
         <label className="findit-field"><span>{t('findit.form.condition')}</span><select name="preferred_condition" value={form.preferred_condition} onChange={update}><option value="any">{t('findit.form.conditions.any')}</option><option value="new">{t('findit.form.conditions.new')}</option><option value="used">{t('findit.form.conditions.used')}</option></select></label>
         <label className="findit-field"><span>{t('findit.form.budget')}</span><input name="budget_max" value={form.budget_max} onChange={update} type="number" inputMode="decimal" min="0" step="0.01" placeholder="0" required /></label>
-        <label className="findit-field"><span>{t('findit.form.duration')}</span><select name="expires_in_days" value={form.expires_in_days} onChange={update}>{[3, 5, 7, 10, 14].map((days) => <option key={days} value={days}>{t('findit.form.days', { count: days })}</option>)}</select></label>
         <div className="findit-upload wide">
           <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={upload} hidden />
           <div className="findit-upload-copy"><PhotoIcon aria-hidden="true" /><div><strong>{t('findit.form.photos')}</strong><span>{t('findit.form.photosHelp')}</span></div></div>

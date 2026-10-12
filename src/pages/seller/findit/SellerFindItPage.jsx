@@ -19,7 +19,6 @@ const SellerFindItPage = () => {
 
   const locale = i18n.language === 'ar' ? 'ar-MA' : undefined;
   const formatMoney = (value) => `${Number(value || 0).toLocaleString(locale)} MAD`;
-  const formatExpiry = (value) => new Date(value).toLocaleDateString(locale, { month: 'short', day: 'numeric' });
   const status = (value) => t(`findit.status.${value}`, { defaultValue: value });
   const category = (value) => categoryKeys[value] ? t(`findit.form.categories.${categoryKeys[value]}`) : value;
 
@@ -102,7 +101,7 @@ const SellerFindItPage = () => {
                 const ownOffer = existingFor(request.id);
                 return (
                   <article className="seller-findit-request" key={request.id}>
-                    <div className="seller-findit-request-top"><div><span>{category(request.category)}</span><h3>{request.title}</h3></div><small>{t('findit.public.expires', { date: formatExpiry(request.expires_at) })}</small></div>
+                    <div className="seller-findit-request-top"><div><span>{category(request.category)}</span><h3>{request.title}</h3></div><small>{t('findit.public.openUntilClosed')}</small></div>
                     <p>{request.description}</p>
                     <div className="seller-findit-request-facts"><span><MapPinIcon />{request.city}</span><span><TagIcon />{request.budget_max > 0 ? t('findit.seller.budgetUpTo', { amount: formatMoney(request.budget_max) }) : t('findit.seller.budgetOpen')}</span><span>{request.preferred_condition === 'any' ? t('findit.seller.anyCondition') : t('findit.seller.requestedCondition', { condition: status(request.preferred_condition) })}</span></div>
                     {request.media?.length > 0 && <div className="seller-findit-media">{request.media.map((media) => <img key={media.media_url} src={getImageUrl(media.media_url)} alt={request.title} />)}</div>}

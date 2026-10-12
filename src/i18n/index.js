@@ -752,11 +752,16 @@ Object.assign(resources.ar.translation, {
 resources.fr.translation.findit = resources.fr.translation.findit || {};
 resources.fr.translation.findit.public = resources.fr.translation.findit.public || {};
 Object.assign(resources.fr.translation.findit.public, {
-  discoverLabel: 'Trouver des demandes d’acheteurs', searchPlaceholder: 'Rechercher des demandes…', allCategories: 'Toutes les catégories', cityPlaceholder: 'Filtrer par ville de livraison', sort: 'Trier les demandes', sortNewest: 'Plus récentes', sortOffers: 'Le plus d’offres vendeurs', sortBudgetAsc: 'Budget le plus bas', sortBudgetDesc: 'Budget le plus élevé', emptyFiltered: 'Aucune demande ouverte ne correspond à ces filtres. Effacez-les ou publiez votre demande.',
+  discoverLabel: 'Trouver des demandes d’acheteurs', searchPlaceholder: 'Rechercher des demandes…', allCategories: 'Toutes les catégories', cityPlaceholder: 'Filtrer par ville de livraison', sort: 'Trier les demandes', sortNewest: 'Plus récentes', sortOffers: 'Le plus d’offres vendeurs', sortBudgetAsc: 'Budget le plus bas', sortBudgetDesc: 'Budget le plus élevé', emptyFiltered: 'Aucune demande ouverte ne correspond à ces filtres. Effacez-les ou publiez votre demande.', openUntilClosed: 'Ouverte jusqu’à ce que l’acheteur la ferme.',
 });
 Object.assign(resources.ar.translation.findit.public, {
-  discoverLabel: 'البحث في طلبات المشترين', searchPlaceholder: 'ابحث في طلبات المشترين...', allCategories: 'كل الفئات', cityPlaceholder: 'التصفية حسب مدينة التوصيل', sort: 'ترتيب الطلبات', sortNewest: 'الأحدث أولًا', sortOffers: 'أكبر عدد من عروض البائعين', sortBudgetAsc: 'أقل ميزانية أولًا', sortBudgetDesc: 'أعلى ميزانية أولًا', emptyFiltered: 'لا يوجد طلب مفتوح يطابق هذه التصفية. امسحها أو انشر طلبك.',
+  discoverLabel: 'البحث في طلبات المشترين', searchPlaceholder: 'ابحث في طلبات المشترين...', allCategories: 'كل الفئات', cityPlaceholder: 'التصفية حسب مدينة التوصيل', sort: 'ترتيب الطلبات', sortNewest: 'الأحدث أولًا', sortOffers: 'أكبر عدد من عروض البائعين', sortBudgetAsc: 'أقل ميزانية أولًا', sortBudgetDesc: 'أعلى ميزانية أولًا', emptyFiltered: 'لا يوجد طلب مفتوح يطابق هذه التصفية. امسحها أو انشر طلبك.', openUntilClosed: 'يبقى مفتوحًا حتى يغلقه المشتري.',
 });
+Object.assign(resources.en.translation.findit.public, { openUntilClosed: 'Open until the buyer closes it.' });
+resources.fr.translation.findit.form = resources.fr.translation.findit.form || {};
+Object.assign(resources.fr.translation.findit.form, { footer: 'Votre demande reste ouverte jusqu’à ce que vous la fermiez. Les offres des vendeurs restent dans rifKANDO et vous payez à la livraison.' });
+Object.assign(resources.en.translation.findit.form, { footer: 'Your request stays open until you close it. Seller offers stay inside rifKANDO and you pay by cash on delivery.' });
+Object.assign(resources.ar.translation.findit.form, { footer: 'يبقى طلبك مفتوحًا حتى تغلقه أنت. تبقى عروض البائعين داخل rifKANDO وتدفع نقدًا عند الاستلام.' });
 
 Object.assign(resources.en.translation, {
   moderation: {

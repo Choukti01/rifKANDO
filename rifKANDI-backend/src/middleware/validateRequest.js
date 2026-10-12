@@ -680,7 +680,7 @@ const validateDigitalAccessDecision = validate((req) => {
 
 const finditRequestPayload = (body) => {
   object(body);
-  onlyKeys(body, ['title', 'description', 'category', 'city', 'preferred_condition', 'budget_max', 'expires_in_days', 'media']);
+  onlyKeys(body, ['title', 'description', 'category', 'city', 'preferred_condition', 'budget_max', 'media']);
   return {
     title: text(body.title, 'title', { required: true, min: 3, max: 160 }),
     description: text(body.description, 'description', { required: true, min: 10, max: 2_000 }),
@@ -688,7 +688,6 @@ const finditRequestPayload = (body) => {
     city: text(body.city, 'city', { required: true, min: 2, max: 100 }),
     preferred_condition: enumValue(body.preferred_condition, 'preferred_condition', ['any', 'new', 'used']),
     budget_max: money(body.budget_max, 'budget_max', { min: 0, max: MAX_MONEY }),
-    expires_in_days: integer(body.expires_in_days, 'expires_in_days', { min: 1, max: 14 }),
     media: publicMedia(body.media || [], 'media', 3),
   };
 };

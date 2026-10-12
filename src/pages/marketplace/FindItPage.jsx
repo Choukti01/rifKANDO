@@ -16,16 +16,11 @@ import useAuth from '../../hooks/useAuth';
 import { useTranslation } from 'react-i18next';
 import { featuredMarketplaceCities, marketplaceCities } from '../../constants/marketplaceLocations';
 
-const formatExpiry = (expiresAt, language) => new Date(expiresAt).toLocaleDateString(language === 'ar' ? 'ar-MA' : undefined, {
-  month: 'short',
-  day: 'numeric',
-});
-
 const formatMoney = (value) => `${Number(value || 0).toLocaleString()} MAD`;
 
 const FindItPage = () => {
   const { isAuthenticated, user } = useAuth();
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const [urlSearchParams, setUrlSearchParams] = useSearchParams();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -241,7 +236,7 @@ const FindItPage = () => {
 
                   <div className="findit-request-body">
                     <div className="findit-request-meta">
-                      <span>{t('findit.public.expires', { date: formatExpiry(request.expires_at, i18n.language) })}</span>
+                      <span>{t('findit.public.openUntilClosed')}</span>
                       <span>{t('findit.public.offer', { count: request.offer_count })}</span>
                     </div>
                     <h3>{request.title}</h3>

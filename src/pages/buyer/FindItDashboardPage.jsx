@@ -23,7 +23,6 @@ const FindItDashboardPage = () => {
 
   const locale = i18n.language === 'ar' ? 'ar-MA' : undefined;
   const formatMoney = (value) => `${Number(value || 0).toLocaleString(locale)} MAD`;
-  const formatDate = (value) => new Date(value).toLocaleDateString(locale, { month: 'short', day: 'numeric' });
   const labelStatus = (value) => t(`findit.status.${value}`, { defaultValue: value });
   const labelCondition = (value) => t(`findit.status.${value}`, { defaultValue: value });
   const labelCategory = (value) => categoryKeys[value] ? t(`findit.form.categories.${categoryKeys[value]}`) : value;
@@ -127,7 +126,7 @@ const FindItDashboardPage = () => {
                       {request.status === 'active' && <button className="findit-cancel-request" onClick={() => cancel(request.id)}>{t('findit.buyer.cancel')}</button>}
                     </header>
                     <p className="findit-request-description">{request.description}</p>
-                    <div className="findit-offer-heading"><strong>{t('findit.buyer.solution', { count: offers.length })}</strong><span>{t('findit.public.expires', { date: formatDate(request.expires_at) })}</span></div>
+                    <div className="findit-offer-heading"><strong>{t('findit.buyer.solution', { count: offers.length })}</strong><span>{t('findit.public.openUntilClosed')}</span></div>
                     {offers.length === 0 ? <div className="findit-no-offers">{t('findit.buyer.noSolutions')}</div> : (
                       <div className="findit-buyer-offers">
                         {offers.map((offer) => {
