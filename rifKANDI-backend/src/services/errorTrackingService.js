@@ -27,6 +27,9 @@ const clip = (value, limit) => String(value || '').trim().replace(/\s+/g, ' ').s
 const redact = (value) => clip(value, MAX_MESSAGE_LENGTH)
   .replace(/\b(bearer|token|password|secret|authorization|cookie|session|api[_ -]?key)\s*[:=]\s*[^\s,;]+/gi, '$1=[redacted]')
   .replace(/\beyJ[a-zA-Z0-9_-]{12,}\.[a-zA-Z0-9_-]{12,}\.[a-zA-Z0-9_-]{12,}\b/g, '[redacted-token]')
+  .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, '[redacted-email]')
+  .replace(/(?<!\d)(?:\+?212|0)(?:[\s().-]?\d){8,10}(?!\d)/g, '[redacted-phone]')
+  .replace(/\b(?:rib|iban|card(?:_number)?|account(?:_number)?)\s*[:=]\s*[^\s,;]+/gi, '$1=[redacted]')
   .replace(/https?:\/\/[^\s)]+/gi, (url) => {
     try {
       const parsed = new URL(url);

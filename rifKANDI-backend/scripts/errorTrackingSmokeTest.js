@@ -51,13 +51,16 @@ async function main() {
 
     const clientEvent = await request(port, '/api/error-tracking/client-events', {
       method: 'POST',
-      body: { errorName: 'TypeError', message: 'Upload failed token=super-secret-value', route: '/seller/dashboard/products/add?private=yes' },
+      body: { errorName: 'TypeError', message: 'Upload failed token=super-secret-value for buyer@example.test phone +212600000000 RIB=123456', route: '/seller/dashboard/products/add?private=yes' },
     });
     assert.equal(clientEvent.status, 202, 'public browser crash reporting is accepted with rate limiting');
     const stored = await get('SELECT * FROM application_error_events LIMIT 1');
     assert.equal(stored.source, 'frontend');
     assert.equal(stored.route, '/seller/dashboard/products/add', 'query strings are never persisted');
     assert.equal(stored.message.includes('super-secret-value'), false, 'credential-shaped values are redacted before persistence');
+    assert.equal(stored.message.includes('buyer@example.test'), false, 'email-shaped values are redacted before persistence');
+    assert.equal(stored.message.includes('+212600000000'), false, 'phone-shaped values are redacted before persistence');
+    assert.equal(stored.message.includes('123456'), false, 'bank reference-shaped values are redacted before persistence');
 
     await ErrorTrackingService.record({
       source: 'backend', errorName: 'DatabaseError', message: 'A safe backend failure', route: '/api/products/25', method: 'GET', statusCode: 500, requestId: 'tracking-request-0001',
