@@ -1,6 +1,7 @@
 import ReactDOM from "react-dom/client";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import App from "./App";
+import AppErrorBoundary from "./components/common/AppErrorBoundary";
 import { GOOGLE_CLIENT_ID } from "./config/googleAuth";
 import "./i18n";
 import "./styles/globals.css";
@@ -8,7 +9,11 @@ import "./styles/mobileUx.css";
 import "./styles/brandPolish.css";
 import "./styles/brandWaves.css";
 
-const application = <App />;
+const application = (
+  <AppErrorBoundary>
+    <App />
+  </AppErrorBoundary>
+);
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   GOOGLE_CLIENT_ID
