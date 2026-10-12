@@ -71,20 +71,32 @@ const DashboardLayout = () => {
   const selectedWorkspaceItems = sellerWorkspaceItems[user?.sellerType]
     ? [sellerWorkspaceItems[user.sellerType]]
     : Object.values(sellerWorkspaceItems);
-  const navItems = [
+  const workspaceItems = [
     { name: t('sellerDashboard.overview'), icon: HomeIcon, path: 'overview' },
     ...selectedWorkspaceItems,
-    { name: t('sellerDashboard.orders'), icon: ClipboardDocumentListIcon, path: 'orders' },
-    { name: t('sellerDashboard.disputes'), icon: ShieldExclamationIcon, path: 'disputes' },
     { name: t('sellerDashboard.findit'), icon: MagnifyingGlassIcon, path: 'findit' },
     { name: t('sellerDashboard.offers'), icon: TagIcon, path: 'offers' },
+  ];
+  const operationsItems = [
+    { name: t('sellerDashboard.orders'), icon: ClipboardDocumentListIcon, path: 'orders' },
+    { name: t('sellerDashboard.disputes'), icon: ShieldExclamationIcon, path: 'disputes' },
     { name: t('sellerDashboard.messages'), icon: ChatBubbleLeftRightIcon, path: 'messages', unreadCount },
+  ];
+  const accountItems = [
     { name: t('sellerDashboard.wallet'), icon: CurrencyDollarIcon, path: 'wallet' },
     { name: t('sellerDashboard.settings'), icon: Cog6ToothIcon, path: 'settings' },
-    { type: 'section', name: t('sellerDashboard.buying') },
+  ];
+  const buyingItems = [
     { name: t('sellerDashboard.savedItems'), icon: HeartIcon, path: 'favorites', count: favoritesCount },
     { name: t('sellerDashboard.cart'), icon: ShoppingCartIcon, path: 'cart', count: cartCount },
   ];
+  const navGroups = [
+    { name: t('sellerDashboard.workspace'), items: workspaceItems },
+    { name: t('sellerDashboard.operations'), items: operationsItems },
+    { name: t('sellerDashboard.account'), items: accountItems },
+    { name: t('sellerDashboard.buying'), items: buyingItems },
+  ];
+  const navItems = navGroups.flatMap((group) => group.items);
   const activeSection = navItems.find(({ path }) =>
     location.pathname.startsWith(`/seller/dashboard/${path}`)
   )?.name || t('sellerDashboard.title');
@@ -158,25 +170,27 @@ const DashboardLayout = () => {
         </div>
 
         <nav className="sidebar-nav">
-          {navItems.map(item => {
-            if (item.type === 'section') {
-              return <p key={item.name} className="sidebar-section-label">{item.name}</p>;
-            }
-            const Icon = item.icon;
-            return (
-              <NavLink
-                key={item.name}
-                to={item.path}
-                className={({ isActive }) => `sidebar-nav-link ${isActive ? 'active' : ''}`}
-                onClick={closeMobileMenu}
-              >
-                <Icon className="sidebar-nav-icon" />
-                {isSidebarOpen && <span>{item.name}</span>}
-                {item.unreadCount > 0 && <span className="sidebar-unread-badge">{item.unreadCount}</span>}
-                {item.count > 0 && <span className="sidebar-unread-badge">{item.count}</span>}
-              </NavLink>
-            );
-          })}
+          {navGroups.map((group) => (
+            <div className="sidebar-nav-group" key={group.name}>
+              {isSidebarOpen && <p className="sidebar-section-label">{group.name}</p>}
+              {group.items.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <NavLink
+                    key={item.name}
+                    to={item.path}
+                    className={({ isActive }) => `sidebar-nav-link ${isActive ? 'active' : ''}`}
+                    onClick={closeMobileMenu}
+                  >
+                    <Icon className="sidebar-nav-icon" />
+                    {isSidebarOpen && <span>{item.name}</span>}
+                    {item.unreadCount > 0 && <span className="sidebar-unread-badge">{item.unreadCount}</span>}
+                    {item.count > 0 && <span className="sidebar-unread-badge">{item.count}</span>}
+                  </NavLink>
+                );
+              })}
+            </div>
+          ))}
         </nav>
 
         <div className="sidebar-footer">
@@ -667,8 +681,19 @@ const DashboardLayout = () => {
         }
 
         .sidebar-nav {
-          padding: 0.75rem;
+          padding: 0.9rem 0.75rem 1rem;
+          gap: 0.7rem;
+        }
+
+        .sidebar-nav-group {
+          display: grid;
           gap: 0.2rem;
+          padding: 0.1rem 0;
+        }
+
+        .sidebar-nav-group + .sidebar-nav-group {
+          padding-top: 0.72rem;
+          border-top: 1px solid rgba(8, 119, 191, 0.08);
         }
 
         .sidebar-nav-link {
@@ -698,6 +723,8 @@ const DashboardLayout = () => {
         }
 
         .sidebar-section-label {
+          margin: 0 0 0.26rem;
+          padding: 0 0.72rem;
           color: #7890a9;
           font-size: 0.61rem;
           letter-spacing: 0.12em;
@@ -836,6 +863,14 @@ const DashboardLayout = () => {
 
           .dashboard-sidebar {
             border-radius: 0 1.25rem 1.25rem 0;
+          }
+
+          .sidebar-nav {
+            padding: 0.85rem;
+          }
+
+          .sidebar-nav-group + .sidebar-nav-group {
+            padding-top: 0.65rem;
           }
 
           [dir='rtl'] .dashboard-sidebar {

@@ -776,9 +776,10 @@ Object.assign(resources.ar.translation, {
 
 Object.assign(resources.en.translation.sellerDashboard, { disputes: 'Disputes' });
 Object.assign(resources.fr.translation, {
-  sellerDashboard: { ...(resources.fr.translation.sellerDashboard || {}), disputes: 'Litiges' },
+  sellerDashboard: { ...(resources.fr.translation.sellerDashboard || {}), disputes: 'Litiges', workspace: 'Espace vendeur', operations: 'Opérations', account: 'Compte' },
 });
-Object.assign(resources.ar.translation.sellerDashboard, { disputes: 'النزاعات' });
+Object.assign(resources.en.translation.sellerDashboard, { workspace: 'Workspace', operations: 'Operations', account: 'Account' });
+Object.assign(resources.ar.translation.sellerDashboard, { disputes: 'النزاعات', workspace: 'مساحة البائع', operations: 'العمليات', account: 'الحساب' });
 
 Object.assign(resources.en.translation.codOps, { disputes: 'Delivery disputes' });
 Object.assign(resources.fr.translation.codOps, { disputes: 'Litiges de livraison' });
