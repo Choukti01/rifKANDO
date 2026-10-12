@@ -92,13 +92,13 @@ const Overview = () => {
   }
 
   const mainStats = [
-    { label: t('sellerOverview.products'), value: stats.totalProducts, icon: ShoppingBagIcon, color: '#216275' },
+    { label: t('sellerOverview.products'), value: stats.totalProducts, icon: ShoppingBagIcon, color: '#0877bf' },
   ];
 
   const overviewStats = [
-    { label: t('sellerOverview.orderValue'), value: `${stats.totalOrderValue.toLocaleString(i18n.language)} MAD`, icon: CurrencyDollarIcon, color: '#216275' },
-    { label: t('sellerOverview.orders'), value: stats.totalOrders, icon: ShoppingBagIcon, color: '#216275' },
-    { label: t('sellerOverview.views'), value: stats.totalViews.toLocaleString(i18n.language), icon: EyeIcon, color: '#216275' },
+    { label: t('sellerOverview.orderValue'), value: `${stats.totalOrderValue.toLocaleString(i18n.language)} MAD`, icon: CurrencyDollarIcon, color: '#0877bf' },
+    { label: t('sellerOverview.orders'), value: stats.totalOrders, icon: ShoppingBagIcon, color: '#0877bf' },
+    { label: t('sellerOverview.views'), value: stats.totalViews.toLocaleString(i18n.language), icon: EyeIcon, color: '#0877bf' },
   ];
   const totalListings = stats.totalProducts;
   const firstListingPath = '/seller/dashboard/products/add';
@@ -109,7 +109,7 @@ const Overview = () => {
   const completedSteps = checklist.filter((step) => step.done).length;
 
   return (
-    <div>
+    <div className="seller-overview-page">
       {/* Welcome Section */}
       <div className="welcome-section">
         <h2>{t('sellerOverview.welcome', { name: user?.name?.split(' ')[0] || t('buyer.seller') })}</h2>
@@ -348,6 +348,163 @@ const Overview = () => {
           border-radius: 9999px;
           font-size: 0.7rem;
           font-weight: 500;
+        }
+      `}</style>
+      <style>{`
+        .seller-overview-page .welcome-section {
+          position: relative;
+          overflow: hidden;
+          margin-bottom: 1.15rem;
+          padding: clamp(1.25rem, 3vw, 2rem);
+          border: 1px solid rgba(8, 119, 191, 0.14);
+          border-radius: 1.25rem;
+          background: linear-gradient(125deg, #ffffff 0%, #eff9ff 60%, #dff3ff 100%);
+          box-shadow: 0 13px 34px rgba(7, 27, 53, 0.055);
+        }
+
+        .seller-overview-page .welcome-section::after {
+          content: '';
+          position: absolute;
+          width: 13rem;
+          height: 13rem;
+          inset-inline-end: -5rem;
+          top: -7rem;
+          border-radius: 50%;
+          background: rgba(99, 184, 243, 0.2);
+          pointer-events: none;
+        }
+
+        .seller-overview-page .welcome-section h2 {
+          position: relative;
+          z-index: 1;
+          margin: 0 0 0.45rem;
+          color: #071b35;
+          font-size: clamp(1.35rem, 2.6vw, 1.85rem);
+          font-weight: 850;
+          letter-spacing: -0.04em;
+        }
+
+        .seller-overview-page .welcome-section p {
+          position: relative;
+          z-index: 1;
+          max-width: 42rem;
+          margin: 0;
+          color: #52677e;
+          font-weight: 550;
+        }
+
+        .seller-overview-page .seller-primary-action {
+          position: relative;
+          z-index: 1;
+          min-height: 2.75rem;
+          border-radius: 0.8rem;
+          background: linear-gradient(135deg, #0877bf, #0665a6);
+          box-shadow: 0 9px 18px rgba(8, 119, 191, 0.22);
+          transition: transform 160ms ease, box-shadow 160ms ease;
+        }
+
+        .seller-overview-page .seller-primary-action:hover {
+          background: linear-gradient(135deg, #0877bf, #0665a6);
+          color: #fff;
+          transform: translateY(-1px);
+          box-shadow: 0 12px 24px rgba(8, 119, 191, 0.28);
+        }
+
+        .seller-overview-page .seller-checklist {
+          gap: clamp(1rem, 2vw, 1.5rem);
+          margin-bottom: 1.15rem;
+          padding: clamp(1rem, 2vw, 1.4rem);
+          border-color: rgba(8, 119, 191, 0.12);
+          background: rgba(255, 255, 255, 0.82);
+          box-shadow: 0 10px 28px rgba(7, 27, 53, 0.04);
+        }
+
+        .seller-overview-page .seller-checklist-eyebrow,
+        .seller-overview-page .view-all {
+          color: #0877bf;
+        }
+
+        .seller-overview-page .seller-checklist h3,
+        .seller-overview-page .card-header h3,
+        .seller-overview-page .stat-value {
+          color: #071b35;
+          font-weight: 850;
+        }
+
+        .seller-overview-page .seller-checklist-step {
+          border-color: rgba(8, 119, 191, 0.11);
+          color: #344b64;
+          font-weight: 650;
+        }
+
+        .seller-overview-page .seller-checklist-step:hover {
+          border-color: rgba(8, 119, 191, 0.35);
+          background: #f1f9fe;
+        }
+
+        .seller-overview-page .stats-grid {
+          gap: 1rem;
+          margin-bottom: 1rem;
+        }
+
+        .seller-overview-page .stat-card {
+          min-height: 9.6rem;
+          padding: 1.15rem;
+          border: 1px solid rgba(8, 119, 191, 0.1);
+          box-shadow: 0 10px 28px rgba(7, 27, 53, 0.045);
+          transition: transform 160ms ease, box-shadow 160ms ease;
+        }
+
+        .seller-overview-page .stat-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 15px 30px rgba(7, 27, 53, 0.08);
+        }
+
+        .seller-overview-page .stat-icon {
+          border: 1px solid rgba(8, 119, 191, 0.1);
+        }
+
+        .seller-overview-page .stat-label {
+          color: #64748b;
+          font-weight: 650;
+        }
+
+        .seller-overview-page .recent-orders-card {
+          border: 1px solid rgba(8, 119, 191, 0.1);
+          box-shadow: 0 10px 28px rgba(7, 27, 53, 0.045);
+        }
+
+        .seller-overview-page .card-header {
+          padding: 1.1rem 1.2rem;
+          border-bottom-color: rgba(8, 119, 191, 0.1);
+        }
+
+        .seller-overview-page .orders-table th,
+        .seller-overview-page .orders-table td {
+          padding: 0.9rem 1.15rem;
+          border-bottom-color: rgba(8, 119, 191, 0.08);
+        }
+
+        .seller-overview-page .orders-table tbody tr:hover {
+          background: #f7fbfe;
+        }
+
+        @media (max-width: 560px) {
+          .seller-overview-page .welcome-section {
+            border-radius: 1rem;
+          }
+
+          .seller-overview-page .stats-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .seller-overview-page .stat-card {
+            min-height: auto;
+          }
+
+          .seller-overview-page .recent-orders-card {
+            border-radius: 1rem;
+          }
         }
       `}</style>
     </div>

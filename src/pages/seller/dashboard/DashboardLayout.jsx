@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { Outlet, NavLink, Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
   HomeIcon, ShoppingBagIcon, AcademicCapIcon,
   WrenchScrewdriverIcon, CurrencyDollarIcon, Cog6ToothIcon, 
   ArrowLeftOnRectangleIcon, ComputerDesktopIcon, MagnifyingGlassIcon,
   ChatBubbleLeftRightIcon, Bars3Icon, XMarkIcon, ClipboardDocumentListIcon,
-  HeartIcon, ShoppingCartIcon, TagIcon, ShieldExclamationIcon
+  HeartIcon, ShoppingCartIcon, TagIcon, ShieldExclamationIcon, PlusIcon, SparklesIcon
 } from '@heroicons/react/24/outline';
 import useAuth from '../../../hooks/useAuth';
 import useCart from '../../../hooks/useCart';
@@ -88,6 +88,7 @@ const DashboardLayout = () => {
   const activeSection = navItems.find(({ path }) =>
     location.pathname.startsWith(`/seller/dashboard/${path}`)
   )?.name || t('sellerDashboard.title');
+  const canCreateProduct = user?.sellerType === 'product' || !user?.sellerType;
 
   const handleLogout = () => {
     logout();
@@ -104,7 +105,7 @@ const DashboardLayout = () => {
     <div className="dashboard-container">
       {/* Mobile header with hamburger */}
       <div className="mobile-dashboard-header">
-        <button className="mobile-menu-btn" onClick={toggleMobileMenu} aria-label={t('sellerDashboard.open')}>
+        <button className="mobile-menu-btn" onClick={toggleMobileMenu} aria-label={t('sellerDashboard.open')} aria-controls="seller-workspace-navigation" aria-expanded={isMobileMenuOpen}>
           <Bars3Icon className="icon" />
         </button>
         <div className="mobile-dashboard-title">
@@ -118,8 +119,12 @@ const DashboardLayout = () => {
       <div className={`mobile-overlay ${isMobileMenuOpen ? 'open' : ''}`} onClick={closeMobileMenu} />
 
       {/* Sidebar */}
-      <div className={`dashboard-sidebar ${isSidebarOpen ? 'open' : 'closed'} ${isMobileMenuOpen ? 'mobile-open' : ''}`}>
+      <aside id="seller-workspace-navigation" className={`dashboard-sidebar ${isSidebarOpen ? 'open' : 'closed'} ${isMobileMenuOpen ? 'mobile-open' : ''}`} aria-label={t('sellerDashboard.title')}>
         <div className="sidebar-header">
+          <div className="sidebar-brand-lockup" aria-hidden={!isSidebarOpen}>
+            <span className="sidebar-brand-mark"><SparklesIcon /></span>
+            {isSidebarOpen && <div><strong>rifKANDO</strong><small>{t('sellerDashboard.title')}</small></div>}
+          </div>
           <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="sidebar-toggle" aria-label={isSidebarOpen ? t('sellerDashboard.collapse') : t('sellerDashboard.expand')}>
             {isSidebarOpen ? '←' : '→'}
           </button>
@@ -180,11 +185,23 @@ const DashboardLayout = () => {
             {isSidebarOpen && <span>{t('sellerDashboard.exit')}</span>}
           </button>
         </div>
-      </div>
+      </aside>
 
       {/* Main Content */}
       <main className={`dashboard-main ${isSidebarOpen ? 'with-sidebar' : 'without-sidebar'}`}>
         <div className="dashboard-content">
+          <header className="seller-workspace-topbar">
+            <div>
+              <span>rifKANDO</span>
+              <h1>{activeSection}</h1>
+            </div>
+            {canCreateProduct && (
+              <Link to="products/add" className="seller-workspace-primary-action">
+                <PlusIcon aria-hidden="true" />
+                <span>{t('sellerProducts.add')}</span>
+              </Link>
+            )}
+          </header>
           <Outlet />
         </div>
       </main>
@@ -521,6 +538,349 @@ const DashboardLayout = () => {
           .dashboard-main {
             min-height: calc(100dvh - 144px);
             padding: 1rem;
+          }
+        }
+      `}</style>
+      <style>{`
+        .dashboard-container {
+          --seller-ink: #071b35;
+          --seller-muted: #64748b;
+          --seller-blue: #0877bf;
+          --seller-blue-strong: #0665a6;
+          --seller-sky: #eaf7ff;
+          background:
+            radial-gradient(circle at 82% -8%, rgba(99, 184, 243, 0.18), transparent 28rem),
+            linear-gradient(180deg, #f8fbff 0%, #f4f8fc 100%);
+        }
+
+        .dashboard-sidebar {
+          inset-inline-start: 0;
+          left: auto;
+          border-inline-end: 1px solid rgba(8, 119, 191, 0.1);
+          border-right: 0;
+          background: rgba(255, 255, 255, 0.94);
+          backdrop-filter: blur(18px);
+          -webkit-backdrop-filter: blur(18px);
+          box-shadow: 14px 0 38px rgba(7, 27, 53, 0.07);
+        }
+
+        .sidebar-header {
+          min-height: 76px;
+          padding: 0.9rem 1rem;
+          justify-content: space-between;
+          border-bottom-color: rgba(8, 119, 191, 0.1);
+        }
+
+        .sidebar-brand-lockup {
+          min-width: 0;
+          display: flex;
+          align-items: center;
+          gap: 0.65rem;
+          color: var(--seller-ink);
+        }
+
+        .sidebar-brand-lockup > div {
+          min-width: 0;
+        }
+
+        .sidebar-brand-lockup strong,
+        .sidebar-brand-lockup small {
+          display: block;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .sidebar-brand-lockup strong {
+          font-size: 0.98rem;
+          font-weight: 850;
+          letter-spacing: -0.035em;
+        }
+
+        .sidebar-brand-lockup small {
+          margin-top: 0.1rem;
+          color: var(--seller-muted);
+          font-size: 0.62rem;
+          font-weight: 750;
+          letter-spacing: 0.07em;
+          text-transform: uppercase;
+        }
+
+        .sidebar-brand-mark {
+          width: 2.2rem;
+          height: 2.2rem;
+          display: grid;
+          place-items: center;
+          flex: 0 0 auto;
+          color: #fff;
+          border-radius: 0.78rem;
+          background: linear-gradient(135deg, #63b8f3, #0877bf 58%, #0665a6);
+          box-shadow: 0 9px 20px rgba(8, 119, 191, 0.23);
+        }
+
+        .sidebar-brand-mark svg {
+          width: 1.15rem;
+          height: 1.15rem;
+          stroke-width: 2.25;
+        }
+
+        .sidebar-toggle,
+        .mobile-menu-btn {
+          border-color: rgba(8, 119, 191, 0.16);
+          color: var(--seller-blue);
+          box-shadow: 0 4px 12px rgba(8, 119, 191, 0.08);
+        }
+
+        .sidebar-toggle:hover,
+        .mobile-menu-btn:hover {
+          border-color: rgba(8, 119, 191, 0.34);
+          background: var(--seller-sky);
+          transform: translateY(-1px);
+        }
+
+        .sidebar-user {
+          margin: 0.8rem;
+          padding: 0.85rem;
+          border: 1px solid rgba(8, 119, 191, 0.1);
+          border-radius: 1rem;
+          background: linear-gradient(135deg, #f9fdff, #eff9ff);
+        }
+
+        .sidebar-avatar {
+          width: 2.65rem;
+          height: 2.65rem;
+          color: #fff;
+          background: linear-gradient(135deg, #63b8f3, #0877bf);
+          box-shadow: 0 7px 15px rgba(8, 119, 191, 0.2);
+        }
+
+        .sidebar-user-info h4 {
+          margin: 0;
+          color: var(--seller-ink);
+          font-weight: 800;
+        }
+
+        .sidebar-user-info p {
+          margin: 0.22rem 0 0;
+          color: var(--seller-muted);
+          font-weight: 600;
+        }
+
+        .sidebar-nav {
+          padding: 0.75rem;
+          gap: 0.2rem;
+        }
+
+        .sidebar-nav-link {
+          min-height: 2.85rem;
+          border: 1px solid transparent;
+          color: #475569;
+          font-size: 0.89rem;
+          font-weight: 700;
+        }
+
+        .sidebar-nav-link:hover {
+          color: var(--seller-blue-strong);
+          border-color: rgba(8, 119, 191, 0.1);
+          background: #f2f9fe;
+        }
+
+        .sidebar-nav-link.active {
+          color: var(--seller-blue-strong);
+          border-color: rgba(8, 119, 191, 0.16);
+          background: linear-gradient(90deg, rgba(99, 184, 243, 0.2), rgba(234, 247, 255, 0.72));
+          box-shadow: inset 3px 0 0 var(--seller-blue);
+        }
+
+        .sidebar-nav-icon {
+          color: currentColor;
+          stroke-width: 2;
+        }
+
+        .sidebar-section-label {
+          color: #7890a9;
+          font-size: 0.61rem;
+          letter-spacing: 0.12em;
+        }
+
+        .sidebar-unread-badge {
+          margin-inline-start: auto;
+          margin-left: 0;
+          background: var(--seller-blue);
+          box-shadow: 0 3px 9px rgba(8, 119, 191, 0.24);
+        }
+
+        .sidebar-footer {
+          border-top-color: rgba(8, 119, 191, 0.1);
+        }
+
+        .sidebar-logout {
+          color: #b42318;
+          font-weight: 750;
+        }
+
+        .dashboard-main.with-sidebar {
+          margin-inline-start: 280px;
+          margin-left: 0;
+        }
+
+        .dashboard-main.without-sidebar {
+          margin-inline-start: 80px;
+          margin-left: 0;
+        }
+
+        .dashboard-content {
+          width: min(100%, 1440px);
+          margin: 0 auto;
+        }
+
+        .seller-workspace-topbar {
+          min-height: 4.35rem;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 1rem;
+          margin-bottom: 1.15rem;
+          padding: 0.9rem 1rem 0.9rem 1.15rem;
+          border: 1px solid rgba(8, 119, 191, 0.1);
+          border-radius: 1rem;
+          background: rgba(255, 255, 255, 0.74);
+          box-shadow: 0 10px 30px rgba(7, 27, 53, 0.045);
+        }
+
+        .seller-workspace-topbar span:first-child {
+          display: block;
+          color: var(--seller-blue);
+          font-size: 0.65rem;
+          font-weight: 850;
+          letter-spacing: 0.11em;
+          text-transform: uppercase;
+        }
+
+        .seller-workspace-topbar h1 {
+          margin: 0.13rem 0 0;
+          color: var(--seller-ink);
+          font-size: clamp(1.15rem, 1.8vw, 1.55rem);
+          line-height: 1.15;
+          font-weight: 850;
+          letter-spacing: -0.04em;
+        }
+
+        .seller-workspace-primary-action {
+          min-height: 2.75rem;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.45rem;
+          flex: 0 0 auto;
+          padding: 0.7rem 0.9rem;
+          border-radius: 0.8rem;
+          color: #fff;
+          background: linear-gradient(135deg, #0877bf, #0665a6);
+          box-shadow: 0 9px 18px rgba(8, 119, 191, 0.22);
+          font-size: 0.82rem;
+          font-weight: 800;
+          text-decoration: none;
+          transition: transform 160ms ease, box-shadow 160ms ease;
+        }
+
+        .seller-workspace-primary-action:hover {
+          color: #fff;
+          transform: translateY(-1px);
+          box-shadow: 0 12px 24px rgba(8, 119, 191, 0.28);
+        }
+
+        .seller-workspace-primary-action svg {
+          width: 1rem;
+          height: 1rem;
+          stroke-width: 2.5;
+        }
+
+        .dashboard-content .stat-card,
+        .dashboard-content .products-card,
+        .dashboard-content .recent-orders-card,
+        .dashboard-content .transactions-card,
+        .dashboard-content .seller-cod-order,
+        .dashboard-content .seller-findit-request,
+        .dashboard-content .seller-findit-offers,
+        .dashboard-content .seller-dispute-card,
+        .dashboard-content .seller-disputes__empty {
+          border: 1px solid rgba(8, 119, 191, 0.1);
+          box-shadow: 0 10px 28px rgba(7, 27, 53, 0.045);
+        }
+
+        .dashboard-content :focus-visible {
+          outline: 3px solid rgba(99, 184, 243, 0.42);
+          outline-offset: 3px;
+        }
+
+        @media (max-width: 768px) {
+          .dashboard-container {
+            padding-top: 70px;
+          }
+
+          .mobile-dashboard-header {
+            top: var(--navbar-height, 64px);
+            min-height: 70px;
+            border-bottom-color: rgba(8, 119, 191, 0.1);
+            background: rgba(255, 255, 255, 0.9);
+          }
+
+          .mobile-dashboard-title span {
+            color: var(--seller-blue);
+          }
+
+          .mobile-dashboard-title h1 {
+            color: var(--seller-ink);
+          }
+
+          .dashboard-sidebar {
+            border-radius: 0 1.25rem 1.25rem 0;
+          }
+
+          [dir='rtl'] .dashboard-sidebar {
+            border-radius: 1.25rem 0 0 1.25rem;
+            transform: translateX(100%);
+          }
+
+          [dir='rtl'] .dashboard-sidebar.mobile-open {
+            transform: translateX(0);
+          }
+
+          .dashboard-main {
+            padding: 0.85rem;
+          }
+
+          .dashboard-main.with-sidebar,
+          .dashboard-main.without-sidebar {
+            margin-inline-start: 0;
+            margin-left: 0;
+          }
+
+          .seller-workspace-topbar {
+            min-height: 4rem;
+            margin-bottom: 0.85rem;
+            padding: 0.75rem 0.85rem;
+            border-radius: 0.9rem;
+          }
+
+          .seller-workspace-primary-action {
+            width: 2.7rem;
+            padding: 0;
+          }
+
+          .seller-workspace-primary-action span {
+            display: none;
+          }
+        }
+
+        @media (max-width: 420px) {
+          .dashboard-main {
+            padding: 0.7rem;
+          }
+
+          .seller-workspace-topbar h1 {
+            font-size: 1.08rem;
           }
         }
       `}</style>
