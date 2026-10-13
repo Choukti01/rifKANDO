@@ -608,6 +608,79 @@ const validateCourseCreate = validate((req) => ({ body: coursePayload(req.body, 
 const validateCourseUpdate = validate((req) => ({ body: coursePayload(req.body, true) }));
 const validateServiceCreate = validate((req) => ({ body: servicePayload(req.body, false) }));
 const validateServiceUpdate = validate((req) => ({ body: servicePayload(req.body, true) }));
+const serviceProfileList = (value, field, { maxItems = 24, itemMax = 80 } = {}) => {
+  if (!Array.isArray(value) || value.length > maxItems) {
+    fail(field, `must contain at most ${maxItems} entries.`);
+  }
+  const entries = value.map((entry, index) => text(entry, `${field}.${index}`, { required: true, min: 1, max: itemMax }));
+  if (new Set(entries.map((entry) => entry.toLocaleLowerCase())).size !== entries.length) {
+    fail(field, 'must not contain duplicates.');
+  }
+  return entries;
+};
+const serviceCredentials = (value) => {
+  if (!Array.isArray(value) || value.length > 20) fail('credentials', 'must contain at most 20 entries.');
+  return value.map((credential, index) => {
+    object(credential, `credentials.${index}`);
+    onlyKeys(credential, ['title', 'issuer', 'year'], `credentials.${index}`);
+    const year = credential.year === undefined || credential.year === ''
+      ? ''
+      : String(integer(Number(credential.year), `credentials.${index}.year`, { min: 1900, max: 2100 }));
+    return {
+      title: text(credential.title, `credentials.${index}.title`, { required: true, min: 2, max: 160 }),
+      issuer: text(credential.issuer, `credentials.${index}.issuer`, { required: true, min: 2, max: 160 }),
+      year,
+    };
+  });
+};
+const validateServiceProviderProfile = validate((req) => {
+  const body = object(req.body);
+  onlyKeys(body, ['headline', 'introduction', 'experience_summary', 'skills', 'languages', 'credentials', 'availability', 'response_time']);
+  return {
+    body: {
+      headline: text(body.headline, 'headline', { required: true, min: 3, max: 160 }),
+      introduction: text(body.introduction, 'introduction', { required: true, min: 20, max: 2_500 }),
+      experience_summary: text(body.experience_summary, 'experience_summary', { required: true, min: 20, max: 5_000 }),
+      skills: serviceProfileList(body.skills, 'skills', { maxItems: 24, itemMax: 80 }),
+      languages: serviceProfileList(body.languages, 'languages', { maxItems: 12, itemMax: 80 }),
+      credentials: serviceCredentials(body.credentials),
+      availability: enumValue(body.availability, 'availability', ['available', 'limited', 'unavailable']),
+      response_time: text(body.response_time, 'response_time', { required: true, min: 2, max: 100 }),
+    },
+  };
+});
+const validateServiceRequestCreate = validate((req) => {
+  const body = object(req.body);
+  onlyKeys(body, ['packageId', 'requirements']);
+  return {
+    body: {
+      packageId: body.packageId === undefined || body.packageId === null || body.packageId === ''
+        ? null
+        : positiveId(body.packageId, 'packageId'),
+      requirements: text(body.requirements, 'requirements', { required: true, min: 10, max: 5_000 }),
+    },
+  };
+});
+const validateServiceOrderAction = validate((req) => {
+  const body = object(req.body);
+  onlyKeys(body, ['action', 'note']);
+  return {
+    body: {
+      action: enumValue(body.action, 'action', ['accept', 'decline', 'start', 'submit', 'request_revision', 'complete', 'cancel']),
+      note: optionalText(body.note, 'note', 2_000),
+    },
+  };
+});
+const validateServiceReview = validate((req) => {
+  const body = object(req.body);
+  onlyKeys(body, ['rating', 'comment']);
+  return {
+    body: {
+      rating: integer(body.rating, 'rating', { min: 1, max: 5 }),
+      comment: optionalText(body.comment, 'comment', 2_000),
+    },
+  };
+});
 const validateBookingCreate = validate((req) => ({ body: bookingPayload(req.body, false) }));
 const validateBookingUpdate = validate((req) => ({ body: bookingPayload(req.body, true) }));
 const validateBookingStatus = validate((req) => {
@@ -813,9 +886,9 @@ const validatePasswordChange = validate((req) => {
 const validateSellerType = validate((req) => {
   const body = object(req.body);
   onlyKeys(body, ['sellerType']);
-  // New sellers can only enter the operational Products + COD workspace. The
-  // other seller models remain retained for their later rollout.
-  return { body: { sellerType: enumValue(body.sellerType, 'sellerType', ['product']) } };
+  // Services are now a request-and-hire marketplace. Other retained domains
+  // stay unavailable until their own operational checks are complete.
+  return { body: { sellerType: enumValue(body.sellerType, 'sellerType', ['product', 'service']) } };
 });
 
 const validateProductReview = validate((req) => {
@@ -932,6 +1005,10 @@ module.exports = {
   validateCourseUpdate,
   validateServiceCreate,
   validateServiceUpdate,
+  validateServiceProviderProfile,
+  validateServiceRequestCreate,
+  validateServiceOrderAction,
+  validateServiceReview,
   validateBookingCreate,
   validateBookingUpdate,
   validateBookingStatus,

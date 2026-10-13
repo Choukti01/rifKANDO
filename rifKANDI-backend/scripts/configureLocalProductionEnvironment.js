@@ -65,7 +65,7 @@ const productionValues = {
   PERSISTENT_STORAGE_ROOT: 'C:\\rifkando-data',
   UPLOADS_DIR: 'C:\\rifkando-data\\uploads',
   OBJECT_STORAGE_DRIVER: 'local',
-  FEATURE_FLAGS: 'checkout=true,cmi_payments=false,wallet_payments=false,digital_downloads=false,courses=false,services=false,digital=false',
+  FEATURE_FLAGS: 'checkout=true,cmi_payments=false,wallet_payments=false,digital_downloads=false,courses=false,services=true,digital=false',
 };
 
 for (const [name, value] of Object.entries(productionValues)) {

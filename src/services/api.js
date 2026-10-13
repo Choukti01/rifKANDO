@@ -188,6 +188,14 @@ export const updateService = (id, serviceData) => api.put(`/services/${id}`, ser
 export const deleteService = (id) => api.delete(`/services/${id}`);
 export const getMyServices = () => api.get('/my-services');
 export const orderService = (id, orderData) => api.post(`/services/${id}/order`, orderData);
+export const getServiceProvider = (userId) => api.get(`/service-providers/${userId}`);
+export const getMyServiceProfile = () => api.get('/my-service-profile');
+export const saveMyServiceProfile = (profile) => api.put('/my-service-profile', profile);
+export const requestService = (id, request) => api.post(`/services/${id}/requests`, request);
+export const getMyServiceRequests = () => api.get('/my-service-requests');
+export const getMyServiceOrders = () => api.get('/my-service-orders');
+export const updateServiceOrderStatus = (id, action, note = '') => api.patch(`/service-orders/${id}/status`, { action, note });
+export const reviewServiceOrder = (id, rating, comment = '') => api.post(`/service-orders/${id}/review`, { rating, comment });
 
 // ==================== DIGITAL PRODUCT APIs ====================
 export const getDigitalProducts = (params) => api.get('/digital', { params });

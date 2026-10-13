@@ -1,180 +1,46 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getServices } from '../../services/api';
+import { BriefcaseIcon, CheckBadgeIcon, ClockIcon, MapPinIcon, PlayIcon, StarIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
-import MediaGallery from '../../components/MediaGallery';
-import { getImageUrl } from '../../utils/imageUtils';
-import MarketplaceImage from '../../components/common/MarketplaceImage';
 import LoadMoreButton from '../../components/common/LoadMoreButton';
+import MarketplaceImage from '../../components/common/MarketplaceImage';
+import { getServices } from '../../services/api';
+
+const availabilityLabel = { available: 'Available', limited: 'Limited availability', unavailable: 'Unavailable' };
 
 const ServicesPage = () => {
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [galleryService, setGalleryService] = useState(null);
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1 });
 
-  const fetchServices = useCallback(async ({ page = 1, append = false } = {}) => {
+  const load = useCallback(async ({ page = 1, append = false } = {}) => {
     try {
-      if (append) setLoadingMore(true);
-
+      append ? setLoadingMore(true) : setLoading(true);
       const response = await getServices({ page, limit: 12 });
-      const nextServices = response.data.services || [];
-      setServices((currentServices) => (append ? [...currentServices, ...nextServices] : nextServices));
+      const next = response.data.services || [];
+      setServices((current) => append ? [...current, ...next] : next);
       setPagination(response.data.pagination || { page: 1, totalPages: 1 });
     } catch (error) {
-      console.error('Error fetching services:', error);
-      toast.error('Failed to load services');
+      toast.error(error.response?.data?.error || 'Services are unavailable right now.');
     } finally {
-      if (append) setLoadingMore(false);
-      else setLoading(false);
+      append ? setLoadingMore(false) : setLoading(false);
     }
   }, []);
-
   useEffect(() => {
-    let isCurrent = true;
+    const timer = window.setTimeout(() => { void load(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, [load]);
 
-    const loadInitialServices = async () => {
-      try {
-        const response = await getServices({ page: 1, limit: 12 });
-        if (!isCurrent) return;
-
-        setServices(response.data.services || []);
-        setPagination(response.data.pagination || { page: 1, totalPages: 1 });
-      } catch (error) {
-        if (isCurrent) {
-          console.error('Error fetching services:', error);
-          toast.error('Failed to load services');
-        }
-      } finally {
-        if (isCurrent) setLoading(false);
-      }
-    };
-
-    void loadInitialServices();
-
-    return () => {
-      isCurrent = false;
-    };
-  }, []);
-
-  if (loading) {
-    return (
-      <div className="container text-center py-16">
-        <div className="spinner"></div>
-        <p>Loading services...</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="services-page">
-      <div className="container">
-        <div className="services-header">
-          <h1>Services</h1>
-          <p>Professional services from trusted providers</p>
-        </div>
-
-        <div className="services-grid">
-          {services.length === 0 ? (
-            <p className="text-center col-span-full">No services found</p>
-          ) : (
-            services.map(service => {
-              const primaryMedia = service.media?.find(m => m.is_primary) || service.media?.[0];
-              return (
-                <div key={service.id} className="service-card">
-                  <div 
-                    className="service-image" 
-                    onClick={(e) => {
-                      e.preventDefault();
-                      if (service.media?.length) setGalleryService(service);
-                    }}
-                    style={{ cursor: service.media?.length ? 'pointer' : 'default' }}
-                    role={service.media?.length ? 'button' : undefined}
-                    tabIndex={service.media?.length ? 0 : undefined}
-                    aria-label={service.media?.length ? `View media for ${service.title}` : undefined}
-                    onKeyDown={(event) => {
-                      if (service.media?.length && (event.key === 'Enter' || event.key === ' ')) {
-                        event.preventDefault();
-                        setGalleryService(service);
-                      }
-                    }}
-                  >
-                    {primaryMedia ? (
-                      <>
-                        {primaryMedia.media_type === 'video' && <div className="video-badge">🎬 Video</div>}
-                        <MarketplaceImage source={primaryMedia.media_url} alt={service.title} />
-                        {service.media.length > 1 && (
-                          <div className="media-count">{service.media.length} items</div>
-                        )}
-                      </>
-                    ) : (
-                      <div className="image-placeholder">🛠️</div>
-                    )}
-                  </div>
-                  <Link to={`/service/${service.id}`}>
-                    <h3>{service.title}</h3>
-                  </Link>
-                  <p className="provider-name">
-                    by <Link to={`/profile/${service.provider_id}`} className="provider-link">
-                      {service.provider_name || 'Unknown Provider'}
-                    </Link>
-                  </p>
-                  <div className="service-meta">
-                    <span>⭐ {service.rating || 0}</span>
-                    <span>📦 {service.orders_count || 0} orders</span>
-                  </div>
-                  <div className="service-price">
-                    <span className="current-price">{service.price} MAD</span>
-                    {service.old_price && <span className="old-price">{service.old_price} MAD</span>}
-                  </div>
-                  <Link to={`/service/${service.id}`} className="listing-card-action">View service</Link>
-                </div>
-              );
-            })
-          )}
-        </div>
-
-        <LoadMoreButton
-          hasMore={pagination.page < pagination.totalPages}
-          isLoading={loadingMore}
-          onLoadMore={() => fetchServices({ page: pagination.page + 1, append: true })}
-          itemLabel="services"
-        />
-      </div>
-
-      {galleryService && (
-        <MediaGallery
-          media={galleryService.media.map(m => ({ url: getImageUrl(m.media_url), type: m.media_type }))}
-          onClose={() => setGalleryService(null)}
-        />
-      )}
-
-      <style>{`
-        .services-page { padding: 2rem 0; min-height: calc(100vh - 80px); }
-        .services-header { text-align: center; margin-bottom: 2rem; }
-        .services-header h1 { font-size: 2rem; margin-bottom: 0.5rem; }
-        .services-header p { color: #6b7280; }
-        .services-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem; }
-        .service-card { display: flex; flex-direction: column; background: white; border-radius: 1rem; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); transition: transform 0.3s; }
-        .service-card:hover { transform: translateY(-4px); box-shadow: 0 12px 24px rgba(0,0,0,0.1); }
-        .service-image { height: 180px; background: #f3f4f6; cursor: pointer; position: relative; overflow: hidden; }
-        .service-image img { width: 100%; height: 100%; object-fit: cover; }
-        .image-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 4rem; }
-        .video-badge { position: absolute; top: 0.5rem; left: 0.5rem; background: rgba(0,0,0,0.6); color: white; padding: 0.25rem 0.5rem; border-radius: 0.5rem; font-size: 0.7rem; z-index: 1; }
-        .media-count { position: absolute; bottom: 0.5rem; right: 0.5rem; background: rgba(0,0,0,0.6); color: white; padding: 0.25rem 0.5rem; border-radius: 0.5rem; font-size: 0.7rem; z-index: 1; }
-        .service-card h3 { font-size: 1rem; font-weight: 600; margin: 0.75rem 1rem 0.25rem; color: #1a1a1a; }
-        .service-card a { text-decoration: none; }
-        .provider-name { font-size: 0.75rem; color: #6b7280; margin: 0 1rem 0.5rem; }
-        .provider-link { color: #87CEEB; text-decoration: none; }
-        .provider-link:hover { text-decoration: underline; }
-        .service-meta { display: flex; gap: 1rem; margin: 0 1rem 0.5rem; font-size: 0.7rem; color: #6b7280; }
-        .service-price { margin: 0 1rem 0.75rem; display: flex; gap: 0.5rem; align-items: baseline; }
-        .current-price { font-weight: 700; font-size: 1rem; }
-        .old-price { font-size: 0.75rem; color: #9ca3af; text-decoration: line-through; }
-      `}</style>
-    </div>
-  );
+  return <main className="services-marketplace-page">
+    <section className="services-marketplace-hero"><div className="services-marketplace-shell"><p><BriefcaseIcon aria-hidden="true" />rifKANDO Services</p><h1>Find people who can do the work.</h1><span>Explore real portfolios, professional experience, service packages, and verified client reviews. Online payment is coming later.</span><div className="services-marketplace-hero-actions"><Link to="/choose-seller-type"><CheckBadgeIcon aria-hidden="true" />Offer your service</Link><a href="#service-listings">Browse professionals</a></div></div></section>
+    <section id="service-listings" className="services-marketplace-shell services-marketplace-content"><div className="services-marketplace-heading"><div><p>Professional marketplace</p><h2>Services built around proof, not promises.</h2></div><span><ClockIcon aria-hidden="true" />Request first. Agree on work before payment.</span></div>
+    {loading ? <div className="services-marketplace-loading">Loading professional services...</div> : services.length === 0 ? <div className="services-marketplace-empty"><BriefcaseIcon aria-hidden="true" /><h2>The first professionals are preparing their portfolios.</h2><p>Come back soon, or become one of the first service providers on rifKANDO.</p><Link to="/choose-seller-type">Create a service profile</Link></div> : <><div className="services-marketplace-grid">{services.map((service) => { const media = service.media?.find((item) => item.is_primary) || service.media?.[0]; return <article className="service-market-card" key={service.id}><Link to={`/service/${service.id}`} className="service-market-card-media" aria-label={`Open ${service.title}`}>{media ? <MarketplaceImage source={media.media_url} alt="" /> : <BriefcaseIcon aria-hidden="true" />}{media?.media_type === 'video' && <span className="service-market-video"><PlayIcon aria-hidden="true" />Portfolio video</span>}<span className={`service-market-availability ${service.provider.availability}`}>{availabilityLabel[service.provider.availability] || 'Available'}</span></Link><div className="service-market-card-body"><span className="service-market-category">{service.category}</span><Link to={`/service/${service.id}`}><h3>{service.title}</h3></Link><p className="service-market-description">{service.description}</p><div className="service-market-provider"><div>{service.provider.profilePicture ? <MarketplaceImage source={service.provider.profilePicture} alt="" /> : service.provider.name?.charAt(0)}</div><span><strong>{service.provider.name}</strong><small>{service.provider.headline || service.provider.city || 'Service provider'}</small></span>{service.provider.city && <em><MapPinIcon aria-hidden="true" />{service.provider.city}</em>}</div><div className="service-market-card-footer"><span><StarIcon aria-hidden="true" />{Number(service.rating || 0).toFixed(1)} <small>({service.reviews_count || 0})</small></span><strong>from {Number(service.price).toLocaleString()} MAD</strong></div></div></article>; })}</div><LoadMoreButton hasMore={pagination.page < pagination.totalPages} isLoading={loadingMore} onLoadMore={() => load({ page: pagination.page + 1, append: true })} itemLabel="services" /></>}
+    </section>
+    <style>{`
+      .services-marketplace-page{min-height:calc(100vh - 80px);background:#f7fbfe;color:#143b59}.services-marketplace-shell{width:min(1220px,calc(100% - 2rem));margin:0 auto}.services-marketplace-hero{padding:clamp(2.5rem,7vw,5.6rem) 0;background:radial-gradient(circle at 85% 12%,rgba(72,176,240,.3),transparent 22rem),linear-gradient(135deg,#e7f6ff,#fff)}.services-marketplace-hero p{display:inline-flex;align-items:center;gap:.4rem;margin:0;color:#1275b7;font-size:.75rem;font-weight:850;letter-spacing:.08em;text-transform:uppercase}.services-marketplace-hero p svg{width:1rem;height:1rem}.services-marketplace-hero h1{max-width:760px;margin:.65rem 0;color:#123b5c;font-size:clamp(2.1rem,5vw,4.3rem);letter-spacing:-.065em;line-height:1.02}.services-marketplace-hero span{display:block;max-width:700px;color:#4d6f87;font-size:clamp(.95rem,1.7vw,1.1rem);line-height:1.65}.services-marketplace-hero-actions{display:flex;gap:.7rem;flex-wrap:wrap;margin-top:1.4rem}.services-marketplace-hero-actions a{display:inline-flex;align-items:center;justify-content:center;gap:.4rem;min-height:45px;padding:.7rem .95rem;border:1px solid #c2dfef;border-radius:14px;background:rgba(255,255,255,.8);color:#21658d;font-size:.84rem;font-weight:850;text-decoration:none}.services-marketplace-hero-actions a:first-child{border-color:#146fae;background:linear-gradient(135deg,#0f649f,#278fd1);color:#fff;box-shadow:0 12px 22px rgba(17,105,165,.2)}.services-marketplace-hero-actions svg{width:1.05rem;height:1.05rem}.services-marketplace-content{padding:clamp(1.3rem,4vw,3rem) 0 4rem}.services-marketplace-heading{display:flex;align-items:end;justify-content:space-between;gap:1rem;margin-bottom:1rem}.services-marketplace-heading p{margin:0;color:#247aae;font-size:.7rem;font-weight:850;letter-spacing:.08em;text-transform:uppercase}.services-marketplace-heading h2{margin:.25rem 0 0;color:#173e5d;font-size:clamp(1.25rem,2.5vw,1.7rem);letter-spacing:-.04em}.services-marketplace-heading>span{display:inline-flex;align-items:center;gap:.35rem;max-width:270px;color:#608096;font-size:.77rem;line-height:1.45}.services-marketplace-heading svg{width:1rem;height:1rem;color:#2188c8}.services-marketplace-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem}.service-market-card{display:flex;min-width:0;flex-direction:column;overflow:hidden;border:1px solid rgba(26,111,175,.14);border-radius:20px;background:#fff;box-shadow:0 12px 26px rgba(18,74,114,.06);transition:transform 180ms ease,box-shadow 180ms ease}.service-market-card:hover{transform:translateY(-4px);box-shadow:0 20px 34px rgba(18,74,114,.11)}.service-market-card-media{position:relative;min-height:192px;display:grid;place-items:center;overflow:hidden;background:linear-gradient(135deg,#e5f5ff,#f8fcff);color:#3595cb}.service-market-card-media>img{width:100%;height:192px;object-fit:cover;transition:transform 250ms ease}.service-market-card:hover .service-market-card-media>img{transform:scale(1.035)}.service-market-card-media>svg{width:2.2rem;height:2.2rem}.service-market-video,.service-market-availability{position:absolute;padding:.32rem .5rem;border-radius:99px;font-size:.65rem;font-weight:850}.service-market-video{left:.65rem;bottom:.65rem;display:flex;align-items:center;gap:.25rem;background:rgba(8,34,52,.76);color:#fff}.service-market-video svg{width:.78rem;height:.78rem}.service-market-availability{right:.65rem;top:.65rem;background:#e5f8ed;color:#187747}.service-market-availability.limited{background:#fff4d9;color:#996403}.service-market-availability.unavailable{background:#fff0f0;color:#a34444}.service-market-card-body{display:flex;min-height:0;flex:1;flex-direction:column;padding:1rem}.service-market-category{color:#287caf;font-size:.68rem;font-weight:850;letter-spacing:.07em;text-transform:uppercase}.service-market-card-body>a{text-decoration:none}.service-market-card h3{margin:.42rem 0;color:#1b4261;font-size:1rem;letter-spacing:-.02em}.service-market-description{display:-webkit-box;overflow:hidden;margin:0;color:#668296;font-size:.83rem;line-height:1.55;-webkit-box-orient:vertical;-webkit-line-clamp:3}.service-market-provider{display:flex;align-items:center;gap:.5rem;margin-top:1rem}.service-market-provider>div{width:30px;height:30px;display:grid;place-items:center;overflow:hidden;flex:0 0 auto;border-radius:50%;background:#dff3ff;color:#1372ad;font-size:.76rem;font-weight:850}.service-market-provider img{width:100%;height:100%;object-fit:cover}.service-market-provider span{display:grid;min-width:0}.service-market-provider strong{overflow:hidden;color:#365c77;font-size:.76rem;text-overflow:ellipsis;white-space:nowrap}.service-market-provider small{overflow:hidden;margin-top:.1rem;color:#758fa0;font-size:.67rem;text-overflow:ellipsis;white-space:nowrap}.service-market-provider em{display:inline-flex;align-items:center;gap:.2rem;margin-inline-start:auto;color:#7590a0;font-size:.66rem;font-style:normal;white-space:nowrap}.service-market-provider em svg{width:.8rem;height:.8rem}.service-market-card-footer{display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-top:auto;padding-top:1rem}.service-market-card-footer>span{display:flex;align-items:center;gap:.2rem;color:#b9760b;font-size:.77rem;font-weight:800}.service-market-card-footer svg{width:.92rem;height:.92rem;fill:#ffdc75}.service-market-card-footer small{color:#8095a5;font-size:.68rem}.service-market-card-footer strong{color:#126ea9;font-size:.82rem}.services-marketplace-empty,.services-marketplace-loading{display:grid;justify-items:center;gap:.5rem;padding:4rem 1rem;text-align:center;border:1px dashed #bddbe9;border-radius:22px;background:rgba(255,255,255,.75);color:#68859a}.services-marketplace-empty svg{width:2.4rem;height:2.4rem;color:#4aa4d7}.services-marketplace-empty h2{margin:.3rem 0;color:#234a68;font-size:1.12rem}.services-marketplace-empty p{max-width:460px;margin:0;line-height:1.55;font-size:.87rem}.services-marketplace-empty a{margin-top:.3rem;padding:.65rem .8rem;border-radius:11px;background:#1376b6;color:#fff;font-size:.8rem;font-weight:850;text-decoration:none}@media(max-width:980px){.services-marketplace-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:620px){.services-marketplace-shell{width:min(100% - 1rem,1220px)}.services-marketplace-hero{padding:2.5rem 0 2.8rem}.services-marketplace-hero h1{font-size:2.25rem}.services-marketplace-heading{align-items:flex-start;flex-direction:column}.services-marketplace-heading>span{max-width:none}.services-marketplace-grid{grid-template-columns:1fr}.service-market-card-media,.service-market-card-media>img{min-height:180px;height:180px}}
+    `}</style>
+  </main>;
 };
 
 export default ServicesPage;

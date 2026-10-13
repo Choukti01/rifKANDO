@@ -55,6 +55,10 @@ const {
   validateCourseUpdate,
   validateServiceCreate,
   validateServiceUpdate,
+  validateServiceProviderProfile,
+  validateServiceRequestCreate,
+  validateServiceOrderAction,
+  validateServiceReview,
   validateDigitalCreate,
   validateDigitalUpdate,
   validateDigitalAccessRequest,
@@ -2009,6 +2013,11 @@ app.use('/api', createServiceRoutes({
   validateIdParams,
   validateServiceCreate,
   validateServiceUpdate,
+  validateServiceProviderProfile,
+  validateServiceRequestCreate,
+  validateServiceOrderAction,
+  validateServiceReview,
+  notificationService: NotificationService,
 }));
 
 app.use('/api', createDigitalRoutes({

@@ -17,7 +17,7 @@ const SellerTypePage = () => {
     // Future seller workspaces stay visible without allowing an account to enter
     // a flow that is not operational during the focused launch.
     { id: 'course', title: localize('Course Instructor', 'مدرّس دورات'), icon: AcademicCapIcon, description: localize('Publish structured online courses and lessons.', 'انشر دورات ودروسًا منظمة عبر الإنترنت.'), features: [localize('Courses', 'الدورات'), localize('Lessons', 'الدروس'), localize('Students', 'الطلاب')], available: false },
-    { id: 'service', title: localize('Service Provider', 'مقدّم خدمات'), icon: WrenchScrewdriverIcon, description: localize('Offer professional services with packages and client requests.', 'قدّم خدمات احترافية مع باقات وطلبات العملاء.'), features: [localize('Services', 'الخدمات'), localize('Packages', 'الباقات'), localize('Clients', 'العملاء')], available: false },
+    { id: 'service', title: localize('Service Provider', 'مقدّم خدمات'), icon: WrenchScrewdriverIcon, description: localize('Create a professional portfolio, offer packages, and manage client requests.', 'أنشئ معرض أعمال احترافيًا، وقدّم باقات، وأدر طلبات العملاء.'), features: [localize('Portfolio', 'معرض الأعمال'), localize('Packages', 'الباقات'), localize('Client requests', 'طلبات العملاء')], available: true },
     { id: 'digital', title: localize('Digital Creator', 'منشئ منتجات رقمية'), icon: ComputerDesktopIcon, description: localize('Sell downloadable digital products from one workspace.', 'بع منتجات رقمية قابلة للتنزيل من مساحة عمل واحدة.'), features: [localize('Files', 'الملفات'), localize('Downloads', 'التنزيلات'), localize('Requests', 'الطلبات')], available: false },
   ];
 

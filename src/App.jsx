@@ -17,8 +17,8 @@ const ProductDetailsPage = lazy(() => import('./pages/marketplace/ProductDetails
 // Parked launch modules. Their implementations remain untouched in source.
 // const CoursesPage = lazy(() => import('./pages/marketplace/CoursesPage'))
 // const CourseDetailsPage = lazy(() => import('./pages/marketplace/CourseDetailsPage'))
-// const ServicesPage = lazy(() => import('./pages/marketplace/ServicesPage'))
-// const ServiceDetailsPage = lazy(() => import('./pages/marketplace/ServiceDetailsPage'))
+const ServicesPage = lazy(() => import('./pages/marketplace/ServicesPage'))
+const ServiceDetailsPage = lazy(() => import('./pages/marketplace/ServiceDetailsPage'))
 // const DigitalPage = lazy(() => import('./pages/marketplace/DigitalPage'))
 // const DigitalDetailsPage = lazy(() => import('./pages/marketplace/DigitalDetailsPage'))
 const FindItPage = lazy(() => import('./pages/marketplace/FindItPage'))
@@ -44,7 +44,7 @@ const OperationsTeamPage = lazy(() => import('./pages/admin/OperationsTeamPage')
 const ProductReportsPage = lazy(() => import('./pages/admin/ProductReportsPage'))
 const ErrorTrackingPage = lazy(() => import('./pages/admin/ErrorTrackingPage'))
 const CODOperationsDesk = lazy(() => import('./pages/operations/CODOperationsDesk'))
-// const PackagesManager = lazy(() => import('./pages/seller/services/PackagesManager'))
+const PackagesManager = lazy(() => import('./pages/seller/services/PackagesManager'))
 // const LessonsManager = lazy(() => import('./pages/seller/courses/LessonsManager'))
 const DashboardLayout = lazy(() => import('./pages/seller/dashboard/DashboardLayout'))
 const Overview = lazy(() => import('./pages/seller/dashboard/Overview'))
@@ -54,9 +54,11 @@ const EditProduct = lazy(() => import('./pages/seller/products/EditProduct'))
 // const CoursesDashboard = lazy(() => import('./pages/seller/courses/CoursesDashboard'))
 // const AddCourse = lazy(() => import('./pages/seller/courses/AddCourse'))
 // const EditCourse = lazy(() => import('./pages/seller/courses/EditCourse'))
-// const ServicesDashboard = lazy(() => import('./pages/seller/services/ServicesDashboard'))
-// const AddService = lazy(() => import('./pages/seller/services/AddService'))
-// const EditService = lazy(() => import('./pages/seller/services/EditService'))
+const ServicesDashboard = lazy(() => import('./pages/seller/services/ServicesDashboard'))
+const AddService = lazy(() => import('./pages/seller/services/AddService'))
+const EditService = lazy(() => import('./pages/seller/services/EditService'))
+const ServiceProfile = lazy(() => import('./pages/seller/services/ServiceProfile'))
+const ServiceRequestsPage = lazy(() => import('./pages/buyer/ServiceRequestsPage'))
 // const DigitalDashboard = lazy(() => import('./pages/seller/digital/DigitalDashboard'))
 // const AddDigitalProduct = lazy(() => import('./pages/seller/digital/AddDigitalProduct'))
 // const EditDigitalProduct = lazy(() => import('./pages/seller/digital/EditDigitalProduct'))
@@ -155,11 +157,11 @@ function AppContent() {
                   <Route path="/" element={<HomePage />} />
                   <Route path="/products" element={<ProductsPage />} />
                   <Route path="/product/:id" element={<ProductDetailsPage />} />
-                  {/* Focused launch: the original course, service, and digital pages remain in source but are intentionally parked. */}
+                  {/* Courses and digital remain parked until their separate launch checks are complete. */}
                   <Route path="/courses" element={<UnderDevelopment sectionKey="courses" />} />
                   <Route path="/course/:id" element={<UnderDevelopment sectionKey="courses" />} />
-                  <Route path="/services" element={<UnderDevelopment sectionKey="services" />} />
-                  <Route path="/service/:id" element={<UnderDevelopment sectionKey="services" />} />
+                  <Route path="/services" element={<ServicesPage />} />
+                  <Route path="/service/:id" element={<ServiceDetailsPage />} />
                   <Route path="/digital" element={<UnderDevelopment sectionKey="digital" />} />
                   <Route path="/digital/:id" element={<UnderDevelopment sectionKey="digital" />} />
                   <Route path="/findit" element={<FindItPage />} />
@@ -261,6 +263,21 @@ function AppContent() {
                       <FindItDashboardPage />
                     </ProtectedRoute>
                   } />
+                  <Route path="/service-requests" element={
+                    <ProtectedRoute>
+                      <ServiceRequestsPage />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/messages" element={
+                    <ProtectedRoute>
+                      <MessagesInbox />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/messages/:userId" element={
+                    <ProtectedRoute>
+                      <ChatPage />
+                    </ProtectedRoute>
+                  } />
                   <Route path="/my-appointments" element={<Navigate to="/findit/dashboard" replace />} />
                   <Route path="/profile" element={
                     <ProtectedRoute>
@@ -284,9 +301,13 @@ function AppContent() {
                     <Route path="products" element={<ProductsDashboard />} />
                     <Route path="products/add" element={<AddProduct />} />
                     <Route path="products/:id/edit" element={<EditProduct />} />
-                    {/* The seller implementations below are retained in source and reactivated when their launch checks are complete. */}
+                    {/* Services are a request-and-hire marketplace. Courses and digital remain parked. */}
                     <Route path="courses/*" element={<UnderDevelopment sectionKey="courses" sellerWorkspace />} />
-                    <Route path="services/*" element={<UnderDevelopment sectionKey="services" sellerWorkspace />} />
+                    <Route path="services" element={<ServicesDashboard />} />
+                    <Route path="services/profile" element={<ServiceProfile />} />
+                    <Route path="services/add" element={<AddService />} />
+                    <Route path="services/:id/edit" element={<EditService />} />
+                    <Route path="services/:id/packages" element={<PackagesManager />} />
                     <Route path="digital/*" element={<UnderDevelopment sectionKey="digital" sellerWorkspace />} />
                     <Route path="findit" element={<SellerFindItPage />} />
                     <Route path="bookings/*" element={<UnderDevelopment sectionKey="bookings" sellerWorkspace />} />

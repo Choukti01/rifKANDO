@@ -1,369 +1,62 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { PlusIcon, EyeIcon, PencilIcon, TrashIcon, XMarkIcon, ShoppingBagIcon, ChartBarIcon } from '@heroicons/react/24/outline';
-import { getMyServices, deleteService } from '../../../services/api';
-import api from '../../../services/api';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { ArrowPathIcon, BriefcaseIcon, CheckBadgeIcon, PencilIcon, PlusIcon, StarIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
+import { deleteService, getMyServiceOrders, getMyServices, updateServiceOrderStatus } from '../../../services/api';
 import { getImageUrl } from '../../../utils/imageUtils';
+
+const statusLabel = (status) => ({ requested: 'New request', accepted: 'Accepted', in_progress: 'In progress', submitted: 'Submitted', revision_requested: 'Revision requested', completed: 'Completed', declined: 'Declined', cancelled: 'Cancelled' }[status] || status);
 
 const ServicesDashboard = () => {
   const [services, setServices] = useState([]);
+  const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
+  const [busy, setBusy] = useState(null);
 
-  const [stats, setStats] = useState({
-    totalServices: 0,
-    totalOrders: 0,
-    totalRevenue: 0,
-    avgRating: 0
-  });
-
-  useEffect(() => {
-    let isCurrent = true;
-
-    const loadServices = async () => {
-      try {
-        const response = await getMyServices();
-        if (!isCurrent) return;
-
-        const servicesData = response.data.services || [];
-        const totalOrders = servicesData.reduce((sum, service) => sum + (service.orders_count || 0), 0);
-        const totalRevenue = servicesData.reduce((sum, service) => sum + ((service.price || 0) * (service.orders_count || 0)), 0);
-        const avgRating = servicesData.length > 0
-          ? servicesData.reduce((sum, service) => sum + (service.rating || 0), 0) / servicesData.length
-          : 0;
-
-        setServices(servicesData);
-        setStats({
-          totalServices: servicesData.length,
-          totalOrders,
-          totalRevenue,
-          avgRating: avgRating.toFixed(1)
-        });
-      } catch (error) {
-        if (isCurrent) {
-          console.error('Failed to fetch services:', error);
-          toast.error('Failed to load services');
-        }
-      } finally {
-        if (isCurrent) setLoading(false);
-      }
-    };
-
-    void loadServices();
-
-    return () => {
-      isCurrent = false;
-    };
-  }, []);
-
-  const fetchServices = async () => {
+  const load = useCallback(async () => {
     try {
-      setLoading(true);
-      const response = await getMyServices();
-      const servicesData = response.data.services || [];
-      setServices(servicesData);
-      
-      const totalOrders = servicesData.reduce((sum, s) => sum + (s.orders_count || 0), 0);
-      const totalRevenue = servicesData.reduce((sum, s) => sum + ((s.price || 0) * (s.orders_count || 0)), 0);
-      const avgRating = servicesData.length > 0 
-        ? servicesData.reduce((sum, s) => sum + (s.rating || 0), 0) / servicesData.length 
-        : 0;
-      
-      setStats({
-        totalServices: servicesData.length,
-        totalOrders,
-        totalRevenue,
-        avgRating: avgRating.toFixed(1)
-      });
+      const [servicesResponse, ordersResponse] = await Promise.all([getMyServices(), getMyServiceOrders()]);
+      setServices(servicesResponse.data.services || []);
+      setOrders(ordersResponse.data.orders || []);
     } catch (error) {
-      console.error('Failed to fetch services:', error);
-      toast.error('Failed to load services');
-    } finally {
-      setLoading(false);
-    }
+      toast.error(error.response?.data?.error || 'Could not load your service workspace.');
+    } finally { setLoading(false); }
+  }, []);
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void load(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, [load]);
+
+  const action = async (order, actionName) => {
+    setBusy(order.id);
+    try {
+      await updateServiceOrderStatus(order.id, actionName);
+      toast.success(actionName === 'accept' ? 'Client request accepted.' : actionName === 'decline' ? 'Request declined.' : actionName === 'start' ? 'Work is now in progress.' : 'Work marked as submitted.');
+      await load();
+    } catch (error) { toast.error(error.response?.data?.error || 'This request could not be updated.'); }
+    finally { setBusy(null); }
+  };
+  const endService = async (service) => {
+    if (!window.confirm(`End “${service.title}”? New clients will no longer find it, but existing requests stay available.`)) return;
+    try { await deleteService(service.id); toast.success('Service ended.'); await load(); }
+    catch (error) { toast.error(error.response?.data?.error || 'Could not end this service.'); }
   };
 
-  const handleEndItem = async (id, type) => {
-    if (window.confirm('Mark this service as ended? It will no longer appear in marketplace listings.')) {
-      try {
-        await api.patch(`/${type}/${id}/status`, { status: 'ended' });
-        toast.success('Service marked as ended');
-        fetchServices();
-      } catch {
-        toast.error('Failed to update status');
-      }
-    }
-  };
+  if (loading) return <div className="service-workspace-loading">Loading service workspace...</div>;
+  const activeRequests = orders.filter((order) => !['completed', 'declined', 'cancelled'].includes(order.status)).length;
+  const completed = orders.filter((order) => order.status === 'completed').length;
 
-  const handleDelete = async (serviceId) => {
-    if (window.confirm('Are you sure you want to delete this service?')) {
-      try {
-        await deleteService(serviceId);
-        toast.success('Service deleted successfully');
-        fetchServices();
-      } catch {
-        toast.error('Failed to delete service');
-      }
-    }
-  };
-
-  const handleAddNew = () => {
-    navigate('/seller/dashboard/services/add');
-  };
-
-  if (loading) {
-    return (
-      <div className="text-center py-16">
-        <div className="spinner"></div>
-        <p>Loading services...</p>
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      <div className="stats-grid">
-        <div className="stat-card"><div className="stat-label">Total Services</div><div className="stat-value">{stats.totalServices}</div><div className="stat-change">{stats.totalServices > 0 ? '+ recently' : 'Add your first service'}</div></div>
-        <div className="stat-card"><div className="stat-label">Total Orders</div><div className="stat-value">{stats.totalOrders}</div><div className="stat-change">Completed orders</div></div>
-        <div className="stat-card"><div className="stat-label">Total Revenue</div><div className="stat-value">{stats.totalRevenue.toLocaleString()} MAD</div><div className="stat-change">From service sales</div></div>
-        <div className="stat-card"><div className="stat-label">Average Rating</div><div className="stat-value">{stats.avgRating} ★</div><div className="stat-change">Client satisfaction</div></div>
-      </div>
-
-      <div className="services-card">
-        <div className="card-header">
-          <h3>Your Services</h3>
-          <button onClick={handleAddNew} className="btn btn-primary btn-sm"><PlusIcon className="w-4 h-4" />New Service</button>
-        </div>
-
-        {services.length === 0 ? (
-          <div className="empty-state"><div className="empty-icon">🛠️</div><p>No services yet</p><button onClick={handleAddNew} className="btn btn-primary">Create Your First Service</button></div>
-        ) : (
-          <div className="services-list">
-            {services.map(service => {
-              const primaryImage = service.media?.find(m => m.is_primary) || service.media?.[0];
-              return (
-                <div key={service.id} className="service-item">
-                  <div className="service-info">
-                    <div className="service-image-placeholder">
-                      {primaryImage ? (
-                       <img src={getImageUrl(primaryImage.media_url)} alt={service.title} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '0.5rem' }} />                      ) : (
-                        service.image || '🛠️'
-                      )}
-                    </div>
-                    <div className="service-details">
-                      <h4>{service.title}</h4>
-                      <div className="service-stats">
-                        <span><ShoppingBagIcon className="stat-icon" />{service.orders_count || 0} orders</span>
-                        <span><ChartBarIcon className="stat-icon" />{service.rating || 0} ★</span>
-                        <span>{service.price} MAD</span>
-                      </div>
-                      <div className="service-status">
-                        <span className={`status-badge ${service.status === 'published' ? 'published' : 'ended'}`}>
-                          {service.status === 'published' ? 'Active' : 'Ended'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="service-actions">
-                    <Link to={`/service/${service.id}`} className="action-btn view" title="View Service" target="_blank"><EyeIcon className="w-4 h-4" /></Link>
-                    <Link to={`/seller/dashboard/services/${service.id}/edit`} className="action-btn edit" title="Edit Service"><PencilIcon className="w-4 h-4" /></Link>
-                    <Link to={`/seller/dashboard/services/${service.id}/packages`} className="action-btn manage" title="Manage Packages">Manage Packages</Link>
-                    {service.status !== 'ended' && (
-                      <button onClick={() => handleEndItem(service.id, 'services')} className="action-btn end" title="Mark as Ended">
-                        <XMarkIcon className="w-4 h-4" />
-                      </button>
-                    )}
-                    <button onClick={() => handleDelete(service.id)} className="action-btn delete" title="Delete Permanently">
-                      <TrashIcon className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      <style>{`
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
-        .stat-card { background: white; border-radius: 1rem; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .stat-label { font-size: 0.875rem; color: #6b7280; margin-bottom: 0.5rem; }
-        .stat-value { font-size: 1.75rem; font-weight: bold; margin-bottom: 0.25rem; }
-        .stat-change { font-size: 0.75rem; color: #10b981; }
-        .services-card { background: white; border-radius: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow: hidden; }
-        .card-header { display: flex; justify-content: space-between; align-items: center; padding: 1.25rem; border-bottom: 1px solid #e5e7eb; }
-        .card-header h3 { font-size: 1rem; font-weight: 600; margin: 0; }
-        .empty-state { text-align: center; padding: 3rem; }
-        .empty-icon { font-size: 4rem; margin-bottom: 1rem; }
-        .services-list { padding: 0.5rem; }
-        .service-item { display: flex; justify-content: space-between; align-items: center; padding: 1rem; border-bottom: 1px solid #e5e7eb; flex-wrap: wrap; gap: 1rem; }
-        .service-info { display: flex; align-items: center; gap: 1rem; flex: 1; }
-        .service-image-placeholder { width: 60px; height: 60px; background: #f3f4f6; border-radius: 0.5rem; display: flex; align-items: center; justify-content: center; font-size: 2rem; overflow: hidden; }
-        .service-details h4 { font-size: 1rem; margin-bottom: 0.5rem; }
-        .service-stats { display: flex; gap: 1rem; font-size: 0.75rem; color: #6b7280; margin-bottom: 0.5rem; flex-wrap: wrap; }
-        .stat-icon { width: 0.875rem; height: 0.875rem; margin-right: 0.25rem; }
-        .status-badge { display: inline-block; padding: 0.25rem 0.5rem; border-radius: 9999px; font-size: 0.7rem; font-weight: 500; }
-        .status-badge.published { background: #d1fae5; color: #065f46; }
-        .status-badge.ended { background: #fee2e2; color: #991b1b; }
-        .service-actions { display: flex; gap: 0.5rem; align-items: center; }
-
-        /* ========== MODERN ACTION BUTTONS ========== */
-        .action-buttons, .product-actions, .course-actions, .service-actions, .digital-actions, .booking-actions {
-          display: flex;
-          gap: 0.75rem;
-          align-items: center;
-        }
-
-        .action-btn {
-          position: relative;
-          padding: 0;
-          width: 36px;
-          height: 36px;
-          background: transparent;
-          border: none;
-          border-radius: 12px;
-          cursor: pointer;
-          color: #64748b;
-          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          overflow: hidden;
-        }
-
-        .action-btn svg {
-          width: 18px;
-          height: 18px;
-          transition: transform 0.2s ease;
-          position: relative;
-          z-index: 2;
-        }
-
-        .action-btn::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          background: #f1f5f9;
-          border-radius: 12px;
-          transform: scale(0.8);
-          opacity: 0;
-          transition: all 0.2s ease;
-          z-index: 1;
-        }
-
-        .action-btn:hover::before {
-          transform: scale(1);
-          opacity: 1;
-        }
-
-        .action-btn:hover svg {
-          transform: translateY(-2px);
-        }
-
-        .action-btn:active {
-          transform: scale(0.95);
-        }
-
-        /* View button (eye) - Sky Blue */
-        .action-btn.view {
-          color: #0ea5e9;
-        }
-
-        .action-btn.view::before {
-          background: #e0f2fe;
-        }
-
-        /* Edit button (pencil) - Amber */
-        .action-btn.edit {
-          color: #f59e0b;
-        }
-
-        .action-btn.edit::before {
-          background: #fef3c7;
-        }
-
-        /* End button (X) - Orange */
-        .action-btn.end {
-          color: #ea580c;
-        }
-
-        .action-btn.end::before {
-          background: #ffedd5;
-        }
-
-        /* Delete button (trash) - Rose/Red */
-        .action-btn.delete {
-          color: #e11d48;
-        }
-
-        .action-btn.delete::before {
-          background: #ffe4e6;
-        }
-
-        /* Manage button (for courses/services) - Teal */
-        .action-btn.manage {
-          color: #0d9488;
-          background: #ccfbf1;
-          padding: 0.25rem 0.75rem;
-          width: auto;
-          font-size: 0.75rem;
-          font-weight: 500;
-          gap: 0.25rem;
-        }
-
-        .action-btn.manage svg {
-          width: 14px;
-          height: 14px;
-        }
-
-        .action-btn.manage::before {
-          display: none;
-        }
-
-        .action-btn.manage:hover {
-          background: #99f6e4;
-          transform: translateY(-2px);
-        }
-
-        /* Tooltip on hover */
-        .action-btn {
-          position: relative;
-        }
-
-        .action-btn::after {
-          content: attr(title);
-          position: absolute;
-          bottom: -30px;
-          left: 50%;
-          transform: translateX(-50%);
-          background: #1e293b;
-          color: white;
-          font-size: 0.7rem;
-          padding: 0.25rem 0.5rem;
-          border-radius: 6px;
-          white-space: nowrap;
-          opacity: 0;
-          visibility: hidden;
-          transition: all 0.2s;
-          pointer-events: none;
-          z-index: 10;
-        }
-
-        .action-btn:hover::after {
-          opacity: 1;
-          visibility: visible;
-          bottom: -28px;
-        }
-
-        .btn-sm { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; font-size: 0.875rem; background: #1a1a1a; color: white; border: none; border-radius: 0.5rem; cursor: pointer; }
-        .btn-primary { background: #1a1a1a; color: white; }
-      `}</style>
+  return <section className="service-workspace">
+    <header className="service-workspace-hero"><div><p><BriefcaseIcon aria-hidden="true" />Service workspace</p><h2>Build trust. Manage real client work.</h2><span>Client requests stay separate from payments until rifKANDO connects a verified payment provider.</span></div><div className="service-workspace-hero-actions"><Link to="profile"><CheckBadgeIcon aria-hidden="true" />Professional profile</Link><Link to="add"><PlusIcon aria-hidden="true" />Create service</Link></div></header>
+    <div className="service-workspace-stats"><article><span>Published services</span><strong>{services.filter((service) => service.status === 'published').length}</strong></article><article><span>Active client requests</span><strong>{activeRequests}</strong></article><article><span>Completed projects</span><strong>{completed}</strong></article><article><span>Average rating</span><strong>{services.length ? (services.reduce((sum, service) => sum + Number(service.rating || 0), 0) / services.length).toFixed(1) : '—'}<StarIcon aria-hidden="true" /></strong></article></div>
+    <div className="service-workspace-grid">
+      <section className="service-workspace-card service-workspace-orders"><div className="service-workspace-heading"><div><h3>Client requests</h3><p>Accept a suitable brief before you start work.</p></div><button type="button" onClick={() => { setLoading(true); void load(); }} aria-label="Refresh service requests"><ArrowPathIcon aria-hidden="true" /></button></div>{orders.length === 0 ? <div className="service-workspace-empty"><BriefcaseIcon aria-hidden="true" /><p>New client requests will appear here.</p></div> : <div className="service-order-list">{orders.map((order) => <article key={order.id} className="service-provider-order"><div><span className={`service-provider-status status-${order.status}`}>{statusLabel(order.status)}</span><h4>{order.service_title}</h4><p>{order.buyer.name}{order.buyer.city ? ` · ${order.buyer.city}` : ''} · {order.package_name}</p><blockquote>{order.requirements}</blockquote></div><div className="service-provider-order-actions">{order.status === 'requested' && <><button disabled={busy === order.id} onClick={() => action(order, 'decline')} className="quiet">Decline</button><button disabled={busy === order.id} onClick={() => action(order, 'accept')} className="primary">Accept</button></>}{(order.status === 'accepted' || order.status === 'revision_requested') && <button disabled={busy === order.id} onClick={() => action(order, 'start')} className="primary">Start work</button>}{order.status === 'in_progress' && <button disabled={busy === order.id} onClick={() => action(order, 'submit')} className="primary">Submit work</button>}{['submitted','completed','declined','cancelled'].includes(order.status) && <span className="service-order-finished">{order.status === 'submitted' ? 'Waiting for client response' : 'No action needed'}</span>}</div></article>)}</div>}</section>
+      <section className="service-workspace-card"><div className="service-workspace-heading"><div><h3>Your service listings</h3><p>Use images and videos as real proof of your work.</p></div><Link to="add"><PlusIcon aria-hidden="true" />New</Link></div>{services.length === 0 ? <div className="service-workspace-empty"><CheckBadgeIcon aria-hidden="true" /><p>Start with your profile, then publish your first service.</p><Link to="profile">Create professional profile</Link></div> : <div className="service-listings">{services.map((service) => { const media = service.media?.[0]; return <article className="service-listing" key={service.id}><div className="service-listing-media">{media ? <img src={getImageUrl(media.media_url)} alt="" /> : <BriefcaseIcon aria-hidden="true" />}</div><div><span>{service.status === 'published' ? 'Live' : 'Ended'}</span><h4>{service.title}</h4><p>{Number(service.price || 0).toLocaleString()} MAD · {service.orders_count || 0} requests · {Number(service.rating || 0).toFixed(1)} rating</p></div><div className="service-listing-actions"><Link to={`/service/${service.id}`} target="_blank">View</Link><Link to={`${service.id}/edit`} aria-label={`Edit ${service.title}`}><PencilIcon aria-hidden="true" /></Link>{service.status === 'published' && <button type="button" onClick={() => endService(service)}>End</button>}</div></article>; })}</div>}</section>
     </div>
-  );
+    <style>{`
+      .service-workspace{display:grid;gap:1rem;color:#173d5c}.service-workspace-hero{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:clamp(1.15rem,3vw,2rem);border:1px solid rgba(25,116,183,.16);border-radius:23px;background:linear-gradient(135deg,#e9f7ff,#fff);box-shadow:0 14px 28px rgba(17,73,116,.07)}.service-workspace-hero p{display:flex;align-items:center;gap:.35rem;margin:0;color:#1878b9;font-size:.72rem;font-weight:850;letter-spacing:.08em;text-transform:uppercase}.service-workspace-hero p svg{width:1rem;height:1rem}.service-workspace-hero h2{margin:.38rem 0;color:#153d5d;font-size:clamp(1.25rem,2.6vw,1.75rem);letter-spacing:-.04em}.service-workspace-hero>div>span{display:block;max-width:690px;color:#57778e;font-size:.86rem;line-height:1.55}.service-workspace-hero-actions{display:flex;gap:.55rem;flex-wrap:wrap;justify-content:flex-end}.service-workspace-hero-actions a,.service-workspace-heading>a{display:inline-flex;align-items:center;gap:.38rem;min-height:40px;padding:.58rem .72rem;border:1px solid #b5d9ec;border-radius:12px;background:#fff;color:#1771ac;font-size:.78rem;font-weight:850;text-decoration:none;white-space:nowrap}.service-workspace-hero-actions a:last-child{border-color:#126ca9;background:#1477b8;color:#fff;box-shadow:0 9px 18px rgba(16,104,164,.18)}.service-workspace-hero-actions svg,.service-workspace-heading>a svg{width:1rem;height:1rem}.service-workspace-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.75rem}.service-workspace-stats article{padding:1rem;border:1px solid rgba(26,111,175,.11);border-radius:16px;background:rgba(255,255,255,.84);box-shadow:0 8px 18px rgba(17,73,116,.04)}.service-workspace-stats span{display:block;color:#658298;font-size:.72rem;font-weight:800}.service-workspace-stats strong{display:flex;align-items:center;gap:.3rem;margin-top:.4rem;color:#136da9;font-size:1.4rem}.service-workspace-stats svg{width:1rem;height:1rem;color:#d99b18;fill:#ffdc6a}.service-workspace-grid{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:1rem}.service-workspace-card{min-width:0;border:1px solid rgba(25,108,170,.13);border-radius:20px;background:rgba(255,255,255,.88);box-shadow:0 10px 22px rgba(19,72,111,.05);overflow:hidden}.service-workspace-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:.6rem;padding:1rem 1rem .8rem;border-bottom:1px solid #e1edf3}.service-workspace-heading h3{margin:0;color:#244d6d;font-size:.96rem}.service-workspace-heading p{margin:.24rem 0 0;color:#708b9d;font-size:.77rem;line-height:1.45}.service-workspace-heading button{display:grid;place-items:center;width:36px;height:36px;border:1px solid #c8dfeb;border-radius:10px;background:#f6fbff;color:#2679b1;cursor:pointer}.service-workspace-heading button svg{width:1rem;height:1rem}.service-workspace-empty{display:grid;justify-items:center;gap:.45rem;padding:2.4rem 1rem;text-align:center;color:#6d899d;font-size:.85rem}.service-workspace-empty>svg{width:2rem;height:2rem;color:#55a7d9}.service-workspace-empty p{max-width:250px;margin:0;line-height:1.5}.service-workspace-empty a{margin-top:.2rem;color:#1774ae;font-weight:800;text-decoration:none}.service-order-list{display:grid}.service-provider-order{display:flex;justify-content:space-between;gap:1rem;padding:1rem;border-bottom:1px solid #e8f0f5}.service-provider-order:last-child{border-bottom:0}.service-provider-order>div:first-child{min-width:0}.service-provider-status{display:inline-flex;padding:.25rem .46rem;border-radius:99px;font-size:.65rem;font-weight:850}.status-requested{background:#fff3d9;color:#9a6504}.status-accepted,.status-in_progress,.status-revision_requested{background:#e6f5ff;color:#0871af}.status-submitted{background:#eeeaff;color:#5a46a2}.status-completed{background:#e4f8ed;color:#157548}.status-declined,.status-cancelled{background:#fff0f0;color:#a34545}.service-provider-order h4{margin:.48rem 0 .15rem;color:#244d6c;font-size:.9rem}.service-provider-order p{margin:0;color:#718da0;font-size:.75rem}.service-provider-order blockquote{max-width:470px;margin:.65rem 0 0;padding:.58rem .65rem;border-inline-start:3px solid #91c9e8;background:#f7fbfe;color:#526f84;font-size:.78rem;line-height:1.5;white-space:pre-wrap}.service-provider-order-actions{display:flex;align-items:center;align-self:center;gap:.45rem;flex-wrap:wrap;justify-content:flex-end}.service-provider-order-actions button{min-height:36px;padding:.5rem .65rem;border-radius:10px;font:inherit;font-size:.73rem;font-weight:850;cursor:pointer}.service-provider-order-actions .quiet{border:1px solid #d3e0e8;background:#fff;color:#59758a}.service-provider-order-actions .primary{border:1px solid #116da9;background:#1478ba;color:#fff}.service-provider-order-actions button:disabled{opacity:.55;cursor:wait}.service-order-finished{color:#718a9b;font-size:.72rem;font-weight:700;text-align:right}.service-listings{display:grid}.service-listing{display:grid;grid-template-columns:52px minmax(0,1fr) auto;align-items:center;gap:.65rem;padding:.8rem 1rem;border-bottom:1px solid #e8f0f5}.service-listing:last-child{border-bottom:0}.service-listing-media{width:52px;height:52px;display:grid;place-items:center;overflow:hidden;border-radius:12px;background:#eaf6fc;color:#3892c9}.service-listing-media img{width:100%;height:100%;object-fit:cover}.service-listing-media svg{width:1.35rem;height:1.35rem}.service-listing>div:nth-child(2){min-width:0}.service-listing>div:nth-child(2)>span{color:#22804f;font-size:.64rem;font-weight:850;text-transform:uppercase}.service-listing>div:nth-child(2)>span:not(:first-child){color:#7b8d9c}.service-listing h4{overflow:hidden;margin:.18rem 0;text-overflow:ellipsis;white-space:nowrap;color:#2b5270;font-size:.85rem}.service-listing p{margin:0;color:#738da0;font-size:.72rem}.service-listing-actions{display:flex;gap:.38rem;align-items:center}.service-listing-actions a,.service-listing-actions button{min-height:33px;padding:.42rem .5rem;border:1px solid #d2e2eb;border-radius:9px;background:#fff;color:#4d6f85;font:inherit;font-size:.7rem;font-weight:800;text-decoration:none;cursor:pointer}.service-listing-actions a:nth-child(2){display:grid;place-items:center;color:#1775b1}.service-listing-actions svg{width:.9rem;height:.9rem}.service-listing-actions button{color:#a34b4b;border-color:#f0cdcd}.service-workspace-loading{padding:3rem;text-align:center;color:#638198}@media(max-width:980px){.service-workspace-grid{grid-template-columns:1fr}.service-workspace-stats{grid-template-columns:repeat(2,1fr)}}@media(max-width:640px){.service-workspace-hero{align-items:flex-start;flex-direction:column}.service-workspace-hero-actions{width:100%;justify-content:stretch}.service-workspace-hero-actions a{flex:1;justify-content:center}.service-provider-order{flex-direction:column}.service-provider-order-actions{justify-content:flex-start}.service-order-finished{text-align:left}.service-listing{grid-template-columns:46px minmax(0,1fr)}.service-listing-media{width:46px;height:46px}.service-listing-actions{grid-column:1/-1}.service-listing-actions>*{flex:1;text-align:center;justify-content:center}.service-workspace-stats article{padding:.8rem}}
+    `}</style>
+  </section>;
 };
 
 export default ServicesDashboard;

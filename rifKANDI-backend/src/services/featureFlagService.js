@@ -1,12 +1,12 @@
 const DEFAULT_FEATURE_FLAGS = Object.freeze({
   checkout: true,
-  // Focused launch: products and FINDit use COD only. Parked domains stay in
-  // source but are unavailable until their own launch checks are complete.
+  // Services launch as a request-and-hire workflow. Payment processing stays
+  // disabled until a verified provider integration is reviewed and enabled.
   cmi_payments: false,
   wallet_payments: false,
   digital_downloads: false,
   courses: false,
-  services: false,
+  services: true,
   digital: false,
 });
 

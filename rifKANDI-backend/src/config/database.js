@@ -619,6 +619,66 @@ db.serialize(() => {
     )
   `);
 
+  // Service providers publish public expertise information. Credential files
+  // are intentionally not stored here: only the provider's public credential
+  // summary is displayed, so private documents are never exposed by default.
+  db.run(`
+    CREATE TABLE IF NOT EXISTS service_provider_profiles (
+      user_id INTEGER PRIMARY KEY,
+      headline TEXT NOT NULL DEFAULT '',
+      introduction TEXT NOT NULL DEFAULT '',
+      experience_summary TEXT NOT NULL DEFAULT '',
+      skills TEXT NOT NULL DEFAULT '[]',
+      languages TEXT NOT NULL DEFAULT '[]',
+      credentials TEXT NOT NULL DEFAULT '[]',
+      availability TEXT NOT NULL DEFAULT 'available',
+      response_time TEXT NOT NULL DEFAULT '',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS service_order_status_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      service_order_id INTEGER NOT NULL,
+      actor_id INTEGER,
+      from_status TEXT,
+      to_status TEXT NOT NULL,
+      note TEXT NOT NULL DEFAULT '',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (service_order_id) REFERENCES service_orders(id) ON DELETE CASCADE,
+      FOREIGN KEY (actor_id) REFERENCES users(id) ON DELETE SET NULL
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS service_reviews (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      service_order_id INTEGER NOT NULL UNIQUE,
+      service_id INTEGER NOT NULL,
+      buyer_id INTEGER NOT NULL,
+      provider_id INTEGER NOT NULL,
+      rating INTEGER NOT NULL CHECK(rating BETWEEN 1 AND 5),
+      comment TEXT NOT NULL DEFAULT '',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (service_order_id) REFERENCES service_orders(id) ON DELETE CASCADE,
+      FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE,
+      FOREIGN KEY (buyer_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (provider_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `);
+
+  for (const [column, definition] of [
+    ['package_id', 'INTEGER'],
+    ['updated_at', 'DATETIME'],
+    ['provider_note', "TEXT NOT NULL DEFAULT ''"],
+    ['buyer_note', "TEXT NOT NULL DEFAULT ''"],
+  ]) {
+    db.run(`ALTER TABLE service_orders ADD COLUMN ${column} ${definition}`, () => {});
+  }
+
   // Digital Products table
   db.run(`
     CREATE TABLE IF NOT EXISTS digital_products (
