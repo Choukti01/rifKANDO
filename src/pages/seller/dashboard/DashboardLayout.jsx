@@ -45,9 +45,12 @@ const DashboardLayout = () => {
     service: { name: t('sellerDashboard.services'), icon: WrenchScrewdriverIcon, path: 'services' },
     digital: { name: t('sellerDashboard.digital'), icon: ComputerDesktopIcon, path: 'digital' },
   };
-  const selectedWorkspaceItems = sellerWorkspaceItems[user?.sellerType]
-    ? [sellerWorkspaceItems[user.sellerType]]
-    : Object.values(sellerWorkspaceItems);
+  // A seller can keep products as their primary workspace and also offer
+  // professional services. Courses and digital remain intentionally parked.
+  const selectedWorkspaceItems = [
+    ...(user?.sellerType === 'product' || !user?.sellerType ? [sellerWorkspaceItems.product] : []),
+    sellerWorkspaceItems.service,
+  ];
   const workspaceItems = [
     { name: t('sellerDashboard.overview'), icon: HomeIcon, path: 'overview' },
     ...selectedWorkspaceItems,
@@ -78,6 +81,7 @@ const DashboardLayout = () => {
     location.pathname.startsWith(`/seller/dashboard/${path}`)
   )?.name || t('sellerDashboard.title');
   const canCreateProduct = user?.sellerType === 'product' || !user?.sellerType;
+  const isServiceWorkspace = location.pathname.startsWith('/seller/dashboard/services');
 
   const handleLogout = () => {
     logout();
@@ -95,7 +99,12 @@ const DashboardLayout = () => {
           <h1>{activeSection}</h1>
         </div>
         <div className="seller-workspace-actions">
-          {canCreateProduct && (
+          {isServiceWorkspace ? (
+            <Link to="/seller/dashboard/services/add" className="seller-workspace-primary-action">
+              <PlusIcon aria-hidden="true" />
+              <span>{t('sellerDashboard.services')}</span>
+            </Link>
+          ) : canCreateProduct && (
             <Link to="products/add" className="seller-workspace-primary-action">
               <PlusIcon aria-hidden="true" />
               <span>{t('sellerProducts.add')}</span>
