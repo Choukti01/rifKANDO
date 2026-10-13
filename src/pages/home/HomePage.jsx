@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ShoppingBagIcon, AcademicCapIcon, WrenchScrewdriverIcon, ComputerDesktopIcon, MagnifyingGlassIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
-import { getProducts, getFinditRequests } from '/src/services/api';
+import { getProducts, getFinditRequests, getServices } from '/src/services/api';
 import MediaGallery from '../../components/MediaGallery';
 import { getImageUrl } from '../../utils/imageUtils';
 import MarketplaceImage from '../../components/common/MarketplaceImage';
@@ -16,9 +16,11 @@ const HomePage = () => {
   const [reloadKey, setReloadKey] = useState(0);
   const [productDataAvailable, setProductDataAvailable] = useState(true);
   const [finditDataAvailable, setFinditDataAvailable] = useState(true);
+  const [serviceDataAvailable, setServiceDataAvailable] = useState(true);
   const [stats, setStats] = useState({
     productsCount: 0,
-    finditRequestsCount: 0
+    finditRequestsCount: 0,
+    servicesCount: 0,
   });
 
   useEffect(() => {
@@ -26,15 +28,17 @@ const HomePage = () => {
 
     const loadHomeData = async () => {
       setLoading(true);
-      const [productsResult, finditResult] = await Promise.allSettled([
+      const [productsResult, finditResult, serviceResult] = await Promise.allSettled([
         getProducts(),
-        getFinditRequests({ limit: 1 })
+        getFinditRequests({ limit: 1 }),
+        getServices({ limit: 1 }),
       ]);
 
       if (!isCurrent) return;
 
       const productDataLoaded = productsResult.status === 'fulfilled';
       const finditDataLoaded = finditResult.status === 'fulfilled';
+      const serviceDataLoaded = serviceResult.status === 'fulfilled';
       const products = productDataLoaded ? productsResult.value.data.products || [] : [];
       const productsTotal = productDataLoaded
         ? Number(productsResult.value.data.pagination?.total ?? products.length)
@@ -42,12 +46,17 @@ const HomePage = () => {
       const finditTotal = finditDataLoaded
         ? Number(finditResult.value.data.pagination?.total || finditResult.value.data.requests?.length || 0)
         : 0;
+      const servicesTotal = serviceDataLoaded
+        ? Number(serviceResult.value.data.pagination?.total || serviceResult.value.data.services?.length || 0)
+        : 0;
 
       setProductDataAvailable(productDataLoaded);
       setFinditDataAvailable(finditDataLoaded);
+      setServiceDataAvailable(serviceDataLoaded);
       setStats({
         productsCount: productsTotal,
-        finditRequestsCount: finditTotal
+        finditRequestsCount: finditTotal,
+        servicesCount: servicesTotal,
       });
 
       setFeaturedItems([
@@ -64,12 +73,12 @@ const HomePage = () => {
   }, [reloadKey]);
 
   const retryHomeData = () => setReloadKey((current) => current + 1);
-  const hasUnavailableLiveData = !productDataAvailable || !finditDataAvailable;
+  const hasUnavailableLiveData = !productDataAvailable || !finditDataAvailable || !serviceDataAvailable;
 
   const categories = [
     { name: t('nav.products'), icon: ShoppingBagIcon, path: '/products', color: 'var(--color-brand-blue)', count: stats.productsCount, available: productDataAvailable },
     { name: t('nav.courses'), icon: AcademicCapIcon, path: '/courses', color: '#64748b', underDevelopment: true },
-    { name: t('nav.services'), icon: WrenchScrewdriverIcon, path: '/services', color: '#64748b', underDevelopment: true },
+    { name: t('nav.services'), icon: WrenchScrewdriverIcon, path: '/services', color: 'var(--color-brand-blue)', count: stats.servicesCount, available: serviceDataAvailable },
     { name: t('nav.digital'), icon: ComputerDesktopIcon, path: '/digital', color: '#64748b', underDevelopment: true },
     { name: t('findit.navigation'), icon: MagnifyingGlassIcon, path: '/findit', color: 'var(--color-brand-blue)', count: stats.finditRequestsCount, countLabel: t('availability.openRequests'), available: finditDataAvailable },
   ];
