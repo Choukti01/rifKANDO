@@ -14,6 +14,11 @@ const parseList = (value) => {
   }
 };
 
+const serializeList = (value) => {
+  if (Array.isArray(value)) return JSON.stringify(value);
+  return typeof value === 'string' && value.trim() ? value : '[]';
+};
+
 const requestNumber = () => {
   const stamp = new Date().toISOString().slice(0, 10).replaceAll('-', '');
   return `SRV-${stamp}-${crypto.randomUUID().replaceAll('-', '').slice(0, 10).toUpperCase()}`;
@@ -35,6 +40,8 @@ const publicService = (service) => ({
   rating: Number(service.rating || 0),
   orders_count: Number(service.orders_count || 0),
   reviews_count: Number(service.reviews_count || 0),
+  deliverables: parseList(service.deliverables),
+  client_requirements: parseList(service.client_requirements),
   media: service.media || [],
   provider: {
     id: Number(service.provider_id),
@@ -200,10 +207,10 @@ const createServiceRoutes = ({
 
   router.post('/services', protect, requireSeller, validateServiceCreate, async (req, res, next) => {
     try {
-      const { title, description, price, old_price, category, delivery_time, revisions, image, media = [] } = req.body;
-      const created = await run(db, `INSERT INTO services (title, description, price, old_price, category, delivery_time, revisions, image, provider_id, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'published')`,
-      [title, description, price, old_price || null, category, delivery_time || '', revisions || 0, image || '', req.user.id]);
+      const { title, description, price, old_price, category, delivery_time, revisions, image, deliverables, client_requirements, media = [] } = req.body;
+      const created = await run(db, `INSERT INTO services (title, description, price, old_price, category, delivery_time, revisions, image, deliverables, client_requirements, provider_id, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'published')`,
+      [title, description, price, old_price || null, category, delivery_time || '', revisions || 0, image || '', serializeList(deliverables), serializeList(client_requirements), req.user.id]);
       for (let index = 0; index < media.length; index += 1) {
         const item = media[index];
         await run(db, 'INSERT INTO service_media (service_id, media_type, media_url, display_order, is_primary) VALUES (?, ?, ?, ?, ?)',
@@ -227,8 +234,8 @@ const createServiceRoutes = ({
       const service = await get(db, 'SELECT * FROM services WHERE id = ? AND provider_id = ?', [req.params.id, req.user.id]);
       if (!service) return res.status(404).json({ error: 'Service not found.' });
       const values = { ...service, ...req.body };
-      await run(db, 'UPDATE services SET title = ?, description = ?, price = ?, old_price = ?, category = ?, delivery_time = ?, revisions = ?, image = ? WHERE id = ?',
-        [values.title, values.description, values.price, values.old_price || null, values.category, values.delivery_time || '', values.revisions || 0, values.image || '', service.id]);
+      await run(db, 'UPDATE services SET title = ?, description = ?, price = ?, old_price = ?, category = ?, delivery_time = ?, revisions = ?, image = ?, deliverables = ?, client_requirements = ? WHERE id = ?',
+        [values.title, values.description, values.price, values.old_price || null, values.category, values.delivery_time || '', values.revisions || 0, values.image || '', serializeList(values.deliverables), serializeList(values.client_requirements), service.id]);
       if (req.body.media) {
         await run(db, 'DELETE FROM service_media WHERE service_id = ?', [service.id]);
         for (let index = 0; index < req.body.media.length; index += 1) {

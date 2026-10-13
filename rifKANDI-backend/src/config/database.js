@@ -562,6 +562,8 @@ db.serialize(() => {
       category TEXT,
       delivery_time TEXT,
       revisions INTEGER DEFAULT 0,
+      deliverables TEXT NOT NULL DEFAULT '[]',
+      client_requirements TEXT NOT NULL DEFAULT '[]',
       rating REAL DEFAULT 0,
       orders_count INTEGER DEFAULT 0,
       status TEXT DEFAULT 'published',
@@ -569,6 +571,15 @@ db.serialize(() => {
       FOREIGN KEY (provider_id) REFERENCES users(id)
     )
   `);
+
+  // SQLite development databases created before the service offer details
+  // were introduced need the same additive columns as PostgreSQL.
+  db.run("ALTER TABLE services ADD COLUMN deliverables TEXT NOT NULL DEFAULT '[]'", (err) => {
+    if (err && !String(err.message).includes('duplicate column name')) console.error('Error adding services.deliverables:', err.message);
+  });
+  db.run("ALTER TABLE services ADD COLUMN client_requirements TEXT NOT NULL DEFAULT '[]'", (err) => {
+    if (err && !String(err.message).includes('duplicate column name')) console.error('Error adding services.client_requirements:', err.message);
+  });
 
   // Service Media table
   db.run(`

@@ -480,11 +480,13 @@ const coursePayload = (body, partial) => catalogPayload(body, {
 
 const servicePayload = (body, partial) => catalogPayload(body, {
   partial,
-  allowed: ['delivery_time', 'revisions', 'image'],
+  allowed: ['delivery_time', 'revisions', 'image', 'deliverables', 'client_requirements'],
   fields: (value, required) => ({
     delivery_time: value.delivery_time === undefined ? (required ? '' : undefined) : text(value.delivery_time, 'delivery_time', { max: 100 }),
     revisions: value.revisions === undefined ? (required ? 0 : undefined) : integer(value.revisions, 'revisions', { min: 0, max: 100 }),
     image: value.image === undefined ? (required ? '' : undefined) : text(value.image, 'image', { max: 64 }),
+    deliverables: jsonTextList(value.deliverables, 'deliverables', { maxItems: 12, itemMax: 300 }) || (required ? '[]' : undefined),
+    client_requirements: jsonTextList(value.client_requirements, 'client_requirements', { maxItems: 12, itemMax: 300 }) || (required ? '[]' : undefined),
   }),
 });
 
