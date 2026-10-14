@@ -1,6 +1,6 @@
 const crypto = require('node:crypto');
 const express = require('express');
-const { all, get, run } = require('../services/bookingProtocolService');
+const { all, get, run, withTransaction } = require('../services/bookingProtocolService');
 const { createPaginationMetadata, getPagination } = require('../utils/pagination');
 
 const parseList = (value) => {
@@ -113,13 +113,15 @@ const createServiceRoutes = ({
   validateServiceRequestCreate,
   validateServiceOrderAction,
   validateServiceReview,
+  validatePackageCreate,
+  validatePackageUpdate,
   notificationService,
 }) => {
   const router = express.Router();
   const notify = (payload) => notificationService?.create(payload).catch((error) => {
     console.error(JSON.stringify({ level: 'error', event: 'service_notification_failed', error: error.message }));
   });
-  const recordStatus = (orderId, actorId, fromStatus, toStatus, note = '') => run(db, `
+  const recordStatus = (database, orderId, actorId, fromStatus, toStatus, note = '') => run(database, `
     INSERT INTO service_order_status_history (service_order_id, actor_id, from_status, to_status, note)
     VALUES (?, ?, ?, ?, ?)
   `, [orderId, actorId, fromStatus, toStatus, note]);
@@ -208,16 +210,121 @@ const createServiceRoutes = ({
   router.post('/services', protect, requireSeller, validateServiceCreate, async (req, res, next) => {
     try {
       const { title, description, price, old_price, category, delivery_time, revisions, image, deliverables, client_requirements, media = [] } = req.body;
-      const created = await run(db, `INSERT INTO services (title, description, price, old_price, category, delivery_time, revisions, image, deliverables, client_requirements, provider_id, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'published')`,
-      [title, description, price, old_price || null, category, delivery_time || '', revisions || 0, image || '', serializeList(deliverables), serializeList(client_requirements), req.user.id]);
-      for (let index = 0; index < media.length; index += 1) {
-        const item = media[index];
-        await run(db, 'INSERT INTO service_media (service_id, media_type, media_url, display_order, is_primary) VALUES (?, ?, ?, ?, ?)',
-          [created.lastID, item.type, item.url, index, index === 0]);
-      }
-      return res.status(201).json({ success: true, service: { id: created.lastID, ...req.body } });
-    } catch (error) { return next(error); }
+      const serviceId = await withTransaction(db, async (transaction) => {
+        const profile = await get(transaction, 'SELECT availability FROM service_provider_profiles WHERE user_id = ?', [req.user.id]);
+        if (!profile) {
+          const error = new Error('Complete your professional profile before publishing a service.');
+          error.statusCode = 409;
+          throw error;
+        }
+        if (profile.availability === 'unavailable') {
+          const error = new Error('Set your professional profile to available before publishing a service.');
+          error.statusCode = 409;
+          throw error;
+        }
+        const created = await run(transaction, `INSERT INTO services (title, description, price, old_price, category, delivery_time, revisions, image, deliverables, client_requirements, provider_id, status)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'published')`,
+        [title, description, price, old_price || null, category, delivery_time || '', revisions || 0, image || '', serializeList(deliverables), serializeList(client_requirements), req.user.id]);
+        for (let index = 0; index < media.length; index += 1) {
+          const item = media[index];
+          await run(transaction, 'INSERT INTO service_media (service_id, media_type, media_url, display_order, is_primary) VALUES (?, ?, ?, ?, ?)',
+            [created.lastID, item.type, item.url, index, index === 0]);
+        }
+        return created.lastID;
+      });
+      return res.status(201).json({ success: true, service: { id: serviceId, ...req.body } });
+    } catch (error) {
+      if (error.statusCode) return res.status(error.statusCode).json({ error: error.message });
+      return next(error);
+    }
+  });
+
+  router.post('/services/:serviceId/packages', protect, requireSeller, validateIdParams('serviceId'), validatePackageCreate, async (req, res, next) => {
+    try {
+      const packageId = await withTransaction(db, async (transaction) => {
+        const service = await get(transaction, 'SELECT id, provider_id FROM services WHERE id = ?', [req.params.serviceId]);
+        if (!service) {
+          const error = new Error('Service not found.');
+          error.statusCode = 404;
+          throw error;
+        }
+        if (Number(service.provider_id) !== Number(req.user.id)) {
+          const error = new Error('You can only manage your own service packages.');
+          error.statusCode = 403;
+          throw error;
+        }
+        const created = await run(transaction, `
+          INSERT INTO service_packages (service_id, name, price, delivery_time, revisions, features)
+          VALUES (?, ?, ?, ?, ?, ?)
+        `, [service.id, req.body.name, req.body.price, req.body.delivery_time || '', req.body.revisions || 0, req.body.features || '']);
+        return created.lastID;
+      });
+      return res.status(201).json({ success: true, package: { id: packageId } });
+    } catch (error) {
+      if (error.statusCode) return res.status(error.statusCode).json({ error: error.message });
+      return next(error);
+    }
+  });
+
+  router.put('/services/:serviceId/packages/:packageId', protect, requireSeller, validateIdParams('serviceId', 'packageId'), validatePackageUpdate, async (req, res, next) => {
+    try {
+      await withTransaction(db, async (transaction) => {
+        const service = await get(transaction, 'SELECT id, provider_id FROM services WHERE id = ?', [req.params.serviceId]);
+        if (!service) {
+          const error = new Error('Service not found.');
+          error.statusCode = 404;
+          throw error;
+        }
+        if (Number(service.provider_id) !== Number(req.user.id)) {
+          const error = new Error('You can only manage your own service packages.');
+          error.statusCode = 403;
+          throw error;
+        }
+        const result = await run(transaction, `
+          UPDATE service_packages
+          SET name = COALESCE(?, name), price = COALESCE(?, price), delivery_time = COALESCE(?, delivery_time),
+              revisions = COALESCE(?, revisions), features = COALESCE(?, features)
+          WHERE id = ? AND service_id = ?
+        `, [req.body.name, req.body.price, req.body.delivery_time, req.body.revisions, req.body.features, req.params.packageId, service.id]);
+        if (!result.changes) {
+          const error = new Error('Service package not found.');
+          error.statusCode = 404;
+          throw error;
+        }
+      });
+      return res.json({ success: true, message: 'Service package updated.' });
+    } catch (error) {
+      if (error.statusCode) return res.status(error.statusCode).json({ error: error.message });
+      return next(error);
+    }
+  });
+
+  router.delete('/services/:serviceId/packages/:packageId', protect, requireSeller, validateIdParams('serviceId', 'packageId'), async (req, res, next) => {
+    try {
+      await withTransaction(db, async (transaction) => {
+        const service = await get(transaction, 'SELECT id, provider_id FROM services WHERE id = ?', [req.params.serviceId]);
+        if (!service) {
+          const error = new Error('Service not found.');
+          error.statusCode = 404;
+          throw error;
+        }
+        if (Number(service.provider_id) !== Number(req.user.id)) {
+          const error = new Error('You can only manage your own service packages.');
+          error.statusCode = 403;
+          throw error;
+        }
+        const result = await run(transaction, 'DELETE FROM service_packages WHERE id = ? AND service_id = ?', [req.params.packageId, service.id]);
+        if (!result.changes) {
+          const error = new Error('Service package not found.');
+          error.statusCode = 404;
+          throw error;
+        }
+      });
+      return res.json({ success: true, message: 'Service package removed.' });
+    } catch (error) {
+      if (error.statusCode) return res.status(error.statusCode).json({ error: error.message });
+      return next(error);
+    }
   });
 
   router.get('/my-services', protect, requireSeller, async (req, res, next) => {
@@ -231,20 +338,29 @@ const createServiceRoutes = ({
 
   router.put('/services/:id', protect, requireSeller, validateIdParams('id'), validateServiceUpdate, async (req, res, next) => {
     try {
-      const service = await get(db, 'SELECT * FROM services WHERE id = ? AND provider_id = ?', [req.params.id, req.user.id]);
-      if (!service) return res.status(404).json({ error: 'Service not found.' });
-      const values = { ...service, ...req.body };
-      await run(db, 'UPDATE services SET title = ?, description = ?, price = ?, old_price = ?, category = ?, delivery_time = ?, revisions = ?, image = ?, deliverables = ?, client_requirements = ? WHERE id = ?',
-        [values.title, values.description, values.price, values.old_price || null, values.category, values.delivery_time || '', values.revisions || 0, values.image || '', serializeList(values.deliverables), serializeList(values.client_requirements), service.id]);
-      if (req.body.media) {
-        await run(db, 'DELETE FROM service_media WHERE service_id = ?', [service.id]);
-        for (let index = 0; index < req.body.media.length; index += 1) {
-          const item = req.body.media[index];
-          await run(db, 'INSERT INTO service_media (service_id, media_type, media_url, display_order, is_primary) VALUES (?, ?, ?, ?, ?)', [service.id, item.type, item.url, index, index === 0]);
+      await withTransaction(db, async (transaction) => {
+        const service = await get(transaction, 'SELECT * FROM services WHERE id = ? AND provider_id = ?', [req.params.id, req.user.id]);
+        if (!service) {
+          const error = new Error('Service not found.');
+          error.statusCode = 404;
+          throw error;
         }
-      }
+        const values = { ...service, ...req.body };
+        await run(transaction, 'UPDATE services SET title = ?, description = ?, price = ?, old_price = ?, category = ?, delivery_time = ?, revisions = ?, image = ?, deliverables = ?, client_requirements = ? WHERE id = ?',
+          [values.title, values.description, values.price, values.old_price || null, values.category, values.delivery_time || '', values.revisions || 0, values.image || '', serializeList(values.deliverables), serializeList(values.client_requirements), service.id]);
+        if (req.body.media) {
+          await run(transaction, 'DELETE FROM service_media WHERE service_id = ?', [service.id]);
+          for (let index = 0; index < req.body.media.length; index += 1) {
+            const item = req.body.media[index];
+            await run(transaction, 'INSERT INTO service_media (service_id, media_type, media_url, display_order, is_primary) VALUES (?, ?, ?, ?, ?)', [service.id, item.type, item.url, index, index === 0]);
+          }
+        }
+      });
       return res.json({ success: true, message: 'Service updated.' });
-    } catch (error) { return next(error); }
+    } catch (error) {
+      if (error.statusCode) return res.status(error.statusCode).json({ error: error.message });
+      return next(error);
+    }
   });
 
   router.delete('/services/:id', protect, requireSeller, validateIdParams('id'), async (req, res, next) => {
@@ -257,18 +373,59 @@ const createServiceRoutes = ({
 
   router.post('/services/:id/requests', protect, validateIdParams('id'), validateServiceRequestCreate, async (req, res, next) => {
     try {
-      const service = await get(db, "SELECT id, title, provider_id, price FROM services WHERE id = ? AND status = 'published'", [req.params.id]);
-      if (!service) return res.status(404).json({ error: 'Service not found.' });
-      if (Number(service.provider_id) === Number(req.user.id)) return res.status(400).json({ error: 'You cannot request your own service.' });
-      const selectedPackage = req.body.packageId ? await get(db, 'SELECT id, name, price FROM service_packages WHERE id = ? AND service_id = ?', [req.body.packageId, service.id]) : null;
-      if (req.body.packageId && !selectedPackage) return res.status(404).json({ error: 'The selected package is not available for this service.' });
-      const created = await run(db, `INSERT INTO service_orders (order_number, service_id, buyer_id, provider_id, package_id, package_name, price, requirements, status, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'requested', CURRENT_TIMESTAMP)`,
-      [requestNumber(), service.id, req.user.id, service.provider_id, selectedPackage?.id || null, selectedPackage?.name || 'Standard service', Number(selectedPackage?.price ?? service.price), req.body.requirements]);
-      await recordStatus(created.lastID, req.user.id, null, 'requested', 'Client request created.');
-      notify({ userId: service.provider_id, kind: 'service.requested', title: 'New service request', body: `${req.user.name} requested ${service.title}.`, href: '/seller/dashboard/services', metadata: { serviceOrderId: created.lastID } });
-      return res.status(201).json({ success: true, request: serializeOrder(await readOrder(db, created.lastID)) });
-    } catch (error) { return next(error); }
+      const result = await withTransaction(db, async (transaction) => {
+        const service = await get(transaction, `
+          SELECT s.id, s.title, s.provider_id, s.price, p.availability AS provider_availability
+          FROM services s
+          LEFT JOIN service_provider_profiles p ON p.user_id = s.provider_id
+          WHERE s.id = ? AND s.status = 'published'
+        `, [req.params.id]);
+        if (!service) {
+          const error = new Error('Service not found.');
+          error.statusCode = 404;
+          throw error;
+        }
+        if (service.provider_availability === 'unavailable') {
+          const error = new Error('This provider is not accepting new service requests right now.');
+          error.statusCode = 409;
+          throw error;
+        }
+        if (Number(service.provider_id) === Number(req.user.id)) {
+          const error = new Error('You cannot request your own service.');
+          error.statusCode = 400;
+          throw error;
+        }
+        const existing = await get(transaction, `
+          SELECT id FROM service_orders
+          WHERE service_id = ? AND buyer_id = ? AND status IN ('requested', 'accepted', 'in_progress', 'submitted', 'revision_requested')
+          LIMIT 1
+        `, [service.id, req.user.id]);
+        if (existing) {
+          const error = new Error('You already have an active request for this service. Follow it from your service requests page.');
+          error.statusCode = 409;
+          throw error;
+        }
+        const selectedPackage = req.body.packageId
+          ? await get(transaction, 'SELECT id, name, price FROM service_packages WHERE id = ? AND service_id = ?', [req.body.packageId, service.id])
+          : null;
+        if (req.body.packageId && !selectedPackage) {
+          const error = new Error('The selected package is not available for this service.');
+          error.statusCode = 404;
+          throw error;
+        }
+        const created = await run(transaction, `
+          INSERT INTO service_orders (order_number, service_id, buyer_id, provider_id, package_id, package_name, price, requirements, status, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'requested', CURRENT_TIMESTAMP)
+        `, [requestNumber(), service.id, req.user.id, service.provider_id, selectedPackage?.id || null, selectedPackage?.name || 'Standard service', Number(selectedPackage?.price ?? service.price), req.body.requirements]);
+        await recordStatus(transaction, created.lastID, req.user.id, null, 'requested', 'Client request created.');
+        return { service, requestId: created.lastID };
+      });
+      notify({ userId: result.service.provider_id, kind: 'service.requested', title: 'New service request', body: `${req.user.name} requested ${result.service.title}.`, href: '/seller/dashboard/services', metadata: { serviceOrderId: result.requestId } });
+      return res.status(201).json({ success: true, request: serializeOrder(await readOrder(db, result.requestId)) });
+    } catch (error) {
+      if (error.statusCode) return res.status(error.statusCode).json({ error: error.message });
+      return next(error);
+    }
   });
 
   router.get('/my-service-requests', protect, async (req, res, next) => {
@@ -297,37 +454,72 @@ const createServiceRoutes = ({
 
   router.patch('/service-orders/:id/status', protect, validateIdParams('id'), validateServiceOrderAction, async (req, res, next) => {
     try {
-      const order = await readOrder(db, req.params.id);
-      if (!order) return res.status(404).json({ error: 'Service request not found.' });
-      const isProvider = Number(order.provider_id) === Number(req.user.id);
-      const isBuyer = Number(order.buyer_id) === Number(req.user.id);
-      const transitions = isProvider ? providerTransitions : isBuyer ? buyerTransitions : {};
-      const nextStatus = transitions[order.status]?.[req.body.action];
-      if (!nextStatus) return res.status(409).json({ error: 'This action is not available for the current request status.' });
-      const noteColumn = isProvider ? 'provider_note' : 'buyer_note';
-      const result = await run(db, `UPDATE service_orders SET status = ?, ${noteColumn} = ?, updated_at = CURRENT_TIMESTAMP,
-        completed_at = CASE WHEN ? = 'completed' THEN CURRENT_TIMESTAMP ELSE completed_at END WHERE id = ? AND status = ?`,
-      [nextStatus, req.body.note, nextStatus, order.id, order.status]);
-      if (!result.changes) return res.status(409).json({ error: 'This request changed. Refresh and try again.' });
-      await recordStatus(order.id, req.user.id, order.status, nextStatus, req.body.note);
-      const recipientId = isProvider ? order.buyer_id : order.provider_id;
-      notify({ userId: recipientId, kind: `service.${nextStatus}`, title: 'Service request updated', body: `${req.user.name} marked “${order.service_title}” as ${nextStatus.replaceAll('_', ' ')}.`, href: isProvider ? '/service-requests' : '/seller/dashboard/services', metadata: { serviceOrderId: order.id } });
-      return res.json({ success: true, request: serializeOrder(await readOrder(db, order.id)) });
-    } catch (error) { return next(error); }
+      const changed = await withTransaction(db, async (transaction) => {
+        const order = await readOrder(transaction, req.params.id);
+        if (!order) {
+          const error = new Error('Service request not found.');
+          error.statusCode = 404;
+          throw error;
+        }
+        const isProvider = Number(order.provider_id) === Number(req.user.id);
+        const isBuyer = Number(order.buyer_id) === Number(req.user.id);
+        const transitions = isProvider ? providerTransitions : isBuyer ? buyerTransitions : {};
+        const nextStatus = transitions[order.status]?.[req.body.action];
+        if (!nextStatus) {
+          const error = new Error('This action is not available for the current request status.');
+          error.statusCode = 409;
+          throw error;
+        }
+        const noteColumn = isProvider ? 'provider_note' : 'buyer_note';
+        const update = await run(transaction, `UPDATE service_orders SET status = ?, ${noteColumn} = ?, updated_at = CURRENT_TIMESTAMP,
+          completed_at = CASE WHEN ? = 'completed' THEN CURRENT_TIMESTAMP ELSE completed_at END WHERE id = ? AND status = ?`,
+        [nextStatus, req.body.note, nextStatus, order.id, order.status]);
+        if (!update.changes) {
+          const error = new Error('This request changed. Refresh and try again.');
+          error.statusCode = 409;
+          throw error;
+        }
+        await recordStatus(transaction, order.id, req.user.id, order.status, nextStatus, req.body.note);
+        return { order, nextStatus, recipientId: isProvider ? order.buyer_id : order.provider_id, isProvider };
+      });
+      notify({ userId: changed.recipientId, kind: `service.${changed.nextStatus}`, title: 'Service request updated', body: `${req.user.name} marked “${changed.order.service_title}” as ${changed.nextStatus.replaceAll('_', ' ')}.`, href: changed.isProvider ? '/service-requests' : '/seller/dashboard/services', metadata: { serviceOrderId: changed.order.id } });
+      return res.json({ success: true, request: serializeOrder(await readOrder(db, changed.order.id)) });
+    } catch (error) {
+      if (error.statusCode) return res.status(error.statusCode).json({ error: error.message });
+      return next(error);
+    }
   });
 
   router.post('/service-orders/:id/review', protect, validateIdParams('id'), validateServiceReview, async (req, res, next) => {
     try {
-      const order = await readOrder(db, req.params.id);
-      if (!order || Number(order.buyer_id) !== Number(req.user.id)) return res.status(404).json({ error: 'Completed service request not found.' });
-      if (order.status !== 'completed') return res.status(409).json({ error: 'A review is available after the service is completed.' });
-      if (order.review_rating) return res.status(409).json({ error: 'You have already reviewed this service request.' });
-      await run(db, 'INSERT INTO service_reviews (service_order_id, service_id, buyer_id, provider_id, rating, comment) VALUES (?, ?, ?, ?, ?, ?)',
-        [order.id, order.service_id, order.buyer_id, order.provider_id, req.body.rating, req.body.comment]);
-      await run(db, 'UPDATE services SET rating = COALESCE((SELECT AVG(rating) FROM service_reviews WHERE service_id = ?), 0) WHERE id = ?', [order.service_id, order.service_id]);
+      const order = await withTransaction(db, async (transaction) => {
+        const current = await readOrder(transaction, req.params.id);
+        if (!current || Number(current.buyer_id) !== Number(req.user.id)) {
+          const error = new Error('Completed service request not found.');
+          error.statusCode = 404;
+          throw error;
+        }
+        if (current.status !== 'completed') {
+          const error = new Error('A review is available after the service is completed.');
+          error.statusCode = 409;
+          throw error;
+        }
+        if (current.review_rating) {
+          const error = new Error('You have already reviewed this service request.');
+          error.statusCode = 409;
+          throw error;
+        }
+        await run(transaction, 'INSERT INTO service_reviews (service_order_id, service_id, buyer_id, provider_id, rating, comment) VALUES (?, ?, ?, ?, ?, ?)',
+          [current.id, current.service_id, current.buyer_id, current.provider_id, req.body.rating, req.body.comment]);
+        await run(transaction, 'UPDATE services SET rating = COALESCE((SELECT AVG(rating) FROM service_reviews WHERE service_id = ?), 0) WHERE id = ?', [current.service_id, current.service_id]);
+        return current;
+      });
       notify({ userId: order.provider_id, kind: 'service.reviewed', title: 'New client review', body: `${req.user.name} reviewed “${order.service_title}”.`, href: '/seller/dashboard/services', metadata: { serviceOrderId: order.id } });
       return res.status(201).json({ success: true, message: 'Your review was published.' });
-    } catch (error) { return next(error); }
+    } catch (error) {
+      if (error.statusCode) return res.status(error.statusCode).json({ error: error.message });
+      return next(error);
+    }
   });
 
   return router;

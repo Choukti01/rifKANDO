@@ -48,6 +48,25 @@ const text = (value, field, { min = 0, max, required = false, pattern } = {}) =>
   return normalized;
 };
 
+// Keep the default text validator deliberately strict for short, single-line
+// fields. Package features are authored as a list in the seller UI, though, so
+// accept line feeds there while continuing to reject every other control byte.
+const multilineText = (value, field, { min = 0, max, required = false } = {}) => {
+  if (value === undefined || value === null) {
+    if (required) fail(field, 'is required.');
+    return undefined;
+  }
+  if (typeof value !== 'string') fail(field, 'must be a string.');
+  const normalized = value.replace(/\r\n?/g, '\n').trim();
+  if (required && !normalized) fail(field, 'is required.');
+  if (normalized.length < min) fail(field, `must contain at least ${min} characters.`);
+  if (max !== undefined && normalized.length > max) fail(field, `must not exceed ${max} characters.`);
+  if (/[\u0000-\u0009\u000B-\u001F\u007F]/.test(normalized)) {
+    fail(field, 'contains invalid control characters.');
+  }
+  return normalized;
+};
+
 const positiveId = (value, field) => {
   if (!/^[1-9]\d*$/.test(String(value))) fail(field, 'must be a positive numeric identifier.');
   const parsed = Number(value);
@@ -447,7 +466,7 @@ const jsonTextList = (value, field, { maxItems = 50, itemMax = 300 } = {}) => {
   return JSON.stringify(parsed.map((item, index) => text(item, `${field}.${index}`, { required: true, max: itemMax })));
 };
 
-const catalogPayload = (body, { partial, fields, allowed }) => {
+const catalogPayload = (body, { partial, fields, allowed, mediaTypes = ['image'] }) => {
   object(body);
   onlyKeys(body, ['title', 'description', 'price', 'old_price', 'category', 'media', ...allowed]);
   const required = !partial;
@@ -457,7 +476,7 @@ const catalogPayload = (body, { partial, fields, allowed }) => {
     price: required ? money(body.price, 'price', { min: 0.01 }) : optionalMoney(body.price, 'price', { min: 0.01 }),
     old_price: optionalMoney(body.old_price, 'old_price', { min: 0.01 }),
     category: text(body.category, 'category', { required, min: 2, max: 64 }),
-    media: publicMedia(body.media),
+    media: publicMedia(body.media, 'media', 10, mediaTypes),
     ...fields(body, required),
   };
   if (result.old_price !== undefined && result.price !== undefined && result.old_price < result.price) {
@@ -481,6 +500,7 @@ const coursePayload = (body, partial) => catalogPayload(body, {
 const servicePayload = (body, partial) => catalogPayload(body, {
   partial,
   allowed: ['delivery_time', 'revisions', 'image', 'deliverables', 'client_requirements'],
+  mediaTypes: ['image', 'video'],
   fields: (value, required) => ({
     delivery_time: value.delivery_time === undefined ? (required ? '' : undefined) : text(value.delivery_time, 'delivery_time', { max: 100 }),
     revisions: value.revisions === undefined ? (required ? 0 : undefined) : integer(value.revisions, 'revisions', { min: 0, max: 100 }),
@@ -851,7 +871,7 @@ const packagePayload = (body, partial) => {
     price: required ? money(body.price, 'price', { min: 0.01 }) : optionalMoney(body.price, 'price', { min: 0.01 }),
     delivery_time: body.delivery_time === undefined ? (required ? '' : undefined) : text(body.delivery_time, 'delivery_time', { max: 100 }),
     revisions: body.revisions === undefined ? (required ? 0 : undefined) : integer(body.revisions, 'revisions', { min: 0, max: 100 }),
-    features: body.features === undefined ? (required ? '' : undefined) : text(body.features, 'features', { max: 5_000 }),
+    features: body.features === undefined ? (required ? '' : undefined) : multilineText(body.features, 'features', { max: 5_000 }),
   };
   const sanitized = Object.fromEntries(Object.entries(result).filter(([, value]) => value !== undefined));
   if (partial && Object.keys(sanitized).length === 0) fail('body', 'must include at least one editable field.');

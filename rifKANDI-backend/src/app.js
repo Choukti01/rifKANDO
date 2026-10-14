@@ -2017,6 +2017,8 @@ app.use('/api', createServiceRoutes({
   validateServiceRequestCreate,
   validateServiceOrderAction,
   validateServiceReview,
+  validatePackageCreate,
+  validatePackageUpdate,
   notificationService: NotificationService,
 }));
 
@@ -2866,87 +2868,6 @@ app.patch('/api/courses/:courseId/lessons/reorder', protect, requireSeller, (req
             res.json({ success: true });
           }
         });
-    });
-  });
-});
-
-// ==================== SERVICE PACKAGES ENDPOINTS ====================
-app.post('/api/services/:serviceId/packages', protect, requireSeller, validateIdParams('serviceId'), validatePackageCreate, (req, res) => {
-  const { serviceId } = req.params;
-  const { name, price, delivery_time, revisions, features } = req.body;
-  
-  db.get('SELECT provider_id FROM services WHERE id = ?', [serviceId], (err, service) => {
-    if (err || !service) {
-      return res.status(404).json({ error: 'Service not found' });
-    }
-    if (service.provider_id !== req.user.id) {
-      return res.status(403).json({ error: 'Not authorized' });
-    }
-    
-    db.run(
-      `INSERT INTO service_packages (service_id, name, price, delivery_time, revisions, features)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [serviceId, name, price, delivery_time || null, revisions || 0, features || null],
-      function(err) {
-        if (err) {
-          console.error('Package creation error:', err);
-          return res.status(500).json({ error: err.message });
-        }
-        res.json({ success: true, packageId: this.lastID });
-      }
-    );
-  });
-});
-
-app.put('/api/services/:serviceId/packages/:packageId', protect, requireSeller, validateIdParams('serviceId', 'packageId'), validatePackageUpdate, (req, res) => {
-  const { serviceId, packageId } = req.params;
-  const { name, price, delivery_time, revisions, features } = req.body;
-  
-  db.get('SELECT provider_id FROM services WHERE id = ?', [serviceId], (err, service) => {
-    if (err || !service) {
-      return res.status(404).json({ error: 'Service not found' });
-    }
-    if (service.provider_id !== req.user.id) {
-      return res.status(403).json({ error: 'Not authorized' });
-    }
-    
-    db.run(
-      `UPDATE service_packages SET 
-        name = COALESCE(?, name),
-        price = COALESCE(?, price),
-        delivery_time = COALESCE(?, delivery_time),
-        revisions = COALESCE(?, revisions),
-        features = COALESCE(?, features)
-       WHERE id = ? AND service_id = ?`,
-      [name, price, delivery_time, revisions, features, packageId, serviceId],
-      function(err) {
-        if (err) {
-          console.error('Package update error:', err);
-          return res.status(500).json({ error: err.message });
-        }
-        res.json({ success: true });
-      }
-    );
-  });
-});
-
-app.delete('/api/services/:serviceId/packages/:packageId', protect, requireSeller, validateIdParams('serviceId', 'packageId'), (req, res) => {
-  const { serviceId, packageId } = req.params;
-  
-  db.get('SELECT provider_id FROM services WHERE id = ?', [serviceId], (err, service) => {
-    if (err || !service) {
-      return res.status(404).json({ error: 'Service not found' });
-    }
-    if (service.provider_id !== req.user.id) {
-      return res.status(403).json({ error: 'Not authorized' });
-    }
-    
-    db.run('DELETE FROM service_packages WHERE id = ? AND service_id = ?', [packageId, serviceId], function(err) {
-      if (err) {
-        console.error('Package delete error:', err);
-        return res.status(500).json({ error: err.message });
-      }
-      res.json({ success: true });
     });
   });
 });
