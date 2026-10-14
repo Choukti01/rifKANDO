@@ -112,17 +112,53 @@ async function run() {
     for (const [headers, action, note] of [
       [sellerHeaders, 'accept', 'The brief is clear. I can start this week.'],
       [sellerHeaders, 'start', 'I am preparing the first concepts.'],
-      [sellerHeaders, 'submit', 'The first version is ready for your review.'],
-      [buyerHeaders, 'request_revision', 'Please make the heading more visible.'],
-      [sellerHeaders, 'start', 'I am applying the requested revision.'],
-      [sellerHeaders, 'submit', 'The revised files are ready for approval.'],
-      [buyerHeaders, 'complete', 'The final result is approved.'],
     ]) {
       const transition = await fetchJson(port, `/api/service-orders/${requestId}/status`, {
         method: 'PATCH', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify({ action, note }),
       });
       assert.equal(transition.response.status, 200, `service transition ${action} succeeds`);
     }
+
+    const privateWorkroom = await fetchJson(port, `/api/service-orders/${requestId}/workroom`, { headers: secondBuyerHeaders });
+    assert.equal(privateWorkroom.response.status, 403, 'unrelated users cannot read a private service workroom');
+    const invalidDelivery = await fetchJson(port, `/api/service-orders/${requestId}/workroom/entries`, {
+      method: 'POST', headers: { ...buyerHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'delivery', body: 'A buyer must not be able to impersonate a provider delivery.', delivery_url: 'https://example.test/deliverable' }),
+    });
+    assert.equal(invalidDelivery.response.status, 409, 'only the provider can deliver work');
+    const delivery = await fetchJson(port, `/api/service-orders/${requestId}/workroom/entries`, {
+      method: 'POST', headers: { ...sellerHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'delivery', body: 'The first version is ready for your review.', delivery_url: 'https://example.test/first-version' }),
+    });
+    assert.equal(delivery.response.status, 201, 'provider can deliver work through the private workroom');
+    assert.equal(delivery.body.status, 'submitted', 'delivery atomically moves the service request to submitted');
+    const buyerWorkroom = await fetchJson(port, `/api/service-orders/${requestId}/workroom`, { headers: buyerHeaders });
+    assert.equal(buyerWorkroom.response.status, 200, 'buyer can read their private service workroom');
+    assert.equal(buyerWorkroom.body.workroom.entries[0].entry_type, 'delivery');
+    const revision = await fetchJson(port, `/api/service-orders/${requestId}/workroom/entries`, {
+      method: 'POST', headers: { ...buyerHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'revision', body: 'Please make the heading more visible.' }),
+    });
+    assert.equal(revision.response.status, 201, 'buyer can request a revision through the workroom');
+    assert.equal(revision.body.status, 'revision_requested', 'revision atomically returns the project to the provider');
+
+    for (const [headers, action, note] of [
+      [sellerHeaders, 'start', 'I am applying the requested revision.'],
+    ]) {
+      const transition = await fetchJson(port, `/api/service-orders/${requestId}/status`, {
+        method: 'PATCH', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify({ action, note }),
+      });
+      assert.equal(transition.response.status, 200, `service transition ${action} succeeds`);
+    }
+    const revisedDelivery = await fetchJson(port, `/api/service-orders/${requestId}/workroom/entries`, {
+      method: 'POST', headers: { ...sellerHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'delivery', body: 'The revised files are ready for approval.', delivery_url: 'https://example.test/revised-version' }),
+    });
+    assert.equal(revisedDelivery.response.status, 201, 'provider can submit a revised delivery');
+    const completion = await fetchJson(port, `/api/service-orders/${requestId}/status`, {
+      method: 'PATCH', headers: { ...buyerHeaders, 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'complete', note: 'The final result is approved.' }),
+    });
+    assert.equal(completion.response.status, 200, 'buyer can complete the reviewed service request');
 
     const review = await fetchJson(port, `/api/service-orders/${requestId}/review`, {
       method: 'POST', headers: { ...buyerHeaders, 'Content-Type': 'application/json' }, body: JSON.stringify({ rating: 5, comment: 'Clear communication and a useful final result.' }),

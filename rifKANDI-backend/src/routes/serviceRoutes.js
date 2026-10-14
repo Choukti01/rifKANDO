@@ -112,6 +112,7 @@ const createServiceRoutes = ({
   validateServiceProviderProfile,
   validateServiceRequestCreate,
   validateServiceOrderAction,
+  validateServiceWorkroomEntry,
   validateServiceReview,
   validatePackageCreate,
   validatePackageUpdate,
@@ -125,6 +126,12 @@ const createServiceRoutes = ({
     INSERT INTO service_order_status_history (service_order_id, actor_id, from_status, to_status, note)
     VALUES (?, ?, ?, ?, ?)
   `, [orderId, actorId, fromStatus, toStatus, note]);
+  const getParticipantRole = (order, userId) => {
+    if (Number(order.provider_id) === Number(userId)) return 'provider';
+    if (Number(order.buyer_id) === Number(userId)) return 'buyer';
+    return null;
+  };
+  const isActiveWorkroomStatus = (status) => ['requested', 'accepted', 'in_progress', 'submitted', 'revision_requested'].includes(status);
 
   router.get('/services', async (req, res, next) => {
     try {
@@ -450,6 +457,76 @@ const createServiceRoutes = ({
         LEFT JOIN service_reviews sr ON sr.service_order_id = so.id WHERE so.provider_id = ? ORDER BY so.updated_at DESC, so.id DESC`, [req.user.id]);
       return res.json({ success: true, orders: rows.map(serializeOrder) });
     } catch (error) { return next(error); }
+  });
+
+  router.get('/service-orders/:id/workroom', protect, validateIdParams('id'), async (req, res, next) => {
+    try {
+      const order = await readOrder(db, req.params.id);
+      if (!order) return res.status(404).json({ error: 'Service project not found.' });
+      const role = getParticipantRole(order, req.user.id);
+      if (!role) return res.status(403).json({ error: 'You do not have access to this private project workspace.' });
+      const [entries, history] = await Promise.all([
+        all(db, `SELECT e.id, e.entry_type, e.body, e.delivery_url, e.created_at, e.author_id,
+          u.name AS author_name, u."profilePicture" AS author_picture
+          FROM service_workroom_entries e JOIN users u ON u.id = e.author_id
+          WHERE e.service_order_id = ? ORDER BY e.created_at ASC, e.id ASC`, [order.id]),
+        all(db, `SELECT h.id, h.from_status, h.to_status, h.note, h.created_at, h.actor_id,
+          u.name AS actor_name FROM service_order_status_history h
+          LEFT JOIN users u ON u.id = h.actor_id
+          WHERE h.service_order_id = ? ORDER BY h.created_at ASC, h.id ASC`, [order.id]),
+      ]);
+      return res.json({ success: true, workroom: {
+        project: serializeOrder(order), role,
+        entries: entries.map((entry) => ({ ...entry, id: Number(entry.id), author_id: Number(entry.author_id) })),
+        history: history.map((entry) => ({ ...entry, id: Number(entry.id), actor_id: entry.actor_id ? Number(entry.actor_id) : null })),
+      } });
+    } catch (error) { return next(error); }
+  });
+
+  router.post('/service-orders/:id/workroom/entries', protect, validateIdParams('id'), validateServiceWorkroomEntry, async (req, res, next) => {
+    try {
+      const changed = await withTransaction(db, async (transaction) => {
+        const order = await readOrder(transaction, req.params.id);
+        if (!order) { const error = new Error('Service project not found.'); error.statusCode = 404; throw error; }
+        const role = getParticipantRole(order, req.user.id);
+        if (!role) { const error = new Error('You do not have access to this private project workspace.'); error.statusCode = 403; throw error; }
+        if (!isActiveWorkroomStatus(order.status)) { const error = new Error('This project is closed and no longer accepts workspace updates.'); error.statusCode = 409; throw error; }
+        const { type, body, delivery_url: deliveryUrl } = req.body;
+        if (type === 'delivery' && (role !== 'provider' || order.status !== 'in_progress')) {
+          const error = new Error('Only the provider can submit a delivery while work is in progress.'); error.statusCode = 409; throw error;
+        }
+        if (type === 'revision' && (role !== 'buyer' || order.status !== 'submitted')) {
+          const error = new Error('Only the client can request a revision after work is submitted.'); error.statusCode = 409; throw error;
+        }
+        const created = await run(transaction, `INSERT INTO service_workroom_entries
+          (service_order_id, author_id, entry_type, body, delivery_url) VALUES (?, ?, ?, ?, ?)`,
+        [order.id, req.user.id, type, body, deliveryUrl || null]);
+        let nextStatus = null;
+        const recipientId = role === 'provider' ? order.buyer_id : order.provider_id;
+        if (type === 'delivery') {
+          nextStatus = 'submitted';
+          const update = await run(transaction, `UPDATE service_orders SET status = 'submitted', provider_note = ?,
+            updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'in_progress'`, [body, order.id]);
+          if (!update.changes) { const error = new Error('This project changed. Refresh and try again.'); error.statusCode = 409; throw error; }
+          await recordStatus(transaction, order.id, req.user.id, order.status, nextStatus, body);
+        } else if (type === 'revision') {
+          nextStatus = 'revision_requested';
+          const update = await run(transaction, `UPDATE service_orders SET status = 'revision_requested', buyer_note = ?,
+            updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'submitted'`, [body, order.id]);
+          if (!update.changes) { const error = new Error('This project changed. Refresh and try again.'); error.statusCode = 409; throw error; }
+          await recordStatus(transaction, order.id, req.user.id, order.status, nextStatus, body);
+        }
+        return { order, role, recipientId, entryId: created.lastID, nextStatus };
+      });
+      const verb = changed.nextStatus === 'submitted' ? 'delivered work for review' : changed.nextStatus === 'revision_requested' ? 'requested a revision' : 'added a project message';
+      notify({ userId: changed.recipientId, kind: `service.workroom.${changed.nextStatus || 'message'}`,
+        title: 'Service workroom update', body: `${req.user.name} ${verb} on “${changed.order.service_title}”.`,
+        href: `/service-workroom/${changed.order.id}`, metadata: { serviceOrderId: changed.order.id, entryId: changed.entryId } });
+      return res.status(201).json({ success: true, entry: { id: Number(changed.entryId) }, status: changed.nextStatus || changed.order.status });
+    } catch (error) {
+      if (error.statusCode) return res.status(error.statusCode).json({ error: error.message });
+      return next(error);
+    }
   });
 
   router.patch('/service-orders/:id/status', protect, validateIdParams('id'), validateServiceOrderAction, async (req, res, next) => {

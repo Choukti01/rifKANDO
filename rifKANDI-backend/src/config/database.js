@@ -665,6 +665,21 @@ db.serialize(() => {
   `);
 
   db.run(`
+    CREATE TABLE IF NOT EXISTS service_workroom_entries (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      service_order_id INTEGER NOT NULL,
+      author_id INTEGER NOT NULL,
+      entry_type TEXT NOT NULL CHECK(entry_type IN ('message', 'delivery', 'revision')),
+      body TEXT NOT NULL DEFAULT '',
+      delivery_url TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (service_order_id) REFERENCES service_orders(id) ON DELETE CASCADE,
+      FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `);
+  db.run('CREATE INDEX IF NOT EXISTS idx_service_workroom_entries_order_created ON service_workroom_entries(service_order_id, created_at ASC, id ASC)');
+
+  db.run(`
     CREATE TABLE IF NOT EXISTS service_reviews (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       service_order_id INTEGER NOT NULL UNIQUE,

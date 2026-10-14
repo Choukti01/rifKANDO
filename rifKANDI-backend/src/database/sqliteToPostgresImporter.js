@@ -55,6 +55,8 @@ const SQLITE_IMPORT_ORDER = Object.freeze([
   'service_media',
   'service_packages',
   'service_orders',
+  'service_order_status_history',
+  'service_workroom_entries',
   'digital_products',
   'digital_media',
   'digital_files',

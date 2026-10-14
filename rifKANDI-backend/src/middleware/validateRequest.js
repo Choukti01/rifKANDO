@@ -693,6 +693,31 @@ const validateServiceOrderAction = validate((req) => {
     },
   };
 });
+const httpsUrl = (value, field, { required = false } = {}) => {
+  if (value === undefined || value === null || value === '') {
+    if (required) fail(field, 'is required.');
+    return '';
+  }
+  const normalized = text(value, field, { max: 2_048 });
+  try {
+    const parsed = new URL(normalized);
+    if (parsed.protocol !== 'https:' || parsed.username || parsed.password) fail(field, 'must be a safe HTTPS URL.');
+    return parsed.toString();
+  } catch (error) {
+    if (error instanceof RequestValidationError) throw error;
+    fail(field, 'must be a valid HTTPS URL.');
+  }
+};
+const validateServiceWorkroomEntry = validate((req) => {
+  const body = object(req.body);
+  onlyKeys(body, ['type', 'body', 'delivery_url']);
+  const type = enumValue(body.type, 'type', ['message', 'delivery', 'revision']);
+  return { body: {
+    type,
+    body: multilineText(body.body, 'body', { required: true, min: 2, max: 5_000 }),
+    delivery_url: httpsUrl(body.delivery_url, 'delivery_url', { required: type === 'delivery' }),
+  } };
+});
 const validateServiceReview = validate((req) => {
   const body = object(req.body);
   onlyKeys(body, ['rating', 'comment']);
@@ -1030,6 +1055,7 @@ module.exports = {
   validateServiceProviderProfile,
   validateServiceRequestCreate,
   validateServiceOrderAction,
+  validateServiceWorkroomEntry,
   validateServiceReview,
   validateBookingCreate,
   validateBookingUpdate,

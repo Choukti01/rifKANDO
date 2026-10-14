@@ -195,6 +195,8 @@ export const requestService = (id, request) => api.post(`/services/${id}/request
 export const getMyServiceRequests = () => api.get('/my-service-requests');
 export const getMyServiceOrders = () => api.get('/my-service-orders');
 export const updateServiceOrderStatus = (id, action, note = '') => api.patch(`/service-orders/${id}/status`, { action, note });
+export const getServiceWorkroom = (id) => api.get(`/service-orders/${id}/workroom`);
+export const addServiceWorkroomEntry = (id, entry) => api.post(`/service-orders/${id}/workroom/entries`, entry);
 export const reviewServiceOrder = (id, rating, comment = '') => api.post(`/service-orders/${id}/review`, { rating, comment });
 
 // ==================== DIGITAL PRODUCT APIs ====================

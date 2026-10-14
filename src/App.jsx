@@ -59,6 +59,7 @@ const AddService = lazy(() => import('./pages/seller/services/AddService'))
 const EditService = lazy(() => import('./pages/seller/services/EditService'))
 const ServiceProfile = lazy(() => import('./pages/seller/services/ServiceProfile'))
 const ServiceRequestsPage = lazy(() => import('./pages/buyer/ServiceRequestsPage'))
+const ServiceWorkroomPage = lazy(() => import('./pages/services/ServiceWorkroomPage'))
 // const DigitalDashboard = lazy(() => import('./pages/seller/digital/DigitalDashboard'))
 // const AddDigitalProduct = lazy(() => import('./pages/seller/digital/AddDigitalProduct'))
 // const EditDigitalProduct = lazy(() => import('./pages/seller/digital/EditDigitalProduct'))
@@ -117,7 +118,7 @@ function AppContent() {
   const location = useLocation()
   const [apiAvailable, setApiAvailable] = useState(null)
   const [availabilityAttempt, setAvailabilityAttempt] = useState(0)
-  const isWorkspaceRoute = /^\/(?:admin|operations|seller|cart|checkout|orders|findit\/dashboard|login|register)/.test(location.pathname)
+  const isWorkspaceRoute = /^\/(?:admin|operations|seller|cart|checkout|orders|findit\/dashboard|service-workroom|login|register)/.test(location.pathname)
 
   useEffect(() => {
     let active = true
@@ -266,6 +267,11 @@ function AppContent() {
                   <Route path="/service-requests" element={
                     <ProtectedRoute>
                       <ServiceRequestsPage />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/service-workroom/:id" element={
+                    <ProtectedRoute>
+                      <ServiceWorkroomPage />
                     </ProtectedRoute>
                   } />
                   <Route path="/messages" element={
