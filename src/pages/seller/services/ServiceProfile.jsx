@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { CheckBadgeIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 import { getMyServiceProfile, saveMyServiceProfile } from '../../../services/api';
+import { ServiceLocalized } from '../../../i18n/serviceI18n';
 
 const emptyProfile = {
   headline: '',
@@ -74,10 +75,10 @@ const ServiceProfile = () => {
     }
   };
 
-  if (loading) return <div className="service-profile-loading">Loading your professional profile...</div>;
+  if (loading) return <ServiceLocalized><div className="service-profile-loading">Loading your professional profile...</div></ServiceLocalized>;
 
   return (
-    <section className="service-profile-page">
+    <ServiceLocalized><section className="service-profile-page">
       <div className="service-profile-hero">
         <div>
           <p className="service-profile-eyebrow"><CheckBadgeIcon aria-hidden="true" />Professional service profile</p>
@@ -128,7 +129,7 @@ const ServiceProfile = () => {
         .service-profile-secondary,.credential-remove{display:inline-flex;align-items:center;justify-content:center;gap:.38rem;border:1px solid #b9ddef;border-radius:11px;background:#f1faff;color:#146da9;font:inherit;font-size:.78rem;font-weight:800;cursor:pointer}.service-profile-secondary{padding:.58rem .72rem}.service-profile-secondary svg,.credential-remove svg{width:1rem;height:1rem}.service-profile-empty{margin:0;color:#67849a;font-size:.86rem;line-height:1.5}.credential-list{display:grid;gap:.65rem}.credential-row{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr) 88px 40px;gap:.55rem}.credential-remove{padding:0;color:#b24b4b;border-color:#f1caca;background:#fff7f7}.service-profile-actions{display:flex;justify-content:flex-end;gap:.7rem}.service-profile-actions>a,.service-profile-actions>button{min-height:44px;padding:.7rem .95rem;border-radius:13px;font:inherit;font-size:.84rem;font-weight:800;text-decoration:none;cursor:pointer}.service-profile-cancel{display:inline-flex;align-items:center;color:#416782;border:1px solid #cddde8;background:#fff}.service-profile-actions>button{border:1px solid #146da9;background:linear-gradient(135deg,#0c639f,#2695d8);color:#fff;box-shadow:0 9px 20px rgba(18,108,168,.2)}.service-profile-actions>button:disabled{opacity:.62;cursor:wait}.service-profile-loading{padding:3rem;text-align:center;color:#5a7890}
         @media(max-width:680px){.service-profile-hero{align-items:flex-start}.service-profile-progress{min-width:78px;padding:.7rem}.service-profile-progress strong{font-size:1.15rem}.service-profile-grid-two{grid-template-columns:1fr}.service-profile-grid-two label:nth-child(n+2){margin-top:1rem}.credential-row{grid-template-columns:1fr 1fr 66px 38px}.credential-row input{padding:.65rem .55rem;font-size:.78rem}.service-profile-card-heading{align-items:center}.service-profile-card-heading .service-profile-secondary{flex:0 0 auto}.service-profile-actions{position:sticky;bottom:.5rem;padding:.65rem;border:1px solid rgba(31,121,184,.15);border-radius:15px;background:rgba(255,255,255,.92);backdrop-filter:blur(12px)}}
       `}</style>
-    </section>
+    </section></ServiceLocalized>
   );
 };
 

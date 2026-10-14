@@ -4,10 +4,12 @@ import { ArrowPathIcon, BriefcaseIcon, CheckBadgeIcon, PencilIcon, PlusIcon, Sta
 import toast from 'react-hot-toast';
 import { deleteService, getMyServiceOrders, getMyServices, updateServiceOrderStatus } from '../../../services/api';
 import { getImageUrl } from '../../../utils/imageUtils';
+import { ServiceLocalized, useServiceI18n } from '../../../i18n/serviceI18n';
 
 const statusLabel = (status) => ({ requested: 'New request', accepted: 'Accepted', in_progress: 'In progress', submitted: 'Submitted', revision_requested: 'Revision requested', completed: 'Completed', declined: 'Declined', cancelled: 'Cancelled' }[status] || status);
 
 const ServicesDashboard = () => {
+  const { t } = useServiceI18n();
   const [services, setServices] = useState([]);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -19,9 +21,9 @@ const ServicesDashboard = () => {
       setServices(servicesResponse.data.services || []);
       setOrders(ordersResponse.data.orders || []);
     } catch (error) {
-      toast.error(error.response?.data?.error || 'Could not load your service workspace.');
+      toast.error(error.response?.data?.error || t('loadWorkspaceFailed'));
     } finally { setLoading(false); }
-  }, []);
+  }, [t]);
   useEffect(() => {
     const timer = window.setTimeout(() => { void load(); }, 0);
     return () => window.clearTimeout(timer);
@@ -31,22 +33,22 @@ const ServicesDashboard = () => {
     setBusy(order.id);
     try {
       await updateServiceOrderStatus(order.id, actionName);
-      toast.success(actionName === 'accept' ? 'Client request accepted.' : actionName === 'decline' ? 'Request declined.' : actionName === 'start' ? 'Work is now in progress.' : 'Work marked as submitted.');
+      toast.success(actionName === 'accept' ? t('acceptedRequest') : actionName === 'decline' ? t('declinedRequest') : actionName === 'start' ? t('working') : t('submitted'));
       await load();
-    } catch (error) { toast.error(error.response?.data?.error || 'This request could not be updated.'); }
+    } catch (error) { toast.error(error.response?.data?.error || t('updateRequestFailed')); }
     finally { setBusy(null); }
   };
   const endService = async (service) => {
     if (!window.confirm(`End “${service.title}”? New clients will no longer find it, but existing requests stay available.`)) return;
-    try { await deleteService(service.id); toast.success('Service ended.'); await load(); }
-    catch (error) { toast.error(error.response?.data?.error || 'Could not end this service.'); }
+    try { await deleteService(service.id); toast.success(t('endedSuccess')); await load(); }
+    catch (error) { toast.error(error.response?.data?.error || t('endFailed')); }
   };
 
-  if (loading) return <div className="service-workspace-loading">Loading service workspace...</div>;
+  if (loading) return <ServiceLocalized><div className="service-workspace-loading">Loading service workspace...</div></ServiceLocalized>;
   const activeRequests = orders.filter((order) => !['completed', 'declined', 'cancelled'].includes(order.status)).length;
   const completed = orders.filter((order) => order.status === 'completed').length;
 
-  return <section className="service-workspace">
+  return <ServiceLocalized><section className="service-workspace">
     <header className="service-workspace-hero"><div><p><BriefcaseIcon aria-hidden="true" />Service workspace</p><h2>Build trust. Manage real client work.</h2><span>Client requests stay separate from payments until rifKANDO connects a verified payment provider.</span></div><div className="service-workspace-hero-actions"><Link to="profile"><CheckBadgeIcon aria-hidden="true" />Professional profile</Link><Link to="add"><PlusIcon aria-hidden="true" />Create service</Link></div></header>
     <div className="service-workspace-stats"><article><span>Published services</span><strong>{services.filter((service) => service.status === 'published').length}</strong></article><article><span>Active client requests</span><strong>{activeRequests}</strong></article><article><span>Completed projects</span><strong>{completed}</strong></article><article><span>Average rating</span><strong>{services.length ? (services.reduce((sum, service) => sum + Number(service.rating || 0), 0) / services.length).toFixed(1) : '—'}<StarIcon aria-hidden="true" /></strong></article></div>
     <div className="service-workspace-grid">
@@ -57,7 +59,7 @@ const ServicesDashboard = () => {
     <style>{`
       .service-workspace{display:grid;gap:1rem;color:#173d5c}.service-workspace-hero{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:clamp(1.15rem,3vw,2rem);border:1px solid rgba(25,116,183,.16);border-radius:23px;background:linear-gradient(135deg,#e9f7ff,#fff);box-shadow:0 14px 28px rgba(17,73,116,.07)}.service-workspace-hero p{display:flex;align-items:center;gap:.35rem;margin:0;color:#1878b9;font-size:.72rem;font-weight:850;letter-spacing:.08em;text-transform:uppercase}.service-workspace-hero p svg{width:1rem;height:1rem}.service-workspace-hero h2{margin:.38rem 0;color:#153d5d;font-size:clamp(1.25rem,2.6vw,1.75rem);letter-spacing:-.04em}.service-workspace-hero>div>span{display:block;max-width:690px;color:#57778e;font-size:.86rem;line-height:1.55}.service-workspace-hero-actions{display:flex;gap:.55rem;flex-wrap:wrap;justify-content:flex-end}.service-workspace-hero-actions a,.service-workspace-heading>a{display:inline-flex;align-items:center;gap:.38rem;min-height:40px;padding:.58rem .72rem;border:1px solid #b5d9ec;border-radius:12px;background:#fff;color:#1771ac;font-size:.78rem;font-weight:850;text-decoration:none;white-space:nowrap}.service-workspace-hero-actions a:last-child{border-color:#126ca9;background:#1477b8;color:#fff;box-shadow:0 9px 18px rgba(16,104,164,.18)}.service-workspace-hero-actions svg,.service-workspace-heading>a svg{width:1rem;height:1rem}.service-workspace-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.75rem}.service-workspace-stats article{padding:1rem;border:1px solid rgba(26,111,175,.11);border-radius:16px;background:rgba(255,255,255,.84);box-shadow:0 8px 18px rgba(17,73,116,.04)}.service-workspace-stats span{display:block;color:#658298;font-size:.72rem;font-weight:800}.service-workspace-stats strong{display:flex;align-items:center;gap:.3rem;margin-top:.4rem;color:#136da9;font-size:1.4rem}.service-workspace-stats svg{width:1rem;height:1rem;color:#d99b18;fill:#ffdc6a}.service-workspace-grid{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:1rem}.service-workspace-card{min-width:0;border:1px solid rgba(25,108,170,.13);border-radius:20px;background:rgba(255,255,255,.88);box-shadow:0 10px 22px rgba(19,72,111,.05);overflow:hidden}.service-workspace-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:.6rem;padding:1rem 1rem .8rem;border-bottom:1px solid #e1edf3}.service-workspace-heading h3{margin:0;color:#244d6d;font-size:.96rem}.service-workspace-heading p{margin:.24rem 0 0;color:#708b9d;font-size:.77rem;line-height:1.45}.service-workspace-heading button{display:grid;place-items:center;width:36px;height:36px;border:1px solid #c8dfeb;border-radius:10px;background:#f6fbff;color:#2679b1;cursor:pointer}.service-workspace-heading button svg{width:1rem;height:1rem}.service-workspace-empty{display:grid;justify-items:center;gap:.45rem;padding:2.4rem 1rem;text-align:center;color:#6d899d;font-size:.85rem}.service-workspace-empty>svg{width:2rem;height:2rem;color:#55a7d9}.service-workspace-empty p{max-width:250px;margin:0;line-height:1.5}.service-workspace-empty a{margin-top:.2rem;color:#1774ae;font-weight:800;text-decoration:none}.service-order-list{display:grid}.service-provider-order{display:flex;justify-content:space-between;gap:1rem;padding:1rem;border-bottom:1px solid #e8f0f5}.service-provider-order:last-child{border-bottom:0}.service-provider-order>div:first-child{min-width:0}.service-provider-status{display:inline-flex;padding:.25rem .46rem;border-radius:99px;font-size:.65rem;font-weight:850}.status-requested{background:#fff3d9;color:#9a6504}.status-accepted,.status-in_progress,.status-revision_requested{background:#e6f5ff;color:#0871af}.status-submitted{background:#eeeaff;color:#5a46a2}.status-completed{background:#e4f8ed;color:#157548}.status-declined,.status-cancelled{background:#fff0f0;color:#a34545}.service-provider-order h4{margin:.48rem 0 .15rem;color:#244d6c;font-size:.9rem}.service-provider-order p{margin:0;color:#718da0;font-size:.75rem}.service-provider-order blockquote{max-width:470px;margin:.65rem 0 0;padding:.58rem .65rem;border-inline-start:3px solid #91c9e8;background:#f7fbfe;color:#526f84;font-size:.78rem;line-height:1.5;white-space:pre-wrap}.service-provider-order-actions{display:flex;align-items:center;align-self:center;gap:.45rem;flex-wrap:wrap;justify-content:flex-end}.service-provider-order-actions button{min-height:36px;padding:.5rem .65rem;border-radius:10px;font:inherit;font-size:.73rem;font-weight:850;cursor:pointer}.service-provider-order-actions .quiet{border:1px solid #d3e0e8;background:#fff;color:#59758a}.service-provider-order-actions .primary{border:1px solid #116da9;background:#1478ba;color:#fff}.service-provider-order-actions button:disabled{opacity:.55;cursor:wait}.service-order-finished{color:#718a9b;font-size:.72rem;font-weight:700;text-align:right}.service-listings{display:grid}.service-listing{display:grid;grid-template-columns:52px minmax(0,1fr) auto;align-items:center;gap:.65rem;padding:.8rem 1rem;border-bottom:1px solid #e8f0f5}.service-listing:last-child{border-bottom:0}.service-listing-media{width:52px;height:52px;display:grid;place-items:center;overflow:hidden;border-radius:12px;background:#eaf6fc;color:#3892c9}.service-listing-media img,.service-listing-media video{width:100%;height:100%;object-fit:cover}.service-listing-media svg{width:1.35rem;height:1.35rem}.service-listing>div:nth-child(2){min-width:0}.service-listing>div:nth-child(2)>span{color:#22804f;font-size:.64rem;font-weight:850;text-transform:uppercase}.service-listing>div:nth-child(2)>span:not(:first-child){color:#7b8d9c}.service-listing h4{overflow:hidden;margin:.18rem 0;text-overflow:ellipsis;white-space:nowrap;color:#2b5270;font-size:.85rem}.service-listing p{margin:0;color:#738da0;font-size:.72rem}.service-listing-actions{display:flex;gap:.38rem;align-items:center}.service-listing-actions a,.service-listing-actions button{min-height:33px;padding:.42rem .5rem;border:1px solid #d2e2eb;border-radius:9px;background:#fff;color:#4d6f85;font:inherit;font-size:.7rem;font-weight:800;text-decoration:none;cursor:pointer}.service-listing-actions a:nth-child(2){display:grid;place-items:center;color:#1775b1}.service-listing-actions svg{width:.9rem;height:.9rem}.service-listing-actions button{color:#a34b4b;border-color:#f0cdcd}.service-workspace-loading{padding:3rem;text-align:center;color:#638198}@media(max-width:980px){.service-workspace-grid{grid-template-columns:1fr}.service-workspace-stats{grid-template-columns:repeat(2,1fr)}}@media(max-width:640px){.service-workspace-hero{align-items:flex-start;flex-direction:column}.service-workspace-hero-actions{width:100%;justify-content:stretch}.service-workspace-hero-actions a{flex:1;justify-content:center}.service-provider-order{flex-direction:column}.service-provider-order-actions{justify-content:flex-start}.service-order-finished{text-align:left}.service-listing{grid-template-columns:46px minmax(0,1fr)}.service-listing-media{width:46px;height:46px}.service-listing-actions{grid-column:1/-1}.service-listing-actions>*{flex:1;text-align:center;justify-content:center}.service-workspace-stats article{padding:.8rem}}
     `}</style>
-  </section>;
+  </section></ServiceLocalized>;
 };
 
 export default ServicesDashboard;
