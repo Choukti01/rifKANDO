@@ -53,6 +53,7 @@ describe('Cloudflare Worker catalog snapshot route', () => {
     expect(response.headers.get('content-type')).toContain('application/xml');
     expect(sitemap).toContain('<loc>https://www.rifkando.com/products</loc>');
     expect(sitemap).toContain('<loc>https://www.rifkando.com/findit</loc>');
+    expect(sitemap).toContain('<loc>https://www.rifkando.com/services</loc>');
     expect(sitemap).not.toContain('/login</loc>');
     expect(assetsFetch).not.toHaveBeenCalled();
   });
@@ -78,6 +79,16 @@ describe('Cloudflare Worker catalog snapshot route', () => {
     expect(html).toContain('<link rel="canonical" href="https://www.rifkando.com/products" />');
     expect(html).toContain('name="robots" content="index,follow,max-image-preview:large"');
     expect(response.headers.get('cache-control')).toBe('no-store, max-age=0');
+  });
+
+  it('writes service marketplace metadata into its public page', async () => {
+    const document = '<!doctype html><html><head><meta name="description" content="old"><link rel="canonical" href="https://www.rifkando.com/"><title>old</title></head><body><div id="root"></div></body></html>';
+    const response = await worker.fetch(
+      new Request('https://www.rifkando.com/services', { headers: { Accept: 'text/html' } }),
+      { ASSETS: { fetch: vi.fn().mockResolvedValue(new Response(document, { headers: { 'Content-Type': 'text/html' } })) } },
+    );
+
+    await expect(response.text()).resolves.toContain('<title>Professional Services in Morocco | rifKANDO</title>');
   });
 
   it('serves the application shell when Assets redirects a browser deep link', async () => {
