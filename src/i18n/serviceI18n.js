@@ -47,7 +47,7 @@ Object.assign(copy.ar, { loadRequestsFailed: 'تعذر تحميل طلبات خ�
 export const useServiceI18n = () => {
   const { i18n } = useTranslation();
   const language = i18n.language?.startsWith('ar') ? 'ar' : i18n.language?.startsWith('fr') ? 'fr' : 'en';
-  const t = useCallback((key, values = {}) => String(copy[language][key] || copy.en[key] || key).replace(/{{(\\w+)}}/g, (_, name) => values[name] ?? ''), [language]);
+  const t = useCallback((key, values = {}) => String(copy[language][key] || copy.en[key] || key).replace(/{{(\w+)}}/g, (_, name) => values[name] ?? ''), [language]);
   return { t, locale: language === 'ar' ? 'ar-MA' : language === 'fr' ? 'fr-FR' : 'en-US' };
 };
 
