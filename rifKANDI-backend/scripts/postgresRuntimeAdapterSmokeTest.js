@@ -71,6 +71,10 @@ async function main() {
     prepareRunStatement('INSERT INTO users (name, is_verified, profilePicture) VALUES (?, TRUE, ?)'),
     'INSERT INTO users (name, is_verified, "profilePicture") VALUES ($1, TRUE, $2) RETURNING id'
   );
+  assert.strictEqual(
+    prepareRunStatement('INSERT INTO service_provider_profiles (user_id, headline) VALUES (?, ?) ON CONFLICT(user_id) DO UPDATE SET headline = excluded.headline'),
+    'INSERT INTO service_provider_profiles (user_id, headline) VALUES ($1, $2) ON CONFLICT(user_id) DO UPDATE SET headline = excluded.headline'
+  );
 
   const pool = createFakePool();
   const database = createPostgresDatabase({ pool, verifySchema: async () => undefined });

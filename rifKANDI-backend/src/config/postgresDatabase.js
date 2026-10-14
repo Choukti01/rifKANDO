@@ -29,6 +29,10 @@ const TABLES_WITHOUT_NUMERIC_ID = new Set([
   'passkey_credentials',
   'pending_registrations',
   'phone_verification_challenges',
+  // Service profiles intentionally use the provider's user_id as their
+  // primary key. They are upserted and therefore must never receive the
+  // compatibility adapter's automatic `RETURNING id` clause.
+  'service_provider_profiles',
 ]);
 
 // The SQLite schema historically used `profilePicture`. PostgreSQL preserves
