@@ -8,6 +8,11 @@ import MarketplaceImage from '../../components/common/MarketplaceImage';
 import ServiceUnavailableState from '../../components/common/ServiceUnavailableState';
 import { useTranslation } from 'react-i18next';
 
+// Keep public marketplace claims tied to the actual enabled sections. Courses
+// and digital remain visibly marked as under development and do not belong in
+// this count until their full buyer journeys are live.
+const ACTIVE_MARKETPLACE_SECTIONS = Object.freeze(['products', 'findit', 'services']);
+
 const HomePage = () => {
   const { t } = useTranslation();
   const [featuredItems, setFeaturedItems] = useState([]);
@@ -247,15 +252,15 @@ const HomePage = () => {
             </div>
             <div className="stat-item">
               <div className="stat-number">COD</div>
-              <div className="stat-label">Payment at Delivery</div>
+              <div className="stat-label">{t('availability.paymentAtDelivery')}</div>
             </div>
             <div className="stat-item">
               <div className="stat-number">{finditDataAvailable ? stats.finditRequestsCount : '—'}</div>
               <div className="stat-label">{finditDataAvailable ? t('availability.openRequests') : t('availability.liveData')}</div>
             </div>
             <div className="stat-item">
-              <div className="stat-number">2</div>
-              <div className="stat-label">Active Marketplace Sections</div>
+              <div className="stat-number">{ACTIVE_MARKETPLACE_SECTIONS.length}</div>
+              <div className="stat-label">{t('availability.activeMarketplaceSections')}</div>
             </div>
           </div>
         </div>

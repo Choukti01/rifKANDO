@@ -23,7 +23,7 @@ const STATIC_SITEMAP_PAGES = [
 ];
 
 const PUBLIC_PAGE_METADATA = {
-  '/': { title: 'rifKANDO | Products and FINDit from Morocco', description: 'Discover products, local sellers, and FINDit requests on rifKANDO, built from Morocco for the world.' },
+  '/': { title: 'rifKANDO | Products, Services and FINDit from Morocco', description: 'Discover products, professional services, local sellers, and FINDit requests on rifKANDO, built from Morocco for the world.' },
   '/products': { title: 'Products in Morocco | New, Used as New and Joutiya | rifKANDO', description: 'Browse new products, used-as-new finds, and Joutiya listings in Morocco. Compare sellers and pay by cash on delivery.' },
   '/findit': { title: 'FINDit | Ask Sellers to Find What You Need in Morocco | rifKANDO', description: 'Describe the product you need once. Sellers send matching solutions privately through rifKANDO FINDit.' },
   '/services': { title: 'Professional Services in Morocco | rifKANDO', description: 'Explore professional service offers, portfolios, packages, and completed-client reviews on rifKANDO.' },
@@ -110,7 +110,7 @@ const getPageMetadata = async (path) => {
       };
     }
   }
-  return { title: 'rifKANDO | Marketplace from Morocco', description: 'Discover products and FINDit requests on rifKANDO.', image: DEFAULT_IMAGE, type: 'website' };
+  return { title: 'rifKANDO | Marketplace from Morocco', description: 'Discover products, professional services, and FINDit requests on rifKANDO.', image: DEFAULT_IMAGE, type: 'website' };
 };
 
 const withCrawlerHeaders = (path, response) => {

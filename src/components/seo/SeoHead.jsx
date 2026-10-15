@@ -37,7 +37,7 @@ const SeoHead = ({
     const canonicalPath = normalisePath(path);
     const canonical = `${SEO_ORIGIN}${canonicalPath}`;
     const safeTitle = String(title || 'rifKANDO | Marketplace from Morocco');
-    const safeDescription = String(description || 'Discover products and FINDit requests on rifKANDO.');
+    const safeDescription = String(description || 'Discover products, professional services, and FINDit requests on rifKANDO.');
 
     document.title = safeTitle;
     document.documentElement.lang = 'en';

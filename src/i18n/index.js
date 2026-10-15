@@ -2,13 +2,13 @@ import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 
 export const resources = {
-  en: { translation: { common: { search: 'Search products, courses, services...', profile: 'My Profile', dashboard: 'Seller Dashboard', login: 'Continue with Google', logout: 'Logout', loading: 'Loading...', backToTop: 'Back to top ↑', allRightsReserved: 'All rights reserved.' }, nav: { products: 'Products', courses: 'Courses', services: 'Services', digital: 'Digital', bookings: 'Bookings', favorites: 'Favorites', cart: 'Cart', menu: 'Menu' }, footer: { kicker: 'ONE PLACE. MANY POSSIBILITIES.', description: "Morocco's first multi-service platform. Buy products, take courses, hire professionals, all in one place.", marketplace: 'Marketplace', sellers: 'For Sellers', support: 'Support', startSelling: 'Start Selling', sellerGuidelines: 'Seller Guidelines', pricing: 'Pricing', helpCenter: 'Help Center', contactUs: 'Contact Us', terms: 'Terms of Service', privacy: 'Privacy Policy', shop: 'Shop', learn: 'Learn', hire: 'Hire', book: 'Book' }, home: { welcome: 'Welcome to', description: "Morocco's first multi-service platform. Shop products, take courses, hire professionals, all in one place.", startShopping: 'Start Shopping', becomeSeller: 'Become a Seller', explore: 'Explore', categories: 'Categories', featured: 'Featured Items', viewAll: 'View All', ready: 'Ready to start selling?', join: 'Join thousands of sellers on rifKANDO' } } },
+  en: { translation: { common: { search: 'Search products, courses, services...', profile: 'My Profile', dashboard: 'Seller Dashboard', login: 'Continue with Google', logout: 'Logout', loading: 'Loading...', backToTop: 'Back to top ↑', allRightsReserved: 'All rights reserved.' }, nav: { products: 'Products', courses: 'Courses', services: 'Services', digital: 'Digital', bookings: 'Bookings', favorites: 'Favorites', cart: 'Cart', menu: 'Menu' }, footer: { kicker: 'ONE PLACE. MANY POSSIBILITIES.', description: 'A marketplace for products, professional services, and FINDit requests.', marketplace: 'Marketplace', sellers: 'For Sellers', support: 'Support', startSelling: 'Start Selling', sellerGuidelines: 'Seller Guidelines', pricing: 'Pricing', helpCenter: 'Help Center', contactUs: 'Contact Us', terms: 'Terms of Service', privacy: 'Privacy Policy', shop: 'Shop', learn: 'Learn', hire: 'Hire', book: 'Book' }, home: { welcome: 'Welcome to', description: 'Quality products, trusted professionals, and FINDit requests from Morocco to the world.', startShopping: 'Start Shopping', becomeSeller: 'Become a Seller', explore: 'Explore', categories: 'Categories', featured: 'Featured Items', viewAll: 'View All', ready: 'Ready to start selling?', join: 'Join thousands of sellers on rifKANDO' } } },
   fr: { translation: { common: { search: 'Rechercher des produits, cours, services...', profile: 'Mon profil', dashboard: 'Tableau de bord vendeur', login: 'Continuer avec Google', logout: 'Se déconnecter', loading: 'Chargement...', backToTop: 'Retour en haut ↑', allRightsReserved: 'Tous droits réservés.' }, nav: { products: 'Produits', courses: 'Cours', services: 'Services', digital: 'Numérique', bookings: 'Réservations', favorites: 'Favoris', cart: 'Panier', menu: 'Menu' }, footer: { kicker: 'UN SEUL ENDROIT. TANT DE POSSIBILITÉS.', description: "La première plateforme multiservices du Maroc. Achetez des produits, suivez des cours et engagez des professionnels, tout au même endroit.", marketplace: 'Place de marché', sellers: 'Pour les vendeurs', support: 'Assistance', startSelling: 'Commencer à vendre', sellerGuidelines: 'Guide du vendeur', pricing: 'Tarifs', helpCenter: "Centre d'aide", contactUs: 'Nous contacter', terms: "Conditions d'utilisation", privacy: 'Politique de confidentialité', shop: 'Acheter', learn: 'Apprendre', hire: 'Engager', book: 'Réserver' }, home: { welcome: 'Bienvenue sur', description: "La première plateforme multiservices du Maroc. Achetez des produits, suivez des cours et engagez des professionnels, tout au même endroit.", startShopping: 'Commencer mes achats', becomeSeller: 'Devenir vendeur', explore: 'Explorer', categories: 'Catégories', featured: 'Articles à la une', viewAll: 'Voir tout', ready: 'Prêt à commencer à vendre ?', join: 'Rejoignez des milliers de vendeurs sur rifKANDO' } } },
   ar: { translation: { common: { search: 'ابحث عن منتجات أو دورات أو خدمات...', profile: 'ملفي الشخصي', dashboard: 'لوحة تحكم البائع', login: 'المتابعة باستخدام Google', logout: 'تسجيل الخروج', loading: 'جارٍ التحميل...', backToTop: 'العودة إلى الأعلى ↑', allRightsReserved: 'جميع الحقوق محفوظة.' }, nav: { products: 'المنتجات', courses: 'الدورات', services: 'الخدمات', digital: 'المنتجات الرقمية', bookings: 'الحجوزات', favorites: 'المفضلة', cart: 'السلة', menu: 'القائمة' }, footer: { kicker: 'مكان واحد. إمكانيات كثيرة.', description: 'أول منصة متعددة الخدمات في المغرب. اشترِ المنتجات، وتعلم عبر الدورات، واستعن بالمحترفين، كل ذلك في مكان واحد.', marketplace: 'المتجر', sellers: 'للبائعين', support: 'الدعم', startSelling: 'ابدأ البيع', sellerGuidelines: 'دليل البائع', pricing: 'الأسعار', helpCenter: 'مركز المساعدة', contactUs: 'تواصل معنا', terms: 'شروط الاستخدام', privacy: 'سياسة الخصوصية', shop: 'تسوّق', learn: 'تعلّم', hire: 'اطلب خدمة', book: 'احجز' }, home: { welcome: 'مرحبًا بك في', description: 'أول منصة متعددة الخدمات في المغرب. اشترِ المنتجات، وتعلم عبر الدورات، واستعن بالمحترفين، كل ذلك في مكان واحد.', startShopping: 'ابدأ التسوق', becomeSeller: 'كن بائعًا', explore: 'استكشف', categories: 'الفئات', featured: 'عناصر مميزة', viewAll: 'عرض الكل', ready: 'هل أنت مستعد لبدء البيع؟', join: 'انضم إلى آلاف البائعين على rifKANDO' } } }
 };
 
-resources.en.translation.home.headline = 'Buy. Learn. Hire. Grow.';
-resources.en.translation.home.headlineLead = 'Buy. Learn. Hire.';
+resources.en.translation.home.headline = 'Buy. Find. Hire. Grow.';
+resources.en.translation.home.headlineLead = 'Buy. Find. Hire.';
 resources.en.translation.home.headlineAccent = 'Grow.';
 resources.en.translation.nav.findit = 'FINDit';
 delete resources.en.translation.nav.bookings;
@@ -16,19 +16,19 @@ resources.fr.translation.nav.findit = 'FINDit';
 delete resources.fr.translation.nav.bookings;
 resources.ar.translation.nav.findit = 'FINDit';
 delete resources.ar.translation.nav.bookings;
-resources.en.translation.home.valueStatement = 'Quality products, practical courses, trusted professionals, digital tools, and FINDit requests, connecting Morocco to the world.';
-resources.fr.translation.home.headline = 'Achetez. Apprenez. Engagez. Progressez.';
-resources.fr.translation.home.headlineLead = 'Achetez. Apprenez. Engagez.';
+resources.en.translation.home.valueStatement = 'Quality products, trusted professionals, and FINDit requests, connecting Morocco to the world.';
+resources.fr.translation.home.headline = 'Achetez. Trouvez. Engagez. Progressez.';
+resources.fr.translation.home.headlineLead = 'Achetez. Trouvez. Engagez.';
 resources.fr.translation.home.headlineAccent = 'Progressez.';
-resources.fr.translation.home.valueStatement = 'Des produits de qualité, des cours pratiques, des professionnels de confiance, des outils numériques et des réservations, le Maroc connecté au monde.';
-resources.ar.translation.home.headline = 'اشترِ. تعلّم. اطلب خدمة. تقدّم.';
-resources.ar.translation.home.headlineLead = 'اشترِ. تعلّم. اطلب خدمة.';
+resources.fr.translation.home.valueStatement = 'Des produits de qualité, des professionnels de confiance et des demandes FINDit, du Maroc vers le monde.';
+resources.ar.translation.home.headline = 'اشترِ. اعثر. اطلب خدمة. تقدّم.';
+resources.ar.translation.home.headlineLead = 'اشترِ. اعثر. اطلب خدمة.';
 resources.ar.translation.home.headlineAccent = 'تقدّم.';
-resources.ar.translation.home.valueStatement = 'منتجات موثوقة، ودورات عملية، ومحترفون موثوقون، وأدوات رقمية، وحجوزات، نربط المغرب بالعالم.';
+resources.ar.translation.home.valueStatement = 'منتجات موثوقة، ومحترفون موثوقون، وطلبات اعثر عليها، نربط المغرب بالعالم.';
 
 Object.assign(resources.en.translation.footer, {
   kicker: 'FROM MOROCCO TO THE WORLD.',
-  description: 'One platform for products, courses, professional services, digital tools, and FINDit requests.',
+  description: 'One platform for products, professional services, and FINDit requests.',
   sellers: 'Sell with rifKANDO',
   support: 'Support & Legal',
   startSelling: 'Become a Seller',
@@ -41,6 +41,7 @@ Object.assign(resources.en.translation.footer, {
 });
 
 Object.assign(resources.fr.translation.footer, {
+  description: 'Une plateforme pour les produits, les services professionnels et les demandes FINDit.',
   sellers: 'Vendre avec rifKANDO',
   support: 'Assistance et informations juridiques',
   startSelling: 'Devenir vendeur',
@@ -54,7 +55,7 @@ Object.assign(resources.fr.translation.footer, {
 
 Object.assign(resources.ar.translation.footer, {
   kicker: '\u0645\u0646 \u0627\u0644\u0645\u063a\u0631\u0628 \u0625\u0644\u0649 \u0627\u0644\u0639\u0627\u0644\u0645.',
-  description: '\u0645\u0646\u0635\u0629 \u0648\u0627\u062d\u062f\u0629 \u0644\u0644\u0645\u0646\u062a\u062c\u0627\u062a \u0648\u0627\u0644\u062f\u0648\u0631\u0627\u062a \u0648\u0627\u0644\u062e\u062f\u0645\u0627\u062a \u0627\u0644\u0645\u0647\u0646\u064a\u0629 \u0648\u0627\u0644\u0623\u062f\u0648\u0627\u062a \u0627\u0644\u0631\u0642\u0645\u064a\u0629 \u0648\u0637\u0644\u0628\u0627\u062a FINDit.',
+  description: '\u0645\u0646\u0635\u0629 \u0648\u0627\u062d\u062f\u0629 \u0644\u0644\u0645\u0646\u062a\u062c\u0627\u062a \u0648\u0627\u0644\u062e\u062f\u0645\u0627\u062a \u0627\u0644\u0645\u0647\u0646\u064a\u0629 \u0648\u0637\u0644\u0628\u0627\u062a FINDit.',
   sellers: '\u0627\u0644\u0628\u064a\u0639 \u0645\u0639 rifKANDO',
   support: '\u0627\u0644\u062f\u0639\u0645 \u0648\u0627\u0644\u0634\u0624\u0648\u0646 \u0627\u0644\u0642\u0627\u0646\u0648\u0646\u064a\u0629',
   startSelling: '\u0643\u0646 \u0628\u0627\u0626\u0639\u064b\u0627',
@@ -422,7 +423,7 @@ Object.assign(resources.en.translation, {
     eyebrow: 'Focused launch',
     shortLabel: 'Under development',
     title: '{{section}} is under development',
-    description: 'We are completing this section before opening it to the public. Products and FINDit are available now with cash on delivery.',
+    description: 'We are completing this section before opening it to the public. Products and FINDit are available now with cash on delivery. Professional services are available as request-first projects while verified online payments are prepared.',
     products: 'Browse products',
     findit: 'Explore FINDit',
     sections: { courses: 'Courses', services: 'Services', digital: 'Digital products', bookings: 'Bookings' },
@@ -434,7 +435,7 @@ Object.assign(resources.fr.translation, {
     eyebrow: 'Lancement ciblé',
     shortLabel: 'En cours de développement',
     title: '{{section}} est en cours de développement',
-    description: 'Nous finalisons cette section avant de l’ouvrir au public. Les produits et FINDit sont disponibles avec le paiement à la livraison.',
+    description: 'Nous finalisons cette section avant de l’ouvrir au public. Les produits et FINDit sont disponibles avec le paiement à la livraison. Les services professionnels sont disponibles sur demande, pendant la préparation des paiements en ligne vérifiés.',
     products: 'Voir les produits',
     findit: 'Découvrir FINDit',
     sections: { courses: 'Les cours', services: 'Les services', digital: 'Les produits numériques', bookings: 'Les réservations' },
@@ -446,7 +447,7 @@ Object.assign(resources.ar.translation, {
     eyebrow: '\u0625\u0637\u0644\u0627\u0642 \u0645\u0631\u0643\u0632',
     shortLabel: '\u0642\u064a\u062f \u0627\u0644\u062a\u0637\u0648\u064a\u0631',
     title: '{{section}} \u0642\u064a\u062f \u0627\u0644\u062a\u0637\u0648\u064a\u0631',
-    description: '\u0646\u064f\u0643\u0645\u0644 \u0647\u0630\u0627 \u0627\u0644\u0642\u0633\u0645 \u0642\u0628\u0644 \u0641\u062a\u062d\u0647 \u0644\u0644\u0639\u0645\u0648\u0645. \u0627\u0644\u0645\u0646\u062a\u062c\u0627\u062a \u0648\u0627\u0639\u062b\u0631 \u0639\u0644\u064a\u0647\u0627 \u0645\u062a\u0627\u062d\u0629 \u0627\u0644\u0622\u0646 \u0628\u0627\u0644\u062f\u0641\u0639 \u0639\u0646\u062f \u0627\u0644\u0627\u0633\u062a\u0644\u0627\u0645.',
+    description: '\u0646\u064f\u0643\u0645\u0644 \u0647\u0630\u0627 \u0627\u0644\u0642\u0633\u0645 \u0642\u0628\u0644 \u0641\u062a\u062d\u0647 \u0644\u0644\u0639\u0645\u0648\u0645. \u0627\u0644\u0645\u0646\u062a\u062c\u0627\u062a \u0648\u0627\u0639\u062b\u0631 \u0639\u0644\u064a\u0647\u0627 \u0645\u062a\u0627\u062d\u0629 \u0627\u0644\u0622\u0646 \u0628\u0627\u0644\u062f\u0641\u0639 \u0639\u0646\u062f \u0627\u0644\u0627\u0633\u062a\u0644\u0627\u0645. \u0627\u0644\u062e\u062f\u0645\u0627\u062a \u0627\u0644\u0645\u0647\u0646\u064a\u0629 \u0645\u062a\u0627\u062d\u0629 \u0643\u0645\u0634\u0627\u0631\u064a\u0639 \u062a\u0628\u062f\u0623 \u0628\u0637\u0644\u0628\u060c \u0625\u0644\u0649 \u062d\u064a\u0646 \u062a\u062c\u0647\u064a\u0632 \u0627\u0644\u062f\u0641\u0639 \u0627\u0644\u0625\u0644\u0643\u062a\u0631\u0648\u0646\u064a \u0627\u0644\u0645\u0648\u062b\u0642.',
     products: '\u062a\u0635\u0641\u062d \u0627\u0644\u0645\u0646\u062a\u062c\u0627\u062a',
     findit: '\u0627\u0633\u062a\u0643\u0634\u0641 \u0627\u0639\u062b\u0631 \u0639\u0644\u064a\u0647\u0627',
     sections: { courses: '\u0627\u0644\u062f\u0648\u0631\u0627\u062a', services: '\u0627\u0644\u062e\u062f\u0645\u0627\u062a', digital: '\u0627\u0644\u0645\u0646\u062a\u062c\u0627\u062a \u0627\u0644\u0631\u0642\u0645\u064a\u0629', bookings: '\u0627\u0644\u062d\u062c\u0648\u0632\u0627\u062a' },
@@ -456,9 +457,9 @@ Object.assign(resources.ar.translation, {
 Object.assign(resources.en.translation.common, { search: 'Search products...' });
 Object.assign(resources.fr.translation.common, { search: 'Rechercher des produits...' });
 Object.assign(resources.ar.translation.common, { search: '\u0627\u0628\u062d\u062b \u0639\u0646 \u0645\u0646\u062a\u062c\u0627\u062a...' });
-Object.assign(resources.en.translation.home, { valueStatement: 'Trusted products and FINDit requests, connecting Morocco to the world.' });
-Object.assign(resources.fr.translation.home, { valueStatement: 'Des produits fiables et des demandes FINDit, du Maroc vers le monde.' });
-Object.assign(resources.ar.translation.home, { valueStatement: '\u0645\u0646\u062a\u062c\u0627\u062a \u0645\u0648\u062b\u0648\u0642\u0629 \u0648\u0637\u0644\u0628\u0627\u062a \u0627\u0639\u062b\u0631 \u0639\u0644\u064a\u0647\u0627 \u0645\u0646 \u0627\u0644\u0645\u063a\u0631\u0628 \u0625\u0644\u0649 \u0627\u0644\u0639\u0627\u0644\u0645.' });
+Object.assign(resources.en.translation.home, { valueStatement: 'Trusted products, professional services, and FINDit requests, connecting Morocco to the world.' });
+Object.assign(resources.fr.translation.home, { valueStatement: 'Des produits fiables, des services professionnels et des demandes FINDit, du Maroc vers le monde.' });
+Object.assign(resources.ar.translation.home, { valueStatement: '\u0645\u0646\u062a\u062c\u0627\u062a \u0645\u0648\u062b\u0648\u0642\u0629 \u0648\u062e\u062f\u0645\u0627\u062a \u0645\u0647\u0646\u064a\u0629 \u0648\u0637\u0644\u0628\u0627\u062a \u0627\u0639\u062b\u0631 \u0639\u0644\u064a\u0647\u0627 \u0645\u0646 \u0627\u0644\u0645\u063a\u0631\u0628 \u0625\u0644\u0649 \u0627\u0644\u0639\u0627\u0644\u0645.' });
 
 Object.assign(resources.en.translation, {
   availability: {
@@ -475,6 +476,8 @@ Object.assign(resources.en.translation, {
   },
 });
 
+Object.assign(resources.en.translation.availability, { paymentAtDelivery: 'Payment on delivery', activeMarketplaceSections: 'Active marketplace sections' });
+
 Object.assign(resources.fr.translation, {
   availability: {
     title: 'Place de marché temporairement indisponible',
@@ -490,6 +493,8 @@ Object.assign(resources.fr.translation, {
   },
 });
 
+Object.assign(resources.fr.translation.availability, { paymentAtDelivery: 'Paiement à la livraison', activeMarketplaceSections: 'Sections actives de la place de marché' });
+
 Object.assign(resources.ar.translation, {
   availability: {
     title: 'سوق rifKANDO غير متاح مؤقتًا',
@@ -504,6 +509,8 @@ Object.assign(resources.ar.translation, {
     items: 'عناصر',
   },
 });
+
+Object.assign(resources.ar.translation.availability, { paymentAtDelivery: 'الدفع عند الاستلام', activeMarketplaceSections: 'أقسام السوق النشطة' });
 
 Object.assign(resources.en.translation.auth, {
   googleOnlyLead: 'Sign in securely with your Google account.',
