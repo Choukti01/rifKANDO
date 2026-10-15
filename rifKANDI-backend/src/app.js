@@ -1575,6 +1575,49 @@ app.post('/api/upload-media', protect, requireSeller, (req, res, next) => {
   });
 }, persistPublicMedia, (req, res) => res.json({ success: true, ...req.publicMedia }));
 
+// Credentials are optional public proof selected by a service provider. This
+// narrow route intentionally accepts only a safe image or a real PDF; it is
+// not a general document upload and must never be used for IDs or bank files.
+const credentialProofUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024, files: 1, fields: 4, fieldSize: 32 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const extension = path.extname(file.originalname || '').slice(1).toLowerCase();
+    const mimeType = String(file.mimetype || '').toLowerCase();
+    if (mimeType === 'application/pdf' || mimeType.startsWith('image/') || ['pdf', 'jpg', 'jpeg', 'png', 'webp', 'gif'].includes(extension)) return cb(null, true);
+    return cb(new Error('Only PDF, JPEG, PNG, WebP, and GIF credential proof files are allowed.'));
+  },
+});
+
+const inspectCredentialProof = async (file) => {
+  const extension = path.extname(file.originalname || '').slice(1).toLowerCase();
+  const isPdf = file.mimetype === 'application/pdf' || extension === 'pdf';
+  if (isPdf) {
+    if (file.buffer.subarray(0, 5).toString('ascii') !== '%PDF-') throw new Error('The uploaded document is not a valid PDF.');
+    return { type: 'pdf', buffer: file.buffer, extension: 'pdf', contentType: 'application/pdf' };
+  }
+  const media = await inspectPublicMedia(file);
+  if (media.type !== 'image') throw new Error('Credential proof must be an image or a PDF.');
+  return media;
+};
+
+app.post('/api/upload-service-credential', protect, requireSeller, (req, res, next) => {
+  credentialProofUpload.single('credential')(req, res, (error) => {
+    if (error) return res.status(400).json({ error: error.code === 'LIMIT_FILE_SIZE' ? 'Credential proof files must be 10 MB or smaller.' : error.message || 'Invalid credential proof.' });
+    return next();
+  });
+}, async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'Choose a credential proof image or PDF first.' });
+    const proof = await inspectCredentialProof(req.file);
+    const key = storageService.createKey('public', 'service-credential-proofs', proof.extension);
+    await storageService.put(key, proof.buffer, { contentType: proof.contentType, cacheControl: 'public, max-age=31536000, immutable' });
+    return res.status(201).json({ success: true, url: storageService.publicUrl(key), type: proof.type });
+  } catch (error) {
+    return res.status(400).json({ error: error.message || 'Invalid credential proof.' });
+  }
+});
+
 // FINDit reference photos are intentionally available to marketplace sellers,
 // but are re-encoded, size-limited images and cannot be used for private IDs
 // or arbitrary file delivery.

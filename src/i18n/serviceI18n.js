@@ -1,4 +1,4 @@
-import { createElement, useCallback, useEffect, useRef } from 'react';
+import { createElement, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 // Service offers can be written in any language by their providers. This file
@@ -43,6 +43,12 @@ Object.assign(copy.ar, {
 Object.assign(copy.en, { loadRequestsFailed: 'Could not load your service requests.', reviewThanks: 'Thank you for your review.', reviewFailed: 'Your review could not be saved.' });
 Object.assign(copy.fr, { loadRequestsFailed: 'Impossible de charger vos demandes de services.', reviewThanks: 'Merci pour votre avis.', reviewFailed: 'Votre avis n’a pas pu être enregistré.' });
 Object.assign(copy.ar, { loadRequestsFailed: 'تعذر تحميل طلبات خدماتك.', reviewThanks: 'شكرًا على تقييمك.', reviewFailed: 'تعذر حفظ تقييمك.' });
+Object.assign(copy.en, { professionalServices: 'Professional services', professionalProfileFor: '{{name}}\'s services and professional profile', openPdf: 'Open PDF', viewProof: 'View proof' });
+Object.assign(copy.fr, { professionalServices: 'Services professionnels', professionalProfileFor: 'Services et profil professionnel de {{name}}', openPdf: 'Ouvrir le PDF', viewProof: 'Voir le justificatif' });
+Object.assign(copy.ar, { professionalServices: 'الخدمات المهنية', professionalProfileFor: 'خدمات وملف {{name}} المهني', openPdf: 'فتح ملف PDF', viewProof: 'عرض الإثبات' });
+Object.assign(copy.en, { professionalServiceProfile: 'Professional service profile', showClientsWork: 'Show clients the work behind your service.', credentialPrivacy: 'Your diplomas and certificates are represented by public credential details. Keep the original documents private unless rifKANDO asks for a verification review.', profileComplete: 'profile complete', publicCredentialProof: 'Optional public proof for diplomas and certificates. Never upload national IDs, passports, bank records, or private documents.', addCredential: 'Add credential', noCredentials: 'No credentials added yet. You can still publish services, but relevant qualifications build client trust.', credentialTitle: 'Certificate or diploma title', credentialIssuer: 'School or issuer', year: 'Year', uploading: 'Uploading…', proofAttached: 'Proof attached', attachProof: 'Attach PDF or image', removeCredential: 'Remove credential', credentialTooLarge: 'Credential proof files must be 10 MB or smaller.', credentialAttached: 'Credential proof attached. Save your profile to publish it.', credentialUploadFailed: 'Credential proof could not be uploaded.', invalidCredentialFile: 'Choose a PDF, JPG, PNG, WebP, or GIF file.' });
+Object.assign(copy.fr, { professionalServiceProfile: 'Profil de service professionnel', showClientsWork: 'Montrez aux clients le travail derrière votre service.', credentialPrivacy: 'Vos diplômes et certificats sont présentés par des détails publics. Gardez les documents originaux privés, sauf si rifKANDO vous demande une vérification.', profileComplete: 'profil complété', publicCredentialProof: 'Preuve publique facultative pour diplômes et certificats. Ne téléversez jamais de carte nationale, passeport, informations bancaires ou document privé.', addCredential: 'Ajouter un certificat', noCredentials: 'Aucun certificat ajouté. Vous pouvez publier des services, mais des qualifications pertinentes renforcent la confiance.', credentialTitle: 'Titre du certificat ou diplôme', credentialIssuer: 'École ou organisme émetteur', year: 'Année', uploading: 'Téléversement…', proofAttached: 'Justificatif ajouté', attachProof: 'Ajouter PDF ou image', removeCredential: 'Supprimer le certificat', credentialTooLarge: 'Les justificatifs doivent faire 10 Mo ou moins.', credentialAttached: 'Justificatif ajouté. Enregistrez votre profil pour le publier.', credentialUploadFailed: 'Le justificatif n’a pas pu être téléversé.', invalidCredentialFile: 'Choisissez un fichier PDF, JPG, PNG, WebP ou GIF.' });
+Object.assign(copy.ar, { professionalServiceProfile: 'ملف خدمة مهني', showClientsWork: 'أظهر للعملاء العمل الذي يقف وراء خدمتك.', credentialPrivacy: 'تظهر شهاداتك ودبلوماتك بتفاصيل عامة. احتفظ بالوثائق الأصلية خاصة إلا إذا طلبت rifKANDO مراجعة للتحقق.', profileComplete: 'اكتمال الملف', publicCredentialProof: 'إثبات عام اختياري للدبلومات والشهادات. لا ترفع أبدًا البطاقة الوطنية أو جواز السفر أو بيانات البنك أو أي وثيقة خاصة.', addCredential: 'أضف شهادة', noCredentials: 'لا توجد شهادات مضافة بعد. يمكنك نشر الخدمات، لكن المؤهلات ذات الصلة تعزز ثقة العملاء.', credentialTitle: 'عنوان الشهادة أو الدبلوم', credentialIssuer: 'المدرسة أو الجهة المانحة', year: 'السنة', uploading: 'جارٍ الرفع…', proofAttached: 'تم إرفاق الإثبات', attachProof: 'أرفق PDF أو صورة', removeCredential: 'حذف الشهادة', credentialTooLarge: 'يجب ألا يتجاوز حجم إثبات الشهادة 10 ميغابايت.', credentialAttached: 'تم إرفاق الإثبات. احفظ ملفك لنشره.', credentialUploadFailed: 'تعذر رفع إثبات الشهادة.', invalidCredentialFile: 'اختر ملف PDF أو JPG أو PNG أو WebP أو GIF.' });
 
 export const useServiceI18n = () => {
   const { i18n } = useTranslation();
@@ -64,11 +70,12 @@ const phraseKeys = {
   'Back to service dashboard': 'backDashboard', 'Back to service requests': 'backRequests', 'Request sent': 'requestSent', 'Awaiting your review': 'awaitingReview', 'Loading private project workspace...': 'loadingWorkroom', 'It may no longer exist, or your account does not have access.': 'unavailableWorkroomText', 'Explain what you delivered and how to use it.': 'deliveryPlaceholder', 'Describe the changes you need clearly.': 'revisionPlaceholder', 'Keep project communication clear and professional.': 'messagePlaceholder',
   'Loading package workspace...': 'loadingPackages', 'Packages clients can understand': 'packagesTitle', 'Add package': 'addPackage', 'Keep options simple and make the outcome, timing, and included revisions obvious.': 'packagesHelp', 'Set expectations before a client sends a request.': 'packagesSafety', 'Create your first package': 'createPackage', 'Edit package': 'editPackage', 'Package name': 'packageName', 'Price (MAD)': 'packagePrice', 'Delivery time': 'packageDelivery', 'What is included': 'packageIncluded', 'One item per line': 'onePerLine', 'Save package': 'savePackage',
   'Loading your professional profile...': 'loadingProfile', 'Build a professional identity clients can review before they send a request.': 'profileHelp', 'Profile headline': 'profileHeadline', 'Introduction': 'introduction', 'Experience summary': 'experienceSummary', 'Your skills': 'yourSkills', 'Your languages': 'yourLanguages', 'Credentials and certificates': 'credentialsCertificates', 'Availability': 'availability', 'Save professional profile': 'saveProfile',
+  'Professional service profile': 'professionalServiceProfile', 'Show clients the work behind your service.': 'showClientsWork', 'Your diplomas and certificates are represented by public credential details. Keep the original documents private unless rifKANDO asks for a verification review.': 'credentialPrivacy', 'profile complete': 'profileComplete', 'Optional public proof for diplomas and certificates. Never upload national IDs, passports, bank records, or private documents.': 'publicCredentialProof', 'Add credential': 'addCredential', 'No credentials added yet. You can still publish services, but relevant qualifications build client trust.': 'noCredentials', 'Certificate or diploma title': 'credentialTitle', 'School or issuer': 'credentialIssuer', 'Year': 'year', 'Uploading…': 'uploading', 'Proof attached': 'proofAttached', 'Attach PDF or image': 'attachProof', 'Remove credential': 'removeCredential',
 };
 
 export const ServiceLocalized = ({ children }) => {
   const { t } = useServiceI18n();
-  const root = useRef(null);
+  const [root, setRoot] = useState(null);
   const originalValues = useRef(new WeakMap());
   useEffect(() => {
     const sourceFor = (node, name = 'text') => {
@@ -98,12 +105,12 @@ export const ServiceLocalized = ({ children }) => {
       });
       node.childNodes.forEach(translateNode);
     };
-    if (!root.current) return undefined;
-    const refresh = () => translateNode(root.current);
+    if (!root) return undefined;
+    const refresh = () => translateNode(root);
     refresh();
     const observer = new MutationObserver(refresh);
-    observer.observe(root.current, { childList: true, subtree: true, characterData: true });
+    observer.observe(root, { childList: true, subtree: true, characterData: true });
     return () => observer.disconnect();
-  }, [t]);
-  return createElement('div', { ref: root, className: 'service-localized-interface' }, children);
+  }, [root, t]);
+  return createElement('div', { ref: setRoot, className: 'service-localized-interface' }, children);
 };

@@ -644,14 +644,32 @@ const serviceCredentials = (value) => {
   if (!Array.isArray(value) || value.length > 20) fail('credentials', 'must contain at most 20 entries.');
   return value.map((credential, index) => {
     object(credential, `credentials.${index}`);
-    onlyKeys(credential, ['title', 'issuer', 'year'], `credentials.${index}`);
+    onlyKeys(credential, ['title', 'issuer', 'year', 'proof_url', 'proof_type'], `credentials.${index}`);
     const year = credential.year === undefined || credential.year === ''
       ? ''
       : String(integer(Number(credential.year), `credentials.${index}.year`, { min: 1900, max: 2100 }));
+    const proofUrl = credential.proof_url === undefined || credential.proof_url === ''
+      ? ''
+      : text(credential.proof_url, `credentials.${index}.proof_url`, { max: 2_048 });
+    const proofType = credential.proof_type === undefined || credential.proof_type === ''
+      ? ''
+      : enumValue(credential.proof_type, `credentials.${index}.proof_type`, ['image', 'pdf']);
+    if (proofUrl) {
+      const key = storageService.publicKeyFromUrl(proofUrl);
+      const extension = key?.split('.').pop()?.toLowerCase();
+      const allowedExtensions = proofType === 'pdf' ? ['pdf'] : ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+      if (!key || !proofType || !key.startsWith('public/service-credential-proofs/') || !allowedExtensions.includes(extension)) {
+        fail(`credentials.${index}.proof_url`, 'must reference an uploaded public credential proof.');
+      }
+    } else if (proofType) {
+      fail(`credentials.${index}.proof_type`, 'requires proof_url.');
+    }
     return {
       title: text(credential.title, `credentials.${index}.title`, { required: true, min: 2, max: 160 }),
       issuer: text(credential.issuer, `credentials.${index}.issuer`, { required: true, min: 2, max: 160 }),
       year,
+      proof_url: proofUrl,
+      proof_type: proofUrl ? proofType : '',
     };
   });
 };

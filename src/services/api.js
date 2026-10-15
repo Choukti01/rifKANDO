@@ -64,6 +64,20 @@ export const uploadPublicMedia = (formData, onUploadProgress) => api.post('/uplo
   onUploadProgress,
 });
 
+export const uploadServiceCredential = (formData, onUploadProgress) => api.post('/upload-service-credential', formData, {
+  timeout: MEDIA_UPLOAD_TIMEOUT_MS,
+  headers: { 'Content-Type': undefined },
+  transformRequest: [(data, headers) => {
+    if (typeof headers?.setContentType === 'function') headers.setContentType(undefined);
+    else if (headers) {
+      delete headers['Content-Type'];
+      delete headers['content-type'];
+    }
+    return data;
+  }],
+  onUploadProgress,
+});
+
 api.interceptors.request.use((config) => {
   config.withCredentials = true;
   // Cookie sessions intentionally do not accept a browser-supplied bearer

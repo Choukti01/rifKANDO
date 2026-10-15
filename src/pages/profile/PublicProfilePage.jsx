@@ -1,24 +1,28 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { MapPinIcon, StarIcon, Squares2X2Icon, UserCircleIcon } from '@heroicons/react/24/outline';
+import { BriefcaseIcon, DocumentTextIcon, MapPinIcon, StarIcon, Squares2X2Icon, UserCircleIcon } from '@heroicons/react/24/outline';
 import { useTranslation } from 'react-i18next';
 import api from '../../services/api';
 import MarketplaceImage from '../../components/common/MarketplaceImage';
 import { getImageUrl } from '../../utils/imageUtils';
 import SeoHead from '../../components/seo/SeoHead';
 import { SEO_ORIGIN as seoOrigin } from '../../components/seo/seoConfig';
+import { useServiceI18n } from '../../i18n/serviceI18n';
 
 const STORE_PAGE_SIZE = 24;
 
 const PublicProfilePage = () => {
   const { userId } = useParams();
   const { t, i18n } = useTranslation();
+  const { t: serviceT } = useServiceI18n();
   const [seller, setSeller] = useState(null);
   const [products, setProducts] = useState([]);
   const [pagination, setPagination] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState('');
+  const [serviceProfile, setServiceProfile] = useState(null);
+  const [services, setServices] = useState([]);
 
   const loadStorefront = useCallback(async (page = 1, append = false) => {
     if (append) setLoadingMore(true);
@@ -76,6 +80,17 @@ const PublicProfilePage = () => {
       setSeller(payload.seller);
       setProducts((current) => (append ? [...current, ...(payload.products || [])] : (payload.products || [])));
       setPagination(payload.pagination || null);
+      if (!append) {
+        try {
+          const providerResponse = await api.get(`/service-providers/${userId}`);
+          setServiceProfile(providerResponse.data.profile || null);
+          setServices(providerResponse.data.services || []);
+        } catch (providerError) {
+          if (providerError.response?.status !== 404) console.warn('Error fetching public service profile:', providerError);
+          setServiceProfile(null);
+          setServices([]);
+        }
+      }
     } catch (loadError) {
       console.error('Error fetching seller storefront:', loadError);
       setError(loadError.response?.status === 404 ? t('storefront.notFound') : t('storefront.loadFailed'));
@@ -188,6 +203,27 @@ const PublicProfilePage = () => {
           </div>
         </section>
 
+        {serviceProfile && <section className="storefront-professional" aria-labelledby="storefront-services-title">
+          <div className="storefront-section-heading"><div><p className="storefront-eyebrow">{serviceT('professionalServices')}</p><h2 id="storefront-services-title">{serviceT('professionalProfileFor', { name: seller.name })}</h2></div><BriefcaseIcon aria-hidden="true" /></div>
+          <div className="storefront-professional-intro"><div><h3>{serviceProfile.headline}</h3><p>{serviceProfile.introduction}</p><p className="storefront-experience">{serviceProfile.experience_summary}</p></div><div className="storefront-profile-meta"><span>{serviceProfile.availability === 'limited' ? serviceT('limited') : serviceProfile.availability === 'unavailable' ? serviceT('notTakingWork') : serviceT('availableNewWork')}</span>{serviceProfile.response_time && <small>{serviceProfile.response_time}</small>}</div></div>
+          {serviceProfile.skills?.length > 0 && <div className="storefront-chips">{serviceProfile.skills.map((skill) => <span key={skill}>{skill}</span>)}</div>}
+          {services.length > 0 && <div className="storefront-service-grid">{services.map((service) => <Link to={`/service/${service.id}`} key={service.id} className="storefront-service-card"><span>{service.category}</span><h3>{service.title}</h3><p>{service.description}</p><strong>{formatAmount(service.price)} MAD</strong></Link>)}</div>}
+          {serviceProfile.credentials?.length > 0 && <section className="storefront-credentials" aria-labelledby="storefront-credentials-title">
+            <h3 id="storefront-credentials-title">{serviceT('credentials')}</h3>
+            <div>
+              {serviceProfile.credentials.map((credential, index) => {
+                const proofUrl = credential.proof_url ? getImageUrl(credential.proof_url) : '';
+                const isImageProof = credential.proof_type === 'image';
+                return <article key={`${credential.title}-${credential.issuer}-${index}`}>
+                  {isImageProof && proofUrl ? <a className="storefront-credential-preview" href={proofUrl} target="_blank" rel="noopener noreferrer" aria-label={serviceT('viewProof')}><MarketplaceImage source={proofUrl} alt={`${credential.title} ${serviceT('viewProof')}`} /></a> : <DocumentTextIcon aria-hidden="true" />}
+                  <span><strong>{credential.title}</strong><small>{credential.issuer}{credential.year ? ` · ${credential.year}` : ''}</small></span>
+                  {proofUrl && <a href={proofUrl} target="_blank" rel="noopener noreferrer">{credential.proof_type === 'pdf' ? serviceT('openPdf') : serviceT('viewProof')}</a>}
+                </article>;
+              })}
+            </div>
+          </section>}
+        </section>}
+
         <section className="storefront-listings" aria-labelledby="storefront-listings-title">
           <div className="storefront-section-heading">
             <div>
@@ -256,6 +292,7 @@ const PublicProfilePage = () => {
         .storefront-reputation strong { color: #102a4d; font-size: 1.25rem; }
         .storefront-reputation span { color: #697a91; font-size: .75rem; font-weight: 700; }
         .storefront-listings { margin-top: clamp(2rem, 5vw, 4rem); }
+        .storefront-professional{margin-top:clamp(2rem,5vw,4rem);padding:clamp(1rem,3vw,1.7rem);border:1px solid #dbe9f7;border-radius:1.35rem;background:linear-gradient(135deg,#f4fbff,#fff);box-shadow:0 .7rem 2rem rgba(20,67,126,.05)}.storefront-professional>.storefront-section-heading>svg{width:2rem;color:#0b69d6}.storefront-professional-intro{display:flex;justify-content:space-between;gap:1.5rem}.storefront-professional-intro h3{margin:0;color:#123a5b;font-size:1.08rem}.storefront-professional-intro p{max-width:48rem;margin:.42rem 0 0;color:#587088;line-height:1.6}.storefront-professional-intro .storefront-experience{color:#71869a;font-size:.87rem}.storefront-profile-meta{display:grid;align-content:start;justify-items:end;gap:.4rem;white-space:nowrap}.storefront-profile-meta span{padding:.35rem .55rem;border-radius:99px;background:#e8f8ee;color:#19764b;font-size:.73rem;font-weight:800}.storefront-profile-meta small{color:#6e8598;font-size:.76rem}.storefront-chips{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:1rem}.storefront-chips span{padding:.35rem .55rem;border-radius:99px;background:#e9f6ff;color:#176fa9;font-size:.75rem;font-weight:750}.storefront-service-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,15rem),1fr));gap:.8rem;margin-top:1rem}.storefront-service-card{display:grid;gap:.35rem;padding:1rem;border:1px solid #dbe9f7;border-radius:1rem;background:#fff;color:inherit;text-decoration:none;transition:transform .2s,box-shadow .2s}.storefront-service-card:hover{transform:translateY(-.18rem);box-shadow:0 .7rem 1.5rem rgba(20,67,126,.1)}.storefront-service-card>span{color:#0b69d6;font-size:.68rem;font-weight:850;letter-spacing:.07em;text-transform:uppercase}.storefront-service-card h3{margin:0;color:#163a5b;font-size:.98rem}.storefront-service-card p{display:-webkit-box;overflow:hidden;margin:0;color:#667e93;font-size:.82rem;line-height:1.5;-webkit-line-clamp:2;-webkit-box-orient:vertical}.storefront-service-card strong{margin-top:.3rem;color:#0b69d6}.storefront-credentials{margin-top:1.25rem;padding-top:1.1rem;border-top:1px solid #dceaf6}.storefront-credentials>h3{margin:0 0 .7rem;color:#224a6a;font-size:.92rem}.storefront-credentials>div{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.65rem}.storefront-credentials article{display:flex;align-items:center;gap:.5rem;min-width:0;padding:.75rem;border:1px solid #dceaf6;border-radius:.85rem;background:#fff}.storefront-credentials article>svg{width:1.15rem;flex:0 0 auto;color:#0b69d6}.storefront-credential-preview{display:block;width:2.5rem;height:2.5rem;flex:0 0 auto;overflow:hidden;margin:0!important;border-radius:.62rem;background:#edf7ff}.storefront-credential-preview img{width:100%;height:100%;object-fit:cover}.storefront-credentials article span{display:grid;min-width:0}.storefront-credentials strong,.storefront-credentials small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.storefront-credentials strong{color:#294d6b;font-size:.78rem}.storefront-credentials small{margin-top:.16rem;color:#71869a;font-size:.7rem}.storefront-credentials article>a:not(.storefront-credential-preview){margin-inline-start:auto;color:#0b69d6;font-size:.72rem;font-weight:800;text-decoration:none;white-space:nowrap}
         .storefront-section-heading { display: flex; align-items: end; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }
         .storefront-section-heading h2 { font-size: clamp(1.35rem, 3vw, 1.9rem); }
         .storefront-section-heading > span { color: #65758b; font-weight: 700; }
@@ -281,7 +318,7 @@ const PublicProfilePage = () => {
         .storefront-load-more { display: flex; justify-content: center; margin-top: 1.75rem; }
         .storefront-load-more button:disabled { cursor: wait; opacity: .65; }
         .storefront-state { width: min(720px, calc(100% - 2rem)); margin: 4rem auto; }
-        @media (max-width: 760px) { .storefront-hero { grid-template-columns: auto minmax(0, 1fr); padding: 1.2rem; } .storefront-reputation { grid-column: 1 / -1; width: 100%; } .storefront-reputation > div { min-height: 4.7rem; } .storefront-product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; } .storefront-product-media { height: 9rem; } .storefront-product-copy { padding: .7rem; } .storefront-product-footer { align-items: start; flex-direction: column; } }
+        @media (max-width: 760px) { .storefront-hero { grid-template-columns: auto minmax(0, 1fr); padding: 1.2rem; } .storefront-reputation { grid-column: 1 / -1; width: 100%; } .storefront-reputation > div { min-height: 4.7rem; } .storefront-product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; } .storefront-product-media { height: 9rem; } .storefront-product-copy { padding: .7rem; } .storefront-product-footer { align-items: start; flex-direction: column; }.storefront-professional-intro{flex-direction:column}.storefront-profile-meta{justify-items:start} }
         @media (max-width: 390px) { .storefront-hero { grid-template-columns: 1fr; text-align: center; } .storefront-avatar { margin: 0 auto; } .storefront-meta { justify-content: center; } .storefront-product-grid { grid-template-columns: 1fr; } .storefront-product-media { height: 12rem; } }
       `}</style>
     </main>
