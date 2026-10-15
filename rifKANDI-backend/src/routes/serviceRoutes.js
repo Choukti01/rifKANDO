@@ -2,6 +2,20 @@ const crypto = require('node:crypto');
 const express = require('express');
 const { all, get, run, withTransaction } = require('../services/bookingProtocolService');
 const { createPaginationMetadata, getPagination } = require('../utils/pagination');
+const Money = require('../services/moneyService');
+
+const SERVICE_COMMISSION_RATE = 0.05;
+const configuredServiceBankTransfer = () => {
+  const accountHolder = String(process.env.SELLER_COMMISSION_ACCOUNT_HOLDER || '').trim();
+  const bankName = String(process.env.SELLER_COMMISSION_BANK_NAME || '').trim();
+  const rib = String(process.env.SELLER_COMMISSION_RIB || '').replace(/\s+/g, '');
+  return accountHolder && bankName && /^\d{20,34}$/.test(rib) ? { accountHolder, bankName, rib } : null;
+};
+const transferAmounts = (price) => {
+  const amountMinor = Money.toMinor(price);
+  const commissionMinor = Math.round(amountMinor * SERVICE_COMMISSION_RATE);
+  return { amountMinor, commissionMinor, providerPayoutMinor: amountMinor - commissionMinor };
+};
 
 const parseList = (value) => {
   if (Array.isArray(value)) return value;
@@ -58,12 +72,14 @@ const readOrder = async (db, id) => get(db, `
   SELECT so.*, s.title AS service_title, s.category AS service_category,
     buyer.name AS buyer_name, buyer.city AS buyer_city, buyer."profilePicture" AS buyer_picture,
     provider.name AS provider_name, provider.city AS provider_city, provider."profilePicture" AS provider_picture,
-    sr.rating AS review_rating, sr.comment AS review_comment
+    sr.rating AS review_rating, sr.comment AS review_comment,
+    spt.payment_status, spt.transfer_reference, spt.submitted_at, spt.verified_at, spt.payout_status
   FROM service_orders so
   JOIN services s ON s.id = so.service_id
   JOIN users buyer ON buyer.id = so.buyer_id
   JOIN users provider ON provider.id = so.provider_id
   LEFT JOIN service_reviews sr ON sr.service_order_id = so.id
+  LEFT JOIN service_payment_transfers spt ON spt.service_order_id = so.id
   WHERE so.id = ?
 `, [id]);
 
@@ -83,8 +99,15 @@ const serializeOrder = (order) => ({
   created_at: order.created_at,
   updated_at: order.updated_at || order.created_at,
   completed_at: order.completed_at || null,
-  payment_status: 'not_available',
-  payment_message: 'Online payment is not available for services yet.',
+  payment_status: order.payment_status || 'not_started',
+  payment_message: order.payment_status === 'verified'
+    ? 'Your bank transfer was verified. The provider can start work.'
+    : order.payment_status === 'submitted'
+      ? 'Your bank transfer is awaiting rifKANDO verification.'
+      : order.payment_status === 'rejected'
+        ? 'Your bank transfer needs correction. Review the payment instructions and submit again.'
+        : 'Pay by bank transfer after the provider accepts your request.',
+  payment: order.payment_status ? { status: order.payment_status, transfer_reference: order.transfer_reference || '', submitted_at: order.submitted_at || null, verified_at: order.verified_at || null, payout_status: order.payout_status || 'not_due' } : null,
   buyer: { id: Number(order.buyer_id), name: order.buyer_name, city: order.buyer_city || '', profilePicture: order.buyer_picture || '' },
   provider: { id: Number(order.provider_id), name: order.provider_name, city: order.provider_city || '', profilePicture: order.provider_picture || '' },
   review: order.review_rating ? { rating: Number(order.review_rating), comment: order.review_comment || '' } : null,
@@ -117,6 +140,8 @@ const createServiceRoutes = ({
   validatePackageCreate,
   validatePackageUpdate,
   notificationService,
+  requireServiceReconciliationAccess,
+  auditService,
 }) => {
   const router = express.Router();
   const notify = (payload) => notificationService?.create(payload).catch((error) => {
@@ -132,6 +157,91 @@ const createServiceRoutes = ({
     return null;
   };
   const isActiveWorkroomStatus = (status) => ['requested', 'accepted', 'in_progress', 'submitted', 'revision_requested'].includes(status);
+  const paymentForOrder = (database, orderId) => get(database, 'SELECT * FROM service_payment_transfers WHERE service_order_id = ?', [orderId]);
+  const assertTransferConfigured = () => {
+    const bank = configuredServiceBankTransfer();
+    if (!bank) { const error = new Error('Bank transfer is temporarily unavailable. Please contact rifKANDO support.'); error.statusCode = 503; throw error; }
+    return bank;
+  };
+
+  router.post('/service-orders/:id/payment-instructions', protect, validateIdParams('id'), async (req, res, next) => {
+    try {
+      const result = await withTransaction(db, async (transaction) => {
+        const order = await readOrder(transaction, req.params.id);
+        if (!order || Number(order.buyer_id) !== Number(req.user.id)) { const error = new Error('Service request not found.'); error.statusCode = 404; throw error; }
+        if (order.status !== 'accepted') { const error = new Error('Payment instructions become available after the provider accepts the request.'); error.statusCode = 409; throw error; }
+        const bank = assertTransferConfigured(); const amounts = transferAmounts(order.price);
+        await run(transaction, `INSERT INTO service_payment_transfers (service_order_id, buyer_id, provider_id, amount_minor, commission_minor, provider_payout_minor)
+          VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(service_order_id) DO NOTHING`, [order.id, order.buyer_id, order.provider_id, amounts.amountMinor, amounts.commissionMinor, amounts.providerPayoutMinor]);
+        return { bank, amounts, orderNumber: order.order_number, payment: await paymentForOrder(transaction, order.id) };
+      });
+      return res.json({ success: true, instructions: { method: 'bank_transfer', currency: 'MAD', amount: Money.fromMinor(result.amounts.amountMinor), account_holder: result.bank.accountHolder, bank_name: result.bank.bankName, rib: result.bank.rib, reference: result.orderNumber, notice: 'Transfer exactly this amount and use the service request number as the transfer reference. rifKANDO verifies received funds before work starts.' }, payment: { status: result.payment.payment_status, transfer_reference: result.payment.transfer_reference || '' } });
+    } catch (error) { if (error.statusCode) return res.status(error.statusCode).json({ error: error.message }); return next(error); }
+  });
+
+  router.post('/service-orders/:id/payment-submission', protect, validateIdParams('id'), async (req, res, next) => {
+    try {
+      const reference = String(req.body?.transferReference || '').trim(); const note = String(req.body?.note || '').trim();
+      if (!/^[A-Za-z0-9 _./:-]{3,256}$/.test(reference) || note.length > 1000) return res.status(422).json({ error: 'Provide a valid bank transfer reference and an optional note under 1,000 characters.' });
+      const changed = await withTransaction(db, async (transaction) => {
+        const order = await readOrder(transaction, req.params.id);
+        if (!order || Number(order.buyer_id) !== Number(req.user.id)) { const error = new Error('Service request not found.'); error.statusCode = 404; throw error; }
+        if (order.status !== 'accepted') { const error = new Error('This service request is not awaiting payment.'); error.statusCode = 409; throw error; }
+        const payment = await paymentForOrder(transaction, order.id);
+        if (!payment) { const error = new Error('Open the bank transfer instructions first.'); error.statusCode = 409; throw error; }
+        if (payment.payment_status === 'verified') { const error = new Error('This transfer has already been verified.'); error.statusCode = 409; throw error; }
+        await run(transaction, `UPDATE service_payment_transfers SET transfer_reference = ?, buyer_note = ?, payment_status = 'submitted', submitted_at = CURRENT_TIMESTAMP, verified_at = NULL, verified_by = NULL, verification_note = '', updated_at = CURRENT_TIMESTAMP WHERE service_order_id = ? AND payment_status IN ('awaiting_payment', 'rejected')`, [reference, note, order.id]);
+        return order;
+      });
+      notify({ userId: changed.provider_id, kind: 'service.payment_submitted', title: 'Client payment awaiting verification', body: `The client submitted a bank transfer reference for “${changed.service_title}”. Work starts after rifKANDO verifies it.`, href: '/seller/dashboard/services', metadata: { serviceOrderId: changed.id } });
+      return res.json({ success: true, message: 'Your transfer reference was submitted for rifKANDO verification.' });
+    } catch (error) { if (error.statusCode) return res.status(error.statusCode).json({ error: error.message }); return next(error); }
+  });
+
+  router.get('/admin/service-reconciliation', protect, requireServiceReconciliationAccess, async (req, res, next) => {
+    try {
+      const transfers = await all(db, `SELECT spt.*, so.order_number, so.status AS service_status, s.title AS service_title, buyer.name AS buyer_name, buyer.email AS buyer_email, provider.name AS provider_name, provider.email AS provider_email FROM service_payment_transfers spt JOIN service_orders so ON so.id = spt.service_order_id JOIN services s ON s.id = so.service_id JOIN users buyer ON buyer.id = spt.buyer_id JOIN users provider ON provider.id = spt.provider_id ORDER BY CASE spt.payment_status WHEN 'submitted' THEN 0 WHEN 'verified' THEN 1 ELSE 2 END, spt.updated_at DESC, spt.id DESC`);
+      await auditService?.recordFromRequest(req, { action: 'finance.service_reconciliation_viewed', resourceType: 'service_payment_transfer', metadata: { resultCount: transfers.length } });
+      return res.json({ success: true, transfers: transfers.map((transfer) => ({ ...transfer, amount: Money.fromMinor(transfer.amount_minor), commission: Money.fromMinor(transfer.commission_minor), provider_payout: Money.fromMinor(transfer.provider_payout_minor) })) });
+    } catch (error) { return next(error); }
+  });
+
+  router.post('/admin/service-reconciliation/:id/verify', protect, requireServiceReconciliationAccess, validateIdParams('id'), async (req, res, next) => {
+    try {
+      const action = String(req.body?.action || ''); const note = String(req.body?.note || '').trim();
+      if (!['verify', 'reject'].includes(action) || note.length > 1000) return res.status(422).json({ error: 'Choose verify or reject and provide a note under 1,000 characters.' });
+      const changed = await withTransaction(db, async (transaction) => {
+        const payment = await get(transaction, 'SELECT * FROM service_payment_transfers WHERE id = ?', [req.params.id]);
+        if (!payment) { const error = new Error('Service payment record not found.'); error.statusCode = 404; throw error; }
+        if (payment.payment_status !== 'submitted') { const error = new Error('Only a submitted transfer can be verified or rejected.'); error.statusCode = 409; throw error; }
+        const nextStatus = action === 'verify' ? 'verified' : 'rejected';
+        await run(transaction, `UPDATE service_payment_transfers SET payment_status = ?, verified_at = CASE WHEN ? = 'verified' THEN CURRENT_TIMESTAMP ELSE NULL END, verified_by = ?, verification_note = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND payment_status = 'submitted'`, [nextStatus, nextStatus, req.user.id, note, payment.id]);
+        return { ...payment, payment_status: nextStatus };
+      });
+      await auditService?.recordFromRequest(req, { action: `finance.service_transfer_${action}d`, resourceType: 'service_payment_transfer', resourceId: req.params.id, metadata: { serviceOrderId: changed.service_order_id } });
+      notify({ userId: changed.buyer_id, kind: `service.payment_${changed.payment_status}`, title: changed.payment_status === 'verified' ? 'Service payment verified' : 'Service payment needs correction', body: changed.payment_status === 'verified' ? 'rifKANDO verified your payment. The provider can now begin work.' : 'rifKANDO could not match this transfer. Review the payment details and submit a correct reference.', href: '/service-requests', metadata: { serviceOrderId: changed.service_order_id } });
+      notify({ userId: changed.provider_id, kind: `service.payment_${changed.payment_status}`, title: changed.payment_status === 'verified' ? 'Service payment verified' : 'Service payment needs correction', body: changed.payment_status === 'verified' ? 'rifKANDO verified the client payment. You can now begin work.' : 'The client must correct the transfer reference before work starts.', href: '/seller/dashboard/services', metadata: { serviceOrderId: changed.service_order_id } });
+      return res.json({ success: true, message: action === 'verify' ? 'Bank transfer verified.' : 'Bank transfer rejected for correction.' });
+    } catch (error) { if (error.statusCode) return res.status(error.statusCode).json({ error: error.message }); return next(error); }
+  });
+
+  router.post('/admin/service-reconciliation/:id/payout', protect, requireServiceReconciliationAccess, validateIdParams('id'), async (req, res, next) => {
+    try {
+      const reference = String(req.body?.payoutReference || '').trim(); const note = String(req.body?.note || '').trim();
+      if (!/^[A-Za-z0-9 _./:-]{3,256}$/.test(reference) || note.length > 1000) return res.status(422).json({ error: 'Provide a valid seller payout reference and an optional note under 1,000 characters.' });
+      const changed = await withTransaction(db, async (transaction) => {
+        const payment = await get(transaction, `SELECT spt.*, so.status AS service_status FROM service_payment_transfers spt JOIN service_orders so ON so.id = spt.service_order_id WHERE spt.id = ?`, [req.params.id]);
+        if (!payment) { const error = new Error('Service payment record not found.'); error.statusCode = 404; throw error; }
+        if (payment.payment_status !== 'verified' || payment.service_status !== 'completed') { const error = new Error('A seller payout is allowed only after verified payment and completed client work.'); error.statusCode = 409; throw error; }
+        if (payment.payout_status === 'paid') { const error = new Error('This provider payout is already recorded.'); error.statusCode = 409; throw error; }
+        await run(transaction, `UPDATE service_payment_transfers SET payout_status = 'paid', payout_reference = ?, payout_note = ?, paid_at = CURRENT_TIMESTAMP, paid_by = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`, [reference, note, req.user.id, payment.id]);
+        return payment;
+      });
+      await auditService?.recordFromRequest(req, { action: 'finance.service_provider_payout_recorded', resourceType: 'service_payment_transfer', resourceId: req.params.id, metadata: { serviceOrderId: changed.service_order_id } });
+      notify({ userId: changed.provider_id, kind: 'service.provider_payout_recorded', title: 'Service provider payout recorded', body: 'rifKANDO recorded your manual service payout.', href: '/seller/dashboard/services', metadata: { serviceOrderId: changed.service_order_id } });
+      return res.json({ success: true, message: 'Provider payout recorded.' });
+    } catch (error) { if (error.statusCode) return res.status(error.statusCode).json({ error: error.message }); return next(error); }
+  });
 
   router.get('/services', async (req, res, next) => {
     try {
@@ -437,25 +547,17 @@ const createServiceRoutes = ({
 
   router.get('/my-service-requests', protect, async (req, res, next) => {
     try {
-      const rows = await all(db, `SELECT so.*, s.title AS service_title, s.category AS service_category,
-        buyer.name AS buyer_name, buyer.city AS buyer_city, buyer."profilePicture" AS buyer_picture,
-        provider.name AS provider_name, provider.city AS provider_city, provider."profilePicture" AS provider_picture,
-        sr.rating AS review_rating, sr.comment AS review_comment FROM service_orders so
-        JOIN services s ON s.id = so.service_id JOIN users buyer ON buyer.id = so.buyer_id JOIN users provider ON provider.id = so.provider_id
-        LEFT JOIN service_reviews sr ON sr.service_order_id = so.id WHERE so.buyer_id = ? ORDER BY so.updated_at DESC, so.id DESC`, [req.user.id]);
-      return res.json({ success: true, requests: rows.map(serializeOrder) });
+      const rows = await all(db, 'SELECT id FROM service_orders WHERE buyer_id = ? ORDER BY updated_at DESC, id DESC', [req.user.id]);
+      const requests = await Promise.all(rows.map(async (row) => serializeOrder(await readOrder(db, row.id))));
+      return res.json({ success: true, requests });
     } catch (error) { return next(error); }
   });
 
   router.get('/my-service-orders', protect, requireSeller, async (req, res, next) => {
     try {
-      const rows = await all(db, `SELECT so.*, s.title AS service_title, s.category AS service_category,
-        buyer.name AS buyer_name, buyer.city AS buyer_city, buyer."profilePicture" AS buyer_picture,
-        provider.name AS provider_name, provider.city AS provider_city, provider."profilePicture" AS provider_picture,
-        sr.rating AS review_rating, sr.comment AS review_comment FROM service_orders so
-        JOIN services s ON s.id = so.service_id JOIN users buyer ON buyer.id = so.buyer_id JOIN users provider ON provider.id = so.provider_id
-        LEFT JOIN service_reviews sr ON sr.service_order_id = so.id WHERE so.provider_id = ? ORDER BY so.updated_at DESC, so.id DESC`, [req.user.id]);
-      return res.json({ success: true, orders: rows.map(serializeOrder) });
+      const rows = await all(db, 'SELECT id FROM service_orders WHERE provider_id = ? ORDER BY updated_at DESC, id DESC', [req.user.id]);
+      const orders = await Promise.all(rows.map(async (row) => serializeOrder(await readOrder(db, row.id))));
+      return res.json({ success: true, orders });
     } catch (error) { return next(error); }
   });
 
@@ -547,6 +649,17 @@ const createServiceRoutes = ({
           error.statusCode = 409;
           throw error;
         }
+        const payment = await paymentForOrder(transaction, order.id);
+        if (isProvider && req.body.action === 'start' && payment?.payment_status !== 'verified') {
+          const error = new Error('Work can start after rifKANDO verifies the client bank transfer.');
+          error.statusCode = 409;
+          throw error;
+        }
+        if (isBuyer && req.body.action === 'cancel' && ['submitted', 'verified'].includes(payment?.payment_status)) {
+          const error = new Error('Contact rifKANDO support to cancel a request after a bank transfer was submitted.');
+          error.statusCode = 409;
+          throw error;
+        }
         const noteColumn = isProvider ? 'provider_note' : 'buyer_note';
         const update = await run(transaction, `UPDATE service_orders SET status = ?, ${noteColumn} = ?, updated_at = CURRENT_TIMESTAMP,
           completed_at = CASE WHEN ? = 'completed' THEN CURRENT_TIMESTAMP ELSE completed_at END WHERE id = ? AND status = ?`,
@@ -557,6 +670,10 @@ const createServiceRoutes = ({
           throw error;
         }
         await recordStatus(transaction, order.id, req.user.id, order.status, nextStatus, req.body.note);
+        if (nextStatus === 'completed' && payment?.payment_status === 'verified') {
+          await run(transaction, `UPDATE service_payment_transfers SET payout_status = 'due', updated_at = CURRENT_TIMESTAMP
+            WHERE service_order_id = ? AND payment_status = 'verified' AND payout_status = 'not_due'`, [order.id]);
+        }
         return { order, nextStatus, recipientId: isProvider ? order.buyer_id : order.provider_id, isProvider };
       });
       notify({ userId: changed.recipientId, kind: `service.${changed.nextStatus}`, title: 'Service request updated', body: `${req.user.name} marked “${changed.order.service_title}” as ${changed.nextStatus.replaceAll('_', ' ')}.`, href: changed.isProvider ? '/service-requests' : '/seller/dashboard/services', metadata: { serviceOrderId: changed.order.id } });

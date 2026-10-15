@@ -39,6 +39,7 @@ const SellerOrders = lazy(() => import('./pages/seller/dashboard/Orders'))
 const SellerDisputes = lazy(() => import('./pages/seller/dashboard/Disputes'))
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'))
 const CODReconciliation = lazy(() => import('./pages/admin/CODReconciliation'))
+const ServiceReconciliationPage = lazy(() => import('./pages/admin/ServiceReconciliationPage'))
 const CODDisputesPage = lazy(() => import('./pages/admin/CODDisputesPage'))
 const OperationsTeamPage = lazy(() => import('./pages/admin/OperationsTeamPage'))
 const ProductReportsPage = lazy(() => import('./pages/admin/ProductReportsPage'))
@@ -178,6 +179,11 @@ function AppContent() {
                   <Route path="/admin/cod-reconciliation" element={
                     <ProtectedRoute requiredCapability="canReconcileCod">
                       <CODReconciliation />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/admin/service-reconciliation" element={
+                    <ProtectedRoute requiredCapability="canReconcileServices">
+                      <ServiceReconciliationPage />
                     </ProtectedRoute>
                   } />
                   <Route path="/admin/disputes" element={

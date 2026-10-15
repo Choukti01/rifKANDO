@@ -93,6 +93,7 @@ const ErrorTrackingService = require('./services/errorTrackingService');
 const { requireCodReconciliationAccess, canAccessCodReconciliation } = require('./middleware/codReconciliationAccess');
 const { requireCodOperationsAccess, canAccessCodOperations } = require('./middleware/codOperationsAccess');
 const { requireErrorTrackingAccess } = require('./middleware/errorTrackingAccess');
+const { requireServiceReconciliationAccess } = require('./middleware/serviceReconciliationAccess');
 const {
   OTP_MAX_ATTEMPTS,
   OTP_MAX_SENDS_PER_HOUR,
@@ -2065,6 +2066,8 @@ app.use('/api', createServiceRoutes({
   validatePackageCreate,
   validatePackageUpdate,
   notificationService: NotificationService,
+  requireServiceReconciliationAccess,
+  auditService: AuditService,
 }));
 
 app.use('/api', createDigitalRoutes({

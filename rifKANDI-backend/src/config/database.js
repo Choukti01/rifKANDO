@@ -157,6 +157,38 @@ db.serialize(() => {
     });
   }
 
+  // Manual bank-transfer tracking for services. Account details remain in the
+  // environment; this table holds only lifecycle evidence and settlement IDs.
+  db.run(`CREATE TABLE IF NOT EXISTS service_payment_transfers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    service_order_id INTEGER NOT NULL UNIQUE,
+    buyer_id INTEGER NOT NULL,
+    provider_id INTEGER NOT NULL,
+    amount_minor INTEGER NOT NULL,
+    commission_minor INTEGER NOT NULL,
+    provider_payout_minor INTEGER NOT NULL,
+    transfer_reference TEXT,
+    buyer_note TEXT NOT NULL DEFAULT '',
+    payment_status TEXT NOT NULL DEFAULT 'awaiting_payment',
+    submitted_at DATETIME,
+    verified_at DATETIME,
+    verified_by INTEGER,
+    verification_note TEXT NOT NULL DEFAULT '',
+    payout_status TEXT NOT NULL DEFAULT 'not_due',
+    payout_reference TEXT,
+    payout_note TEXT NOT NULL DEFAULT '',
+    paid_at DATETIME,
+    paid_by INTEGER,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (service_order_id) REFERENCES service_orders(id) ON DELETE RESTRICT,
+    FOREIGN KEY (buyer_id) REFERENCES users(id) ON DELETE RESTRICT,
+    FOREIGN KEY (provider_id) REFERENCES users(id) ON DELETE RESTRICT,
+    FOREIGN KEY (verified_by) REFERENCES users(id) ON DELETE SET NULL,
+    FOREIGN KEY (paid_by) REFERENCES users(id) ON DELETE SET NULL
+  )`);
+  db.run('CREATE INDEX IF NOT EXISTS idx_service_payment_transfers_status_created ON service_payment_transfers(payment_status, payout_status, created_at ASC)');
+
   // Product Media table
   db.run(`
     CREATE TABLE IF NOT EXISTS product_media (

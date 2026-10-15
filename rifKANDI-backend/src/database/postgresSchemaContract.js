@@ -56,6 +56,7 @@ const EXPECTED_POSTGRES_TABLES = Object.freeze([
   'refund_requests',
   'service_media',
   'service_orders',
+  'service_payment_transfers',
   'service_order_status_history',
   'service_workroom_entries',
   'service_packages',

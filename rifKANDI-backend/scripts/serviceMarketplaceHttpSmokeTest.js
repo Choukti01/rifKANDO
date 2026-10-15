@@ -13,6 +13,9 @@ process.env.JWT_SECRET = 'service-marketplace-test-secret-that-is-long-enough';
 process.env.SESSION_SECRET = 'service-marketplace-session-secret-that-is-long-enough';
 process.env.CLIENT_URL = 'https://www.rifkando.test';
 process.env.UPLOADS_DIR = path.join(testDirectory, 'uploads');
+process.env.SELLER_COMMISSION_ACCOUNT_HOLDER = 'rifKANDO Test Account';
+process.env.SELLER_COMMISSION_BANK_NAME = 'Attijariwafa bank';
+process.env.SELLER_COMMISSION_RIB = '123456789012345678901234';
 fsSync.mkdirSync(testDirectory, { recursive: true });
 
 const db = require('../src/config/database');
@@ -54,12 +57,15 @@ async function run() {
   const seller = await createUser('Service Provider', 'seller');
   const buyer = await createUser('Service Client', 'buyer');
   const secondBuyer = await createUser('Second Client', 'buyer');
+  const founder = await createUser('Founder Controller', 'admin');
+  await runStatement('UPDATE users SET email = ? WHERE id = ?', ['achoukti1999@gmail.com', founder.id]);
   const server = await startServer();
   const port = server.address().port;
   try {
     const sellerHeaders = await sessionHeaders(seller);
     const buyerHeaders = await sessionHeaders(buyer);
     const secondBuyerHeaders = await sessionHeaders(secondBuyer);
+    const founderHeaders = await sessionHeaders({ ...founder, email: 'achoukti1999@gmail.com' });
 
     const profile = await fetchJson(port, '/api/my-service-profile', {
       method: 'PUT', headers: { ...sellerHeaders, 'Content-Type': 'application/json' }, body: JSON.stringify({
@@ -155,13 +161,40 @@ async function run() {
 
     for (const [headers, action, note] of [
       [sellerHeaders, 'accept', 'The brief is clear. I can start this week.'],
-      [sellerHeaders, 'start', 'I am preparing the first concepts.'],
     ]) {
       const transition = await fetchJson(port, `/api/service-orders/${requestId}/status`, {
         method: 'PATCH', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify({ action, note }),
       });
       assert.equal(transition.response.status, 200, `service transition ${action} succeeds`);
     }
+
+    const blockedStart = await fetchJson(port, `/api/service-orders/${requestId}/status`, {
+      method: 'PATCH', headers: { ...sellerHeaders, 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'start' }),
+    });
+    assert.equal(blockedStart.response.status, 409, 'provider cannot begin before a bank transfer is verified');
+    const instructions = await fetchJson(port, `/api/service-orders/${requestId}/payment-instructions`, {
+      method: 'POST', headers: buyerHeaders,
+    });
+    assert.equal(instructions.response.status, 200, 'buyer can open bank transfer instructions after acceptance');
+    assert.equal(instructions.body.instructions.amount, 600, 'payment amount uses the selected package amount');
+    assert.equal(instructions.body.instructions.rib, process.env.SELLER_COMMISSION_RIB, 'bank details originate only from server configuration');
+    const submitTransfer = await fetchJson(port, `/api/service-orders/${requestId}/payment-submission`, {
+      method: 'POST', headers: { ...buyerHeaders, 'Content-Type': 'application/json' }, body: JSON.stringify({ transferReference: 'ATW-TEST-2026-001', note: 'Transferred from the client account.' }),
+    });
+    assert.equal(submitTransfer.response.status, 200, 'buyer can submit a transfer reference for review');
+    const unauthorizedReconciliation = await fetchJson(port, '/api/admin/service-reconciliation', { headers: sellerHeaders });
+    assert.equal(unauthorizedReconciliation.response.status, 403, 'provider cannot access private service reconciliation');
+    const reconciliation = await fetchJson(port, '/api/admin/service-reconciliation', { headers: founderHeaders });
+    assert.equal(reconciliation.response.status, 200, 'named founder can access service reconciliation');
+    assert.equal(reconciliation.body.transfers[0].payment_status, 'submitted', 'submitted transfer is visible to the founder');
+    const verified = await fetchJson(port, `/api/admin/service-reconciliation/${reconciliation.body.transfers[0].id}/verify`, {
+      method: 'POST', headers: { ...founderHeaders, 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'verify', note: 'Matched to the bank account.' }),
+    });
+    assert.equal(verified.response.status, 200, 'founder can verify a submitted transfer');
+    const startAfterVerification = await fetchJson(port, `/api/service-orders/${requestId}/status`, {
+      method: 'PATCH', headers: { ...sellerHeaders, 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'start', note: 'Payment verified; work has started.' }),
+    });
+    assert.equal(startAfterVerification.response.status, 200, 'provider can begin after founder verification');
 
     const privateWorkroom = await fetchJson(port, `/api/service-orders/${requestId}/workroom`, { headers: secondBuyerHeaders });
     assert.equal(privateWorkroom.response.status, 403, 'unrelated users cannot read a private service workroom');
@@ -203,6 +236,14 @@ async function run() {
       method: 'PATCH', headers: { ...buyerHeaders, 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'complete', note: 'The final result is approved.' }),
     });
     assert.equal(completion.response.status, 200, 'buyer can complete the reviewed service request');
+
+    const duePayouts = await fetchJson(port, '/api/admin/service-reconciliation', { headers: founderHeaders });
+    assert.equal(duePayouts.response.status, 200);
+    assert.equal(duePayouts.body.transfers[0].payout_status, 'due', 'provider payout becomes due only after buyer completion');
+    const payout = await fetchJson(port, `/api/admin/service-reconciliation/${duePayouts.body.transfers[0].id}/payout`, {
+      method: 'POST', headers: { ...founderHeaders, 'Content-Type': 'application/json' }, body: JSON.stringify({ payoutReference: 'SELLER-TEST-001', note: 'Transferred to the provider.' }),
+    });
+    assert.equal(payout.response.status, 200, 'founder can record a post-completion seller payout');
 
     const review = await fetchJson(port, `/api/service-orders/${requestId}/review`, {
       method: 'POST', headers: { ...buyerHeaders, 'Content-Type': 'application/json' }, body: JSON.stringify({ rating: 5, comment: 'Clear communication and a useful final result.' }),

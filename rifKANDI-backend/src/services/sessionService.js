@@ -4,6 +4,7 @@ const db = require('../config/database');
 const { canAccessCodReconciliation } = require('../middleware/codReconciliationAccess');
 const { canAccessCodOperations } = require('../middleware/codOperationsAccess');
 const { canTrackErrors } = require('../middleware/errorTrackingAccess');
+const { canAccessServiceReconciliation } = require('../middleware/serviceReconciliationAccess');
 
 const ACCESS_COOKIE = 'rifkando_access';
 const REFRESH_COOKIE = 'rifkando_refresh';
@@ -78,6 +79,7 @@ const publicUser = (user) => ({
   canReconcileCod: canAccessCodReconciliation(user),
   canOperateCod: canAccessCodOperations(user),
   canTrackErrors: canTrackErrors(user),
+  canReconcileServices: canAccessServiceReconciliation(user),
 });
 
 const issueAccessToken = (userId, sessionId) => jwt.sign(
