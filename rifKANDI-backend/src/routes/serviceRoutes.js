@@ -16,6 +16,14 @@ const transferAmounts = (price) => {
   const commissionMinor = Math.round(amountMinor * SERVICE_COMMISSION_RATE);
   return { amountMinor, commissionMinor, providerPayoutMinor: amountMinor - commissionMinor };
 };
+const transferAmountsForOrder = (order) => {
+  const amountMinor = Number(order?.price_minor);
+  if (Number.isSafeInteger(amountMinor) && amountMinor > 0) {
+    const commissionMinor = Math.round(amountMinor * SERVICE_COMMISSION_RATE);
+    return { amountMinor, commissionMinor, providerPayoutMinor: amountMinor - commissionMinor };
+  }
+  return transferAmounts(order?.price);
+};
 
 const parseList = (value) => {
   if (Array.isArray(value)) return value;
@@ -170,7 +178,7 @@ const createServiceRoutes = ({
         const order = await readOrder(transaction, req.params.id);
         if (!order || Number(order.buyer_id) !== Number(req.user.id)) { const error = new Error('Service request not found.'); error.statusCode = 404; throw error; }
         if (order.status !== 'accepted') { const error = new Error('Payment instructions become available after the provider accepts the request.'); error.statusCode = 409; throw error; }
-        const bank = assertTransferConfigured(); const amounts = transferAmounts(order.price);
+        const bank = assertTransferConfigured(); const amounts = transferAmountsForOrder(order);
         await run(transaction, `INSERT INTO service_payment_transfers (service_order_id, buyer_id, provider_id, amount_minor, commission_minor, provider_payout_minor)
           VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(service_order_id) DO NOTHING`, [order.id, order.buyer_id, order.provider_id, amounts.amountMinor, amounts.commissionMinor, amounts.providerPayoutMinor]);
         return { bank, amounts, orderNumber: order.order_number, payment: await paymentForOrder(transaction, order.id) };
@@ -670,6 +678,17 @@ const createServiceRoutes = ({
           throw error;
         }
         await recordStatus(transaction, order.id, req.user.id, order.status, nextStatus, req.body.note);
+        if (nextStatus === 'accepted') {
+          // Create the financial-control item at acceptance, not when the
+          // buyer later opens the instructions. That gives the founder an
+          // immediate, complete queue of pending service payments.
+          assertTransferConfigured();
+          const amounts = transferAmountsForOrder(order);
+          await run(transaction, `INSERT INTO service_payment_transfers
+            (service_order_id, buyer_id, provider_id, amount_minor, commission_minor, provider_payout_minor)
+            VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(service_order_id) DO NOTHING`,
+          [order.id, order.buyer_id, order.provider_id, amounts.amountMinor, amounts.commissionMinor, amounts.providerPayoutMinor]);
+        }
         if (nextStatus === 'completed' && payment?.payment_status === 'verified') {
           await run(transaction, `UPDATE service_payment_transfers SET payout_status = 'due', updated_at = CURRENT_TIMESTAMP
             WHERE service_order_id = ? AND payment_status = 'verified' AND payout_status = 'not_due'`, [order.id]);
