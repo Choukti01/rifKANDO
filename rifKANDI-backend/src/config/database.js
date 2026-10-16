@@ -189,6 +189,54 @@ db.serialize(() => {
   )`);
   db.run('CREATE INDEX IF NOT EXISTS idx_service_payment_transfers_status_created ON service_payment_transfers(payment_status, payout_status, created_at ASC)');
 
+  // Provider settlement details are private: they are never returned by
+  // public provider or service endpoints.
+  db.run(`CREATE TABLE IF NOT EXISTS service_provider_payout_profiles (
+    user_id INTEGER PRIMARY KEY,
+    account_holder TEXT NOT NULL,
+    payout_method TEXT NOT NULL DEFAULT 'bank_transfer',
+    bank_name TEXT NOT NULL DEFAULT '',
+    rib TEXT NOT NULL DEFAULT '',
+    payout_phone TEXT NOT NULL DEFAULT '',
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    CHECK (payout_method IN ('bank_transfer', 'cash_collection')),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS service_disputes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    service_order_id INTEGER NOT NULL UNIQUE,
+    buyer_id INTEGER NOT NULL,
+    provider_id INTEGER NOT NULL,
+    reason TEXT NOT NULL,
+    description TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'open',
+    resolution_note TEXT NOT NULL DEFAULT '',
+    resolution_reference TEXT NOT NULL DEFAULT '',
+    resolved_by INTEGER,
+    resolved_at DATETIME,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    CHECK (reason IN ('not_delivered', 'not_as_agreed', 'quality_issue', 'communication', 'other')),
+    CHECK (status IN ('open', 'in_review', 'resolved_buyer', 'resolved_provider', 'closed')),
+    FOREIGN KEY (service_order_id) REFERENCES service_orders(id) ON DELETE RESTRICT,
+    FOREIGN KEY (buyer_id) REFERENCES users(id) ON DELETE RESTRICT,
+    FOREIGN KEY (provider_id) REFERENCES users(id) ON DELETE RESTRICT,
+    FOREIGN KEY (resolved_by) REFERENCES users(id) ON DELETE SET NULL
+  )`);
+  db.run(`CREATE TABLE IF NOT EXISTS service_dispute_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    dispute_id INTEGER NOT NULL,
+    actor_id INTEGER,
+    event_type TEXT NOT NULL,
+    body TEXT NOT NULL DEFAULT '',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (dispute_id) REFERENCES service_disputes(id) ON DELETE CASCADE,
+    FOREIGN KEY (actor_id) REFERENCES users(id) ON DELETE SET NULL
+  )`);
+  db.run('CREATE INDEX IF NOT EXISTS idx_service_disputes_status_updated ON service_disputes(status, updated_at DESC)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_service_dispute_events_dispute_created ON service_dispute_events(dispute_id, created_at ASC, id ASC)');
+
   // Product Media table
   db.run(`
     CREATE TABLE IF NOT EXISTS product_media (

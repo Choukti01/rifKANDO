@@ -33,6 +33,7 @@ const TABLES_WITHOUT_NUMERIC_ID = new Set([
   // primary key. They are upserted and therefore must never receive the
   // compatibility adapter's automatic `RETURNING id` clause.
   'service_provider_profiles',
+  'service_provider_payout_profiles',
 ]);
 
 // The SQLite schema historically used `profilePicture`. PostgreSQL preserves

@@ -746,6 +746,43 @@ const validateServiceReview = validate((req) => {
     },
   };
 });
+const validateServicePayoutProfile = validate((req) => {
+  const body = object(req.body);
+  onlyKeys(body, ['account_holder', 'payout_method', 'bank_name', 'rib', 'payout_phone']);
+  const payoutMethod = enumValue(body.payout_method, 'payout_method', ['bank_transfer', 'cash_collection']);
+  const rib = String(body.rib || '').replace(/\s+/g, '');
+  if (payoutMethod === 'bank_transfer' && !/^\d{20,34}$/.test(rib)) {
+    fail('rib', 'must contain 20 to 34 digits for a bank transfer payout.');
+  }
+  return {
+    body: {
+      account_holder: text(body.account_holder, 'account_holder', { required: true, min: 3, max: 160 }),
+      payout_method: payoutMethod,
+      bank_name: payoutMethod === 'bank_transfer'
+        ? text(body.bank_name, 'bank_name', { required: true, min: 2, max: 160 })
+        : '',
+      rib: payoutMethod === 'bank_transfer' ? rib : '',
+      payout_phone: optionalText(body.payout_phone, 'payout_phone', 40),
+    },
+  };
+});
+const validateServiceDispute = validate((req) => {
+  const body = object(req.body);
+  onlyKeys(body, ['reason', 'description']);
+  return { body: {
+    reason: enumValue(body.reason, 'reason', ['not_delivered', 'not_as_agreed', 'quality_issue', 'communication', 'other']),
+    description: multilineText(body.description, 'description', { required: true, min: 10, max: 2_000 }),
+  } };
+});
+const validateServiceDisputeResolution = validate((req) => {
+  const body = object(req.body);
+  onlyKeys(body, ['action', 'note', 'reference']);
+  return { body: {
+    action: enumValue(body.action, 'action', ['review', 'resolve_buyer', 'resolve_provider', 'close']),
+    note: multilineText(body.note, 'note', { required: true, min: 3, max: 2_000 }),
+    reference: optionalText(body.reference, 'reference', 256),
+  } };
+});
 const validateBookingCreate = validate((req) => ({ body: bookingPayload(req.body, false) }));
 const validateBookingUpdate = validate((req) => ({ body: bookingPayload(req.body, true) }));
 const validateBookingStatus = validate((req) => {
@@ -1075,6 +1112,9 @@ module.exports = {
   validateServiceOrderAction,
   validateServiceWorkroomEntry,
   validateServiceReview,
+  validateServicePayoutProfile,
+  validateServiceDispute,
+  validateServiceDisputeResolution,
   validateBookingCreate,
   validateBookingUpdate,
   validateBookingStatus,

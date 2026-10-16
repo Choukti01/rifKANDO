@@ -59,6 +59,7 @@ const ServicesDashboard = lazy(() => import('./pages/seller/services/ServicesDas
 const AddService = lazy(() => import('./pages/seller/services/AddService'))
 const EditService = lazy(() => import('./pages/seller/services/EditService'))
 const ServiceProfile = lazy(() => import('./pages/seller/services/ServiceProfile'))
+const ServicePayoutProfile = lazy(() => import('./pages/seller/services/ServicePayoutProfile'))
 const ServiceRequestsPage = lazy(() => import('./pages/buyer/ServiceRequestsPage'))
 const ServiceWorkroomPage = lazy(() => import('./pages/services/ServiceWorkroomPage'))
 // const DigitalDashboard = lazy(() => import('./pages/seller/digital/DigitalDashboard'))
@@ -317,6 +318,7 @@ function AppContent() {
                     <Route path="courses/*" element={<UnderDevelopment sectionKey="courses" sellerWorkspace />} />
                     <Route path="services" element={<ServicesDashboard />} />
                     <Route path="services/profile" element={<ServiceProfile />} />
+                    <Route path="services/payout-profile" element={<ServicePayoutProfile />} />
                     <Route path="services/add" element={<AddService />} />
                     <Route path="services/:id/edit" element={<EditService />} />
                     <Route path="services/:id/packages" element={<PackagesManager />} />

@@ -205,6 +205,8 @@ export const orderService = (id, orderData) => api.post(`/services/${id}/order`,
 export const getServiceProvider = (userId) => api.get(`/service-providers/${userId}`);
 export const getMyServiceProfile = () => api.get('/my-service-profile');
 export const saveMyServiceProfile = (profile) => api.put('/my-service-profile', profile);
+export const getMyServicePayoutProfile = () => api.get('/my-service-payout-profile');
+export const saveMyServicePayoutProfile = (profile) => api.put('/my-service-payout-profile', profile);
 export const requestService = (id, request) => api.post(`/services/${id}/requests`, request);
 export const getMyServiceRequests = () => api.get('/my-service-requests');
 export const getMyServiceOrders = () => api.get('/my-service-orders');
@@ -217,6 +219,8 @@ export const submitServicePayment = (id, transferReference, note = '') => api.po
 export const getServiceReconciliation = () => api.get('/admin/service-reconciliation');
 export const verifyServiceTransfer = (id, action, note = '') => api.post(`/admin/service-reconciliation/${id}/verify`, { action, note });
 export const recordServiceProviderPayout = (id, payoutReference, note = '') => api.post(`/admin/service-reconciliation/${id}/payout`, { payoutReference, note });
+export const openServiceDispute = (id, reason, description) => api.post(`/service-orders/${id}/disputes`, { reason, description });
+export const resolveServiceDispute = (id, action, note, reference = '') => api.post(`/admin/service-disputes/${id}/resolve`, { action, note, reference });
 
 // ==================== DIGITAL PRODUCT APIs ====================
 export const getDigitalProducts = (params) => api.get('/digital', { params });
