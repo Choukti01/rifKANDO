@@ -56,12 +56,15 @@ const FindItPage = () => {
       city: urlSearchParams.get('city') || '',
       sortBy: urlSearchParams.get('sortBy') || 'newest',
     };
-    setSearch((current) => current === next.search ? current : next.search);
-    setSearchInput((current) => current === next.search ? current : next.search);
-    setCategory((current) => current === next.category ? current : next.category);
-    setCity((current) => current === next.city ? current : next.city);
-    setCityInput((current) => current === next.city ? current : next.city);
-    setSortBy((current) => current === next.sortBy ? current : next.sortBy);
+    const timer = window.setTimeout(() => {
+      setSearch((current) => current === next.search ? current : next.search);
+      setSearchInput((current) => current === next.search ? current : next.search);
+      setCategory((current) => current === next.category ? current : next.category);
+      setCity((current) => current === next.city ? current : next.city);
+      setCityInput((current) => current === next.city ? current : next.city);
+      setSortBy((current) => current === next.sortBy ? current : next.sortBy);
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [urlSearchParams]);
 
   const fetchRequests = useCallback(async (page = 1) => {

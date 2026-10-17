@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { CheckCircleIcon, ChatBubbleLeftRightIcon, ClockIcon, CubeIcon, TruckIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import api from '../../../services/api';
@@ -27,7 +27,7 @@ const SellerOrders = () => {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(null);
 
-  const loadOrders = async () => {
+  const loadOrders = useCallback(async () => {
     try {
       const [ordersResponse, partnerResponse] = await Promise.all([
         api.get('/seller/orders'),
@@ -41,12 +41,12 @@ const SellerOrders = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [t]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => { void loadOrders(); }, 0);
     return () => window.clearTimeout(timer);
-  }, []);
+  }, [loadOrders]);
 
   const performAction = async (order, action) => {
     const fulfillmentId = order.fulfillment_id;

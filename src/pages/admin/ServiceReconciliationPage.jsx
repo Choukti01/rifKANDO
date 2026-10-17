@@ -38,7 +38,10 @@ const ServiceReconciliationPage = () => {
     } finally { setLoading(false); }
   }, [c.loadFailed]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void load(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, [load]);
 
   const totals = useMemo(() => transfers.reduce((summary, transfer) => ({
     awaiting: summary.awaiting + (transfer.payment_status === 'submitted' ? 1 : 0),

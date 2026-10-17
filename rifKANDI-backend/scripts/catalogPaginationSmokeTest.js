@@ -95,7 +95,10 @@ const assertCatalogPagination = async (port, pathname, collection) => {
   assert.equal(secondPage.body[collection].length, 1, `${pathname} final page must contain the remaining record`);
   assert.equal(secondPage.body.pagination.hasNextPage, false, `${pathname} must identify the final page`);
 
-  const cappedPage = await fetchJson(port, `${pathname}${querySeparator}limit=500`);
+  // 100 is accepted by the strictest public query validator, then the shared
+  // pagination layer caps the actual page size to 50.
+  const cappedPage = await fetchJson(port, `${pathname}${querySeparator}limit=100`);
+  assert.equal(cappedPage.response.status, 200, `${pathname} capped page must succeed: ${JSON.stringify(cappedPage.body)}`);
   assert.equal(cappedPage.body.pagination.limit, 50, `${pathname} must cap untrusted page sizes`);
 };
 

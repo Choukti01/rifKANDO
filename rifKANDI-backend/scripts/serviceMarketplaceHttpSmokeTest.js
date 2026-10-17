@@ -154,6 +154,17 @@ async function run() {
     assert.deepEqual(detail.body.service.deliverables, ['Two initial menu concepts', 'Print-ready PDF']);
     assert.equal(detail.body.service.packages[0].id, packageId, 'public service page exposes real package choices');
 
+    const discovery = await fetchJson(port, '/api/services?q=figma&category=design&city=Nador&language=french&availability=available&sort=price_low');
+    assert.equal(discovery.response.status, 200, 'public service discovery accepts bounded filters');
+    assert.equal(discovery.body.pagination.total, 1, 'service discovery returns the matching provider offer');
+    assert.equal(discovery.body.services[0].id, serviceId, 'service discovery returns the expected public service');
+    assert.equal(discovery.body.filters.sort, 'price_low', 'service discovery exposes the applied safe sort');
+    assert.equal(discovery.body.filters.language, 'french', 'service discovery applies the requested provider language filter');
+    const unsafeDiscovery = await fetchJson(port, '/api/services?sort=rating%3BDROP%20TABLE%20services&availability=invalid');
+    assert.equal(unsafeDiscovery.response.status, 200, 'unsafe discovery values are safely ignored');
+    assert.equal(unsafeDiscovery.body.filters.sort, 'newest', 'unsafe sort falls back to the safe default');
+    assert.equal(unsafeDiscovery.body.filters.availability, '', 'invalid availability falls back to no availability filter');
+
     const requested = await fetchJson(port, `/api/services/${serviceId}/requests`, {
       method: 'POST', headers: { ...buyerHeaders, 'Content-Type': 'application/json' }, body: JSON.stringify({ packageId, requirements: 'I need a bilingual menu for a small café opening next month.' }),
     });

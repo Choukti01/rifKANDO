@@ -52,11 +52,17 @@ const SQLITE_IMPORT_ORDER = Object.freeze([
   'enrollments',
   'lesson_progress',
   'services',
+  'service_provider_profiles',
+  'service_provider_payout_profiles',
   'service_media',
   'service_packages',
   'service_orders',
   'service_order_status_history',
   'service_workroom_entries',
+  'service_payment_transfers',
+  'service_disputes',
+  'service_dispute_events',
+  'service_reviews',
   'digital_products',
   'digital_media',
   'digital_files',
@@ -86,6 +92,8 @@ const TABLES_WITHOUT_NUMERIC_ID = new Set([
   'google_verifications',
   'pending_registrations',
   'phone_verification_challenges',
+  'service_provider_profiles',
+  'service_provider_payout_profiles',
 ]);
 
 const BOOLEAN_COLUMNS = new Set([
@@ -127,7 +135,13 @@ const TIMESTAMPTZ_COLUMNS = new Set([
   'refund_requests.processed_at', 'refund_requests.created_at',
   'courses.created_at', 'course_media.created_at', 'course_lessons.created_at', 'enrollments.completed_at', 'enrollments.created_at',
   'lesson_progress.created_at', 'lesson_progress.updated_at',
-  'services.created_at', 'service_media.created_at', 'service_orders.delivered_at', 'service_orders.completed_at', 'service_orders.created_at',
+  'services.created_at', 'service_media.created_at',
+  'service_provider_profiles.created_at', 'service_provider_profiles.updated_at',
+  'service_provider_payout_profiles.updated_at',
+  'service_orders.delivered_at', 'service_orders.completed_at', 'service_orders.created_at', 'service_orders.updated_at',
+  'service_order_status_history.created_at', 'service_workroom_entries.created_at',
+  'service_payment_transfers.submitted_at', 'service_payment_transfers.verified_at', 'service_payment_transfers.paid_at', 'service_payment_transfers.created_at', 'service_payment_transfers.updated_at',
+  'service_disputes.resolved_at', 'service_disputes.created_at', 'service_disputes.updated_at', 'service_dispute_events.created_at', 'service_reviews.created_at',
   'digital_products.created_at', 'digital_media.created_at', 'digital_files.created_at', 'digital_purchases.last_downloaded_at', 'digital_purchases.granted_at', 'digital_purchases.created_at', 'digital_requests.created_at', 'digital_requests.updated_at',
   'bookings.created_at', 'booking_media.created_at', 'booking_slots.created_at', 'booking_availability_windows.created_at', 'booking_date_overrides.created_at',
   'appointments.starts_at', 'appointments.ends_at', 'appointments.cancelled_at', 'appointments.confirmed_at', 'appointments.completed_at', 'appointments.updated_at', 'appointments.created_at',
@@ -158,6 +172,8 @@ const FINANCIAL_RECONCILIATION_COLUMNS = Object.freeze([
   ['findit_offers', 'price_minor'], ['findit_offers', 'delivery_fee_minor'],
   ['findit_orders', 'price_minor'], ['findit_orders', 'delivery_fee_minor'],
   ['findit_orders', 'commission_minor'], ['findit_orders', 'seller_amount_minor'],
+  ['service_payment_transfers', 'amount_minor'], ['service_payment_transfers', 'commission_minor'],
+  ['service_payment_transfers', 'provider_payout_minor'],
 ]);
 
 function assertImportOrder() {

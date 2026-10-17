@@ -23,7 +23,7 @@ cd /opt/rifkando/app/rifKANDI-backend
 
 ## Production environment
 
-Create `/opt/rifkando/.env` from `.env.oracle.example`, preserving the **existing** production secrets and Neon `DATABASE_URL`. Do not rotate secrets during the cutover: that would log out active users and invalidate sessions. Lock it down:
+Create `/opt/rifkando/.env` from `oracle.environment.example`, preserving the **existing** production secrets and Neon `DATABASE_URL`. Do not rotate secrets during the cutover: that would log out active users and invalidate sessions. Lock it down:
 
 ```bash
 chmod 600 /opt/rifkando/.env

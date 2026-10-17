@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
@@ -40,14 +40,14 @@ const HelpCenter = () => {
   const [activeCategory, setActiveCategory] = useState('all')
   const [openFaq, setOpenFaq] = useState(null)
 
-  const visibleFaqs = useMemo(() => {
+  const visibleFaqs = (() => {
     const query = searchQuery.trim().toLowerCase()
     return faqs.filter((faq) => {
       const matchesCategory = activeCategory === 'all' || faq.category === activeCategory
       const matchesSearch = !query || `${faq.question} ${faq.answer}`.toLowerCase().includes(query)
       return matchesCategory && matchesSearch
     })
-  }, [activeCategory, searchQuery])
+  })()
 
   const selectCategory = (categoryId) => {
     setActiveCategory(categoryId)

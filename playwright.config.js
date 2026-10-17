@@ -22,14 +22,17 @@ export default defineConfig({
     screenshot: 'only-on-failure',
   },
   webServer: {
-    command: 'npm run dev -- --host 127.0.0.1',
+    // Use the primary script so VITE_PORT below controls the server port.
+    // The default dev script intentionally reserves an isolated local port.
+    command: 'npm run dev:primary -- --host 127.0.0.1',
     url: e2eBaseUrl,
     reuseExistingServer: !process.env.CI,
     env: {
       ...process.env,
       CI: '1',
       VITE_PORT: String(e2ePort),
-      VITE_API_URL: process.env.VITE_API_URL || 'http://127.0.0.1:5000/api',
+      // Browser tests intercept these requests; never accidentally use live data.
+      VITE_API_URL: `${e2eBaseUrl}/api`,
       VITE_GOOGLE_CLIENT_ID: process.env.VITE_GOOGLE_CLIENT_ID || 'rifkando-e2e.apps.googleusercontent.com',
     },
     timeout: 120_000,

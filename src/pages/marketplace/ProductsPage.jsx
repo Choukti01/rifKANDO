@@ -73,17 +73,20 @@ const ProductsPage = () => {
       sortBy: urlSearchParams.get('sortBy') || 'newest',
     };
 
-    setActiveCondition((current) => current === next.condition ? current : next.condition);
-    setSearchTerm((current) => current === next.search ? current : next.search);
-    setSearchInput((current) => current === next.search ? current : next.search);
-    setSelectedCategory((current) => current === next.category ? current : next.category);
-    setCity((current) => current === next.city ? current : next.city);
-    setCityInput((current) => current === next.city ? current : next.city);
-    setMinPrice((current) => current === next.minPrice ? current : next.minPrice);
-    setMaxPrice((current) => current === next.maxPrice ? current : next.maxPrice);
-    setMinRating((current) => current === next.minRating ? current : next.minRating);
-    setSortBy((current) => current === next.sortBy ? current : next.sortBy);
-    setCurrentPage((current) => current === page ? current : page);
+    const timer = window.setTimeout(() => {
+      setActiveCondition((current) => current === next.condition ? current : next.condition);
+      setSearchTerm((current) => current === next.search ? current : next.search);
+      setSearchInput((current) => current === next.search ? current : next.search);
+      setSelectedCategory((current) => current === next.category ? current : next.category);
+      setCity((current) => current === next.city ? current : next.city);
+      setCityInput((current) => current === next.city ? current : next.city);
+      setMinPrice((current) => current === next.minPrice ? current : next.minPrice);
+      setMaxPrice((current) => current === next.maxPrice ? current : next.maxPrice);
+      setMinRating((current) => current === next.minRating ? current : next.minRating);
+      setSortBy((current) => current === next.sortBy ? current : next.sortBy);
+      setCurrentPage((current) => current === page ? current : page);
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [urlSearchParams]);
 
   useEffect(() => {

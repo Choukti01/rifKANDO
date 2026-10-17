@@ -41,6 +41,23 @@ const serializeList = (value) => {
   return typeof value === 'string' && value.trim() ? value : '[]';
 };
 
+// Public discovery accepts only small, bounded values.  The SQL below still
+// uses parameters for every value; the sort expression is picked from a
+// fixed allow-list rather than being interpolated from the request.
+const serviceDiscovery = (query = {}) => {
+  const text = (value, max) => String(value || '').trim().slice(0, max);
+  const availability = text(query.availability, 24).toLowerCase();
+  const sort = text(query.sort, 24).toLowerCase();
+  return {
+    q: text(query.q, 80),
+    category: text(query.category, 64).toLowerCase(),
+    city: text(query.city, 100),
+    language: text(query.language, 64).toLowerCase(),
+    availability: ['available', 'limited', 'unavailable'].includes(availability) ? availability : '',
+    sort: ['newest', 'price_low', 'price_high', 'rating'].includes(sort) ? sort : 'newest',
+  };
+};
+
 const requestNumber = () => {
   const stamp = new Date().toISOString().slice(0, 10).replaceAll('-', '');
   return `SRV-${stamp}-${crypto.randomUUID().replaceAll('-', '').slice(0, 10).toUpperCase()}`;
@@ -352,19 +369,57 @@ const createServiceRoutes = ({
   router.get('/services', async (req, res, next) => {
     try {
       const { page, limit, offset } = getPagination(req.query);
-      const total = await get(db, "SELECT COUNT(*) AS total FROM services WHERE status = 'published'");
+      const discovery = serviceDiscovery(req.query);
+      const where = ["s.status = 'published'"];
+      const params = [];
+      if (discovery.q) {
+        const needle = `%${discovery.q.toLowerCase()}%`;
+        where.push(`(
+          LOWER(s.title) LIKE ? OR LOWER(s.description) LIKE ? OR LOWER(s.category) LIKE ?
+          OR LOWER(u.name) LIKE ? OR LOWER(COALESCE(p.headline, '')) LIKE ?
+          OR LOWER(CAST(COALESCE(p.skills, '[]') AS TEXT)) LIKE ?
+        )`);
+        params.push(needle, needle, needle, needle, needle, needle);
+      }
+      if (discovery.category) {
+        where.push('LOWER(s.category) = ?');
+        params.push(discovery.category);
+      }
+      if (discovery.city) {
+        where.push("LOWER(COALESCE(u.city, '')) LIKE ?");
+        params.push(`%${discovery.city.toLowerCase()}%`);
+      }
+      if (discovery.language) {
+        where.push("LOWER(CAST(COALESCE(p.languages, '[]') AS TEXT)) LIKE ?");
+        params.push(`%${discovery.language}%`);
+      }
+      if (discovery.availability) {
+        where.push("COALESCE(p.availability, 'available') = ?");
+        params.push(discovery.availability);
+      }
+      const filterSql = where.join(' AND ');
+      const orderBy = {
+        newest: 's.created_at DESC, s.id DESC',
+        price_low: 's.price ASC, s.id DESC',
+        price_high: 's.price DESC, s.id DESC',
+        rating: 's.rating DESC, s.created_at DESC, s.id DESC',
+      }[discovery.sort];
+      const total = await get(db, `SELECT COUNT(*) AS total FROM services s
+        JOIN users u ON u.id = s.provider_id
+        LEFT JOIN service_provider_profiles p ON p.user_id = s.provider_id
+        WHERE ${filterSql}`, params);
       const rows = await all(db, `
         SELECT s.*, u.name AS provider_name, u.city AS provider_city, u.country AS provider_country,
           u."profilePicture" AS provider_picture, p.headline AS provider_headline, p.availability AS provider_availability,
           (SELECT COUNT(*) FROM service_reviews sr WHERE sr.service_id = s.id) AS reviews_count
         FROM services s JOIN users u ON u.id = s.provider_id
         LEFT JOIN service_provider_profiles p ON p.user_id = s.provider_id
-        WHERE s.status = 'published'
-        ORDER BY s.created_at DESC, s.id DESC LIMIT ? OFFSET ?
-      `, [limit, offset]);
+        WHERE ${filterSql}
+        ORDER BY ${orderBy} LIMIT ? OFFSET ?
+      `, [...params, limit, offset]);
       const services = await Promise.all(rows.map((service) => attachMedia(db, service)));
       res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
-      return res.json({ success: true, services: services.map(publicService), pagination: createPaginationMetadata(page, limit, Number(total?.total || 0)) });
+      return res.json({ success: true, services: services.map(publicService), pagination: createPaginationMetadata(page, limit, Number(total?.total || 0)), filters: discovery });
     } catch (error) { return next(error); }
   });
 

@@ -21,4 +21,3 @@ GOOGLE_CLIENT_ID=your-google-oauth-client-id
 # Preserve the current controlled launch scope.
 FEATURE_FLAGS=checkout=true,cmi_payments=false,digital_downloads=false
 OBJECT_STORAGE_DRIVER=local
-

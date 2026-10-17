@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { BanknotesIcon, CheckCircleIcon, ClockIcon, DocumentDuplicateIcon, StarIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
@@ -22,7 +22,7 @@ const ServiceRequestsPage = () => {
   const [paymentInstructions, setPaymentInstructions] = useState({});
   const [paymentForms, setPaymentForms] = useState({});
 
-  const load = async () => {
+  const load = useCallback(async () => {
     try {
       const response = await getMyServiceRequests();
       setRequests(response.data.requests || []);
@@ -31,11 +31,11 @@ const ServiceRequestsPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [t]);
   useEffect(() => {
     const timer = window.setTimeout(() => { void load(); }, 0);
     return () => window.clearTimeout(timer);
-  }, [t]);
+  }, [load]);
 
   const act = async (request, action) => {
     setBusyId(request.id);
