@@ -82,7 +82,7 @@ const HomePage = () => {
 
   const categories = [
     { name: t('nav.products'), icon: ShoppingBagIcon, path: '/products', color: 'var(--color-brand-blue)', count: stats.productsCount, available: productDataAvailable },
-    { name: t('nav.courses'), icon: AcademicCapIcon, path: '/courses', color: '#64748b', underDevelopment: true },
+    { name: t('nav.courses'), icon: AcademicCapIcon, path: '/courses', color: '#147bbb' },
     { name: t('nav.services'), icon: WrenchScrewdriverIcon, path: '/services', color: 'var(--color-brand-blue)', count: stats.servicesCount, available: serviceDataAvailable },
     { name: t('nav.digital'), icon: ComputerDesktopIcon, path: '/digital', color: '#64748b', underDevelopment: true },
     { name: t('findit.navigation'), icon: MagnifyingGlassIcon, path: '/findit', color: 'var(--color-brand-blue)', count: stats.finditRequestsCount, countLabel: t('availability.openRequests'), available: finditDataAvailable },

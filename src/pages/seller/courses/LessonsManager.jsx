@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   PlusIcon, PencilIcon, TrashIcon, XMarkIcon, 
-  VideoCameraIcon, DocumentIcon, CloudArrowUpIcon,
+  VideoCameraIcon, DocumentIcon,
   ChevronUpIcon, ChevronDownIcon, PlayIcon
 } from '@heroicons/react/24/outline';
 import api from '../../../services/api';
@@ -17,8 +17,6 @@ const LessonsManager = () => {
   const [lessons, setLessons] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [editingLesson, setEditingLesson] = useState(null);
-  const [uploadingVideo, setUploadingVideo] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -70,45 +68,6 @@ const LessonsManager = () => {
     }
   };
 
-  const handleVideoUpload = async (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-    
-    if (!file.type.startsWith('video/')) {
-      toast.error('Please upload a video file');
-      return;
-    }
-    if (file.size > 500 * 1024 * 1024) {
-      toast.error('Video size cannot exceed 500MB');
-      return;
-    }
-
-    setUploadingVideo(true);
-    setUploadProgress(0);
-    const formDataFile = new FormData();
-    formDataFile.append('media', file);
-
-    try {
-      const response = await api.post('/upload-media', formDataFile, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        onUploadProgress: (progressEvent) => {
-          const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-          setUploadProgress(percent);
-        }
-      });
-      if (response.data.success) {
-        setFormData(prev => ({ ...prev, video_url: response.data.url }));
-        toast.success('Video uploaded successfully');
-      }
-    } catch (error) {
-      console.error('Upload error:', error);
-      toast.error('Failed to upload video');
-    } finally {
-      setUploadingVideo(false);
-      setUploadProgress(0);
-    }
-  };
-
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData({
@@ -130,7 +89,7 @@ const LessonsManager = () => {
         description: formData.description,
         duration: parseInt(formData.duration) || 0,
         video_url: formData.video_url,
-        is_preview: formData.is_preview ? 1 : 0,
+        is_preview: Boolean(formData.is_preview),
         order: editingLesson ? editingLesson.order : lessons.length
       };
 
@@ -250,17 +209,9 @@ const LessonsManager = () => {
                 <h3>{lesson.title}</h3>
                 <div className="lesson-meta">
                   {lesson.duration > 0 && <span>{lesson.duration} min</span>}
-                  {lesson.is_preview === 1 && <span className="preview-badge">Free Preview</span>}
+                  {(lesson.is_preview === true || lesson.is_preview === 1) && <span className="preview-badge">Free Preview</span>}
                 </div>
-                {lesson.video_url && (
-                  <div className="video-preview">
-                    <video 
-                      src={`http://localhost:5000${lesson.video_url}`} 
-                      controls 
-                      className="preview-video"
-                    />
-                  </div>
-                )}
+                {lesson.video_url && <p>YouTube lesson link added</p>}
               </div>
               <div className="lesson-actions">
                 <button onClick={() => openModal(lesson)} className="icon-btn edit">✏️</button>
@@ -301,29 +252,15 @@ const LessonsManager = () => {
                 </div>
               </div>
 
-              {/* Video Upload */}
               <div className="form-group">
-                <label>Lesson Video</label>
-                <div className="video-upload-area">
-                  <input type="file" accept="video/*" onChange={handleVideoUpload} className="video-input" />
-                  {uploadingVideo && (
-                    <div className="upload-progress">
-                      <div className="progress-bar" style={{ width: `${uploadProgress}%` }} />
-                      <span>{uploadProgress}%</span>
-                    </div>
-                  )}
-                  {formData.video_url && !uploadingVideo && (
-                    <div className="uploaded-success">
-                      ✅ Video uploaded
-                      <video src={`http://localhost:5000${formData.video_url}`} controls className="uploaded-video-preview" />
-                    </div>
-                  )}
-                </div>
+                <label htmlFor="course-youtube-link">YouTube lesson link</label>
+                <input id="course-youtube-link" type="url" name="video_url" value={formData.video_url} onChange={handleChange} className="form-input" placeholder="https://youtu.be/..." />
+                <p>Upload your video to YouTube as unlisted, then paste its link here. Anyone who obtains the link can share or watch it.</p>
               </div>
 
               <div className="modal-actions">
                 <button type="button" onClick={() => setShowModal(false)} className="btn-cancel">Cancel</button>
-                <button type="submit" disabled={saving || uploadingVideo} className="btn-save">
+                <button type="submit" disabled={saving} className="btn-save">
                   {saving ? 'Saving...' : (editingLesson ? 'Update' : 'Add')}
                 </button>
               </div>

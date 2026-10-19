@@ -49,6 +49,7 @@ const DashboardLayout = () => {
   // professional services. Courses and digital remain intentionally parked.
   const selectedWorkspaceItems = [
     ...(user?.sellerType === 'product' || !user?.sellerType ? [sellerWorkspaceItems.product] : []),
+    sellerWorkspaceItems.course,
     sellerWorkspaceItems.service,
   ];
   const workspaceItems = [

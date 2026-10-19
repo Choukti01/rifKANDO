@@ -140,6 +140,7 @@ const Navbar = () => {
                         {canOperateCod && <Link to="/operations/cod" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>COD Operations Desk</Link>}
                         {canReconcileCod && <Link to="/admin/cod-reconciliation" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>COD Reconciliation</Link>}
                         {canReconcileServices && <Link to="/admin/service-reconciliation" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>Services Reconciliation</Link>}
+                        {canReconcileServices && <Link to="/admin/course-reconciliation" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>Courses Reconciliation</Link>}
                         {canTrackErrors && <Link to="/admin/error-tracking" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>rifKANDO Error Tracking</Link>}
                         {!isSeller && <>
                           <Link to="/favorites" className="dropdown-item" onClick={() => setIsProfileOpen(false)}>{t('common.savedItems')}</Link>
@@ -196,6 +197,7 @@ const Navbar = () => {
                 {canOperateCod && <Link to="/operations/cod" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>COD Operations Desk</Link>}
                 {canReconcileCod && <Link to="/admin/cod-reconciliation" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>COD Reconciliation</Link>}
                 {canReconcileServices && <Link to="/admin/service-reconciliation" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>Services Reconciliation</Link>}
+                {canReconcileServices && <Link to="/admin/course-reconciliation" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>Courses Reconciliation</Link>}
                 {canTrackErrors && <Link to="/admin/error-tracking" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>rifKANDO Error Tracking</Link>}
                 {!isSeller && <>
                   <Link to="/favorites" className="mobile-nav-link" onClick={() => setIsMenuOpen(false)}>{t('common.savedItems')}</Link>

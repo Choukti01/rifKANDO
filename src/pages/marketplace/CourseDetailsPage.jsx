@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { StarIcon, UserGroupIcon, ClockIcon, AcademicCapIcon, CheckBadgeIcon, PlayIcon } from '@heroicons/react/24/outline';
-import { getCourse, enrollCourse } from '../../services/api';
+import api, { getCourse } from '../../services/api';
 import useAuth from '../../hooks/useAuth';
 import toast from 'react-hot-toast';
 import MediaGallery from '../../components/MediaGallery';
 import MarketplaceImage from '../../components/common/MarketplaceImage';
 import { getImageUrl } from '../../utils/imageUtils';
+import { courseYouTubeEmbedUrl } from '../../utils/courseYouTube';
 
 const CourseDetailsPage = () => {
   const { id } = useParams();
@@ -14,21 +15,11 @@ const CourseDetailsPage = () => {
   const [course, setCourse] = useState(null);
   const [loading, setLoading] = useState(true);
   const [enrolling, setEnrolling] = useState(false);
+  const [payment, setPayment] = useState(null);
+  const [transferReference, setTransferReference] = useState('');
   const [activeLesson, setActiveLesson] = useState(null);
   const [showGallery, setShowGallery] = useState(false);
   const { isAuthenticated } = useAuth();
-
-  const fetchCourse = async () => {
-    try {
-      const response = await getCourse(id);
-      setCourse(response.data.course);
-    } catch (error) {
-      console.error('Error fetching course:', error);
-      toast.error('Failed to load course');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   useEffect(() => {
     let isCurrent = true;
@@ -62,16 +53,27 @@ const CourseDetailsPage = () => {
     }
     setEnrolling(true);
     try {
-      const response = await enrollCourse(id);
+      const response = await api.post(`/courses/${id}/payment-instructions`);
       if (response.data.success) {
-        toast.success('Successfully enrolled!');
-        fetchCourse();
+        setPayment(response.data);
       }
     } catch (error) {
       toast.error(error.response?.data?.error || 'Failed to enroll');
     } finally {
       setEnrolling(false);
     }
+  };
+
+  const submitTransfer = async (event) => {
+    event.preventDefault();
+    setEnrolling(true);
+    try {
+      await api.post(`/courses/${id}/payment-submission`, { transferReference });
+      toast.success('Your transfer reference was submitted for manual verification.');
+      setPayment((current) => ({ ...current, payment: { ...current.payment, status: 'submitted' } }));
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'Unable to submit transfer reference');
+    } finally { setEnrolling(false); }
   };
 
   if (loading) return <div className="container text-center py-16"><div className="spinner"></div><p>Loading course...</p></div>;
@@ -130,16 +132,19 @@ const CourseDetailsPage = () => {
                     {activeLesson === index && (
                       <div className="section-content">
                         <p>{lesson.description || 'No description available'}</p>
-                        {lesson.video_url && (
+                        {courseYouTubeEmbedUrl(lesson.video_url) && (
                           <div className="lesson-video">
-                            <video 
-                              src={getImageUrl(lesson.video_url)}
-                              controls 
+                            <iframe
+                              src={courseYouTubeEmbedUrl(lesson.video_url)}
+                              title={lesson.title}
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                              allowFullScreen
+                              loading="lazy"
                               className="lesson-video-player"
                             />
                           </div>
                         )}
-                        {lesson.is_preview === 1 && !course.isEnrolled && (
+                        {(lesson.is_preview === true || lesson.is_preview === 1) && !course.isEnrolled && (
                           <div className="preview-notice">🎬 This is a free preview lesson</div>
                         )}
                       </div>
@@ -181,14 +186,27 @@ const CourseDetailsPage = () => {
               {course.isEnrolled ? (
                 <div className="enrolled-badge">
                   <CheckBadgeIcon className="enrolled-icon" /><span>You are enrolled!</span>
-                  <Link to={`/my-courses/${course.id}`} className="continue-btn">Continue Learning</Link>
+                  <span>Choose a lesson from the curriculum to continue learning.</span>
                 </div>
               ) : (
-                <button className="enroll-btn" onClick={handleEnroll} disabled={enrolling}>{enrolling ? 'Enrolling...' : 'Enroll Now'}</button>
+                <button className="enroll-btn" onClick={handleEnroll} disabled={enrolling}>{enrolling ? 'Loading...' : 'View bank transfer instructions'}</button>
+              )}
+              {payment && !course.isEnrolled && (
+                <section aria-label="Bank transfer instructions">
+                  <p>Transfer {payment.payment.amount} MAD to {payment.instructions.account_holder} at {payment.instructions.bank_name}.</p>
+                  <p>RIB: {payment.instructions.rib}</p>
+                  <p>Use this purchase reference: {payment.payment.reference}</p>
+                  <p>rifKANDO manually checks that funds arrived before granting access. Unlisted YouTube links can be shared.</p>
+                  {['awaiting_payment', 'rejected'].includes(payment.payment.status) && <form onSubmit={submitTransfer}>
+                    <label htmlFor="course-transfer-reference">Your bank transfer reference</label>
+                    <input id="course-transfer-reference" value={transferReference} onChange={(event) => setTransferReference(event.target.value)} minLength={3} maxLength={256} required />
+                    <button type="submit" disabled={enrolling}>Submit for verification</button>
+                  </form>}
+                  {payment.payment.status === 'submitted' && <p>Awaiting manual verification.</p>}
+                </section>
               )}
               <div className="course-features">
-                <div className="feature-item"><AcademicCapIcon className="feature-icon" /><span>Certificate of completion</span></div>
-                <div className="feature-item"><ClockIcon className="feature-icon" /><span>Full lifetime access</span></div>
+                <div className="feature-item"><AcademicCapIcon className="feature-icon" /><span>Learn from an instructor</span></div>
                 <div className="feature-item"><PlayIcon className="feature-icon" /><span>{course.lessons?.length || 0} lessons</span></div>
               </div>
             </div>

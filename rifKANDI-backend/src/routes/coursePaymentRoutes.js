@@ -65,10 +65,25 @@ module.exports = ({ db, protect, requireServiceReconciliationAccess, validateIdP
         const payment = await get(tx, 'SELECT * FROM course_bank_transfers WHERE id = ?', [req.params.id]);
         if (!payment) throw fail('Payment not found.', 404);
         const status = action === 'verify' ? 'verified' : 'rejected';
-        const changed = await run(tx, `UPDATE course_bank_transfers SET payment_status = ?, verification_note = ?, verified_by = ?,
-          verified_at = CASE WHEN ? = 'verified' THEN CURRENT_TIMESTAMP ELSE NULL END, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND payment_status = 'submitted'`, [status, note, req.user.id, status, payment.id]);
+        const changed = await run(tx, `UPDATE course_bank_transfers SET payment_status = ?, payout_status = CASE WHEN ? = 'verified' THEN 'due' ELSE 'not_due' END, verification_note = ?, verified_by = ?,
+          verified_at = CASE WHEN ? = 'verified' THEN CURRENT_TIMESTAMP ELSE NULL END, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND payment_status = 'submitted'`, [status, status, note, req.user.id, status, payment.id]);
         if (changed.changes !== 1) throw fail('Payment has already been processed or was not submitted.', 409);
         if (status === 'verified') await run(tx, 'INSERT INTO enrollments (user_id, course_id) VALUES (?, ?) ON CONFLICT(user_id, course_id) DO NOTHING', [payment.buyer_id, payment.course_id]);
+      });
+      return res.json({ success: true });
+    } catch (error) { return sendError(error, res, next); }
+  });
+
+  // This records a transfer already made outside rifKANDO; it never moves money.
+  router.post('/admin/course-reconciliation/:id/payout', requireCourses, protect, requireServiceReconciliationAccess, validateIdParams('id'), async (req, res, next) => {
+    try {
+      const reference = String(req.body?.payoutReference || '').trim();
+      if (!/^[A-Za-z0-9 _./:-]{3,256}$/.test(reference)) throw fail('Provide the actual payout reference.', 422);
+      await withTransaction(db, async tx => {
+        const result = await run(tx, `UPDATE course_bank_transfers
+          SET payout_status = 'paid', payout_reference = ?, paid_by = ?, paid_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+          WHERE id = ? AND payment_status = 'verified' AND payout_status = 'due'`, [reference, req.user.id, req.params.id]);
+        if (result.changes !== 1) throw fail('Payout is not due or has already been recorded.', 409);
       });
       return res.json({ success: true });
     } catch (error) { return sendError(error, res, next); }

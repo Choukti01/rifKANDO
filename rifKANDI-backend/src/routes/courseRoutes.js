@@ -241,36 +241,33 @@ router.put('/courses/:courseId/lessons/:lessonId/progress', protect, validateIdP
   const { courseId, lessonId } = req.params;
   const { completed } = req.body;
 
-  db.run(`
-    INSERT OR REPLACE INTO lesson_progress (user_id, course_id, lesson_id, completed)
-    VALUES (?, ?, ?, ?)
-  `, [req.user.id, courseId, lessonId, completed ? 1 : 0], function(err) {
-    if (err) {
-      res.status(400).json({ error: err.message });
-    } else {
-      db.get(`
-        SELECT COUNT(*) as total_lessons FROM course_lessons WHERE course_id = ?
-      `, [courseId], (err, result) => {
-        if (err) return;
-
-        db.get(`
-          SELECT COUNT(*) as completed_lessons FROM lesson_progress
-          WHERE user_id = ? AND course_id = ? AND completed = 1
-        `, [req.user.id, courseId], (err, progress) => {
-          if (err) return;
-
-          const percentComplete = result.total_lessons > 0
-            ? Math.round((progress.completed_lessons / result.total_lessons) * 100)
-            : 0;
-
-          db.run(`
-            UPDATE enrollments SET progress = ? WHERE user_id = ? AND course_id = ?
-          `, [percentComplete, req.user.id, courseId]);
-
-          res.json({ success: true });
+  db.get(`SELECT l.id FROM course_lessons l
+    JOIN enrollments e ON e.course_id = l.course_id AND e.user_id = ?
+    JOIN course_bank_transfers p ON p.course_id = e.course_id AND p.buyer_id = e.user_id
+    WHERE l.id = ? AND l.course_id = ? AND p.payment_status = 'verified'`,
+  [req.user.id, lessonId, courseId], (accessError, lesson) => {
+    if (accessError) return res.status(500).json({ error: 'Unable to verify course access' });
+    if (!lesson) return res.status(403).json({ error: 'Verified course access is required' });
+    db.run(`INSERT INTO lesson_progress (user_id, course_id, lesson_id, completed)
+      VALUES (?, ?, ?, ?) ON CONFLICT(user_id, course_id, lesson_id)
+      DO UPDATE SET completed = excluded.completed, updated_at = CURRENT_TIMESTAMP`,
+    [req.user.id, courseId, lessonId, Boolean(completed)], (writeError) => {
+      if (writeError) return res.status(500).json({ error: 'Unable to save lesson progress' });
+      db.get(`SELECT COUNT(*) AS total_lessons FROM course_lessons WHERE course_id = ?`, [courseId], (countError, result) => {
+        if (countError) return res.status(500).json({ error: 'Unable to calculate course progress' });
+        db.get(`SELECT COUNT(*) AS completed_lessons FROM lesson_progress
+          WHERE user_id = ? AND course_id = ? AND completed = TRUE`, [req.user.id, courseId], (progressError, progress) => {
+          if (progressError) return res.status(500).json({ error: 'Unable to calculate course progress' });
+          const percentComplete = Number(result.total_lessons) > 0
+            ? Math.round((Number(progress.completed_lessons) / Number(result.total_lessons)) * 100) : 0;
+          db.run('UPDATE enrollments SET progress = ? WHERE user_id = ? AND course_id = ?',
+            [percentComplete, req.user.id, courseId], (updateError) => {
+              if (updateError) return res.status(500).json({ error: 'Unable to save course progress' });
+              return res.json({ success: true, progress: percentComplete });
+            });
         });
       });
-    }
+    });
   });
 });
 

@@ -15,8 +15,8 @@ const MessagesInbox = lazy(() => import('./pages/messages/MessagesInbox'))
 const ProductsPage = lazy(() => import('./pages/marketplace/ProductsPage'))
 const ProductDetailsPage = lazy(() => import('./pages/marketplace/ProductDetailsPage'))
 // Parked launch modules. Their implementations remain untouched in source.
-// const CoursesPage = lazy(() => import('./pages/marketplace/CoursesPage'))
-// const CourseDetailsPage = lazy(() => import('./pages/marketplace/CourseDetailsPage'))
+const CoursesPage = lazy(() => import('./pages/marketplace/CoursesPage'))
+const CourseDetailsPage = lazy(() => import('./pages/marketplace/CourseDetailsPage'))
 const ServicesPage = lazy(() => import('./pages/marketplace/ServicesPage'))
 const ServiceDetailsPage = lazy(() => import('./pages/marketplace/ServiceDetailsPage'))
 // const DigitalPage = lazy(() => import('./pages/marketplace/DigitalPage'))
@@ -40,21 +40,22 @@ const SellerDisputes = lazy(() => import('./pages/seller/dashboard/Disputes'))
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'))
 const CODReconciliation = lazy(() => import('./pages/admin/CODReconciliation'))
 const ServiceReconciliationPage = lazy(() => import('./pages/admin/ServiceReconciliationPage'))
+const CourseReconciliationPage = lazy(() => import('./pages/admin/CourseReconciliationPage'))
 const CODDisputesPage = lazy(() => import('./pages/admin/CODDisputesPage'))
 const OperationsTeamPage = lazy(() => import('./pages/admin/OperationsTeamPage'))
 const ProductReportsPage = lazy(() => import('./pages/admin/ProductReportsPage'))
 const ErrorTrackingPage = lazy(() => import('./pages/admin/ErrorTrackingPage'))
 const CODOperationsDesk = lazy(() => import('./pages/operations/CODOperationsDesk'))
 const PackagesManager = lazy(() => import('./pages/seller/services/PackagesManager'))
-// const LessonsManager = lazy(() => import('./pages/seller/courses/LessonsManager'))
+const LessonsManager = lazy(() => import('./pages/seller/courses/LessonsManager'))
 const DashboardLayout = lazy(() => import('./pages/seller/dashboard/DashboardLayout'))
 const Overview = lazy(() => import('./pages/seller/dashboard/Overview'))
 const ProductsDashboard = lazy(() => import('./pages/seller/products/ProductsDashboard'))
 const AddProduct = lazy(() => import('./pages/seller/products/AddProduct'))
 const EditProduct = lazy(() => import('./pages/seller/products/EditProduct'))
-// const CoursesDashboard = lazy(() => import('./pages/seller/courses/CoursesDashboard'))
-// const AddCourse = lazy(() => import('./pages/seller/courses/AddCourse'))
-// const EditCourse = lazy(() => import('./pages/seller/courses/EditCourse'))
+const CoursesDashboard = lazy(() => import('./pages/seller/courses/CoursesDashboard'))
+const AddCourse = lazy(() => import('./pages/seller/courses/AddCourse'))
+const EditCourse = lazy(() => import('./pages/seller/courses/EditCourse'))
 const ServicesDashboard = lazy(() => import('./pages/seller/services/ServicesDashboard'))
 const AddService = lazy(() => import('./pages/seller/services/AddService'))
 const EditService = lazy(() => import('./pages/seller/services/EditService'))
@@ -161,8 +162,8 @@ function AppContent() {
                   <Route path="/products" element={<ProductsPage />} />
                   <Route path="/product/:id" element={<ProductDetailsPage />} />
                   {/* Courses and digital remain parked until their separate launch checks are complete. */}
-                  <Route path="/courses" element={<UnderDevelopment sectionKey="courses" />} />
-                  <Route path="/course/:id" element={<UnderDevelopment sectionKey="courses" />} />
+                  <Route path="/courses" element={<CoursesPage />} />
+                  <Route path="/course/:id" element={<CourseDetailsPage />} />
                   <Route path="/services" element={<ServicesPage />} />
                   <Route path="/service/:id" element={<ServiceDetailsPage />} />
                   <Route path="/digital" element={<UnderDevelopment sectionKey="digital" />} />
@@ -185,6 +186,11 @@ function AppContent() {
                   <Route path="/admin/service-reconciliation" element={
                     <ProtectedRoute requiredCapability="canReconcileServices">
                       <ServiceReconciliationPage />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/admin/course-reconciliation" element={
+                    <ProtectedRoute requiredCapability="canReconcileServices">
+                      <CourseReconciliationPage />
                     </ProtectedRoute>
                   } />
                   <Route path="/admin/disputes" element={
@@ -315,7 +321,10 @@ function AppContent() {
                     <Route path="products/add" element={<AddProduct />} />
                     <Route path="products/:id/edit" element={<EditProduct />} />
                     {/* Services are a request-and-hire marketplace. Courses and digital remain parked. */}
-                    <Route path="courses/*" element={<UnderDevelopment sectionKey="courses" sellerWorkspace />} />
+                    <Route path="courses" element={<CoursesDashboard />} />
+                    <Route path="courses/add" element={<AddCourse />} />
+                    <Route path="courses/:id/edit" element={<EditCourse />} />
+                    <Route path="courses/:id/lessons" element={<LessonsManager />} />
                     <Route path="services" element={<ServicesDashboard />} />
                     <Route path="services/profile" element={<ServiceProfile />} />
                     <Route path="services/payout-profile" element={<ServicePayoutProfile />} />

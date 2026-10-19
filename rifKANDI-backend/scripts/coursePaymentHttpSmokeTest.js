@@ -12,7 +12,7 @@ const founder = (req, res, next) => req.user.id === 1 ? next() : res.sendStatus(
   await exec(`CREATE TABLE courses (id INTEGER PRIMARY KEY, instructor_id INTEGER, price REAL, status TEXT, title TEXT);
     CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT);
     CREATE TABLE enrollments (id INTEGER PRIMARY KEY, user_id INTEGER, course_id INTEGER, UNIQUE(user_id, course_id));
-    CREATE TABLE course_bank_transfers (id INTEGER PRIMARY KEY, purchase_number TEXT UNIQUE, course_id INTEGER, buyer_id INTEGER, instructor_id INTEGER, amount_minor INTEGER, commission_minor INTEGER, instructor_payout_minor INTEGER, currency TEXT DEFAULT 'MAD', payment_status TEXT DEFAULT 'awaiting_payment', transfer_reference TEXT, verification_note TEXT DEFAULT '', verified_by INTEGER, verified_at TEXT, payout_status TEXT DEFAULT 'not_due', created_at TEXT DEFAULT CURRENT_TIMESTAMP, updated_at TEXT DEFAULT CURRENT_TIMESTAMP, UNIQUE(course_id,buyer_id));
+    CREATE TABLE course_bank_transfers (id INTEGER PRIMARY KEY, purchase_number TEXT UNIQUE, course_id INTEGER, buyer_id INTEGER, instructor_id INTEGER, amount_minor INTEGER, commission_minor INTEGER, instructor_payout_minor INTEGER, currency TEXT DEFAULT 'MAD', payment_status TEXT DEFAULT 'awaiting_payment', transfer_reference TEXT, verification_note TEXT DEFAULT '', verified_by INTEGER, verified_at TEXT, payout_status TEXT DEFAULT 'not_due', payout_reference TEXT, paid_by INTEGER, paid_at TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP, updated_at TEXT DEFAULT CURRENT_TIMESTAMP, UNIQUE(course_id,buyer_id));
     INSERT INTO courses VALUES (11,7,100,'published','Course'); INSERT INTO users VALUES (7,'Instructor'),(8,'Buyer'),(1,'Founder');`);
   process.env.SELLER_COMMISSION_ACCOUNT_HOLDER = 'Example';
   process.env.SELLER_COMMISSION_BANK_NAME = 'Example';
@@ -33,6 +33,13 @@ const founder = (req, res, next) => req.user.id === 1 ? next() : res.sendStatus(
     assert.equal((await call('/courses/11/payment-submission', 8, { transferReference: 'BANK-123' })).status, 200);
     assert.equal((await call('/courses/11/payment-submission', 8, { transferReference: 'BANK-123' })).status, 409);
     assert.equal((await call(`/admin/course-reconciliation/${payment.payment.id}/verify`, 1, { action: 'verify' })).status, 200);
+    const verifiedPayment = await new Promise((resolve, reject) => db.get('SELECT payment_status, payout_status FROM course_bank_transfers WHERE id = ?', [payment.payment.id], (error, row) => error ? reject(error) : resolve(row)));
+    assert.equal(verifiedPayment.payment_status, 'verified');
+    assert.equal(verifiedPayment.payout_status, 'due');
+    assert.equal((await call(`/admin/course-reconciliation/${payment.payment.id}/payout`, 8, { payoutReference: 'PAY-123' })).status, 403);
+    assert.equal((await call(`/admin/course-reconciliation/${payment.payment.id}/payout`, 1, { payoutReference: '' })).status, 422);
+    assert.equal((await call(`/admin/course-reconciliation/${payment.payment.id}/payout`, 1, { payoutReference: 'PAY-123' })).status, 200);
+    assert.equal((await call(`/admin/course-reconciliation/${payment.payment.id}/payout`, 1, { payoutReference: 'PAY-123' })).status, 409);
     assert.equal((await call(`/admin/course-reconciliation/${payment.payment.id}/verify`, 1, { action: 'verify' })).status, 409);
     const enrolled = await new Promise((resolve, reject) => db.get('SELECT COUNT(*) AS count FROM enrollments WHERE user_id = 8 AND course_id = 11', (error, row) => error ? reject(error) : resolve(row.count)));
     assert.equal(enrolled, 1);
