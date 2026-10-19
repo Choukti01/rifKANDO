@@ -1,0 +1,11 @@
+const assert = require('node:assert/strict');
+const { coursePaymentAmounts, nextCoursePaymentStatus } = require('../src/services/coursePaymentPolicy');
+assert.deepEqual(coursePaymentAmounts(10000), { amountMinor: 10000, commissionMinor: 500, instructorPayoutMinor: 9500, currency: 'MAD' });
+for (const amount of [0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1]) assert.throws(() => coursePaymentAmounts(amount));
+assert.equal(nextCoursePaymentStatus('awaiting_payment', 'submit'), 'submitted');
+assert.equal(nextCoursePaymentStatus('rejected', 'submit'), 'submitted');
+assert.equal(nextCoursePaymentStatus('submitted', 'verify'), 'verified');
+assert.equal(nextCoursePaymentStatus('submitted', 'reject'), 'rejected');
+assert.throws(() => nextCoursePaymentStatus('verified', 'verify'));
+assert.throws(() => nextCoursePaymentStatus('awaiting_payment', 'verify'));
+console.log('Course payment policy tests passed');

@@ -1,6 +1,7 @@
 const MAX_MONEY = 10_000_000;
 const MAX_ID = 2_147_483_647;
 const storageService = require('../services/storageService');
+const { parseYouTubeVideo } = require('../utils/courseYouTube');
 
 class RequestValidationError extends Error {
   constructor(field, message) {
@@ -929,6 +930,7 @@ const lessonPayload = (body, partial) => {
     video_url: body.video_url === undefined ? undefined : text(body.video_url, 'video_url', { max: 2_048 }),
   };
   const sanitized = Object.fromEntries(Object.entries(result).filter(([, value]) => value !== undefined));
+  if (sanitized.video_url && !parseYouTubeVideo(sanitized.video_url)) fail('video_url', 'must be a valid HTTPS YouTube video link.');
   if (partial && Object.keys(sanitized).length === 0) fail('body', 'must include at least one editable field.');
   return sanitized;
 };

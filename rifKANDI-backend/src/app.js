@@ -111,6 +111,7 @@ const {
 } = require('./services/phoneAuthService');
 const createProductRoutes = require('./routes/productRoutes');
 const createCourseRoutes = require('./routes/courseRoutes');
+const createCoursePaymentRoutes = require('./routes/coursePaymentRoutes');
 const createServiceRoutes = require('./routes/serviceRoutes');
 const createDigitalRoutes = require('./routes/digitalRoutes');
 const createFindItRoutes = require('./routes/finditRoutes');
@@ -2039,6 +2040,11 @@ app.use('/api', createDisputeRoutes({
   canAccessCodOperations,
   canAccessCodReconciliation,
   notifyCodTeam,
+}));
+
+app.use('/api', createCoursePaymentRoutes({
+  db, protect, requireServiceReconciliationAccess, validateIdParams,
+  requireCourses: requireFeature('courses'),
 }));
 
 app.use('/api', createCourseRoutes({

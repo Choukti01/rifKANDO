@@ -1,6 +1,12 @@
 const express = require('express');
 const { createPaginationMetadata, getPagination } = require('../utils/pagination');
 
+// Only explicitly marked previews may reveal their video or lesson content.
+const publicLesson = (lesson) => {
+  if (lesson.is_preview === true || lesson.is_preview === 1) return lesson;
+  return { id: lesson.id, title: lesson.title, duration: lesson.duration, order: lesson.order, is_preview: false };
+};
+
 const createCourseRoutes = ({
   db,
   protect,
@@ -100,6 +106,9 @@ router.get('/courses', (req, res) => {
 });
 
 router.get('/courses/:id', optionalProtect, (req, res) => {
+  // Responses can contain instructor-only lesson details, so must not be
+  // shared by a browser or intermediary cache across accounts.
+  res.set('Cache-Control', 'private, no-store');
   db.get(`
     SELECT c.*, u.name as instructor_name, u.id as instructor_id
     FROM courses c
@@ -131,15 +140,23 @@ router.get('/courses/:id', optionalProtect, (req, res) => {
 
         if (req.user) {
           db.get(`
-            SELECT * FROM enrollments WHERE user_id = ? AND course_id = ?
+            SELECT e.* FROM enrollments e
+            JOIN course_bank_transfers p ON p.course_id = e.course_id AND p.buyer_id = e.user_id
+            WHERE e.user_id = ? AND e.course_id = ? AND p.payment_status = 'verified'
           `, [req.user.id, course.id], (err, enrollment) => {
+            if (err) return res.status(500).json({ error: 'Unable to verify course access' });
+            // Legacy enrollments alone do not prove that a course was paid.
             course.isEnrolled = !!enrollment;
             course.progress = enrollment?.progress || 0;
+            if (!course.isEnrolled && Number(course.instructor_id) !== Number(req.user.id)) {
+              course.lessons = course.lessons.map(publicLesson);
+            }
             res.json({ success: true, course });
           });
         } else {
           course.isEnrolled = false;
           course.progress = 0;
+          course.lessons = course.lessons.map(publicLesson);
           res.json({ success: true, course });
         }
       });
@@ -212,28 +229,11 @@ router.put('/courses/:id', protect, requireSeller, validateIdParams('id'), valid
 });
 
 router.post('/courses/:id/enroll', protect, validateIdParams('id'), (req, res) => {
-  const courseId = req.params.id;
-  const userId = req.user.id;
-
-  db.get('SELECT * FROM enrollments WHERE user_id = ? AND course_id = ?',
-    [userId, courseId], (err, existing) => {
-    if (err) {
-      return res.status(500).json({ error: err.message });
-    }
-    if (existing) {
-      return res.status(400).json({ error: 'Already enrolled' });
-    }
-
-    db.run(`
-      INSERT INTO enrollments (user_id, course_id) VALUES (?, ?)
-    `, [userId, courseId], function(err) {
-      if (err) {
-        res.status(400).json({ error: err.message });
-      } else {
-        db.run(`UPDATE courses SET students_count = students_count + 1 WHERE id = ?`, [courseId]);
-        res.json({ success: true, message: 'Enrolled successfully' });
-      }
-    });
+  // Enrollment will be created by the verified-payment transaction, not by
+  // a buyer-controlled request. Keep this closed until that flow is built.
+  return res.status(503).json({
+    error: 'Course enrollment is not available yet.',
+    code: 'COURSE_ENROLLMENT_UNAVAILABLE',
   });
 });
 
@@ -276,7 +276,7 @@ router.put('/courses/:courseId/lessons/:lessonId/progress', protect, validateIdP
 
 router.post('/courses/:courseId/lessons', protect, requireSeller, validateIdParams('courseId'), validateLessonCreate, (req, res) => {
   const { courseId } = req.params;
-  const { title, description, duration, order, is_preview } = req.body;
+  const { title, description, duration, order, is_preview, video_url } = req.body;
 
   db.get('SELECT instructor_id FROM courses WHERE id = ?', [courseId], (err, course) => {
     if (err) {
@@ -290,9 +290,9 @@ router.post('/courses/:courseId/lessons', protect, requireSeller, validateIdPara
     }
 
     db.run(`
-      INSERT INTO course_lessons (course_id, title, description, duration, "order", is_preview)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `, [courseId, title, description, duration, order || 0, is_preview || 0], function(err) {
+      INSERT INTO course_lessons (course_id, title, description, duration, "order", is_preview, video_url)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `, [courseId, title, description, duration, order || 0, Boolean(is_preview), video_url || null], function(err) {
       if (err) {
         res.status(400).json({ error: err.message });
       } else {
@@ -304,7 +304,7 @@ router.post('/courses/:courseId/lessons', protect, requireSeller, validateIdPara
 
 router.put('/courses/:courseId/lessons/:lessonId', protect, requireSeller, validateIdParams('courseId', 'lessonId'), validateLessonUpdate, (req, res) => {
   const { courseId, lessonId } = req.params;
-  const { title, description, duration, order, is_preview } = req.body;
+  const { title, description, duration, order, is_preview, video_url } = req.body;
 
   db.get('SELECT instructor_id FROM courses WHERE id = ?', [courseId], (err, course) => {
     if (err || !course || course.instructor_id !== req.user.id) {
@@ -317,9 +317,10 @@ router.put('/courses/:courseId/lessons/:lessonId', protect, requireSeller, valid
         description = COALESCE(?, description),
         duration = COALESCE(?, duration),
         "order" = COALESCE(?, "order"),
+        video_url = COALESCE(?, video_url),
         is_preview = COALESCE(?, is_preview)
       WHERE id = ? AND course_id = ?
-    `, [title, description, duration, order, is_preview, lessonId, courseId], function(err) {
+    `, [title, description, duration, order, video_url, is_preview, lessonId, courseId], function(err) {
       if (err) {
         res.status(400).json({ error: err.message });
       } else {

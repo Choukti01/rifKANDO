@@ -629,6 +629,34 @@ db.serialize(() => {
     )
   `);
 
+  // Manual course payments. Enrollment is granted only after verification.
+  db.run(`
+    CREATE TABLE IF NOT EXISTS course_bank_transfers (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      purchase_number TEXT NOT NULL UNIQUE,
+      course_id INTEGER NOT NULL REFERENCES courses(id) ON DELETE RESTRICT,
+      buyer_id INTEGER NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+      instructor_id INTEGER NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+      amount_minor INTEGER NOT NULL CHECK (amount_minor > 0),
+      commission_minor INTEGER NOT NULL CHECK (commission_minor >= 0),
+      instructor_payout_minor INTEGER NOT NULL CHECK (instructor_payout_minor >= 0),
+      currency TEXT NOT NULL DEFAULT 'MAD' CHECK (currency = 'MAD'),
+      payment_status TEXT NOT NULL DEFAULT 'awaiting_payment' CHECK (payment_status IN ('awaiting_payment','submitted','verified','rejected','refunded')),
+      transfer_reference TEXT,
+      verification_note TEXT NOT NULL DEFAULT '',
+      verified_by INTEGER REFERENCES users(id) ON DELETE RESTRICT,
+      verified_at DATETIME,
+      payout_status TEXT NOT NULL DEFAULT 'not_due' CHECK (payout_status IN ('not_due','due','paid','withheld')),
+      payout_reference TEXT,
+      paid_by INTEGER REFERENCES users(id) ON DELETE RESTRICT,
+      paid_at DATETIME,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE (course_id, buyer_id),
+      CHECK (amount_minor = commission_minor + instructor_payout_minor)
+    )
+  `);
+
   // Services table
   db.run(`
     CREATE TABLE IF NOT EXISTS services (
