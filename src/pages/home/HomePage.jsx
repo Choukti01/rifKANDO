@@ -1,17 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ShoppingBagIcon, AcademicCapIcon, WrenchScrewdriverIcon, ComputerDesktopIcon, MagnifyingGlassIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
-import { getProducts, getFinditRequests, getServices } from '/src/services/api';
+import { getProducts, getFinditRequests, getServices, getCourses } from '/src/services/api';
 import MediaGallery from '../../components/MediaGallery';
 import { getImageUrl } from '../../utils/imageUtils';
 import MarketplaceImage from '../../components/common/MarketplaceImage';
 import ServiceUnavailableState from '../../components/common/ServiceUnavailableState';
 import { useTranslation } from 'react-i18next';
 
-// Keep public marketplace claims tied to the actual enabled sections. Courses
-// and digital remain visibly marked as under development and do not belong in
-// this count until their full buyer journeys are live.
-const ACTIVE_MARKETPLACE_SECTIONS = Object.freeze(['products', 'findit', 'services']);
+// Digital remains under development; the other four sections are active.
+const ACTIVE_MARKETPLACE_SECTIONS = Object.freeze(['products', 'findit', 'services', 'courses']);
 
 const HomePage = () => {
   const { t } = useTranslation();
@@ -22,10 +20,12 @@ const HomePage = () => {
   const [productDataAvailable, setProductDataAvailable] = useState(true);
   const [finditDataAvailable, setFinditDataAvailable] = useState(true);
   const [serviceDataAvailable, setServiceDataAvailable] = useState(true);
+  const [courseDataAvailable, setCourseDataAvailable] = useState(true);
   const [stats, setStats] = useState({
     productsCount: 0,
     finditRequestsCount: 0,
     servicesCount: 0,
+    coursesCount: 0,
   });
 
   useEffect(() => {
@@ -33,10 +33,11 @@ const HomePage = () => {
 
     const loadHomeData = async () => {
       setLoading(true);
-      const [productsResult, finditResult, serviceResult] = await Promise.allSettled([
+      const [productsResult, finditResult, serviceResult, coursesResult] = await Promise.allSettled([
         getProducts(),
         getFinditRequests({ limit: 1 }),
         getServices({ limit: 1 }),
+        getCourses({ limit: 1 }),
       ]);
 
       if (!isCurrent) return;
@@ -44,6 +45,7 @@ const HomePage = () => {
       const productDataLoaded = productsResult.status === 'fulfilled';
       const finditDataLoaded = finditResult.status === 'fulfilled';
       const serviceDataLoaded = serviceResult.status === 'fulfilled';
+      const courseDataLoaded = coursesResult.status === 'fulfilled';
       const products = productDataLoaded ? productsResult.value.data.products || [] : [];
       const productsTotal = productDataLoaded
         ? Number(productsResult.value.data.pagination?.total ?? products.length)
@@ -54,14 +56,19 @@ const HomePage = () => {
       const servicesTotal = serviceDataLoaded
         ? Number(serviceResult.value.data.pagination?.total || serviceResult.value.data.services?.length || 0)
         : 0;
+      const coursesTotal = courseDataLoaded
+        ? Number(coursesResult.value.data.pagination?.total ?? coursesResult.value.data.courses?.length ?? 0)
+        : 0;
 
       setProductDataAvailable(productDataLoaded);
       setFinditDataAvailable(finditDataLoaded);
       setServiceDataAvailable(serviceDataLoaded);
+      setCourseDataAvailable(courseDataLoaded);
       setStats({
         productsCount: productsTotal,
         finditRequestsCount: finditTotal,
         servicesCount: servicesTotal,
+        coursesCount: coursesTotal,
       });
 
       setFeaturedItems([
@@ -78,11 +85,11 @@ const HomePage = () => {
   }, [reloadKey]);
 
   const retryHomeData = () => setReloadKey((current) => current + 1);
-  const hasUnavailableLiveData = !productDataAvailable || !finditDataAvailable || !serviceDataAvailable;
+  const hasUnavailableLiveData = !productDataAvailable || !finditDataAvailable || !serviceDataAvailable || !courseDataAvailable;
 
   const categories = [
     { name: t('nav.products'), icon: ShoppingBagIcon, path: '/products', color: 'var(--color-brand-blue)', count: stats.productsCount, available: productDataAvailable },
-    { name: t('nav.courses'), icon: AcademicCapIcon, path: '/courses', color: '#147bbb' },
+    { name: t('nav.courses'), icon: AcademicCapIcon, path: '/courses', color: 'var(--color-brand-blue)', count: stats.coursesCount, available: courseDataAvailable },
     { name: t('nav.services'), icon: WrenchScrewdriverIcon, path: '/services', color: 'var(--color-brand-blue)', count: stats.servicesCount, available: serviceDataAvailable },
     { name: t('nav.digital'), icon: ComputerDesktopIcon, path: '/digital', color: '#64748b', underDevelopment: true },
     { name: t('findit.navigation'), icon: MagnifyingGlassIcon, path: '/findit', color: 'var(--color-brand-blue)', count: stats.finditRequestsCount, countLabel: t('availability.openRequests'), available: finditDataAvailable },
@@ -171,7 +178,7 @@ const HomePage = () => {
                   </div>
                   <h3 className="category-name">{cat.name}</h3>
                   <p className={`category-count ${cat.underDevelopment ? 'category-count-coming' : ''}`}>
-                    {cat.underDevelopment ? t('launch.shortLabel') : cat.available === false ? t('availability.liveData') : `${cat.count.toLocaleString()} ${cat.countLabel || (cat.count === 1 ? t('availability.item') : t('availability.items'))}`}
+                    {cat.underDevelopment ? t('launch.shortLabel') : cat.available === false || !Number.isFinite(cat.count) ? t('availability.liveData') : `${cat.count.toLocaleString()} ${cat.countLabel || (cat.count === 1 ? t('availability.item') : t('availability.items'))}`}
                   </p>
                 </Link>
               )
