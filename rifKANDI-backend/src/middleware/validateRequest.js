@@ -916,7 +916,7 @@ const validateFinditCheckout = validate((req) => {
 
 const lessonPayload = (body, partial) => {
   object(body);
-  onlyKeys(body, ['title', 'description', 'duration', 'order', 'is_preview', 'video_url']);
+  onlyKeys(body, ['title', 'description', 'duration', 'order', 'is_preview', 'video_url', 'delivery_type', 'content_url']);
   const required = !partial;
   const result = {
     title: text(body.title, 'title', { required, min: 2, max: 200 }),
@@ -928,9 +928,26 @@ const lessonPayload = (body, partial) => {
       return body.is_preview;
     })(),
     video_url: body.video_url === undefined ? undefined : text(body.video_url, 'video_url', { max: 2_048 }),
+    delivery_type: body.delivery_type === undefined ? (required ? 'youtube' : undefined) : enumValue(body.delivery_type, 'delivery_type', ['youtube', 'zoom', 'telegram']),
+    content_url: body.content_url === undefined ? undefined : text(body.content_url, 'content_url', { max: 2_048 }),
   };
   const sanitized = Object.fromEntries(Object.entries(result).filter(([, value]) => value !== undefined));
-  if (sanitized.video_url && !parseYouTubeVideo(sanitized.video_url)) fail('video_url', 'must be a valid HTTPS YouTube video link.');
+  const contentType = sanitized.delivery_type || 'youtube';
+  const contentUrl = sanitized.content_url ?? sanitized.video_url;
+  if (contentUrl) {
+    let url;
+    try { url = new URL(contentUrl); } catch { fail('content_url', 'must be a valid HTTPS link.'); }
+    if (url.protocol !== 'https:' || url.username || url.password || url.port) fail('content_url', 'must be a valid HTTPS link.');
+    const host = url.hostname.toLowerCase();
+    if (contentType === 'youtube' && !parseYouTubeVideo(contentUrl)) fail('content_url', 'must be a valid HTTPS YouTube video link.');
+    if (contentType === 'zoom' && !(host === 'zoom.us' || host.endsWith('.zoom.us'))) fail('content_url', 'must be a Zoom meeting link.');
+    if (contentType === 'telegram' && !['t.me', 'telegram.me', 'www.t.me', 'www.telegram.me'].includes(host)) fail('content_url', 'must be a Telegram link.');
+  }
+  if (sanitized.is_preview && sanitized.delivery_type && sanitized.delivery_type !== 'youtube') {
+    fail('is_preview', 'is only available for YouTube lessons because live and Telegram links must remain private.');
+  }
+  if (sanitized.content_url !== undefined) sanitized.video_url = sanitized.content_url;
+  delete sanitized.content_url;
   if (partial && Object.keys(sanitized).length === 0) fail('body', 'must include at least one editable field.');
   return sanitized;
 };

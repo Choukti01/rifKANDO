@@ -613,6 +613,7 @@ db.serialize(() => {
       UNIQUE(user_id, course_id, lesson_id)
     )
   `);
+  db.run("ALTER TABLE course_lessons ADD COLUMN delivery_type TEXT NOT NULL DEFAULT 'youtube'", () => {});
 
   // Enrollments table
   db.run(`

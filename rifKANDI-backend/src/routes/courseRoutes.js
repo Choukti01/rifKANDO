@@ -273,7 +273,7 @@ router.put('/courses/:courseId/lessons/:lessonId/progress', protect, validateIdP
 
 router.post('/courses/:courseId/lessons', protect, requireSeller, validateIdParams('courseId'), validateLessonCreate, (req, res) => {
   const { courseId } = req.params;
-  const { title, description, duration, order, is_preview, video_url } = req.body;
+  const { title, description, duration, order, is_preview, video_url, delivery_type = 'youtube' } = req.body;
 
   db.get('SELECT instructor_id FROM courses WHERE id = ?', [courseId], (err, course) => {
     if (err) {
@@ -287,9 +287,9 @@ router.post('/courses/:courseId/lessons', protect, requireSeller, validateIdPara
     }
 
     db.run(`
-      INSERT INTO course_lessons (course_id, title, description, duration, "order", is_preview, video_url)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `, [courseId, title, description, duration, order || 0, Boolean(is_preview), video_url || null], function(err) {
+      INSERT INTO course_lessons (course_id, title, description, duration, "order", is_preview, video_url, delivery_type)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `, [courseId, title, description, duration, order || 0, Boolean(is_preview), video_url || null, delivery_type], function(err) {
       if (err) {
         res.status(400).json({ error: err.message });
       } else {
@@ -301,7 +301,7 @@ router.post('/courses/:courseId/lessons', protect, requireSeller, validateIdPara
 
 router.put('/courses/:courseId/lessons/:lessonId', protect, requireSeller, validateIdParams('courseId', 'lessonId'), validateLessonUpdate, (req, res) => {
   const { courseId, lessonId } = req.params;
-  const { title, description, duration, order, is_preview, video_url } = req.body;
+  const { title, description, duration, order, is_preview, video_url, delivery_type } = req.body;
 
   db.get('SELECT instructor_id FROM courses WHERE id = ?', [courseId], (err, course) => {
     if (err || !course || course.instructor_id !== req.user.id) {
@@ -315,9 +315,10 @@ router.put('/courses/:courseId/lessons/:lessonId', protect, requireSeller, valid
         duration = COALESCE(?, duration),
         "order" = COALESCE(?, "order"),
         video_url = COALESCE(?, video_url),
+        delivery_type = COALESCE(?, delivery_type),
         is_preview = COALESCE(?, is_preview)
       WHERE id = ? AND course_id = ?
-    `, [title, description, duration, order, video_url, is_preview, lessonId, courseId], function(err) {
+    `, [title, description, duration, order, video_url, delivery_type, is_preview, lessonId, courseId], function(err) {
       if (err) {
         res.status(400).json({ error: err.message });
       } else {

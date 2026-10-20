@@ -219,6 +219,7 @@ CREATE TABLE IF NOT EXISTS course_lessons (
   title TEXT NOT NULL,
   description TEXT,
   video_url TEXT,
+  delivery_type TEXT NOT NULL DEFAULT 'youtube',
   duration INTEGER DEFAULT 0,
   is_preview BOOLEAN DEFAULT 0,
   "order" INTEGER DEFAULT 0,

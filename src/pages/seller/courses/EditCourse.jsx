@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import api from '../../../services/api';
 import toast from 'react-hot-toast';
 import MediaUploader from '../../../components/MediaUploader';
@@ -33,11 +33,11 @@ const EditCourse = () => {
         setFormData({
           title: course.title || '',
           description: course.description || '',
-          price: course.price || '',
-          old_price: course.old_price || '',
+          price: course.price ?? '',
+          old_price: course.old_price ?? '',
           level: course.level || 'beginner',
           category: course.category || 'programming',
-          duration: course.duration || '',
+          duration: course.duration ?? '',
           what_you_learn: course.what_you_learn ? JSON.parse(course.what_you_learn).join('\n') : ''
         });
         setMedia(course.media?.map(m => ({ url: m.media_url, type: m.media_type })) || []);
@@ -109,8 +109,10 @@ const EditCourse = () => {
 
   return (
     <div className="edit-course">
-      <h2>Edit Course</h2>
+      <Link to="/seller/dashboard/courses" className="edit-course-back">← Your courses</Link>
+      <header className="edit-course-hero"><span>INSTRUCTOR STUDIO</span><h2>Shape your course</h2><p>Update your course details and learning outcomes, then continue building your curriculum.</p><Link to={`/seller/dashboard/courses/${id}/lessons`}>Manage curriculum →</Link></header>
       <form onSubmit={handleSubmit} className="course-form">
+        <div className="edit-course-heading"><strong>Course overview</strong><p>Help learners understand what your course offers.</p></div>
         <div className="form-group">
           <label>Course Title *</label>
           <input type="text" name="title" value={formData.title} onChange={handleChange} className="form-input" required />
@@ -149,6 +151,7 @@ const EditCourse = () => {
               <option value="marketing">Marketing</option>
               <option value="business">Business</option>
               <option value="languages">Languages</option>
+              <option value="other">Other</option>
             </select>
           </div>
         </div>
@@ -165,7 +168,7 @@ const EditCourse = () => {
         </div>
 
         <div className="form-group">
-          <label>Course Images & Videos (max 10)</label>
+          <label>Course images (max 10)</label>
           <MediaUploader onMediaUploaded={setMedia} existingMedia={media} maxFiles={10} />
         </div>
 
@@ -178,16 +181,22 @@ const EditCourse = () => {
       </form>
 
       <style>{`
-        .edit-course { max-width: 800px; margin: 0 auto; }
-        .edit-course h2 { font-size: 1.25rem; margin-bottom: 1.5rem; }
-        .course-form { background: white; border-radius: 1rem; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .edit-course { max-width: 960px; margin: 0 auto; }
+        .edit-course-back { display:inline-block; margin-bottom:1rem; color:#285d80; font-weight:600; }
+        .edit-course-hero { padding:clamp(1.3rem,3vw,2.3rem); border:1px solid #d9e8f2; border-radius:1.3rem; background:linear-gradient(120deg,#f7fcff,#e8f6ff); margin-bottom:1.2rem; }
+        .edit-course-hero span { font-size:.72rem; font-weight:800; color:#2872a1; letter-spacing:.1em; }
+        .edit-course-hero h2 { font-size:clamp(1.5rem,3vw,2rem); margin:.35rem 0; color:#102a40; }
+        .edit-course-hero p, .edit-course-heading p { color:#52677a; line-height:1.5; }
+        .edit-course-hero a { color:#285d80; font-weight:700; }
+        .course-form { background: white; border:1px solid #e4edf3; border-radius: 1rem; padding: clamp(1rem,3vw,1.6rem); }
+        .edit-course-heading { margin-bottom:1.5rem; }
         .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
         .form-group { margin-bottom: 1rem; }
         .form-group label { display: block; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem; }
         .form-input { width: 100%; padding: 0.75rem; border: 1px solid #e5e7eb; border-radius: 0.5rem; font-size: 0.875rem; }
         .form-actions { display: flex; gap: 1rem; margin-top: 1.5rem; }
-        .btn-primary { background: #1a1a1a; color: white; padding: 0.625rem 1.25rem; border: none; border-radius: 0.5rem; cursor: pointer; }
-        .btn-outline { background: transparent; border: 1px solid #e5e7eb; padding: 0.625rem 1.25rem; border-radius: 0.5rem; cursor: pointer; }
+        .edit-course .btn-primary { background:var(--color-brand-blue); color:#102a40; }
+        @media (max-width:640px) { .edit-course .form-row { grid-template-columns:1fr; } .edit-course .form-actions { flex-wrap:wrap; } }
       `}</style>
     </div>
   );

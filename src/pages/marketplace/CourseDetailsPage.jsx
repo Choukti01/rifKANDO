@@ -9,6 +9,13 @@ import MarketplaceImage from '../../components/common/MarketplaceImage';
 import { getImageUrl } from '../../utils/imageUtils';
 import { courseYouTubeEmbedUrl } from '../../utils/courseYouTube';
 
+const safeLessonLink = (value) => {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' ? url.toString() : null;
+  } catch { return null; }
+};
+
 const CourseDetailsPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -144,6 +151,15 @@ const CourseDetailsPage = () => {
                             />
                           </div>
                         )}
+                        {course.isEnrolled && lesson.delivery_type === 'zoom' && safeLessonLink(lesson.video_url) && (
+                          <a className="lesson-access-link" href={safeLessonLink(lesson.video_url)} target="_blank" rel="noopener noreferrer">Join the private Zoom session</a>
+                        )}
+                        {course.isEnrolled && lesson.delivery_type === 'telegram' && safeLessonLink(lesson.video_url) && (
+                          <a className="lesson-access-link" href={safeLessonLink(lesson.video_url)} target="_blank" rel="noopener noreferrer">Open private Telegram resources</a>
+                        )}
+                        {!course.isEnrolled && lesson.delivery_type && lesson.delivery_type !== 'youtube' && (
+                          <p className="lesson-access-locked">Access details are shared after payment verification.</p>
+                        )}
                         {(lesson.is_preview === true || lesson.is_preview === 1) && !course.isEnrolled && (
                           <div className="preview-notice">🎬 This is a free preview lesson</div>
                         )}
@@ -248,6 +264,8 @@ const CourseDetailsPage = () => {
         .lesson-video { margin-top: 1rem; }
         .lesson-video-player { width: 100%; max-width: 100%; border-radius: 0.5rem; background: #1a1a1a; }
         .preview-notice { margin-top: 0.5rem; font-size: 0.75rem; color: #87CEEB; }
+        .lesson-access-link { display:inline-flex; margin-top:1rem; padding:.65rem .9rem; border-radius:.55rem; background:#e8f6ff; color:#174563; font-weight:700; text-decoration:none; }
+        .lesson-access-locked { margin-top:.75rem; color:#52677a; font-size:.875rem; }
         .sidebar-card { background: white; border-radius: 1rem; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); position: sticky; top: 100px; }
         .course-image-large { height: 150px; background: #f3f4f6; border-radius: 0.75rem; display: flex; align-items: center; justify-content: center; overflow: hidden; margin-bottom: 1rem; cursor: pointer; position: relative; }
         .gallery-badge { position: absolute; bottom: 0.5rem; right: 0.5rem; background: rgba(0,0,0,0.6); color: white; padding: 0.25rem 0.5rem; border-radius: 0.5rem; font-size: 0.7rem; }

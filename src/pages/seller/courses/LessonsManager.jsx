@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { 
   PlusIcon, PencilIcon, TrashIcon, XMarkIcon, 
   VideoCameraIcon, DocumentIcon,
@@ -11,6 +11,8 @@ import toast from 'react-hot-toast';
 const LessonsManager = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const initialDelivery = new URLSearchParams(location.search).get('delivery');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [course, setCourse] = useState(null);
@@ -22,6 +24,7 @@ const LessonsManager = () => {
     description: '',
     duration: '',
     video_url: '',
+    delivery_type: ['youtube', 'zoom', 'telegram'].includes(initialDelivery) ? initialDelivery : 'youtube',
     is_preview: false
   });
 
@@ -89,6 +92,7 @@ const LessonsManager = () => {
         description: formData.description,
         duration: parseInt(formData.duration) || 0,
         video_url: formData.video_url,
+        delivery_type: formData.delivery_type,
         is_preview: Boolean(formData.is_preview),
         order: editingLesson ? editingLesson.order : lessons.length
       };
@@ -148,6 +152,7 @@ const LessonsManager = () => {
         description: lesson.description || '',
         duration: lesson.duration || '',
         video_url: lesson.video_url || '',
+        delivery_type: lesson.delivery_type || 'youtube',
         is_preview: lesson.is_preview === 1
       });
     } else {
@@ -157,6 +162,7 @@ const LessonsManager = () => {
         description: '',
         duration: '',
         video_url: '',
+        delivery_type: ['youtube', 'zoom', 'telegram'].includes(initialDelivery) ? initialDelivery : 'youtube',
         is_preview: false
       });
     }
@@ -211,7 +217,7 @@ const LessonsManager = () => {
                   {lesson.duration > 0 && <span>{lesson.duration} min</span>}
                   {(lesson.is_preview === true || lesson.is_preview === 1) && <span className="preview-badge">Free Preview</span>}
                 </div>
-                {lesson.video_url && <p>YouTube lesson link added</p>}
+                {lesson.video_url && <p>{lesson.delivery_type === 'zoom' ? 'Private Zoom session link added' : lesson.delivery_type === 'telegram' ? 'Private Telegram resource link added' : 'Private YouTube lesson link added'}</p>}
               </div>
               <div className="lesson-actions">
                 <button onClick={() => openModal(lesson)} className="icon-btn edit">✏️</button>
@@ -239,23 +245,31 @@ const LessonsManager = () => {
                 <label>Description</label>
                 <textarea name="description" value={formData.description} onChange={handleChange} className="form-input" rows="3" />
               </div>
-              <div className="form-row">
+                <div className="form-row">
                 <div className="form-group">
                   <label>Duration (minutes)</label>
                   <input type="number" name="duration" value={formData.duration} onChange={handleChange} className="form-input" />
                 </div>
-                <div className="form-group checkbox">
+                {formData.delivery_type === 'youtube' && <div className="form-group checkbox">
                   <label>
                     <input type="checkbox" name="is_preview" checked={formData.is_preview} onChange={handleChange} />
                     <span>Free Preview</span>
                   </label>
-                </div>
+                </div>}
               </div>
 
               <div className="form-group">
-                <label htmlFor="course-youtube-link">YouTube lesson link</label>
-                <input id="course-youtube-link" type="url" name="video_url" value={formData.video_url} onChange={handleChange} className="form-input" placeholder="https://youtu.be/..." />
-                <p>Upload your video to YouTube as unlisted, then paste its link here. Anyone who obtains the link can share or watch it.</p>
+                <label htmlFor="lesson-delivery-type">Lesson format</label>
+                <select id="lesson-delivery-type" name="delivery_type" value={formData.delivery_type} onChange={handleChange} className="form-input">
+                  <option value="youtube">On-demand video via YouTube</option>
+                  <option value="zoom">Live session via Zoom</option>
+                  <option value="telegram">Resources via Telegram</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label htmlFor="course-content-link">{formData.delivery_type === 'zoom' ? 'Private Zoom meeting link' : formData.delivery_type === 'telegram' ? 'Private Telegram channel or resource link' : 'Unlisted YouTube lesson link'}</label>
+                <input id="course-content-link" type="url" name="video_url" value={formData.video_url} onChange={handleChange} className="form-input" placeholder={formData.delivery_type === 'zoom' ? 'https://*.zoom.us/j/...' : formData.delivery_type === 'telegram' ? 'https://t.me/...' : 'https://youtu.be/...'} />
+                <p>{formData.delivery_type === 'youtube' ? 'Set the YouTube video to unlisted. Anyone who gets the link can share it.' : 'rifKANDO shows this link only to learners with verified payment.'}</p>
               </div>
 
               <div className="modal-actions">
