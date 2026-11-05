@@ -4,6 +4,7 @@ import { BriefcaseIcon, DocumentTextIcon, MapPinIcon, StarIcon, Squares2X2Icon, 
 import { useTranslation } from 'react-i18next';
 import api from '../../services/api';
 import MarketplaceImage from '../../components/common/MarketplaceImage';
+import SellerTrustSummary from '../../components/common/SellerTrustSummary';
 import { getImageUrl } from '../../utils/imageUtils';
 import SeoHead from '../../components/seo/SeoHead';
 import { SEO_ORIGIN as seoOrigin } from '../../components/seo/seoConfig';
@@ -188,6 +189,7 @@ const PublicProfilePage = () => {
               {location && <span><MapPinIcon aria-hidden="true" />{location}</span>}
               {joinedDate && <span>{t('storefront.sellingSince', { date: joinedDate })}</span>}
             </div>
+            <SellerTrustSummary trust={seller.trust} />
           </div>
           <div className="storefront-reputation" aria-label={t('storefront.reputationLabel')}>
             <div>

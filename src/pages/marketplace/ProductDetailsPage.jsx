@@ -9,6 +9,7 @@ import api, { getProduct, getProducts } from '../../services/api';
 import toast from 'react-hot-toast';
 import MediaGallery from '../../components/MediaGallery';
 import MarketplaceImage from '../../components/common/MarketplaceImage';
+import SellerTrustSummary from '../../components/common/SellerTrustSummary';
 import { getImageUrl } from '../../utils/imageUtils';
 import SeoHead from '../../components/seo/SeoHead';
 import { SEO_ORIGIN as seoOrigin } from '../../components/seo/seoConfig';
@@ -417,6 +418,7 @@ const ProductDetailsPage = () => {
               {sellerCity && <span>{t('productDetails.trust.sellerCity', { city: sellerCity })}</span>}
               {sellerSince && <span>{t('productDetails.trust.sellerSince', { date: sellerSince })}</span>}
             </div>}
+            <SellerTrustSummary trust={product.seller_trust} />
             <div className="product-purchase-panel">
               <div className="product-price"><span className="price-label">{t('products.price')}</span><span className="current-price">{formatAmount(productPrice)} MAD</span>{product.old_price && <span className="old-price">{formatAmount(product.old_price)} MAD</span>}</div>
               <div className="cod-price-breakdown" aria-label={t('products.codBreakdown')}>

@@ -37,6 +37,7 @@
     "test:performance-schema": "node scripts/performanceSchemaSmokeTest.js",
     "test:catalog-pagination": "node scripts/catalogPaginationSmokeTest.js",
     "test:delivered-order-reviews": "node scripts/deliveredOrderReviewHttpSmokeTest.js",
+    "test:seller-trust": "node scripts/sellerTrustSmokeTest.js",
     "test:services": "node scripts/serviceMarketplaceHttpSmokeTest.js",
     "test:course-access": "node scripts/courseAccessSmokeTest.js && node scripts/courseYouTubeTest.js",
     "test:disputes": "node scripts/disputeWorkflowSmokeTest.js",

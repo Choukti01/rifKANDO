@@ -9,6 +9,7 @@ import api from '../../services/api';
 import { getImageUrl } from '../../utils/imageUtils';
 import LoadingSkeleton from '../../components/common/LoadingSkeleton';
 import MarketplaceImage from '../../components/common/MarketplaceImage';
+import SellerTrustSummary from '../../components/common/SellerTrustSummary';
 import ServiceUnavailableState from '../../components/common/ServiceUnavailableState';
 import { featuredMarketplaceCities, marketplaceCities } from '../../constants/marketplaceLocations';
 
@@ -301,6 +302,7 @@ const ProductsPage = () => {
                 <p>
                   {t('products.by')} <Link to={`/profile/${product.seller_id}`} className="seller-link">{product.seller_name || t('products.unknownSeller')}</Link>
                 </p>
+                <SellerTrustSummary trust={product.seller_trust} compact />
                 {product.listing_city && <p className="product-location">{t('products.fromCity', { city: product.listing_city })}</p>}
                 <div className="product-rating">⭐ {product.rating || 0} ({t('products.reviewCount', { count: product.review_count ?? product.reviews_count ?? 0 })})</div>
                 <div className="product-price">

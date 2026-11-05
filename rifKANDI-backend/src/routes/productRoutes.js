@@ -1,4 +1,5 @@
 const express = require('express');
+const { buildSellerTrust } = require('../services/sellerTrustService');
 
 /**
  * Active product domain routes.
@@ -130,6 +131,57 @@ const createProductRoutes = ({
     );
   };
 
+  // Populate the public seller signals in two bounded aggregate queries rather
+  // than a query per listing. Only delivered COD records and reviews tied to a
+  // delivery are eligible; unpublished activity is never exposed.
+  const attachSellerTrust = (products, done) => {
+    if (!products.length) return done(products);
+    const sellerIds = [...new Set(products.map((product) => Number(product.seller_id)).filter(Number.isInteger))];
+    if (!sellerIds.length) return done(products);
+    const placeholders = sellerIds.map(() => '?').join(', ');
+
+    db.all(
+      `SELECT seller_id, COUNT(*) AS delivered_orders
+       FROM cod_fulfillments
+       WHERE seller_id IN (${placeholders})
+         AND source = 'product'
+         AND status = 'delivered'
+       GROUP BY seller_id`,
+      sellerIds,
+      (deliveryError, deliveries) => {
+        if (deliveryError) return done(products.map((product) => ({ ...product, seller_trust: null })));
+        db.all(
+          `SELECT p.seller_id,
+                  COUNT(r.id) AS verified_review_count,
+                  COALESCE(AVG(r.rating), 0) AS verified_average_rating
+           FROM products p
+           LEFT JOIN product_reviews r ON r.product_id = p.id AND r.order_id IS NOT NULL
+           WHERE p.seller_id IN (${placeholders})
+           GROUP BY p.seller_id`,
+          sellerIds,
+          (reviewError, reviews) => {
+            if (reviewError) return done(products.map((product) => ({ ...product, seller_trust: null })));
+            const deliveriesBySeller = new Map((deliveries || []).map((row) => [Number(row.seller_id), row]));
+            const reviewsBySeller = new Map((reviews || []).map((row) => [Number(row.seller_id), row]));
+            return done(products.map((product) => {
+              const delivery = deliveriesBySeller.get(Number(product.seller_id)) || {};
+              const review = reviewsBySeller.get(Number(product.seller_id)) || {};
+              return {
+                ...product,
+                seller_trust: buildSellerTrust({
+                  sellerSince: product.seller_since,
+                  deliveredOrders: delivery.delivered_orders,
+                  verifiedReviewCount: review.verified_review_count,
+                  verifiedAverageRating: review.verified_average_rating,
+                }),
+              };
+            }));
+          },
+        );
+      },
+    );
+  };
+
   router.get('/products', validateProductQuery, (req, res) => {
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 20;
@@ -207,6 +259,7 @@ const createProductRoutes = ({
         const totalPages = Math.ceil(total / limit);
         db.all(
           `SELECT p.*, u.name as seller_name, u.id as seller_id,
+                  u.created_at AS seller_since,
                   COALESCE(NULLIF(p.origin_city, ''), u.city, '') AS listing_city
            FROM products p
            JOIN users u ON p.seller_id = u.id
@@ -216,11 +269,11 @@ const createProductRoutes = ({
           [...params, limit, offset],
           (productsError, products) => {
             if (productsError) return res.status(500).json({ error: productsError.message });
-            attachMedia(products, (productsWithMedia) => res.json({
+            attachMedia(products, (productsWithMedia) => attachSellerTrust(productsWithMedia, (productsWithTrust) => res.json({
               success: true,
-              products: productsWithMedia,
+              products: productsWithTrust,
               pagination: { page, limit, total, totalPages },
-            }));
+            })));
           },
         );
       },
@@ -245,9 +298,9 @@ const createProductRoutes = ({
       (error, product) => {
         if (error) return res.status(500).json({ error: error.message });
         if (!product) return res.status(404).json({ error: 'Product not found' });
-        attachMedia([product], ([productWithMedia]) => {
-          res.json({ success: true, product: productWithMedia });
-        });
+        attachMedia([product], (productsWithMedia) => attachSellerTrust(productsWithMedia, ([productWithTrust]) => {
+          res.json({ success: true, product: productWithTrust });
+        }));
       },
     );
   });
@@ -564,7 +617,21 @@ const createProductRoutes = ({
                   1
                 ),
                 0
-              ) AS average_rating
+              ) AS average_rating,
+              COALESCE((
+                SELECT COUNT(*) FROM cod_fulfillments f
+                WHERE f.seller_id = u.id AND f.source = 'product' AND f.status = 'delivered'
+              ), 0) AS delivered_orders,
+              COALESCE((
+                SELECT COUNT(*) FROM product_reviews r
+                JOIN products reviewed_product ON reviewed_product.id = r.product_id
+                WHERE reviewed_product.seller_id = u.id AND r.order_id IS NOT NULL
+              ), 0) AS verified_review_count,
+              COALESCE((
+                SELECT AVG(r.rating) FROM product_reviews r
+                JOIN products reviewed_product ON reviewed_product.id = r.product_id
+                WHERE reviewed_product.seller_id = u.id AND r.order_id IS NOT NULL
+              ), 0) AS verified_average_rating
        FROM users u
        LEFT JOIN products p ON p.seller_id = u.id AND ${visibleListingClause}
        WHERE u.id = ? AND COALESCE(u.marketplace_status, 'active') = 'active'
@@ -604,6 +671,12 @@ const createProductRoutes = ({
                     activeListings: Number(seller.product_count || 0),
                     reviewCount: Number(seller.review_count || 0),
                     averageRating: Number(seller.average_rating || 0),
+                    trust: buildSellerTrust({
+                      sellerSince: seller.seller_since,
+                      deliveredOrders: seller.delivered_orders,
+                      verifiedReviewCount: seller.verified_review_count,
+                      verifiedAverageRating: seller.verified_average_rating,
+                    }),
                   },
                   products: productsWithMedia,
                   pagination: {

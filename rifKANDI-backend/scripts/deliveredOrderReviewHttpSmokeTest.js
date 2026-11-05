@@ -98,6 +98,13 @@ async function run() {
     assert.equal(Object.hasOwn(publicStorefront.body.seller, 'email'), false, 'storefront must never expose seller email');
     assert.equal(Object.hasOwn(publicStorefront.body.seller, 'phone'), false, 'storefront must never expose seller phone');
     assert.equal(publicStorefront.body.products.length, 1, 'storefront must include published products');
+    assert.equal(publicStorefront.body.seller.trust.deliveredOrders, 1, 'storefront trust must use actual delivered COD orders');
+    assert.equal(publicStorefront.body.seller.trust.verifiedReviewCount, 0, 'storefront must not count a review before it exists');
+
+    const publicProduct = await fetchJson(port, `/api/products/${product.lastID}`);
+    assert.equal(publicProduct.response.status, 200, 'public product must load');
+    assert.equal(publicProduct.body.product.seller_trust.deliveredOrders, 1, 'product trust must use actual delivered COD orders');
+    assert.equal(publicProduct.body.product.seller_trust.badge, null, 'one delivery cannot create a reliable-seller badge');
 
     const publicProfile = await fetchJson(port, `/api/users/${seller.id}`);
     assert.equal(Object.hasOwn(publicProfile.body.user, 'email'), false, 'legacy public profile must redact email');
@@ -144,6 +151,9 @@ async function run() {
     const storedProduct = await getStatement('SELECT rating, review_count FROM products WHERE id = ?', [product.lastID]);
     assert.equal(Number(storedProduct.rating), 5, 'review summary updates product rating');
     assert.equal(Number(storedProduct.review_count), 1, 'review summary updates product review count');
+
+    const storefrontAfterReview = await fetchJson(port, `/api/sellers/${seller.id}/storefront`);
+    assert.equal(storefrontAfterReview.body.seller.trust.verifiedReviewCount, 1, 'storefront trust must count only delivered-order reviews');
   } finally {
     await stopServer(server);
   }

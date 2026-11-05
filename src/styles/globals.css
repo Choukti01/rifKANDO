@@ -734,6 +734,47 @@ a {
   top: 100px;
 }
 
+/* Public reputation is evidence-based: COD deliveries and verified reviews only. */
+.seller-trust-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .42rem;
+  margin: .62rem 0 0;
+}
+
+.seller-trust-summary--compact {
+  margin: -.1rem 1rem .45rem;
+  gap: .3rem;
+}
+
+.seller-trust-badge,
+.seller-trust-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: .28rem;
+  min-height: 1.75rem;
+  padding: .27rem .52rem;
+  border: 1px solid #d8e8f4;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .78);
+  color: #385b78;
+  font-size: .74rem;
+  font-weight: 750;
+  line-height: 1.15;
+}
+
+.seller-trust-badge svg,
+.seller-trust-stat svg { width: .9rem; height: .9rem; flex: 0 0 auto; }
+.seller-trust-badge--reliable { border-color: #9ed6bf; background: #edf9f2; color: #146c43; }
+.seller-trust-badge--new { border-color: #b7d9fa; background: #f0f8ff; color: #0b69d6; }
+.seller-trust-summary--compact .seller-trust-badge,
+.seller-trust-summary--compact .seller-trust-stat { min-height: 1.55rem; padding: .2rem .42rem; font-size: .68rem; }
+
+@media (max-width: 520px) {
+  .seller-trust-summary--compact { margin-inline: .75rem; }
+}
+
 
 
 /* Add these to globals.css after the :root variables */
