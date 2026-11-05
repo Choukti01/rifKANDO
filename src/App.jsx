@@ -164,15 +164,16 @@ function AppContent() {
                   <Route path="/" element={<HomePage />} />
                   <Route path="/products" element={<ProductsPage />} />
                   <Route path="/product/:id" element={<ProductDetailsPage />} />
-                  {/* Digital downloads remain parked. Mida uses the hardened physical-product COD workflow. */}
+                  {/* Digital downloads remain parked. Macca uses the hardened physical-product COD workflow. */}
                   <Route path="/courses" element={<CoursesPage />} />
                   <Route path="/course/:id" element={<CourseDetailsPage />} />
                   <Route path="/services" element={<ServicesPage />} />
                   <Route path="/service/:id" element={<ServiceDetailsPage />} />
-                  <Route path="/mida" element={<MidaPage />} />
-                  <Route path="/local-foods" element={<Navigate to="/mida" replace />} />
-                  <Route path="/digital" element={<Navigate to="/mida" replace />} />
-                  <Route path="/digital/:id" element={<Navigate to="/mida" replace />} />
+                  <Route path="/macca" element={<MidaPage />} />
+                  <Route path="/mida" element={<Navigate to="/macca" replace />} />
+                  <Route path="/local-foods" element={<Navigate to="/macca" replace />} />
+                  <Route path="/digital" element={<Navigate to="/macca" replace />} />
+                  <Route path="/digital/:id" element={<Navigate to="/macca" replace />} />
                   <Route path="/findit" element={<FindItPage />} />
                   <Route path="/bookings" element={<UnderDevelopment sectionKey="bookings" />} />
                   <Route path="/booking/:id" element={<UnderDevelopment sectionKey="bookings" />} />
@@ -325,8 +326,9 @@ function AppContent() {
                     <Route path="products" element={<ProductsDashboard />} />
                     <Route path="products/add" element={<AddProduct />} />
                     <Route path="products/:id/edit" element={<EditProduct />} />
-                    <Route path="mida" element={<MidaDashboard />} />
-                    <Route path="mida/add" element={<AddMidaListing />} />
+                    <Route path="macca" element={<MidaDashboard />} />
+                    <Route path="macca/add" element={<AddMidaListing />} />
+                    <Route path="mida/*" element={<Navigate to="../macca" replace />} />
                     {/* Services are a request-and-hire marketplace. Courses and digital remain parked. */}
                     <Route path="courses" element={<CoursesDashboard />} />
                     <Route path="courses/add" element={<AddCourse />} />
@@ -338,7 +340,7 @@ function AppContent() {
                     <Route path="services/add" element={<AddService />} />
                     <Route path="services/:id/edit" element={<EditService />} />
                     <Route path="services/:id/packages" element={<PackagesManager />} />
-                    <Route path="digital/*" element={<Navigate to="../mida" replace />} />
+                    <Route path="digital/*" element={<Navigate to="../macca" replace />} />
                     <Route path="findit" element={<SellerFindItPage />} />
                     <Route path="bookings/*" element={<UnderDevelopment sectionKey="bookings" sellerWorkspace />} />
                     <Route path="settings" element={<Settings />} />

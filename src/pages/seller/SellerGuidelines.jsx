@@ -14,7 +14,7 @@ const feeCategories = [
   { type: 'product', label: 'Physical products' },
   { type: 'course', label: 'Courses' },
   { type: 'service', label: 'Services' },
-  { type: 'product', label: 'Mida local foods' },
+  { type: 'product', label: 'Macca local foods' },
   { type: 'findit', label: 'FINDit solutions' },
 ]
 
@@ -66,7 +66,7 @@ const SellerGuidelines = () => {
             </div>
             <div className="seller-guide-steps">
               <article><UserPlusIcon aria-hidden="true" /><h3>Create your account</h3><p>Use accurate contact details and confirm your email before you start selling.</p></article>
-              <article><DocumentCheckIcon aria-hidden="true" /><h3>Choose your seller workspace</h3><p>Select Products, Courses, Services, or Mida to open the tools that match your business. FINDit is available to every seller who can solve buyer requests.</p></article>
+              <article><DocumentCheckIcon aria-hidden="true" /><h3>Choose your seller workspace</h3><p>Select Products, Courses, Services, or Macca to open the tools that match your business. FINDit is available to every seller who can solve buyer requests.</p></article>
               <article><ShieldCheckIcon aria-hidden="true" /><h3>Keep your profile current</h3><p>Make sure your name, business details, and customer-facing information remain accurate.</p></article>
             </div>
           </section>

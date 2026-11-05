@@ -454,12 +454,12 @@ const productPayload = (body, { partial }) => {
   if (required && result.stock === undefined) fail('stock', 'is required.');
   if (required && result.condition === undefined) fail('condition', 'is required.');
   const isMida = result.marketplace_section === 'mida';
-  if (isMida && result.condition !== 'new') fail('condition', 'must be new for Mida food listings.');
-  if (isMida && !result.food_channel) fail('food_channel', 'is required for a Mida listing.');
-  if (isMida && !result.food_unit) fail('food_unit', 'is required for a Mida listing.');
-  if (isMida && !result.food_storage) fail('food_storage', 'is required for a Mida listing.');
-  if (isMida && !result.food_origin) fail('food_origin', 'is required for a Mida listing.');
-  if (isMida && result.food_channel === 'kitchen' && !result.ingredients) fail('ingredients', 'is required for Mida Kitchens listings.');
+  if (isMida && result.condition !== 'new') fail('condition', 'must be new for Macca food listings.');
+  if (isMida && !result.food_channel) fail('food_channel', 'is required for a Macca listing.');
+  if (isMida && !result.food_unit) fail('food_unit', 'is required for a Macca listing.');
+  if (isMida && !result.food_storage) fail('food_storage', 'is required for a Macca listing.');
+  if (isMida && !result.food_origin) fail('food_origin', 'is required for a Macca listing.');
+  if (isMida && result.food_channel === 'kitchen' && !result.ingredients) fail('ingredients', 'is required for Macca Kitchens listings.');
   if (result.old_price !== undefined && result.price !== undefined && result.old_price < result.price) {
     fail('old_price', 'must not be lower than price.');
   }

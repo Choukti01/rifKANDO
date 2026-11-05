@@ -43,10 +43,10 @@ const DashboardLayout = () => {
     product: { name: t('sellerDashboard.products'), icon: ShoppingBagIcon, path: 'products' },
     course: { name: t('sellerDashboard.courses'), icon: AcademicCapIcon, path: 'courses' },
     service: { name: t('sellerDashboard.services'), icon: WrenchScrewdriverIcon, path: 'services' },
-    mida: { name: t('nav.mida', { defaultValue: 'Mida' }), icon: ShoppingCartIcon, path: 'mida' },
+    mida: { name: t('nav.mida', { defaultValue: 'Macca' }), icon: ShoppingCartIcon, path: 'macca' },
   };
   // A seller can keep products as their primary workspace and also offer
-  // professional services, structured courses, and Mida local-food listings.
+  // professional services, structured courses, and Macca local-food listings.
   const selectedWorkspaceItems = [
     ...(user?.sellerType === 'product' || !user?.sellerType ? [sellerWorkspaceItems.product] : []),
     sellerWorkspaceItems.course,
@@ -84,7 +84,7 @@ const DashboardLayout = () => {
   )?.name || t('sellerDashboard.title');
   const canCreateProduct = user?.sellerType === 'product' || !user?.sellerType;
   const isServiceWorkspace = location.pathname.startsWith('/seller/dashboard/services');
-  const isMidaWorkspace = location.pathname.startsWith('/seller/dashboard/mida');
+  const isMidaWorkspace = location.pathname.startsWith('/seller/dashboard/macca');
 
   const handleLogout = () => {
     logout();
@@ -103,9 +103,9 @@ const DashboardLayout = () => {
         </div>
         <div className="seller-workspace-actions">
           {isMidaWorkspace ? (
-            <Link to="/seller/dashboard/mida/add" className="seller-workspace-primary-action">
+            <Link to="/seller/dashboard/macca/add" className="seller-workspace-primary-action">
               <PlusIcon aria-hidden="true" />
-              <span>{t('nav.mida', { defaultValue: 'Mida' })}</span>
+              <span>{t('nav.mida', { defaultValue: 'Macca' })}</span>
             </Link>
           ) : isServiceWorkspace ? (
             <Link to="/seller/dashboard/services/add" className="seller-workspace-primary-action">

@@ -99,7 +99,7 @@ const HomePage = () => {
     { name: t('nav.products'), icon: ShoppingBagIcon, path: '/products', color: 'var(--color-brand-blue)', count: stats.productsCount, available: productDataAvailable },
     { name: t('nav.courses'), icon: AcademicCapIcon, path: '/courses', color: 'var(--color-brand-blue)', count: stats.coursesCount, available: courseDataAvailable },
     { name: t('nav.services'), icon: WrenchScrewdriverIcon, path: '/services', color: 'var(--color-brand-blue)', count: stats.servicesCount, available: serviceDataAvailable },
-    { name: mida.name, icon: ShoppingCartIcon, path: '/mida', color: 'var(--color-brand-blue)', count: stats.midaCount, available: midaDataAvailable },
+    { name: mida.name, icon: ShoppingCartIcon, path: '/macca', color: 'var(--color-brand-blue)', count: stats.midaCount, available: midaDataAvailable },
     { name: t('findit.navigation'), icon: MagnifyingGlassIcon, path: '/findit', color: 'var(--color-brand-blue)', count: stats.finditRequestsCount, countLabel: t('availability.openRequests'), available: finditDataAvailable },
   ];
 
