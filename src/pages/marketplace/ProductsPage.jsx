@@ -12,6 +12,7 @@ import MarketplaceImage from '../../components/common/MarketplaceImage';
 import SellerTrustSummary from '../../components/common/SellerTrustSummary';
 import ServiceUnavailableState from '../../components/common/ServiceUnavailableState';
 import { featuredMarketplaceCities, marketplaceCities } from '../../constants/marketplaceLocations';
+import { BellAlertIcon, BookmarkIcon, TrashIcon } from '@heroicons/react/24/outline';
 
 const ProductsPage = () => {
   const { t, i18n } = useTranslation();
@@ -38,6 +39,8 @@ const ProductsPage = () => {
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [loadError, setLoadError] = useState(null);
   const [retryKey, setRetryKey] = useState(0);
+  const [savedSearches, setSavedSearches] = useState([]);
+  const [savingSearch, setSavingSearch] = useState(false);
 
   const categories = ['electronics', 'fashion', 'handicrafts', 'books', 'home'];
 
@@ -135,6 +138,23 @@ const ProductsPage = () => {
     };
   }, [fetchProducts, retryKey]);
 
+  const loadSavedSearches = useCallback(async () => {
+    if (!isAuthenticated) {
+      setSavedSearches([]);
+      return;
+    }
+    try {
+      const response = await api.get('/product-searches');
+      setSavedSearches(response.data?.searches || []);
+    } catch (error) {
+      // Saved searches are an enhancement. Catalogue discovery stays usable if
+      // the optional list cannot be retrieved.
+      console.error('Unable to load saved product searches:', error);
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => { void loadSavedSearches(); }, [loadSavedSearches]);
+
   const handleAddToCart = (product) => {
     if (!isAuthenticated) { toast.error(t('products.signInRequired')); return; }
     if (Number(product.seller_id) === Number(user?.id)) { toast.error(t('products.ownListing')); return; }
@@ -161,6 +181,53 @@ const ProductsPage = () => {
 
   const hasActiveFilters = Boolean(searchTerm || selectedCategory || city || minPrice || maxPrice || minRating);
   const activeFilterCount = [searchTerm, selectedCategory, city, minPrice, maxPrice, minRating].filter(Boolean).length;
+  const canSaveCurrentSearch = Boolean(searchTerm || selectedCategory || city || minPrice || maxPrice || minRating);
+  const currentSavedFilters = {
+    search: searchTerm,
+    category: selectedCategory,
+    city,
+    minPrice,
+    maxPrice,
+    minRating,
+    condition: activeCondition,
+    section: 'products',
+  };
+
+  const saveCurrentSearch = async () => {
+    if (!isAuthenticated) { toast.error(t('products.savedSearch.signIn')); return; }
+    if (!canSaveCurrentSearch) { toast.error(t('products.savedSearch.addFilter')); return; }
+    setSavingSearch(true);
+    try {
+      const response = await api.post('/product-searches', { filters: currentSavedFilters });
+      setSavedSearches((current) => [response.data.search, ...current]);
+      toast.success(t('products.savedSearch.saved'));
+    } catch (error) {
+      toast.error(error.response?.data?.error || t('products.savedSearch.saveFailed'));
+    } finally {
+      setSavingSearch(false);
+    }
+  };
+
+  const removeSavedSearch = async (id) => {
+    try {
+      await api.delete(`/product-searches/${id}`);
+      setSavedSearches((current) => current.filter((saved) => Number(saved.id) !== Number(id)));
+      toast.success(t('products.savedSearch.removed'));
+    } catch (error) {
+      toast.error(error.response?.data?.error || t('products.savedSearch.removeFailed'));
+    }
+  };
+
+  const savedSearchLabel = (filters = {}) => {
+    const parts = [];
+    if (filters.search) parts.push(filters.search);
+    if (filters.category) parts.push(categoryLabel(filters.category));
+    if (filters.city) parts.push(filters.city);
+    if (filters.minPriceMinor !== null && filters.minPriceMinor !== undefined) parts.push(`${t('products.from')} ${formatAmount(Number(filters.minPriceMinor) / 100)} MAD`);
+    if (filters.maxPriceMinor !== null && filters.maxPriceMinor !== undefined) parts.push(`${t('products.upTo')} ${formatAmount(Number(filters.maxPriceMinor) / 100)} MAD`);
+    if (filters.minRating !== null && filters.minRating !== undefined) parts.push(t('products.ratingAndUp', { rating: filters.minRating }));
+    return parts.join(' · ') || t('products.savedSearch.search');
+  };
 
   const clearFilters = () => {
     setSearchInput('');
@@ -261,6 +328,26 @@ const ProductsPage = () => {
             </div>
           )}
           {!loadError && <div className="results-count" aria-live="polite">{t('products.results', { count: totalProducts, filters: hasActiveFilters ? ` ${t('products.withFilters', { count: activeFilterCount })}` : '' })}</div>}
+          <section className="saved-search-panel" aria-labelledby="saved-product-searches-title">
+            <div>
+              <span className="saved-search-panel__eyebrow"><BellAlertIcon aria-hidden="true" /> {t('products.savedSearch.eyebrow')}</span>
+              <h2 id="saved-product-searches-title">{t('products.savedSearch.title')}</h2>
+              <p>{t('products.savedSearch.lead')}</p>
+            </div>
+            <button type="button" className="saved-search-panel__save" disabled={!canSaveCurrentSearch || savingSearch} onClick={saveCurrentSearch}>
+              <BookmarkIcon aria-hidden="true" /> {savingSearch ? t('products.savedSearch.saving') : t('products.savedSearch.save')}
+            </button>
+            {isAuthenticated && savedSearches.length > 0 && (
+              <ul className="saved-search-list" aria-label={t('products.savedSearch.yours')}>
+                {savedSearches.map((saved) => (
+                  <li key={saved.id}>
+                    <span>{savedSearchLabel(saved.filters)}</span>
+                    <button type="button" onClick={() => removeSavedSearch(saved.id)} aria-label={t('products.savedSearch.remove')} title={t('products.savedSearch.remove')}><TrashIcon aria-hidden="true" /></button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
         </div>
 
         {loadError ? <ServiceUnavailableState onRetry={() => setRetryKey((current) => current + 1)} /> : <div className="products-grid">
@@ -353,6 +440,21 @@ const ProductsPage = () => {
         .condition-tabs .tab-btn:hover:not(.active) { background: #f3f4f6; }
         .filters-bar { background: white; border-radius: 1rem; padding: 1rem; margin-bottom: 2rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         .products-page .product-search-form { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+        .saved-search-panel { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.85rem 1rem; align-items: center; margin-top: 1rem; padding: 1rem; border: 1px solid rgba(78, 177, 235, 0.24); border-radius: 0.9rem; background: linear-gradient(135deg, rgba(227, 247, 255, 0.78), rgba(255,255,255,0.96)); }
+        .saved-search-panel__eyebrow { display: inline-flex; align-items: center; gap: 0.35rem; color: #146a98; font-size: 0.74rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; }
+        .saved-search-panel__eyebrow svg { width: 1rem; height: 1rem; }
+        .saved-search-panel h2 { margin: 0.18rem 0; font-size: 1rem; color: #0c3653; }
+        .saved-search-panel p { margin: 0; color: #496576; font-size: 0.82rem; line-height: 1.45; }
+        .saved-search-panel__save { min-height: 42px; display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; border: 0; border-radius: 999px; padding: 0.65rem 0.9rem; background: #087fb8; color: #fff; font-weight: 750; cursor: pointer; white-space: nowrap; }
+        .saved-search-panel__save:hover:not(:disabled) { background: #056895; }
+        .saved-search-panel__save:disabled { opacity: 0.5; cursor: not-allowed; }
+        .saved-search-panel__save svg { width: 1.05rem; height: 1.05rem; }
+        .saved-search-list { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 0.5rem; list-style: none; margin: 0; padding: 0; }
+        .saved-search-list li { display: inline-flex; align-items: center; gap: 0.3rem; max-width: 100%; padding: 0.38rem 0.45rem 0.38rem 0.65rem; border-radius: 999px; background: #fff; border: 1px solid rgba(20,106,152,0.2); color: #174a68; font-size: 0.77rem; }
+        .saved-search-list span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .saved-search-list button { display: inline-grid; place-items: center; width: 1.65rem; height: 1.65rem; padding: 0; border: 0; border-radius: 50%; background: transparent; color: #6b7280; cursor: pointer; }
+        .saved-search-list button:hover { color: #b42318; background: #fff0ef; }
+        .saved-search-list svg { width: 0.92rem; height: 0.92rem; }
         .products-page .product-search-input { flex: 1; min-height: 44px; padding: 0.75rem; border: 1px solid #e5e7eb; border-radius: 0.5rem; font-size: 0.875rem; }
         .products-page .product-search-input:focus { outline: none; border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(135, 206, 235, 0.16); }
         .products-page .product-search-btn { min-height: 44px; padding: 0.75rem 1.5rem; background: #1a1a1a; color: white; border: none; border-radius: 0.5rem; cursor: pointer; }
@@ -415,6 +517,8 @@ const ProductsPage = () => {
           .filter-fields.filter-fields-open { display: block; }
           .filters { flex-direction: column; }
           .filter-select, .price-input { width: 100%; min-height: 44px; }
+          .saved-search-panel { grid-template-columns: 1fr; }
+          .saved-search-panel__save { width: 100%; }
           .filter-verified { margin-bottom: 0.5rem; }
           .results-count { text-align: left; }
         }

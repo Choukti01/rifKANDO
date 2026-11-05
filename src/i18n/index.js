@@ -736,6 +736,22 @@ Object.assign(resources.ar.translation.productDetails, {
   openGallery: 'فتح معرض الوسائط لـ {{title}}', showMedia: 'عرض الوسيط {{count}} لـ {{title}}', soldBy: 'يباع بواسطة', selectQuantity: 'اختر الكمية', favoriteAdd: 'أضف إلى المفضلة', favoriteRemove: 'أزل من المفضلة', productInformation: 'معلومات المنتج', noDescription: 'لم يضف البائع وصفًا لهذا المنتج بعد.',
 });
 
+Object.assign(resources.en.translation.products, {
+  savedSearch: {
+    eyebrow: 'Search alerts', title: 'Let rifKANDO watch this search', lead: 'Save a specific search and get one in-app alert when a new matching product is published.', save: 'Save this search', saving: 'Saving…', saved: 'Search saved. We will notify you about new matches.', saveFailed: 'Could not save this search.', remove: 'Remove saved search', removed: 'Saved search removed.', removeFailed: 'Could not remove this saved search.', yours: 'Your saved searches', signIn: 'Sign in to save a search.', addFilter: 'Add a keyword, category, city, price, or rating first.', search: 'Saved product search',
+  },
+});
+Object.assign(resources.fr.translation.products, {
+  savedSearch: {
+    eyebrow: 'Alertes de recherche', title: 'Laissez rifKANDO surveiller cette recherche', lead: 'Enregistrez une recherche précise et recevez une alerte dans l’application lorsqu’un produit correspondant est publié.', save: 'Enregistrer cette recherche', saving: 'Enregistrement…', saved: 'Recherche enregistrée. Nous vous alerterons pour les nouvelles correspondances.', saveFailed: 'Impossible d’enregistrer cette recherche.', remove: 'Supprimer la recherche enregistrée', removed: 'Recherche enregistrée supprimée.', removeFailed: 'Impossible de supprimer cette recherche.', yours: 'Vos recherches enregistrées', signIn: 'Connectez-vous pour enregistrer une recherche.', addFilter: 'Ajoutez d’abord un mot-clé, une catégorie, une ville, un prix ou une note.', search: 'Recherche produit enregistrée',
+  },
+});
+Object.assign(resources.ar.translation.products, {
+  savedSearch: {
+    eyebrow: 'تنبيهات البحث', title: 'دع rifKANDO يراقب هذا البحث', lead: 'احفظ بحثًا محددًا وستصلك رسالة داخل المنصة عند نشر منتج جديد يطابقه.', save: 'احفظ هذا البحث', saving: 'جارٍ الحفظ…', saved: 'تم حفظ البحث. سننبهك عند ظهور نتائج جديدة.', saveFailed: 'تعذر حفظ هذا البحث.', remove: 'حذف البحث المحفوظ', removed: 'تم حذف البحث المحفوظ.', removeFailed: 'تعذر حذف البحث المحفوظ.', yours: 'عمليات البحث المحفوظة', signIn: 'سجّل الدخول لحفظ البحث.', addFilter: 'أضف كلمة مفتاحية أو فئة أو مدينة أو سعرًا أو تقييمًا أولًا.', search: 'بحث منتجات محفوظ',
+  },
+});
+
 Object.assign(resources.en.translation.productDetails.review, {
   verifiedPurchase: 'Verified delivery',
 });

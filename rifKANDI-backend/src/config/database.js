@@ -339,6 +339,33 @@ db.serialize(() => {
     )
   `, (err) => { if (err) console.error('Error creating notifications:', err); else console.log('✅ notifications table ready'); });
 
+  // Buyer-owned saved searches are an opt-in discovery tool. A separate
+  // marker table guarantees that a listing can alert a saved search once only.
+  db.run(`
+    CREATE TABLE IF NOT EXISTS saved_product_searches (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      filters TEXT NOT NULL,
+      filter_signature TEXT NOT NULL,
+      active BOOLEAN NOT NULL DEFAULT 1,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(user_id, filter_signature),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `, (err) => { if (err) console.error('Error creating saved_product_searches:', err); else console.log('✅ saved_product_searches table ready'); });
+  db.run('CREATE INDEX IF NOT EXISTS idx_saved_product_searches_user_created ON saved_product_searches(user_id, created_at DESC)');
+  db.run(`
+    CREATE TABLE IF NOT EXISTS saved_product_search_notifications (
+      saved_search_id INTEGER NOT NULL,
+      product_id INTEGER NOT NULL,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (saved_search_id, product_id),
+      FOREIGN KEY (saved_search_id) REFERENCES saved_product_searches(id) ON DELETE CASCADE,
+      FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+    )
+  `, (err) => { if (err) console.error('Error creating saved_product_search_notifications:', err); else console.log('✅ saved_product_search_notifications table ready'); });
+
   // Operational error events are deliberately separate from immutable audit
   // records. They contain only redacted diagnostics and never block a user
   // action if this observability store is unavailable.

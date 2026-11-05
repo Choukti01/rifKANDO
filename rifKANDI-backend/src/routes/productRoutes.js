@@ -1,5 +1,14 @@
 const express = require('express');
 const { buildSellerTrust } = require('../services/sellerTrustService');
+const {
+  MAX_SAVED_SEARCHES_PER_USER,
+  SavedProductSearchError,
+  normalizeFilters,
+  signatureFor,
+  parseFilters,
+  notifyMatchingProductSearches,
+} = require('../services/savedProductSearchService');
+const { all, get, run } = require('../services/bookingProtocolService');
 
 /**
  * Active product domain routes.
@@ -280,6 +289,78 @@ const createProductRoutes = ({
     );
   });
 
+  // Saved catalogue searches are private to their owner. They are intentionally
+  // not a generic subscription feed: the normalized filters must be specific,
+  // and the UI can later turn them off/delete them without affecting history.
+  router.get('/product-searches', protect, async (req, res) => {
+    try {
+      const searches = await all(db, `
+        SELECT id, filters, active, created_at, updated_at
+        FROM saved_product_searches
+        WHERE user_id = ?
+        ORDER BY created_at DESC, id DESC
+        LIMIT ?
+      `, [req.user.id, MAX_SAVED_SEARCHES_PER_USER]);
+      return res.json({
+        success: true,
+        searches: searches.map((search) => ({
+          ...search,
+          active: Boolean(search.active),
+          filters: parseFilters(search.filters) || {},
+        })),
+      });
+    } catch (error) {
+      return res.status(500).json({ error: 'Unable to load saved searches.' });
+    }
+  });
+
+  router.post('/product-searches', protect, async (req, res) => {
+    try {
+      const filters = normalizeFilters(req.body?.filters, Money);
+      const signature = signatureFor(filters);
+      const count = await get(db, 'SELECT COUNT(*) AS count FROM saved_product_searches WHERE user_id = ?', [req.user.id]);
+      if (Number(count?.count || 0) >= MAX_SAVED_SEARCHES_PER_USER) {
+        return res.status(422).json({ error: `You can save up to ${MAX_SAVED_SEARCHES_PER_USER} product searches.` });
+      }
+      const existing = await get(db, 'SELECT id FROM saved_product_searches WHERE user_id = ? AND filter_signature = ?', [req.user.id, signature]);
+      if (existing) return res.status(409).json({ error: 'This search is already saved.' });
+      const inserted = await run(db, `
+        INSERT INTO saved_product_searches (user_id, filters, filter_signature)
+        VALUES (?, ?, ?)
+      `, [req.user.id, JSON.stringify(filters), signature]);
+      const saved = await get(db, 'SELECT id, filters, active, created_at, updated_at FROM saved_product_searches WHERE id = ?', [inserted.lastID]);
+      if (AuditService) void AuditService.record({
+        actorUserId: req.user.id,
+        actorRole: req.user.role,
+        action: 'product_search.saved',
+        resourceType: 'saved_product_search',
+        resourceId: saved.id,
+        metadata: { section: filters.section },
+      }).catch(() => undefined);
+      return res.status(201).json({ success: true, search: { ...saved, active: Boolean(saved.active), filters } });
+    } catch (error) {
+      if (error instanceof SavedProductSearchError) return res.status(error.statusCode).json({ error: error.message });
+      return res.status(500).json({ error: 'Unable to save this search.' });
+    }
+  });
+
+  router.delete('/product-searches/:id', protect, validateIdParams('id'), async (req, res) => {
+    try {
+      const deleted = await run(db, 'DELETE FROM saved_product_searches WHERE id = ? AND user_id = ?', [req.params.id, req.user.id]);
+      if (Number(deleted?.changes || 0) !== 1) return res.status(404).json({ error: 'Saved search not found.' });
+      if (AuditService) void AuditService.record({
+        actorUserId: req.user.id,
+        actorRole: req.user.role,
+        action: 'product_search.deleted',
+        resourceType: 'saved_product_search',
+        resourceId: Number(req.params.id),
+      }).catch(() => undefined);
+      return res.json({ success: true });
+    } catch (_) {
+      return res.status(500).json({ error: 'Unable to remove this saved search.' });
+    }
+  });
+
   router.get('/products/:id', validateIdParams('id'), (req, res) => {
     db.get(
       `SELECT p.*, u.name as seller_name, u.id as seller_id,
@@ -338,8 +419,26 @@ const createProductRoutes = ({
       function onProductCreated(error) {
         if (error) return res.status(400).json({ error: error.message });
         const productId = this.lastID;
-        if (!media || !media.length) {
+        const createdProduct = {
+          id: productId,
+          seller_id: req.user.id,
+          title,
+          description,
+          category,
+          condition: condition || 'new',
+          origin_city: originCity,
+          price_minor: priceMinor,
+          marketplace_section: marketplaceSection,
+          rating: 0,
+        };
+        const respond = () => {
+          // Discovery alerts must never delay or fail a seller's publication.
+          void notifyMatchingProductSearches({ db, NotificationService, product: createdProduct })
+            .catch((notifyError) => console.error('Saved search notification error:', notifyError.message));
           return res.json({ success: true, product: { id: productId, ...req.body } });
+        };
+        if (!media || !media.length) {
+          return respond();
         }
 
         let inserted = 0;
@@ -351,7 +450,7 @@ const createProductRoutes = ({
               if (mediaError) console.error('Media insert error:', mediaError);
               inserted += 1;
               if (inserted === media.length) {
-                res.json({ success: true, product: { id: productId, ...req.body } });
+                respond();
               }
             },
           );
