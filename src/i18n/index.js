@@ -17,7 +17,7 @@ resources.fr.translation.nav.findit = 'FINDit';
 resources.fr.translation.nav.mida = 'Macca';
 delete resources.fr.translation.nav.bookings;
 resources.ar.translation.nav.findit = 'FINDit';
-resources.ar.translation.nav.mida = 'ماكّا';
+resources.ar.translation.nav.mida = 'المأكولات';
 delete resources.ar.translation.nav.bookings;
 resources.en.translation.home.valueStatement = 'Quality products, trusted professionals, and FINDit requests, connecting Morocco to the world.';
 resources.fr.translation.home.headline = 'Achetez. Trouvez. Engagez. Progressez.';
