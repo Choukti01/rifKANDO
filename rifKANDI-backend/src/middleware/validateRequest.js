@@ -82,6 +82,11 @@ const integer = (value, field, { min = 0, max = MAX_ID } = {}) => {
   return value;
 };
 
+const boolean = (value, field) => {
+  if (typeof value !== 'boolean') fail(field, 'must be a boolean.');
+  return value;
+};
+
 const money = (value, field, { min = 0, max = MAX_MONEY } = {}) => {
   if (typeof value !== 'number' || !Number.isFinite(value)) fail(field, 'must be a finite number.');
   if (value < min || value > max) fail(field, `must be between ${min} and ${max}.`);
@@ -422,7 +427,7 @@ const productPayload = (body, { partial }) => {
   object(body);
   // Delivery is quoted per confirmed order by COD Operations. Sellers cannot
   // set a delivery price on a listing or override it with a crafted request.
-  onlyKeys(body, ['title', 'description', 'price', 'old_price', 'category', 'stock', 'media', 'condition', 'origin_city', 'preparation_days']);
+  onlyKeys(body, ['title', 'description', 'price', 'old_price', 'category', 'stock', 'media', 'condition', 'origin_city', 'preparation_days', 'marketplace_section', 'food_channel', 'food_unit', 'food_origin', 'food_storage', 'ingredients', 'allergen_notes', 'pickup_available']);
   const required = !partial;
   const result = {
     title: text(body.title, 'title', { required, min: 2, max: 160 }),
@@ -437,9 +442,24 @@ const productPayload = (body, { partial }) => {
     condition: body.condition === undefined ? undefined : enumValue(body.condition, 'condition', ['new', 'used_as_new', 'joutiya']),
     origin_city: text(body.origin_city, 'origin_city', { required: false, min: 2, max: 100 }),
     preparation_days: body.preparation_days === undefined ? undefined : integer(body.preparation_days, 'preparation_days', { min: 0, max: 14 }),
+    marketplace_section: body.marketplace_section === undefined ? undefined : enumValue(body.marketplace_section, 'marketplace_section', ['products', 'mida']),
+    food_channel: body.food_channel === undefined ? undefined : enumValue(body.food_channel, 'food_channel', ['market', 'kitchen']),
+    food_unit: body.food_unit === undefined ? undefined : enumValue(body.food_unit, 'food_unit', ['kg', 'g', 'litre', 'ml', 'jar', 'bottle', 'basket', 'piece', 'portion', 'tray']),
+    food_origin: text(body.food_origin, 'food_origin', { required: false, min: 2, max: 160 }),
+    food_storage: body.food_storage === undefined ? undefined : enumValue(body.food_storage, 'food_storage', ['ambient', 'refrigerated', 'frozen', 'fresh']),
+    ingredients: text(body.ingredients, 'ingredients', { required: false, min: 2, max: 2_000 }),
+    allergen_notes: text(body.allergen_notes, 'allergen_notes', { required: false, min: 2, max: 1_000 }),
+    pickup_available: body.pickup_available === undefined ? undefined : boolean(body.pickup_available, 'pickup_available'),
   };
   if (required && result.stock === undefined) fail('stock', 'is required.');
   if (required && result.condition === undefined) fail('condition', 'is required.');
+  const isMida = result.marketplace_section === 'mida';
+  if (isMida && result.condition !== 'new') fail('condition', 'must be new for Mida food listings.');
+  if (isMida && !result.food_channel) fail('food_channel', 'is required for a Mida listing.');
+  if (isMida && !result.food_unit) fail('food_unit', 'is required for a Mida listing.');
+  if (isMida && !result.food_storage) fail('food_storage', 'is required for a Mida listing.');
+  if (isMida && !result.food_origin) fail('food_origin', 'is required for a Mida listing.');
+  if (isMida && result.food_channel === 'kitchen' && !result.ingredients) fail('ingredients', 'is required for Mida Kitchens listings.');
   if (result.old_price !== undefined && result.price !== undefined && result.old_price < result.price) {
     fail('old_price', 'must not be lower than price.');
   }
@@ -1064,6 +1084,8 @@ const validateProductQuery = validate((req) => {
       minRating: query.minRating === undefined || query.minRating === '' ? undefined : money(Number(query.minRating), 'query.minRating', { min: 0, max: 5 }),
       sortBy: query.sortBy === undefined || query.sortBy === '' ? 'newest' : enumValue(query.sortBy, 'query.sortBy', ['newest', 'price_asc', 'price_desc', 'rating', 'popular']),
       condition: query.condition === undefined || query.condition === '' ? '' : enumValue(query.condition, 'query.condition', ['new', 'used_as_new', 'joutiya']),
+      section: query.section === undefined || query.section === '' ? 'products' : enumValue(query.section, 'query.section', ['products', 'mida']),
+      food_channel: query.food_channel === undefined || query.food_channel === '' ? '' : enumValue(query.food_channel, 'query.food_channel', ['market', 'kitchen']),
     },
   };
 });

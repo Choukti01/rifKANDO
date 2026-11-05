@@ -176,7 +176,7 @@ export const getProduct = (id) => api.get(`/products/${id}`);
 export const createProduct = (productData) => api.post('/products', productData);
 export const updateProduct = (id, productData) => api.put(`/products/${id}`, productData);
 export const deleteProduct = (id) => api.delete(`/products/${id}`);
-export const getMyProducts = () => api.get('/my-products');
+export const getMyProducts = (params) => api.get('/my-products', { params });
 
 // ==================== COURSE APIs ====================
 export const getCourses = (params) => api.get('/courses', { params });

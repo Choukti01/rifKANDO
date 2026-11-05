@@ -14,6 +14,7 @@ const ChatPage = lazy(() => import('./pages/messages/ChatPage'))
 const MessagesInbox = lazy(() => import('./pages/messages/MessagesInbox'))
 const ProductsPage = lazy(() => import('./pages/marketplace/ProductsPage'))
 const ProductDetailsPage = lazy(() => import('./pages/marketplace/ProductDetailsPage'))
+const MidaPage = lazy(() => import('./pages/marketplace/MidaPage'))
 // Parked launch modules. Their implementations remain untouched in source.
 const CoursesPage = lazy(() => import('./pages/marketplace/CoursesPage'))
 const CourseDetailsPage = lazy(() => import('./pages/marketplace/CourseDetailsPage'))
@@ -53,6 +54,8 @@ const Overview = lazy(() => import('./pages/seller/dashboard/Overview'))
 const ProductsDashboard = lazy(() => import('./pages/seller/products/ProductsDashboard'))
 const AddProduct = lazy(() => import('./pages/seller/products/AddProduct'))
 const EditProduct = lazy(() => import('./pages/seller/products/EditProduct'))
+const MidaDashboard = lazy(() => import('./pages/seller/mida/MidaDashboard'))
+const AddMidaListing = lazy(() => import('./pages/seller/mida/AddMidaListing'))
 const CoursesDashboard = lazy(() => import('./pages/seller/courses/CoursesDashboard'))
 const AddCourse = lazy(() => import('./pages/seller/courses/AddCourse'))
 const EditCourse = lazy(() => import('./pages/seller/courses/EditCourse'))
@@ -161,13 +164,15 @@ function AppContent() {
                   <Route path="/" element={<HomePage />} />
                   <Route path="/products" element={<ProductsPage />} />
                   <Route path="/product/:id" element={<ProductDetailsPage />} />
-                  {/* Courses and digital remain parked until their separate launch checks are complete. */}
+                  {/* Digital downloads remain parked. Mida uses the hardened physical-product COD workflow. */}
                   <Route path="/courses" element={<CoursesPage />} />
                   <Route path="/course/:id" element={<CourseDetailsPage />} />
                   <Route path="/services" element={<ServicesPage />} />
                   <Route path="/service/:id" element={<ServiceDetailsPage />} />
-                  <Route path="/digital" element={<UnderDevelopment sectionKey="digital" />} />
-                  <Route path="/digital/:id" element={<UnderDevelopment sectionKey="digital" />} />
+                  <Route path="/mida" element={<MidaPage />} />
+                  <Route path="/local-foods" element={<Navigate to="/mida" replace />} />
+                  <Route path="/digital" element={<Navigate to="/mida" replace />} />
+                  <Route path="/digital/:id" element={<Navigate to="/mida" replace />} />
                   <Route path="/findit" element={<FindItPage />} />
                   <Route path="/bookings" element={<UnderDevelopment sectionKey="bookings" />} />
                   <Route path="/booking/:id" element={<UnderDevelopment sectionKey="bookings" />} />
@@ -320,6 +325,8 @@ function AppContent() {
                     <Route path="products" element={<ProductsDashboard />} />
                     <Route path="products/add" element={<AddProduct />} />
                     <Route path="products/:id/edit" element={<EditProduct />} />
+                    <Route path="mida" element={<MidaDashboard />} />
+                    <Route path="mida/add" element={<AddMidaListing />} />
                     {/* Services are a request-and-hire marketplace. Courses and digital remain parked. */}
                     <Route path="courses" element={<CoursesDashboard />} />
                     <Route path="courses/add" element={<AddCourse />} />
@@ -331,7 +338,7 @@ function AppContent() {
                     <Route path="services/add" element={<AddService />} />
                     <Route path="services/:id/edit" element={<EditService />} />
                     <Route path="services/:id/packages" element={<PackagesManager />} />
-                    <Route path="digital/*" element={<UnderDevelopment sectionKey="digital" sellerWorkspace />} />
+                    <Route path="digital/*" element={<Navigate to="../mida" replace />} />
                     <Route path="findit" element={<SellerFindItPage />} />
                     <Route path="bookings/*" element={<UnderDevelopment sectionKey="bookings" sellerWorkspace />} />
                     <Route path="settings" element={<Settings />} />

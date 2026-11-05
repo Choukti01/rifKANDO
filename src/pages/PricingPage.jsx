@@ -6,7 +6,7 @@ import {
   ArrowRightIcon,
   MagnifyingGlassIcon,
   CheckIcon,
-  ComputerDesktopIcon,
+  ShoppingCartIcon,
   CurrencyDollarIcon,
   ShoppingBagIcon,
   WalletIcon,
@@ -21,7 +21,7 @@ const PricingPage = () => {
     { type: 'product', title: localize('Physical products', 'المنتجات المادية'), icon: ShoppingBagIcon, bestFor: localize('Merchants selling tangible goods', 'التجار الذين يبيعون سلعًا مادية'), features: [localize('Inventory and product listings', 'المخزون وإعلانات المنتجات'), localize('Order and fulfillment tools', 'أدوات الطلبات والتنفيذ'), localize('Customer reviews', 'تقييمات العملاء')] },
     { type: 'course', title: localize('Courses', 'الدورات'), icon: AcademicCapIcon, bestFor: localize('Educators and trainers', 'المعلمون والمدربون'), features: [localize('Course and lesson publishing', 'نشر الدورات والدروس'), localize('Student access management', 'إدارة وصول الطلاب'), localize('Course workspace tools', 'أدوات مساحة الدورات')] },
     { type: 'service', title: localize('Services', 'الخدمات'), icon: WrenchScrewdriverIcon, bestFor: localize('Freelancers and service providers', 'المستقلون ومقدمو الخدمات'), features: [localize('Service listings and packages', 'إعلانات الخدمات والباقات'), localize('Client requests', 'طلبات العملاء'), localize('Portfolio and review tools', 'أدوات المعرض والتقييمات')] },
-    { type: 'digital', title: localize('Digital products', 'المنتجات الرقمية'), icon: ComputerDesktopIcon, bestFor: localize('Creators of digital resources', 'منشئو الموارد الرقمية'), features: [localize('Digital product listings', 'إعلانات المنتجات الرقمية'), localize('Purchase request workflow', 'مسار طلبات الشراء'), localize('Creator workspace tools', 'أدوات مساحة المنشئ')] },
+    { type: 'product', title: localize('Mida local foods', 'أطعمة ميدة المحلية'), icon: ShoppingCartIcon, bestFor: localize('Producers, food makers, restaurants, and local shops', 'المنتجون وصناع الطعام والمطاعم والمتاجر المحلية'), features: [localize('Mida Market and Mida Kitchens listings', 'إعلانات سوق ميدة ومطابخ ميدة'), localize('Food origin, unit, storage, and allergen details', 'تفاصيل المصدر ووحدة البيع والحفظ والحساسية'), localize('COD delivery workflow', 'مسار التوصيل والدفع عند الاستلام')] },
     { type: 'findit', title: localize('FINDit solutions', 'حلول اعثر عليها'), icon: MagnifyingGlassIcon, bestFor: localize('Sellers who can source hard-to-find items', 'البائعون القادرون على إيجاد السلع صعبة العثور'), features: [localize('Private buyer requests', 'طلبات مشترين خاصة'), localize('Quoted COD solutions', 'حلول بالدفع عند الاستلام بسعر محدد'), localize('5% commission after settlement', 'عمولة 5% بعد التسوية')] },
   ]
   return (

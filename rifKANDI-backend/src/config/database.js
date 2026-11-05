@@ -133,6 +133,14 @@ db.serialize(() => {
       origin_city TEXT DEFAULT '',
       preparation_days INTEGER NOT NULL DEFAULT 1,
       estimated_delivery_days INTEGER NOT NULL DEFAULT 3,
+      marketplace_section TEXT NOT NULL DEFAULT 'products',
+      food_channel TEXT,
+      food_unit TEXT,
+      food_origin TEXT NOT NULL DEFAULT '',
+      food_storage TEXT,
+      ingredients TEXT NOT NULL DEFAULT '',
+      allergen_notes TEXT NOT NULL DEFAULT '',
+      pickup_available INTEGER NOT NULL DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (seller_id) REFERENCES users(id)
     )
@@ -151,6 +159,14 @@ db.serialize(() => {
     ['preparation_days', 'INTEGER NOT NULL DEFAULT 1'],
     ['estimated_delivery_days', 'INTEGER NOT NULL DEFAULT 3'],
     ['review_count', 'INTEGER NOT NULL DEFAULT 0'],
+    ['marketplace_section', "TEXT NOT NULL DEFAULT 'products'"],
+    ['food_channel', 'TEXT'],
+    ['food_unit', 'TEXT'],
+    ['food_origin', "TEXT NOT NULL DEFAULT ''"],
+    ['food_storage', 'TEXT'],
+    ['ingredients', "TEXT NOT NULL DEFAULT ''"],
+    ['allergen_notes', "TEXT NOT NULL DEFAULT ''"],
+    ['pickup_available', 'INTEGER NOT NULL DEFAULT 0'],
   ]) {
     db.run(`ALTER TABLE products ADD COLUMN ${column} ${definition}`, (err) => {
       if (err && !err.message.includes('duplicate column name')) console.error(`Error adding ${column} to products:`, err.message);

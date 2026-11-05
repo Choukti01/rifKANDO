@@ -32,6 +32,14 @@ CREATE TABLE IF NOT EXISTS products (
   views INTEGER DEFAULT 0,
   status TEXT DEFAULT 'published',
   condition TEXT DEFAULT 'new',
+  marketplace_section TEXT NOT NULL DEFAULT 'products',
+  food_channel TEXT,
+  food_unit TEXT,
+  food_origin TEXT NOT NULL DEFAULT '',
+  food_storage TEXT,
+  ingredients TEXT NOT NULL DEFAULT '',
+  allergen_notes TEXT NOT NULL DEFAULT '',
+  pickup_available INTEGER NOT NULL DEFAULT 0,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (seller_id) REFERENCES users(id)
 );

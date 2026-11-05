@@ -3,7 +3,7 @@ import { Outlet, NavLink, Link, useNavigate, useLocation } from 'react-router-do
 import { 
   HomeIcon, ShoppingBagIcon, AcademicCapIcon,
   WrenchScrewdriverIcon, CurrencyDollarIcon, Cog6ToothIcon, 
-  ArrowLeftOnRectangleIcon, ComputerDesktopIcon, MagnifyingGlassIcon,
+  ArrowLeftOnRectangleIcon, MagnifyingGlassIcon,
   ChatBubbleLeftRightIcon, Bars3Icon, XMarkIcon, ClipboardDocumentListIcon,
   HeartIcon, ShoppingCartIcon, TagIcon, ShieldExclamationIcon, PlusIcon
 } from '@heroicons/react/24/outline';
@@ -43,14 +43,15 @@ const DashboardLayout = () => {
     product: { name: t('sellerDashboard.products'), icon: ShoppingBagIcon, path: 'products' },
     course: { name: t('sellerDashboard.courses'), icon: AcademicCapIcon, path: 'courses' },
     service: { name: t('sellerDashboard.services'), icon: WrenchScrewdriverIcon, path: 'services' },
-    digital: { name: t('sellerDashboard.digital'), icon: ComputerDesktopIcon, path: 'digital' },
+    mida: { name: t('nav.mida', { defaultValue: 'Mida' }), icon: ShoppingCartIcon, path: 'mida' },
   };
   // A seller can keep products as their primary workspace and also offer
-  // professional services. Courses and digital remain intentionally parked.
+  // professional services, structured courses, and Mida local-food listings.
   const selectedWorkspaceItems = [
     ...(user?.sellerType === 'product' || !user?.sellerType ? [sellerWorkspaceItems.product] : []),
     sellerWorkspaceItems.course,
     sellerWorkspaceItems.service,
+    sellerWorkspaceItems.mida,
   ];
   const workspaceItems = [
     { name: t('sellerDashboard.overview'), icon: HomeIcon, path: 'overview' },
@@ -83,6 +84,7 @@ const DashboardLayout = () => {
   )?.name || t('sellerDashboard.title');
   const canCreateProduct = user?.sellerType === 'product' || !user?.sellerType;
   const isServiceWorkspace = location.pathname.startsWith('/seller/dashboard/services');
+  const isMidaWorkspace = location.pathname.startsWith('/seller/dashboard/mida');
 
   const handleLogout = () => {
     logout();
@@ -100,7 +102,12 @@ const DashboardLayout = () => {
           <h1>{activeSection}</h1>
         </div>
         <div className="seller-workspace-actions">
-          {isServiceWorkspace ? (
+          {isMidaWorkspace ? (
+            <Link to="/seller/dashboard/mida/add" className="seller-workspace-primary-action">
+              <PlusIcon aria-hidden="true" />
+              <span>{t('nav.mida', { defaultValue: 'Mida' })}</span>
+            </Link>
+          ) : isServiceWorkspace ? (
             <Link to="/seller/dashboard/services/add" className="seller-workspace-primary-action">
               <PlusIcon aria-hidden="true" />
               <span>{t('sellerDashboard.services')}</span>

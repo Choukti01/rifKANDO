@@ -1,18 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ShoppingBagIcon, AcademicCapIcon, WrenchScrewdriverIcon, ComputerDesktopIcon, MagnifyingGlassIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
+import { ShoppingBagIcon, AcademicCapIcon, WrenchScrewdriverIcon, ShoppingCartIcon, MagnifyingGlassIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
 import { getProducts, getFinditRequests, getServices, getCourses } from '/src/services/api';
 import MediaGallery from '../../components/MediaGallery';
 import { getImageUrl } from '../../utils/imageUtils';
 import MarketplaceImage from '../../components/common/MarketplaceImage';
 import ServiceUnavailableState from '../../components/common/ServiceUnavailableState';
 import { useTranslation } from 'react-i18next';
+import { useMidaI18n } from '../../i18n/midaI18n';
 
-// Digital remains under development; the other four sections are active.
-const ACTIVE_MARKETPLACE_SECTIONS = Object.freeze(['products', 'findit', 'services', 'courses']);
+const ACTIVE_MARKETPLACE_SECTIONS = Object.freeze(['products', 'findit', 'services', 'courses', 'mida']);
 
 const HomePage = () => {
   const { t } = useTranslation();
+  const { mida } = useMidaI18n();
   const [featuredItems, setFeaturedItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [galleryItem, setGalleryItem] = useState(null);
@@ -21,11 +22,13 @@ const HomePage = () => {
   const [finditDataAvailable, setFinditDataAvailable] = useState(true);
   const [serviceDataAvailable, setServiceDataAvailable] = useState(true);
   const [courseDataAvailable, setCourseDataAvailable] = useState(true);
+  const [midaDataAvailable, setMidaDataAvailable] = useState(true);
   const [stats, setStats] = useState({
     productsCount: 0,
     finditRequestsCount: 0,
     servicesCount: 0,
     coursesCount: 0,
+    midaCount: 0,
   });
 
   useEffect(() => {
@@ -33,11 +36,12 @@ const HomePage = () => {
 
     const loadHomeData = async () => {
       setLoading(true);
-      const [productsResult, finditResult, serviceResult, coursesResult] = await Promise.allSettled([
+      const [productsResult, finditResult, serviceResult, coursesResult, midaResult] = await Promise.allSettled([
         getProducts(),
         getFinditRequests({ limit: 1 }),
         getServices({ limit: 1 }),
         getCourses({ limit: 1 }),
+        getProducts({ section: 'mida', limit: 1 }),
       ]);
 
       if (!isCurrent) return;
@@ -46,6 +50,7 @@ const HomePage = () => {
       const finditDataLoaded = finditResult.status === 'fulfilled';
       const serviceDataLoaded = serviceResult.status === 'fulfilled';
       const courseDataLoaded = coursesResult.status === 'fulfilled';
+      const midaDataLoaded = midaResult.status === 'fulfilled';
       const products = productDataLoaded ? productsResult.value.data.products || [] : [];
       const productsTotal = productDataLoaded
         ? Number(productsResult.value.data.pagination?.total ?? products.length)
@@ -59,16 +64,19 @@ const HomePage = () => {
       const coursesTotal = courseDataLoaded
         ? Number(coursesResult.value.data.pagination?.total ?? coursesResult.value.data.courses?.length ?? 0)
         : 0;
+      const midaTotal = midaDataLoaded ? Number(midaResult.value.data.pagination?.total ?? midaResult.value.data.products?.length ?? 0) : 0;
 
       setProductDataAvailable(productDataLoaded);
       setFinditDataAvailable(finditDataLoaded);
       setServiceDataAvailable(serviceDataLoaded);
       setCourseDataAvailable(courseDataLoaded);
+      setMidaDataAvailable(midaDataLoaded);
       setStats({
         productsCount: productsTotal,
         finditRequestsCount: finditTotal,
         servicesCount: servicesTotal,
         coursesCount: coursesTotal,
+        midaCount: midaTotal,
       });
 
       setFeaturedItems([
@@ -85,13 +93,13 @@ const HomePage = () => {
   }, [reloadKey]);
 
   const retryHomeData = () => setReloadKey((current) => current + 1);
-  const hasUnavailableLiveData = !productDataAvailable || !finditDataAvailable || !serviceDataAvailable || !courseDataAvailable;
+  const hasUnavailableLiveData = !productDataAvailable || !finditDataAvailable || !serviceDataAvailable || !courseDataAvailable || !midaDataAvailable;
 
   const categories = [
     { name: t('nav.products'), icon: ShoppingBagIcon, path: '/products', color: 'var(--color-brand-blue)', count: stats.productsCount, available: productDataAvailable },
     { name: t('nav.courses'), icon: AcademicCapIcon, path: '/courses', color: 'var(--color-brand-blue)', count: stats.coursesCount, available: courseDataAvailable },
     { name: t('nav.services'), icon: WrenchScrewdriverIcon, path: '/services', color: 'var(--color-brand-blue)', count: stats.servicesCount, available: serviceDataAvailable },
-    { name: t('nav.digital'), icon: ComputerDesktopIcon, path: '/digital', color: '#64748b', underDevelopment: true },
+    { name: mida.name, icon: ShoppingCartIcon, path: '/mida', color: 'var(--color-brand-blue)', count: stats.midaCount, available: midaDataAvailable },
     { name: t('findit.navigation'), icon: MagnifyingGlassIcon, path: '/findit', color: 'var(--color-brand-blue)', count: stats.finditRequestsCount, countLabel: t('availability.openRequests'), available: finditDataAvailable },
   ];
 
@@ -100,7 +108,7 @@ const HomePage = () => {
       case 'product': return `/product/${item.id}`;
       case 'course': return `/course/${item.id}`;
       case 'service': return `/service/${item.id}`;
-      case 'digital': return `/digital/${item.id}`;
+      case 'mida': return `/product/${item.id}`;
       default: return '#';
     }
   };
@@ -116,7 +124,7 @@ const HomePage = () => {
       product: '📦',
       course: '📚',
       service: '🔧',
-      digital: '💾',
+      mida: '🍯',
       booking: '📅'
     };
     return icons[item.type] || '🛒';

@@ -12,9 +12,11 @@ import MarketplaceImage from '../../components/common/MarketplaceImage';
 import { getImageUrl } from '../../utils/imageUtils';
 import SeoHead from '../../components/seo/SeoHead';
 import { SEO_ORIGIN as seoOrigin } from '../../components/seo/seoConfig';
+import { useMidaI18n } from '../../i18n/midaI18n';
 
 const ProductDetailsPage = () => {
   const { t, i18n } = useTranslation();
+  const { mida } = useMidaI18n();
   const { id } = useParams();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -495,6 +497,14 @@ const ProductDetailsPage = () => {
                 <div className="spec-item"><span className="spec-label">{t('productDetails.shipping.sold')}</span><span className="spec-value">{t('productDetails.shipping.units', { count: product.sold || 0 })}</span></div>
                 <div className="spec-item"><span className="spec-label">{t('productDetails.shipping.dispatch')}</span><span className="spec-value">{product.origin_city || t('productDetails.shipping.sellerLocation')} · {t('productDetails.shipping.prepares', { time: Number(product.preparation_days || 1) === 0 ? t('productDetails.shipping.sameDay') : t('productDetails.shipping.days', { count: Number(product.preparation_days || 1) }) })}</span></div>
                 <div className="spec-item"><span className="spec-label">{t('productDetails.shipping.deliveryPlan')}</span><span className="spec-value">{t('productDetails.shipping.deliveryPlanValue')}</span></div>
+                {product.marketplace_section === 'mida' && <>
+                  <div className="spec-item"><span className="spec-label">{mida.origin}</span><span className="spec-value">{product.food_origin || product.origin_city}</span></div>
+                  <div className="spec-item"><span className="spec-label">{mida.unit}</span><span className="spec-value">{mida.units[product.food_unit] || product.food_unit || '—'}</span></div>
+                  <div className="spec-item"><span className="spec-label">{mida.storage}</span><span className="spec-value">{mida.storageOptions[product.food_storage] || product.food_storage || '—'}</span></div>
+                  {product.ingredients && <div className="spec-item"><span className="spec-label">{mida.ingredients}</span><span className="spec-value">{product.ingredients}</span></div>}
+                  {product.allergen_notes && <div className="spec-item"><span className="spec-label">{mida.allergens}</span><span className="spec-value">{product.allergen_notes}</span></div>}
+                  {Boolean(product.pickup_available) && <div className="spec-item"><span className="spec-label">{mida.pickup}</span><span className="spec-value">✓</span></div>}
+                </>}
               </div>
             )}
             {activeTab==='reviews' && (

@@ -1,0 +1,41 @@
+import { useTranslation } from 'react-i18next';
+
+const copy = {
+  en: {
+    name: 'Mida', market: 'Mida Market', kitchens: 'Mida Kitchens', nav: 'Local food',
+    title: 'Good food, close to home.', lead: 'Fresh local ingredients, trusted producers, restaurants, and food makers in one place.',
+    marketLead: 'Vegetables, oil, honey, olives, spices, pantry essentials, and more.',
+    kitchensLead: 'Home cooks, restaurants, bakeries, and local food makers.',
+    browseMarket: 'Browse the market', browseKitchens: 'Explore kitchens', sell: 'Sell on Mida',
+    search: 'Search food, producers, or dishes', all: 'All food', city: 'City', results: '{{count}} listings',
+    origin: 'Origin', unit: 'Sold by', storage: 'Storage', ingredients: 'Ingredients', allergens: 'Allergens',
+    pickup: 'Pickup available', cod: 'Cash on delivery', delivery: 'Delivery is confirmed per order by rifKANDO COD Operations.',
+    noListings: 'No Mida listings yet', noListingsLead: 'Be among the first to offer local food through Mida.',
+    add: 'Add a food listing', dashboard: 'Mida workspace', dashboardLead: 'Manage your local-food and kitchen listings in one place.',
+    createTitle: 'Create a Mida listing', createLead: 'Give buyers clear, useful food information before they order.',
+    channel: 'What are you offering?', marketOption: 'Market food or local product', kitchensOption: 'Restaurant or food-maker dish',
+    category: 'Category', price: 'Price (MAD)', stock: 'Available quantity', dispatchCity: 'Dispatch city', preparation: 'Preparation time',
+    foodOrigin: 'Farm, cooperative, kitchen, or local origin', foodOriginHint: 'Example: Aït Kamra cooperative, Kassita kitchen, Midar farm',
+    storageLabel: 'Storage guidance', unitLabel: 'Price unit', media: 'Food photos and videos', foodSafety: 'I confirm this listing describes the food accurately, including ingredients and allergens where relevant.',
+    publish: 'Publish on Mida', publishing: 'Publishing…', cancel: 'Cancel', created: 'Your Mida listing is live.',
+    foodSafetyNote: 'Use clear ingredients and allergen notes. rifKANDO does not verify food licences or make health claims.',
+    categories: { produce: 'Fresh produce', oil_olives: 'Olive oil & olives', honey_bees: 'Honey & beekeeping', dairy_eggs: 'Dairy & eggs', pantry: 'Pantry & preserves', spices_herbs: 'Spices & herbs', meals: 'Meals & traditional dishes', bakery_sweets: 'Bakery & sweets', drinks: 'Drinks', catering: 'Catering' },
+    storageOptions: { fresh: 'Fresh', ambient: 'Room temperature', refrigerated: 'Refrigerated', frozen: 'Frozen' },
+    units: { kg: 'per kg', g: 'per gram', litre: 'per litre', ml: 'per ml', jar: 'per jar', bottle: 'per bottle', basket: 'per basket', piece: 'per piece', portion: 'per portion', tray: 'per tray' },
+  },
+  fr: {
+    name: 'Mida', market: 'Marché Mida', kitchens: 'Cuisines Mida', nav: 'Alimentation locale',
+    title: 'De bons produits, près de chez vous.', lead: 'Des ingrédients locaux, producteurs, restaurants et artisans culinaires réunis au même endroit.',
+    marketLead: 'Légumes, huile, miel, olives, épices, produits du placard et plus.', kitchensLead: 'Cuisiniers, restaurants, boulangeries et artisans culinaires locaux.',
+    browseMarket: 'Voir le marché', browseKitchens: 'Explorer les cuisines', sell: 'Vendre sur Mida', search: 'Rechercher un aliment, producteur ou plat', all: 'Toute l’alimentation', city: 'Ville', results: '{{count}} annonces', origin: 'Origine', unit: 'Vendu', storage: 'Conservation', ingredients: 'Ingrédients', allergens: 'Allergènes', pickup: 'Retrait possible', cod: 'Paiement à la livraison', delivery: 'La livraison est confirmée pour chaque commande par les opérations COD rifKANDO.', noListings: 'Aucune annonce Mida pour le moment', noListingsLead: 'Soyez parmi les premiers à proposer de l’alimentation locale sur Mida.', add: 'Ajouter une annonce alimentaire', dashboard: 'Espace Mida', dashboardLead: 'Gérez vos annonces alimentaires et de cuisine en un seul endroit.', createTitle: 'Créer une annonce Mida', createLead: 'Donnez aux acheteurs des informations claires avant leur commande.', channel: 'Que proposez-vous ?', marketOption: 'Produit du marché ou local', kitchensOption: 'Plat de restaurant ou d’artisan', category: 'Catégorie', price: 'Prix (MAD)', stock: 'Quantité disponible', dispatchCity: 'Ville de départ', preparation: 'Temps de préparation', foodOrigin: 'Ferme, coopérative, cuisine ou origine locale', foodOriginHint: 'Ex. coopérative Aït Kamra, cuisine de Kassita, ferme de Midar', storageLabel: 'Conseil de conservation', unitLabel: 'Unité de prix', media: 'Photos et vidéos', foodSafety: 'Je confirme que cette annonce décrit fidèlement l’aliment, ses ingrédients et allergènes si nécessaires.', publish: 'Publier sur Mida', publishing: 'Publication…', cancel: 'Annuler', created: 'Votre annonce Mida est publiée.', foodSafetyNote: 'Indiquez clairement les ingrédients et allergènes. rifKANDO ne vérifie pas les licences alimentaires et ne fait aucune promesse de santé.', categories: { produce: 'Produits frais', oil_olives: 'Huile d’olive & olives', honey_bees: 'Miel & apiculture', dairy_eggs: 'Produits laitiers & œufs', pantry: 'Épicerie & conserves', spices_herbs: 'Épices & herbes', meals: 'Plats & cuisine traditionnelle', bakery_sweets: 'Boulangerie & pâtisseries', drinks: 'Boissons', catering: 'Traiteur' }, storageOptions: { fresh: 'Frais', ambient: 'Température ambiante', refrigerated: 'Réfrigéré', frozen: 'Surgelé' }, units: { kg: 'par kg', g: 'par gramme', litre: 'par litre', ml: 'par ml', jar: 'par pot', bottle: 'par bouteille', basket: 'par panier', piece: 'à l’unité', portion: 'par portion', tray: 'par plateau' },
+  },
+  ar: {
+    name: 'ميدة', market: 'سوق ميدة', kitchens: 'مطابخ ميدة', nav: 'أكل محلي', title: 'أكل طيب قريب منك.', lead: 'مكونات محلية طازجة، ومنتجون موثوقون، ومطاعم، وصنّاع طعام في مكان واحد.', marketLead: 'خضر، زيت، عسل، زيتون، توابل، مؤن منزلية وأكثر.', kitchensLead: 'طبّاخون، ومطاعم، ومخابز، وصناع طعام محليون.', browseMarket: 'تصفح السوق', browseKitchens: 'استكشف المطابخ', sell: 'بِع عبر ميدة', search: 'ابحث عن طعام أو منتج أو طبق', all: 'كل الأطعمة', city: 'المدينة', results: '{{count}} إعلان', origin: 'المصدر', unit: 'يباع', storage: 'الحفظ', ingredients: 'المكونات', allergens: 'مسببات الحساسية', pickup: 'الاستلام متاح', cod: 'الدفع عند الاستلام', delivery: 'يتم تأكيد التوصيل لكل طلب من طرف عمليات COD في rifKANDO.', noListings: 'لا توجد إعلانات ميدة بعد', noListingsLead: 'كن من أوائل من يعرضون الطعام المحلي على ميدة.', add: 'أضف إعلاناً غذائياً', dashboard: 'مساحة ميدة', dashboardLead: 'أدر إعلانات الطعام والمطبخ من مكان واحد.', createTitle: 'أنشئ إعلان ميدة', createLead: 'امنح المشتري معلومات غذائية واضحة قبل الطلب.', channel: 'ماذا تعرض؟', marketOption: 'منتج سوق أو منتج محلي', kitchensOption: 'طبق مطعم أو صانع طعام', category: 'الفئة', price: 'السعر (درهم)', stock: 'الكمية المتاحة', dispatchCity: 'مدينة الانطلاق', preparation: 'وقت التحضير', foodOrigin: 'المزرعة أو التعاونية أو المطبخ أو المصدر المحلي', foodOriginHint: 'مثال: تعاونية آيت قمرة، مطبخ قاسطة، مزرعة ميدار', storageLabel: 'طريقة الحفظ', unitLabel: 'وحدة السعر', media: 'صور وفيديوهات الطعام', foodSafety: 'أؤكد أن هذا الإعلان يصف الطعام بدقة، بما في ذلك المكونات ومسببات الحساسية عند الحاجة.', publish: 'انشر على ميدة', publishing: 'جاري النشر…', cancel: 'إلغاء', created: 'إعلانك على ميدة أصبح منشوراً.', foodSafetyNote: 'اكتب المكونات ومسببات الحساسية بوضوح. لا تتحقق rifKANDO من تراخيص الطعام ولا تقدم ادعاءات صحية.', categories: { produce: 'خضر وفواكه طازجة', oil_olives: 'زيت الزيتون والزيتون', honey_bees: 'العسل ومنتجات النحل', dairy_eggs: 'ألبان وبيض', pantry: 'مؤن ومعلبات', spices_herbs: 'توابل وأعشاب', meals: 'وجبات وأطباق تقليدية', bakery_sweets: 'مخبوزات وحلويات', drinks: 'مشروبات', catering: 'تموين ومناسبات' }, storageOptions: { fresh: 'طازج', ambient: 'حرارة الغرفة', refrigerated: 'مبرد', frozen: 'مجمّد' }, units: { kg: 'للكيلوغرام', g: 'للغرام', litre: 'للتر', ml: 'للملليلتر', jar: 'للمرطبان', bottle: 'للقنينة', basket: 'للسلة', piece: 'للقطعة', portion: 'للحصة', tray: 'للصينية' },
+  },
+};
+
+export const useMidaI18n = () => {
+  const { i18n } = useTranslation();
+  const language = i18n.language?.startsWith('ar') ? 'ar' : i18n.language?.startsWith('fr') ? 'fr' : 'en';
+  return { mida: copy[language], language };
+};

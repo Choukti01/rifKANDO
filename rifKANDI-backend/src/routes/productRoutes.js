@@ -142,9 +142,12 @@ const createProductRoutes = ({
     const minRating = req.query.minRating ? parseFloat(req.query.minRating) : null;
     const sortBy = req.query.sortBy || 'newest';
     const condition = req.query.condition || '';
+    const section = req.query.section || 'products';
+    const foodChannel = req.query.food_channel || '';
     // A seller with an overdue, verified-delivery COD commission cannot accept
     // new sales. This is enforced in the catalogue and again at checkout.
     let whereClause = `p.status = 'published'
+      AND COALESCE(p.marketplace_section, 'products') = ?
       AND COALESCE(u.marketplace_status, 'active') = 'active'
       AND NOT EXISTS (
       SELECT 1 FROM cod_fulfillments debt
@@ -152,11 +155,15 @@ const createProductRoutes = ({
         AND debt.commission_payment_status = 'due'
         AND debt.commission_due_at <= CURRENT_TIMESTAMP
     )`;
-    const params = [];
+    const params = [section];
 
     if (condition) {
       whereClause += ' AND p.condition = ?';
       params.push(condition);
+    }
+    if (foodChannel) {
+      whereClause += ' AND p.food_channel = ?';
+      params.push(foodChannel);
     }
     if (search) {
       whereClause += ' AND (p.title LIKE ? OR p.description LIKE ?)';
@@ -246,7 +253,7 @@ const createProductRoutes = ({
   });
 
   router.post('/products', protect, requireSeller, validateProductCreate, (req, res) => {
-    const { title, description, price, old_price: oldPrice, category, stock, media, condition, origin_city: originCity, preparation_days: preparationDays } = req.body;
+    const { title, description, price, old_price: oldPrice, category, stock, media, condition, origin_city: originCity, preparation_days: preparationDays, marketplace_section: marketplaceSection = 'products', food_channel: foodChannel = null, food_unit: foodUnit = null, food_origin: foodOrigin = '', food_storage: foodStorage = null, ingredients = '', allergen_notes: allergenNotes = '', pickup_available: pickupAvailable = false } = req.body;
     if (!originCity) return sendListingQualityError(res, 'origin_city', 'Dispatch city is required so buyers know where the parcel starts.');
     const listingMediaError = listingMediaQualityError(media, condition || 'new');
     if (listingMediaError) return sendListingQualityError(res, 'media', listingMediaError);
@@ -255,8 +262,8 @@ const createProductRoutes = ({
 
     db.run(
       `INSERT INTO products
-       (title, description, price, old_price, price_minor, old_price_minor, delivery_fee, delivery_fee_minor, category, stock, seller_id, condition, origin_city, preparation_days, estimated_delivery_days)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (title, description, price, old_price, price_minor, old_price_minor, delivery_fee, delivery_fee_minor, category, stock, seller_id, condition, origin_city, preparation_days, estimated_delivery_days, marketplace_section, food_channel, food_unit, food_origin, food_storage, ingredients, allergen_notes, pickup_available)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         title,
         description,
@@ -273,6 +280,7 @@ const createProductRoutes = ({
         // This legacy listing column remains populated for schema compatibility.
         // The real buyer deadline now belongs only to COD Operations per order.
         originCity || '', preparationDays ?? 1, 3,
+        marketplaceSection, foodChannel, foodUnit, foodOrigin, foodStorage, ingredients, allergenNotes, pickupAvailable ? 1 : 0,
       ],
       function onProductCreated(error) {
         if (error) return res.status(400).json({ error: error.message });
@@ -300,7 +308,7 @@ const createProductRoutes = ({
   });
 
   router.put('/products/:id', protect, requireSeller, validateIdParams('id'), validateProductUpdate, (req, res) => {
-    const { title, description, price, old_price: oldPrice, category, stock, media, condition, origin_city: originCity, preparation_days: preparationDays } = req.body;
+    const { title, description, price, old_price: oldPrice, category, stock, media, condition, origin_city: originCity, preparation_days: preparationDays, marketplace_section: marketplaceSection, food_channel: foodChannel, food_unit: foodUnit, food_origin: foodOrigin, food_storage: foodStorage, ingredients, allergen_notes: allergenNotes, pickup_available: pickupAvailable } = req.body;
     const priceMinor = price === undefined ? undefined : Money.toMinor(price);
     const oldPriceMinor = oldPrice === undefined ? undefined : Money.toMinor(oldPrice);
 
@@ -326,7 +334,15 @@ const createProductRoutes = ({
            stock = COALESCE(?, stock),
            condition = COALESCE(?, condition),
            origin_city = COALESCE(?, origin_city),
-           preparation_days = COALESCE(?, preparation_days)
+           preparation_days = COALESCE(?, preparation_days),
+           marketplace_section = COALESCE(?, marketplace_section),
+           food_channel = COALESCE(?, food_channel),
+           food_unit = COALESCE(?, food_unit),
+           food_origin = COALESCE(?, food_origin),
+           food_storage = COALESCE(?, food_storage),
+           ingredients = COALESCE(?, ingredients),
+           allergen_notes = COALESCE(?, allergen_notes),
+           pickup_available = COALESCE(?, pickup_available)
          WHERE id = ?`,
         [
           title,
@@ -340,6 +356,14 @@ const createProductRoutes = ({
           condition,
           originCity,
           preparationDays,
+          marketplaceSection,
+          foodChannel,
+          foodUnit,
+          foodOrigin,
+          foodStorage,
+          ingredients,
+          allergenNotes,
+          pickupAvailable === undefined ? undefined : (pickupAvailable ? 1 : 0),
           req.params.id,
         ],
           (updateError) => {
@@ -492,12 +516,14 @@ const createProductRoutes = ({
   });
 
   router.get('/my-products', protect, requireSeller, (req, res) => {
+    const section = req.query.section || 'products';
+    if (!['products', 'mida'].includes(section)) return res.status(422).json({ error: 'Invalid marketplace section.' });
     db.all(
       `SELECT p.*, u.name as seller_name
        FROM products p
        JOIN users u ON p.seller_id = u.id
-       WHERE p.seller_id = ?`,
-      [req.user.id],
+       WHERE p.seller_id = ? AND COALESCE(p.marketplace_section, 'products') = ?`,
+      [req.user.id, section],
       (error, products) => {
         if (error) return res.status(500).json({ error: error.message });
         attachMedia(products, (productsWithMedia) => {
