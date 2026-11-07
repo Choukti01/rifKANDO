@@ -170,7 +170,6 @@ function AppContent() {
                   <Route path="/services" element={<ServicesPage />} />
                   <Route path="/service/:id" element={<ServiceDetailsPage />} />
                   <Route path="/food-market" element={<MidaPage />} />
-                  <Route path="/macca" element={<Navigate to="/food-market" replace />} />
                   <Route path="/mida" element={<Navigate to="/food-market" replace />} />
                   <Route path="/local-foods" element={<Navigate to="/food-market" replace />} />
                   <Route path="/digital" element={<Navigate to="/food-market" replace />} />
@@ -329,7 +328,6 @@ function AppContent() {
                     <Route path="products/:id/edit" element={<EditProduct />} />
                     <Route path="food-market" element={<MidaDashboard />} />
                     <Route path="food-market/add" element={<AddMidaListing />} />
-                    <Route path="macca/*" element={<Navigate to="../food-market" replace />} />
                     <Route path="mida/*" element={<Navigate to="../food-market" replace />} />
                     {/* Services are a request-and-hire marketplace. Courses and digital remain parked. */}
                     <Route path="courses" element={<CoursesDashboard />} />
