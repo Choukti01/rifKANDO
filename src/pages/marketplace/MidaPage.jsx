@@ -40,7 +40,7 @@ const MidaPage = () => {
       if (!current) return;
       setItems(data.products || []);
     }).catch((error) => {
-      console.error('Unable to load Macca catalogue:', error);
+      console.error('Unable to load Food Market catalogue:', error);
       if (current) setLoadError(true);
     }).finally(() => { if (current) setLoading(false); });
     return () => { current = false; };
@@ -79,7 +79,7 @@ const MidaPage = () => {
   return <div className="mida-page">
     <section className="mida-hero"><div className="container mida-hero__inner">
       <div><span className="mida-kicker">{mida.name}</span><h1>{mida.title}</h1><p>{mida.lead}</p></div>
-      <Link to="/seller/dashboard/macca/add" className="mida-hero__action"><ShoppingCartIcon aria-hidden="true" />{mida.sell}</Link>
+      <Link to="/seller/dashboard/food-market/add" className="mida-hero__action"><ShoppingCartIcon aria-hidden="true" />{mida.sell}</Link>
     </div></section>
     <main className="container mida-content">
       <div className="mida-channel-switch" role="tablist" aria-label={mida.name}>
@@ -91,7 +91,7 @@ const MidaPage = () => {
         <select value={category} onChange={(event) => filterCategory(event.target.value)} aria-label={mida.category}><option value="">{mida.all}</option>{channelCategories[channel].map((key) => <option key={key} value={key}>{mida.categories[key]}</option>)}</select>
         <button type="submit">{language === 'ar' ? 'بحث' : language === 'fr' ? 'Rechercher' : 'Search'}</button>
       </form>
-      {loadError ? <ServiceUnavailableState onRetry={() => window.location.reload()} /> : items.length === 0 ? <section className="mida-empty"><ShoppingCartIcon aria-hidden="true" /><h2>{mida.noListings}</h2><p>{mida.noListingsLead}</p><Link to="/seller/dashboard/macca/add">{mida.add}</Link></section> : <div className="mida-grid">{items.map((item) => <article className="mida-card" key={item.id}>
+      {loadError ? <ServiceUnavailableState onRetry={() => window.location.reload()} /> : items.length === 0 ? <section className="mida-empty"><ShoppingCartIcon aria-hidden="true" /><h2>{mida.noListings}</h2><p>{mida.noListingsLead}</p><Link to="/seller/dashboard/food-market/add">{mida.add}</Link></section> : <div className="mida-grid">{items.map((item) => <article className="mida-card" key={item.id}>
         <Link className="mida-card__media" to={`/product/${item.id}`}>{item.media?.[0] ? <MarketplaceImage source={item.media[0].media_url} alt={item.title} /> : <span>🍯</span>}<b>{item.food_channel === 'kitchen' ? mida.kitchens : mida.market}</b></Link>
         <div className="mida-card__body"><div className="mida-card__meta"><span>{mida.categories[item.category] || item.category}</span>{item.listing_city && <span><MapPinIcon aria-hidden="true" />{item.listing_city}</span>}</div><Link to={`/product/${item.id}`}><h2>{item.title}</h2></Link><p>{item.food_origin || item.origin_city}</p><div className="mida-card__price"><strong>{money(item.price)} MAD</strong><span>{mida.units[item.food_unit] || ''}</span></div><small>{mida.delivery}</small><button type="button" disabled={Number(item.stock) < 1 || Number(item.seller_id) === Number(user?.id)} onClick={() => addItem(item)}>{Number(item.stock) < 1 ? (language === 'ar' ? 'غير متوفر' : language === 'fr' ? 'Indisponible' : 'Out of stock') : mida.cod}</button></div>
       </article>)}</div>}

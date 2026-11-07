@@ -34,6 +34,20 @@ const copy = {
   },
 };
 
+// `mida` remains the stable internal catalogue key.  Only the public brand
+// changes here, so existing listings, saved searches, and database migrations
+// keep working without a data migration.
+const replacePublicBrand = (value, replacement) => {
+  if (typeof value === 'string') return value.replaceAll('Macca', replacement);
+  if (value && typeof value === 'object') Object.values(value).forEach((item) => replacePublicBrand(item, replacement));
+  return value;
+};
+
+replacePublicBrand(copy.en, 'Food Market');
+replacePublicBrand(copy.fr, 'Marché alimentaire');
+Object.assign(copy.en, { name: 'Food Market', market: 'Food Market', kitchens: 'Food Kitchens', nav: 'Food Market' });
+Object.assign(copy.fr, { name: 'Marché alimentaire', market: 'Marché alimentaire', kitchens: 'Cuisines & plats', nav: 'Alimentation locale' });
+
 export const useMidaI18n = () => {
   const { i18n } = useTranslation();
   const language = i18n.language?.startsWith('ar') ? 'ar' : i18n.language?.startsWith('fr') ? 'fr' : 'en';

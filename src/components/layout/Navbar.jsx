@@ -64,7 +64,7 @@ const Navbar = () => {
     { name: t('nav.products'), path: '/products' },
     { name: t('nav.courses'), path: '/courses' },
     { name: t('nav.services'), path: '/services' },
-    { name: t('nav.mida', { defaultValue: 'Macca' }), path: '/macca' },
+    { name: t('nav.mida', { defaultValue: 'Food Market' }), path: '/food-market' },
     { name: t('findit.navigation'), path: '/findit' },
   ];
   const isSeller = user?.role === 'seller' || user?.roles?.includes('seller');
