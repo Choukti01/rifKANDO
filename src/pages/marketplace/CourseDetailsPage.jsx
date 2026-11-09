@@ -8,6 +8,7 @@ import MediaGallery from '../../components/MediaGallery';
 import MarketplaceImage from '../../components/common/MarketplaceImage';
 import { getImageUrl } from '../../utils/imageUtils';
 import { courseYouTubeEmbedUrl } from '../../utils/courseYouTube';
+import { useTranslation } from 'react-i18next';
 
 const safeLessonLink = (value) => {
   try {
@@ -17,6 +18,9 @@ const safeLessonLink = (value) => {
 };
 
 const CourseDetailsPage = () => {
+  const { t, i18n } = useTranslation();
+  const selectedLanguage = i18n?.resolvedLanguage || i18n?.language || 'en';
+  const locale = selectedLanguage.startsWith('ar') ? 'ar-MA' : selectedLanguage.startsWith('fr') ? 'fr-MA' : 'en-MA';
   const { id } = useParams();
   const navigate = useNavigate();
   const [course, setCourse] = useState(null);
@@ -38,7 +42,7 @@ const CourseDetailsPage = () => {
       } catch (error) {
         if (isCurrent) {
           console.error('Error fetching course:', error);
-          toast.error('Failed to load course');
+          toast.error(t('courseMarketplace.details.loadError'));
         }
       } finally {
         if (isCurrent) setLoading(false);
@@ -50,11 +54,11 @@ const CourseDetailsPage = () => {
     return () => {
       isCurrent = false;
     };
-  }, [id]);
+  }, [id, t]);
 
   const handleEnroll = async () => {
     if (!isAuthenticated) {
-      toast.error('Please login to enroll');
+      toast.error(t('courseMarketplace.details.loginRequired'));
       navigate('/login');
       return;
     }
@@ -65,7 +69,7 @@ const CourseDetailsPage = () => {
         setPayment(response.data);
       }
     } catch (error) {
-      toast.error(error.response?.data?.error || 'Failed to enroll');
+      toast.error(error.response?.data?.error || t('courseMarketplace.details.enrollError'));
     } finally {
       setEnrolling(false);
     }
@@ -76,17 +80,23 @@ const CourseDetailsPage = () => {
     setEnrolling(true);
     try {
       await api.post(`/courses/${id}/payment-submission`, { transferReference });
-      toast.success('Your transfer reference was submitted for manual verification.');
+      toast.success(t('courseMarketplace.details.transferSubmitted'));
       setPayment((current) => ({ ...current, payment: { ...current.payment, status: 'submitted' } }));
     } catch (error) {
-      toast.error(error.response?.data?.error || 'Unable to submit transfer reference');
+      toast.error(error.response?.data?.error || t('courseMarketplace.details.transferError'));
     } finally { setEnrolling(false); }
   };
 
-  if (loading) return <div className="container text-center py-16"><div className="spinner"></div><p>Loading course...</p></div>;
-  if (!course) return <div className="container text-center py-16"><p>Course not found</p><Link to="/courses" className="btn btn-primary">Back</Link></div>;
+  if (loading) return <div className="container text-center py-16"><div className="spinner"></div><p>{t('courseMarketplace.details.loading')}</p></div>;
+  if (!course) return <div className="container text-center py-16"><p>{t('courseMarketplace.details.notFound')}</p><Link to="/courses" className="btn btn-primary">{t('courseMarketplace.details.back')}</Link></div>;
 
-  const whatYouLearn = course.what_you_learn ? JSON.parse(course.what_you_learn) : [];
+  let whatYouLearn;
+  try {
+    whatYouLearn = course.what_you_learn ? JSON.parse(course.what_you_learn) : [];
+  } catch {
+    whatYouLearn = [];
+  }
+  if (!Array.isArray(whatYouLearn)) whatYouLearn = [];
   const primaryMedia = course.media?.find(m => m.is_primary) || course.media?.[0];
 
   return (
@@ -96,9 +106,9 @@ const CourseDetailsPage = () => {
           <div className="course-main">
             <h1>{course.title}</h1>
             <div className="course-meta">
-              <div className="course-rating"><StarIcon className="star-icon" /><span>{course.rating || 0}</span><span className="review-count">({course.reviews_count || 0} reviews)</span></div>
-              <div className="course-students"><UserGroupIcon className="meta-icon" /><span>{course.students_count || 0} students</span></div>
-              <div className="course-duration"><ClockIcon className="meta-icon" /><span>{course.duration || 0} hours</span></div>
+              <div className="course-rating"><StarIcon className="star-icon" /><span>{course.rating || 0}</span><span className="review-count">({t('courseMarketplace.details.reviews', { count: course.reviews_count || 0 })})</span></div>
+              <div className="course-students"><UserGroupIcon className="meta-icon" /><span>{t('courseMarketplace.details.students', { count: course.students_count || 0 })}</span></div>
+              <div className="course-duration"><ClockIcon className="meta-icon" /><span>{t('courseMarketplace.details.hours', { count: course.duration || 0 })}</span></div>
             </div>
 
             {/* Instructor info with clickable name */}
@@ -110,12 +120,12 @@ const CourseDetailsPage = () => {
                     {course.instructor_name}
                   </Link>
                 </h3>
-                <p>Course Instructor</p>
+                <p>{t('courseMarketplace.details.instructor')}</p>
               </div>
             </div>
 
             <div className="what-you-learn">
-              <h3>What You'll Learn</h3>
+              <h3>{t('courseMarketplace.details.whatYouLearn')}</h3>
               <div className="learn-list">
                 {whatYouLearn.map((item, index) => (
                   <div key={index} className="learn-item"><CheckBadgeIcon className="check-icon" /><span>{item}</span></div>
@@ -125,7 +135,7 @@ const CourseDetailsPage = () => {
 
             {/* Course Curriculum with Video Support */}
             <div className="curriculum">
-              <h3>Course Curriculum</h3>
+              <h3>{t('courseMarketplace.details.curriculum')}</h3>
               {course.lessons && course.lessons.length > 0 ? (
                 course.lessons.map((lesson, index) => (
                   <div key={lesson.id} className="curriculum-section">
@@ -134,11 +144,11 @@ const CourseDetailsPage = () => {
                       className="section-header"
                     >
                       <span>{lesson.title}</span>
-                      <span>{lesson.duration || 0} min</span>
+                      <span>{t('courseMarketplace.details.minutes', { count: lesson.duration || 0 })}</span>
                     </button>
                     {activeLesson === index && (
                       <div className="section-content">
-                        <p>{lesson.description || 'No description available'}</p>
+                        <p>{lesson.description || t('courseMarketplace.details.noDescription')}</p>
                         {courseYouTubeEmbedUrl(lesson.video_url) && (
                           <div className="lesson-video">
                             <iframe
@@ -152,23 +162,23 @@ const CourseDetailsPage = () => {
                           </div>
                         )}
                         {course.isEnrolled && lesson.delivery_type === 'zoom' && safeLessonLink(lesson.video_url) && (
-                          <a className="lesson-access-link" href={safeLessonLink(lesson.video_url)} target="_blank" rel="noopener noreferrer">Join the private Zoom session</a>
+                          <a className="lesson-access-link" href={safeLessonLink(lesson.video_url)} target="_blank" rel="noopener noreferrer">{t('courseMarketplace.details.joinZoom')}</a>
                         )}
                         {course.isEnrolled && lesson.delivery_type === 'telegram' && safeLessonLink(lesson.video_url) && (
-                          <a className="lesson-access-link" href={safeLessonLink(lesson.video_url)} target="_blank" rel="noopener noreferrer">Open private Telegram resources</a>
+                          <a className="lesson-access-link" href={safeLessonLink(lesson.video_url)} target="_blank" rel="noopener noreferrer">{t('courseMarketplace.details.openTelegram')}</a>
                         )}
                         {!course.isEnrolled && lesson.delivery_type && lesson.delivery_type !== 'youtube' && (
-                          <p className="lesson-access-locked">Access details are shared after payment verification.</p>
+                          <p className="lesson-access-locked">{t('courseMarketplace.details.accessLocked')}</p>
                         )}
                         {(lesson.is_preview === true || lesson.is_preview === 1) && !course.isEnrolled && (
-                          <div className="preview-notice">🎬 This is a free preview lesson</div>
+                          <div className="preview-notice">🎬 {t('courseMarketplace.details.preview')}</div>
                         )}
                       </div>
                     )}
                   </div>
                 ))
               ) : (
-                <p>Course content coming soon...</p>
+                <p>{t('courseMarketplace.details.comingSoon')}</p>
               )}
             </div>
           </div>
@@ -193,37 +203,37 @@ const CourseDetailsPage = () => {
 ) : (
   <span style={{ fontSize: '3rem' }}></span>
 )}
-                {course.media?.length > 1 && <div className="gallery-badge">{course.media.length} items</div>}
+                {course.media?.length > 1 && <div className="gallery-badge">{t('courseMarketplace.mediaCount', { count: course.media.length })}</div>}
               </div>
               <div className="course-price-section">
-                <span className="current-price">{course.price} MAD</span>
-                {course.old_price && <span className="old-price">{course.old_price} MAD</span>}
+                <span className="current-price">{Number(course.price || 0).toLocaleString(locale)} MAD</span>
+                {course.old_price && <span className="old-price">{Number(course.old_price).toLocaleString(locale)} MAD</span>}
               </div>
               {course.isEnrolled ? (
                 <div className="enrolled-badge">
-                  <CheckBadgeIcon className="enrolled-icon" /><span>You are enrolled!</span>
-                  <span>Choose a lesson from the curriculum to continue learning.</span>
+                  <CheckBadgeIcon className="enrolled-icon" /><span>{t('courseMarketplace.details.enrolled')}</span>
+                  <span>{t('courseMarketplace.details.enrolledHint')}</span>
                 </div>
               ) : (
-                <button className="enroll-btn" onClick={handleEnroll} disabled={enrolling}>{enrolling ? 'Loading...' : 'View bank transfer instructions'}</button>
+                <button className="enroll-btn" onClick={handleEnroll} disabled={enrolling}>{enrolling ? t('courseMarketplace.loading') : t('courseMarketplace.details.viewInstructions')}</button>
               )}
               {payment && !course.isEnrolled && (
-                <section aria-label="Bank transfer instructions">
-                  <p>Transfer {payment.payment.amount} MAD to {payment.instructions.account_holder} at {payment.instructions.bank_name}.</p>
+                <section aria-label={t('courseMarketplace.details.transferInstructions')}>
+                  <p>{t('courseMarketplace.details.transferTo', { amount: Number(payment.payment.amount || 0).toLocaleString(locale), holder: payment.instructions.account_holder, bank: payment.instructions.bank_name })}</p>
                   <p>RIB: {payment.instructions.rib}</p>
-                  <p>Use this purchase reference: {payment.payment.reference}</p>
-                  <p>rifKANDO manually checks that funds arrived before granting access. Unlisted YouTube links can be shared.</p>
+                  <p>{t('courseMarketplace.details.purchaseReference', { reference: payment.payment.reference })}</p>
+                  <p>{t('courseMarketplace.details.manualVerification')}</p>
                   {['awaiting_payment', 'rejected'].includes(payment.payment.status) && <form onSubmit={submitTransfer}>
-                    <label htmlFor="course-transfer-reference">Your bank transfer reference</label>
+                    <label htmlFor="course-transfer-reference">{t('courseMarketplace.details.transferReference')}</label>
                     <input id="course-transfer-reference" value={transferReference} onChange={(event) => setTransferReference(event.target.value)} minLength={3} maxLength={256} required />
-                    <button type="submit" disabled={enrolling}>Submit for verification</button>
+                    <button type="submit" disabled={enrolling}>{t('courseMarketplace.details.submitVerification')}</button>
                   </form>}
-                  {payment.payment.status === 'submitted' && <p>Awaiting manual verification.</p>}
+                  {payment.payment.status === 'submitted' && <p>{t('courseMarketplace.details.awaitingVerification')}</p>}
                 </section>
               )}
               <div className="course-features">
-                <div className="feature-item"><AcademicCapIcon className="feature-icon" /><span>Learn from an instructor</span></div>
-                <div className="feature-item"><PlayIcon className="feature-icon" /><span>{course.lessons?.length || 0} lessons</span></div>
+                <div className="feature-item"><AcademicCapIcon className="feature-icon" /><span>{t('courseMarketplace.details.learnFromInstructor')}</span></div>
+                <div className="feature-item"><PlayIcon className="feature-icon" /><span>{t('courseMarketplace.details.lessons', { count: course.lessons?.length || 0 })}</span></div>
               </div>
             </div>
           </div>

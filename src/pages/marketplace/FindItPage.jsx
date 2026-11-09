@@ -16,11 +16,18 @@ import useAuth from '../../hooks/useAuth';
 import { useTranslation } from 'react-i18next';
 import { featuredMarketplaceCities, marketplaceCities } from '../../constants/marketplaceLocations';
 
-const formatMoney = (value) => `${Number(value || 0).toLocaleString()} MAD`;
+const categoryKeys = {
+  'Auto & Parts': 'auto',
+  'Phones & Electronics': 'electronics',
+  'Home & Appliances': 'home',
+  'Tools & Equipment': 'tools',
+  'Fashion & Accessories': 'fashion',
+  Other: 'other',
+};
 
 const FindItPage = () => {
   const { isAuthenticated, user } = useAuth();
-  const { t } = useTranslation();
+  const { t, i18n = {} } = useTranslation();
   const [urlSearchParams, setUrlSearchParams] = useSearchParams();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -35,7 +42,13 @@ const FindItPage = () => {
   const [cityInput, setCityInput] = useState(() => urlSearchParams.get('city') || '');
   const [sortBy, setSortBy] = useState(() => urlSearchParams.get('sortBy') || 'newest');
 
-  const categories = ['Auto & Parts', 'Phones & Electronics', 'Home & Appliances', 'Tools & Equipment', 'Fashion & Accessories', 'Other'];
+  const categories = Object.keys(categoryKeys);
+  const selectedLanguage = i18n.resolvedLanguage || i18n.language || 'en';
+  const locale = selectedLanguage.startsWith('ar') ? 'ar-MA' : selectedLanguage.startsWith('fr') ? 'fr-MA' : 'en-MA';
+  const formatMoney = (value) => `${Number(value || 0).toLocaleString(locale)} MAD`;
+  const labelCategory = (value) => categoryKeys[value]
+    ? t(`findit.form.categories.${categoryKeys[value]}`)
+    : value;
   const hasFilters = Boolean(search || category || city || sortBy !== 'newest');
 
   const requestParams = useCallback((page) => ({
@@ -189,7 +202,7 @@ const FindItPage = () => {
             <div className="findit-filters">
               <select value={category} onChange={(event) => setCategory(event.target.value)} aria-label={t('findit.form.category')}>
                 <option value="">{t('findit.public.allCategories')}</option>
-                {categories.map((value) => <option key={value} value={value}>{value}</option>)}
+                {categories.map((value) => <option key={value} value={value}>{labelCategory(value)}</option>)}
               </select>
               <input type="text" list="marketplace-city-options" maxLength="100" value={cityInput} onChange={(event) => setCityInput(event.target.value)} placeholder={t('findit.public.cityPlaceholder')} aria-label={t('findit.form.city')} />
               <select value={sortBy} onChange={(event) => setSortBy(event.target.value)} aria-label={t('findit.public.sort')}>
@@ -234,7 +247,7 @@ const FindItPage = () => {
                     ) : (
                       <div className="findit-request-image findit-image-fallback"><CameraIcon aria-hidden="true" /></div>
                     )}
-                    <span className="findit-request-category">{request.category}</span>
+                    <span className="findit-request-category">{labelCategory(request.category)}</span>
                   </div>
 
                   <div className="findit-request-body">

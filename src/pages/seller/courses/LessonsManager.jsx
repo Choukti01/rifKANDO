@@ -7,11 +7,13 @@ import {
 } from '@heroicons/react/24/outline';
 import api from '../../../services/api';
 import toast from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
 
 const LessonsManager = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useTranslation();
   const initialDelivery = new URLSearchParams(location.search).get('delivery');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -41,7 +43,7 @@ const LessonsManager = () => {
       } catch (error) {
         if (isCurrent) {
           console.error('Error fetching course:', error);
-          toast.error('Failed to load course');
+          toast.error(t('courseLessons.loadFailed'));
           navigate('/seller/dashboard/courses');
         }
       } finally {
@@ -54,7 +56,7 @@ const LessonsManager = () => {
     return () => {
       isCurrent = false;
     };
-  }, [id, navigate]);
+  }, [id, navigate, t]);
 
   const fetchCourseAndLessons = async () => {
     try {
@@ -64,7 +66,7 @@ const LessonsManager = () => {
       setLessons(response.data.course.lessons || []);
     } catch (error) {
       console.error('Error fetching course:', error);
-      toast.error('Failed to load course');
+      toast.error(t('courseLessons.loadFailed'));
       navigate('/seller/dashboard/courses');
     } finally {
       setLoading(false);
@@ -82,7 +84,7 @@ const LessonsManager = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.title.trim()) {
-      toast.error('Lesson title is required');
+      toast.error(t('courseLessons.titleRequired'));
       return;
     }
     setSaving(true);
@@ -99,29 +101,29 @@ const LessonsManager = () => {
 
       if (editingLesson) {
         await api.put(`/courses/${id}/lessons/${editingLesson.id}`, lessonData);
-        toast.success('Lesson updated successfully');
+        toast.success(t('courseLessons.updated'));
       } else {
         await api.post(`/courses/${id}/lessons`, lessonData);
-        toast.success('Lesson added successfully');
+        toast.success(t('courseLessons.added'));
       }
       setShowModal(false);
       fetchCourseAndLessons();
     } catch (error) {
       console.error('Error saving lesson:', error);
-      toast.error(error.response?.data?.error || 'Failed to save lesson');
+      toast.error(error.response?.data?.error || t('courseLessons.saveFailed'));
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (lessonId) => {
-    if (!window.confirm('Delete this lesson? This cannot be undone.')) return;
+    if (!window.confirm(t('courseLessons.deleteConfirm'))) return;
     try {
       await api.delete(`/courses/${id}/lessons/${lessonId}`);
-      toast.success('Lesson deleted');
+      toast.success(t('courseLessons.deleted'));
       fetchCourseAndLessons();
     } catch {
-      toast.error('Failed to delete lesson');
+      toast.error(t('courseLessons.deleteFailed'));
     }
   };
 
@@ -137,9 +139,9 @@ const LessonsManager = () => {
     
     try {
       await api.patch(`/courses/${id}/lessons/reorder`, { lessons: updatedLessons });
-      toast.success('Lesson reordered');
+      toast.success(t('courseLessons.reordered'));
     } catch {
-      toast.error('Failed to reorder');
+      toast.error(t('courseLessons.reorderFailed'));
       fetchCourseAndLessons();
     }
   };
@@ -173,7 +175,7 @@ const LessonsManager = () => {
     return (
       <div className="text-center py-16">
         <div className="spinner"></div>
-        <p>Loading course curriculum...</p>
+        <p>{t('courseLessons.loading')}</p>
       </div>
     );
   }
@@ -182,20 +184,20 @@ const LessonsManager = () => {
     <div className="lessons-manager">
       <div className="lessons-header">
         <div>
-          <h2>Course Curriculum</h2>
+          <h2>{t('courseLessons.curriculum')}</h2>
           <p className="course-title">{course?.title}</p>
-          <div className="course-stats">{lessons.length} lessons</div>
+          <div className="course-stats">{t('courseLessons.lessonCount', { count: lessons.length })}</div>
         </div>
         <button onClick={() => openModal()} className="btn-add">
-          <PlusIcon className="w-4 h-4" /> Add Lesson
+          <PlusIcon className="w-4 h-4" /> {t('courseLessons.add')}
         </button>
       </div>
 
       {lessons.length === 0 ? (
         <div className="empty-state">
           <div className="empty-icon">📖</div>
-          <h3>No lessons yet</h3>
-          <button onClick={() => openModal()} className="btn-primary">Add Your First Lesson</button>
+          <h3>{t('courseLessons.emptyTitle')}</h3>
+          <button onClick={() => openModal()} className="btn-primary">{t('courseLessons.addFirst')}</button>
         </div>
       ) : (
         <div className="lessons-list">
@@ -214,10 +216,10 @@ const LessonsManager = () => {
               <div className="lesson-content">
                 <h3>{lesson.title}</h3>
                 <div className="lesson-meta">
-                  {lesson.duration > 0 && <span>{lesson.duration} min</span>}
-                  {(lesson.is_preview === true || lesson.is_preview === 1) && <span className="preview-badge">Free Preview</span>}
+                  {lesson.duration > 0 && <span>{t('courseLessons.minutes', { count: lesson.duration })}</span>}
+                  {(lesson.is_preview === true || lesson.is_preview === 1) && <span className="preview-badge">{t('courseLessons.preview')}</span>}
                 </div>
-                {lesson.video_url && <p>{lesson.delivery_type === 'zoom' ? 'Private Zoom session link added' : lesson.delivery_type === 'telegram' ? 'Private Telegram resource link added' : 'Private YouTube lesson link added'}</p>}
+                {lesson.video_url && <p>{lesson.delivery_type === 'zoom' ? t('courseLessons.zoomLink') : lesson.delivery_type === 'telegram' ? t('courseLessons.telegramLink') : t('courseLessons.youtubeLink')}</p>}
               </div>
               <div className="lesson-actions">
                 <button onClick={() => openModal(lesson)} className="icon-btn edit">✏️</button>
@@ -233,49 +235,49 @@ const LessonsManager = () => {
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal-container" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>{editingLesson ? 'Edit Lesson' : 'Add New Lesson'}</h3>
+              <h3>{editingLesson ? t('courseLessons.edit') : t('courseLessons.addNew')}</h3>
               <button onClick={() => setShowModal(false)} className="close-btn">✕</button>
             </div>
             <form onSubmit={handleSubmit}>
               <div className="form-group">
-                <label>Lesson Title *</label>
+                <label>{t('courseLessons.titleLabel')}</label>
                 <input type="text" name="title" value={formData.title} onChange={handleChange} className="form-input" required />
               </div>
               <div className="form-group">
-                <label>Description</label>
+                <label>{t('courseLessons.descriptionLabel')}</label>
                 <textarea name="description" value={formData.description} onChange={handleChange} className="form-input" rows="3" />
               </div>
                 <div className="form-row">
                 <div className="form-group">
-                  <label>Duration (minutes)</label>
+                  <label>{t('courseLessons.durationLabel')}</label>
                   <input type="number" name="duration" value={formData.duration} onChange={handleChange} className="form-input" />
                 </div>
                 {formData.delivery_type === 'youtube' && <div className="form-group checkbox">
                   <label>
                     <input type="checkbox" name="is_preview" checked={formData.is_preview} onChange={handleChange} />
-                    <span>Free Preview</span>
+                    <span>{t('courseLessons.preview')}</span>
                   </label>
                 </div>}
               </div>
 
               <div className="form-group">
-                <label htmlFor="lesson-delivery-type">Lesson format</label>
+                <label htmlFor="lesson-delivery-type">{t('courseLessons.deliveryLabel')}</label>
                 <select id="lesson-delivery-type" name="delivery_type" value={formData.delivery_type} onChange={handleChange} className="form-input">
-                  <option value="youtube">On-demand video via YouTube</option>
-                  <option value="zoom">Live session via Zoom</option>
-                  <option value="telegram">Resources via Telegram</option>
+                  <option value="youtube">{t('courseLessons.deliveryYoutube')}</option>
+                  <option value="zoom">{t('courseLessons.deliveryZoom')}</option>
+                  <option value="telegram">{t('courseLessons.deliveryTelegram')}</option>
                 </select>
               </div>
               <div className="form-group">
-                <label htmlFor="course-content-link">{formData.delivery_type === 'zoom' ? 'Private Zoom meeting link' : formData.delivery_type === 'telegram' ? 'Private Telegram channel or resource link' : 'Unlisted YouTube lesson link'}</label>
+                <label htmlFor="course-content-link">{formData.delivery_type === 'zoom' ? t('courseLessons.zoomLinkLabel') : formData.delivery_type === 'telegram' ? t('courseLessons.telegramLinkLabel') : t('courseLessons.youtubeLinkLabel')}</label>
                 <input id="course-content-link" type="url" name="video_url" value={formData.video_url} onChange={handleChange} className="form-input" placeholder={formData.delivery_type === 'zoom' ? 'https://*.zoom.us/j/...' : formData.delivery_type === 'telegram' ? 'https://t.me/...' : 'https://youtu.be/...'} />
-                <p>{formData.delivery_type === 'youtube' ? 'Set the YouTube video to unlisted. Anyone who gets the link can share it.' : 'rifKANDO shows this link only to learners with verified payment.'}</p>
+                <p>{formData.delivery_type === 'youtube' ? t('courseLessons.youtubeHelp') : t('courseLessons.privateLinkHelp')}</p>
               </div>
 
               <div className="modal-actions">
-                <button type="button" onClick={() => setShowModal(false)} className="btn-cancel">Cancel</button>
+                <button type="button" onClick={() => setShowModal(false)} className="btn-cancel">{t('courseLessons.cancel')}</button>
                 <button type="submit" disabled={saving} className="btn-save">
-                  {saving ? 'Saving...' : (editingLesson ? 'Update' : 'Add')}
+                  {saving ? t('courseLessons.saving') : (editingLesson ? t('courseLessons.update') : t('courseLessons.add'))}
                 </button>
               </div>
             </form>
@@ -332,6 +334,21 @@ const LessonsManager = () => {
         .btn-save { padding: 0.5rem 1rem; background: #1a1a1a; color: white; border: none; border-radius: 0.5rem; cursor: pointer; }
         .btn-save:disabled { opacity: 0.6; cursor: not-allowed; }
         .btn-primary { background: #1a1a1a; color: white; padding: 0.5rem 1rem; border: none; border-radius: 0.5rem; cursor: pointer; }
+        @media (max-width: 640px) {
+          .lessons-manager { padding: 0; }
+          .lessons-header { align-items: stretch; margin-bottom: 1.25rem; }
+          .btn-add, .btn-primary { justify-content: center; min-height: 44px; width: 100%; }
+          .lesson-card { align-items: flex-start; display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; gap: .75rem; }
+          .lesson-order { min-width: 2rem; }
+          .order-arrows { flex-direction: column; }
+          .lesson-actions { flex-direction: column; }
+          .icon-btn, .arrow-btn { min-height: 36px; min-width: 36px; }
+          .modal-overlay { align-items: flex-end; padding: .75rem; }
+          .modal-container { border-radius: 1rem; max-height: min(88dvh, 46rem); padding: 1.15rem; width: 100%; }
+          .form-row { grid-template-columns: 1fr; gap: 0; }
+          .modal-actions { flex-direction: column-reverse; }
+          .modal-actions button { min-height: 44px; width: 100%; }
+        }
       `}</style>
     </div>
   );

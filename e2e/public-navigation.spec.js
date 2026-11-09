@@ -12,7 +12,18 @@ const apiResponses = {
   '/bookings': { status: 200, body: { bookings: [], pagination: { total: 0, totalPages: 1 } } },
 };
 
+// Third-party Google and font assets are intentionally not part of these
+// deterministic route tests. `commit` proves that the SPA response arrived;
+// each assertion below then proves that the actual application rendered.
+// This avoids turning an external font or OAuth request into a false route
+// failure in our release gate.
+const visit = async (page, path) => {
+  const response = await page.goto(path, { waitUntil: 'commit' });
+  expect(response).not.toBeNull();
+};
+
 test.beforeEach(async ({ page }) => {
+  await page.route(/^https:\/\/(?:accounts\.google\.com|fonts\.googleapis\.com|fonts\.gstatic\.com)\//, (route) => route.abort());
   await page.route('**/health', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ status: 'ok' }) }));
   await page.route('**/api/**', async (route) => {
     const requestUrl = new URL(route.request().url());
@@ -32,7 +43,7 @@ test('clears obsolete localStorage credentials during browser startup', async ({
     localStorage.setItem('user', JSON.stringify({ id: 7, role: 'admin' }));
   });
 
-  await page.goto('/');
+  await visit(page, '/');
   await expect(page.getByRole('link', { name: 'rifKANDO home' }).first()).toBeVisible();
   await expect.poll(() => page.evaluate(() => ({
     token: localStorage.getItem('token'),
@@ -41,7 +52,7 @@ test('clears obsolete localStorage credentials during browser startup', async ({
 });
 
 test('public catalogue navigation renders the products page', async ({ page }) => {
-  await page.goto('/');
+  await visit(page, '/');
   await page.locator('.nav-links-desktop a[href="/products"]').click();
 
   await expect(page).toHaveURL(/\/products$/);
@@ -52,29 +63,31 @@ test('public catalogue navigation renders the products page', async ({ page }) =
   await expect(usedAsNew).toHaveClass(/active/);
 });
 
-test('active marketplace sections render and planned sections show their status', async ({ page }) => {
-  for (const [path, selector] of [['/services', '.services-marketplace-page'], ['/findit', '.findit-page']]) {
-    await page.goto(path);
+test('active marketplace sections render and only parked sections show their status', async ({ page }) => {
+  for (const [path, selector] of [['/courses', '.courses-page'], ['/services', '.services-marketplace-page'], ['/findit', '.findit-page'], ['/food-market', '.mida-page']]) {
+    await visit(page, path);
     await expect(page.locator(selector)).toBeVisible();
     await expect(page.locator(`${selector} h1`)).toBeVisible();
   }
 
-  for (const path of ['/courses', '/digital', '/bookings']) {
-    await page.goto(path);
-    await expect(page.locator('.under-development')).toBeVisible();
-    await expect(page.getByRole('heading', { name: /under development/i })).toBeVisible();
-  }
+  await visit(page, '/digital');
+  await expect(page).toHaveURL(/\/food-market$/);
+  await expect(page.locator('.mida-page')).toBeVisible();
+
+  await visit(page, '/bookings');
+  await expect(page.locator('.under-development')).toBeVisible();
+  await expect(page.getByRole('heading', { name: /under development/i })).toBeVisible();
 });
 
 test('service discovery switches to Arabic with right-to-left layout', async ({ page }) => {
-  await page.goto('/services');
+  await visit(page, '/services');
   await page.getByRole('button', { name: 'Arabic', exact: true }).click();
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
   await expect(page.getByRole('textbox', { name: 'اللغة', exact: true })).toBeVisible();
 });
 
 test('unauthenticated visitors cannot enter checkout', async ({ page }) => {
-  await page.goto('/checkout');
+  await visit(page, '/checkout');
 
   await expect(page).toHaveURL(/\/login\?next=%2Fcheckout$/);
   await expect(page.locator('.auth-page')).toBeVisible();
@@ -83,7 +96,7 @@ test('unauthenticated visitors cannot enter checkout', async ({ page }) => {
 test.describe('mobile public navigation', () => {
   test('opens the menu and reaches a marketplace section without horizontal overflow', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto('/');
+    await visit(page, '/');
 
     const menuButton = page.getByRole('button', { name: 'Open navigation menu', exact: true });
     await expect(menuButton).toBeVisible();

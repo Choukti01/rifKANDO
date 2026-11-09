@@ -12,7 +12,7 @@ const categoryKeys = { 'Auto & Parts': 'auto', 'Phones & Electronics': 'electron
 
 const FindItDashboardPage = () => {
   const { user } = useAuth();
-  const { t, i18n } = useTranslation();
+  const { t, i18n = {} } = useTranslation();
   const navigate = useNavigate();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -21,7 +21,8 @@ const FindItDashboardPage = () => {
   const [notes, setNotes] = useState('');
   const [accepting, setAccepting] = useState(false);
 
-  const locale = i18n.language === 'ar' ? 'ar-MA' : undefined;
+  const selectedLanguage = i18n.resolvedLanguage || i18n.language || 'en';
+  const locale = selectedLanguage.startsWith('ar') ? 'ar-MA' : selectedLanguage.startsWith('fr') ? 'fr-MA' : 'en-MA';
   const formatMoney = (value) => `${Number(value || 0).toLocaleString(locale)} MAD`;
   const labelStatus = (value) => t(`findit.status.${value}`, { defaultValue: value });
   const labelCondition = (value) => t(`findit.status.${value}`, { defaultValue: value });

@@ -1,4 +1,5 @@
 import { Component } from 'react';
+import { withTranslation } from 'react-i18next';
 import { reportClientError } from '../../services/errorTracking';
 
 /**
@@ -6,7 +7,7 @@ import { reportClientError } from '../../services/errorTracking';
  * depend on routing, authentication, translations, or API state so a failure
  * in any of those layers cannot turn the storefront into a blank page.
  */
-export default class AppErrorBoundary extends Component {
+class AppErrorBoundary extends Component {
   constructor(props) {
     super(props);
     this.state = { hasError: false };
@@ -28,6 +29,12 @@ export default class AppErrorBoundary extends Component {
   };
 
   render() {
+    const { t } = this.props;
+    const copy = (key, fallback) => {
+      const translated = typeof t === 'function' ? t(key) : key;
+      return translated === key ? fallback : translated;
+    };
+
     if (this.state.hasError) {
       return (
         <main
@@ -45,9 +52,9 @@ export default class AppErrorBoundary extends Component {
         >
           <section style={{ background: '#ffffff', border: '1px solid rgba(10, 27, 53, .1)', borderRadius: '1.25rem', boxShadow: '0 18px 48px rgba(10, 27, 53, .12)', maxWidth: '32rem', padding: '2rem' }}>
             <span style={{ color: '#0877BF', fontSize: '.75rem', fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase' }}>rifKANDO</span>
-            <h1 style={{ fontSize: 'clamp(1.45rem, 4vw, 2rem)', margin: '.55rem 0 .75rem' }}>We could not load this page</h1>
-            <p style={{ color: '#52687e', lineHeight: 1.6, margin: '0 auto 1.35rem', maxWidth: '27rem' }}>Your data has not changed. Refresh rifKANDO to safely try again.</p>
-            <button type="button" onClick={this.reload} style={{ background: '#0877BF', border: 0, borderRadius: '.7rem', color: '#ffffff', cursor: 'pointer', font: 'inherit', fontWeight: 800, padding: '.78rem 1.1rem' }}>Refresh rifKANDO</button>
+            <h1 style={{ fontSize: 'clamp(1.45rem, 4vw, 2rem)', margin: '.55rem 0 .75rem' }}>{copy('appError.title', 'We could not load this page')}</h1>
+            <p style={{ color: '#52687e', lineHeight: 1.6, margin: '0 auto 1.35rem', maxWidth: '27rem' }}>{copy('appError.description', 'Your data has not changed. Refresh rifKANDO to safely try again.')}</p>
+            <button type="button" onClick={this.reload} style={{ background: '#0877BF', border: 0, borderRadius: '.7rem', color: '#ffffff', cursor: 'pointer', font: 'inherit', fontWeight: 800, padding: '.78rem 1.1rem' }}>{copy('appError.retry', 'Refresh rifKANDO')}</button>
           </section>
         </main>
       );
@@ -56,3 +63,5 @@ export default class AppErrorBoundary extends Component {
     return this.props.children;
   }
 }
+
+export default withTranslation()(AppErrorBoundary);

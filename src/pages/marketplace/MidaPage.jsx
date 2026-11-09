@@ -34,15 +34,20 @@ const MidaPage = () => {
 
   useEffect(() => {
     let current = true;
-    setLoading(true);
-    setLoadError(false);
-    void fetchItems().then((data) => {
+    void Promise.resolve().then(async () => {
       if (!current) return;
-      setItems(data.products || []);
-    }).catch((error) => {
-      console.error('Unable to load Food Market catalogue:', error);
-      if (current) setLoadError(true);
-    }).finally(() => { if (current) setLoading(false); });
+      setLoading(true);
+      setLoadError(false);
+      try {
+        const data = await fetchItems();
+        if (current) setItems(data.products || []);
+      } catch (error) {
+        console.error('Unable to load Food Market catalogue:', error);
+        if (current) setLoadError(true);
+      } finally {
+        if (current) setLoading(false);
+      }
+    });
     return () => { current = false; };
   }, [fetchItems]);
 

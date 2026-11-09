@@ -35,6 +35,7 @@ const copy = {
 
 export const useMidaI18n = () => {
   const { i18n } = useTranslation();
-  const language = i18n.language?.startsWith('ar') ? 'ar' : i18n.language?.startsWith('fr') ? 'fr' : 'en';
+  const selectedLanguage = i18n?.resolvedLanguage || i18n?.language || 'en';
+  const language = selectedLanguage.startsWith('ar') ? 'ar' : selectedLanguage.startsWith('fr') ? 'fr' : 'en';
   return { mida: copy[language], language };
 };

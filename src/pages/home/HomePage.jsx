@@ -12,7 +12,7 @@ import { useMidaI18n } from '../../i18n/midaI18n';
 const ACTIVE_MARKETPLACE_SECTIONS = Object.freeze(['products', 'findit', 'services', 'courses', 'mida']);
 
 const HomePage = () => {
-  const { t } = useTranslation();
+  const { t, i18n = {} } = useTranslation();
   const { mida } = useMidaI18n();
   const [featuredItems, setFeaturedItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -30,6 +30,8 @@ const HomePage = () => {
     coursesCount: 0,
     midaCount: 0,
   });
+  const selectedLanguage = i18n.resolvedLanguage || i18n.language || 'en';
+  const countLocale = selectedLanguage.startsWith('ar') ? 'ar-MA' : selectedLanguage.startsWith('fr') ? 'fr-MA' : 'en-MA';
 
   useEffect(() => {
     let isCurrent = true;
@@ -138,7 +140,7 @@ const HomePage = () => {
     return (
       <div className="container text-center py-16">
         <div className="spinner"></div>
-        <p>Loading...</p>
+        <p>{t('common.loading')}</p>
       </div>
     );
   }
@@ -186,7 +188,7 @@ const HomePage = () => {
                   </div>
                   <h3 className="category-name">{cat.name}</h3>
                   <p className={`category-count ${cat.underDevelopment ? 'category-count-coming' : ''}`}>
-                    {cat.underDevelopment ? t('launch.shortLabel') : cat.available === false || !Number.isFinite(cat.count) ? t('availability.liveData') : `${cat.count.toLocaleString()} ${cat.countLabel || (cat.count === 1 ? t('availability.item') : t('availability.items'))}`}
+                    {cat.underDevelopment ? t('launch.shortLabel') : cat.available === false || !Number.isFinite(cat.count) ? t('availability.liveData') : `${cat.count.toLocaleString(countLocale)} ${cat.countLabel || (cat.count === 1 ? t('availability.item') : t('availability.items'))}`}
                   </p>
                 </Link>
               )

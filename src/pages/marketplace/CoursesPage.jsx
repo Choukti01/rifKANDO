@@ -6,8 +6,12 @@ import MediaGallery from '../../components/MediaGallery';
 import { getImageUrl } from '../../utils/imageUtils';
 import MarketplaceImage from '../../components/common/MarketplaceImage';
 import LoadMoreButton from '../../components/common/LoadMoreButton';
+import { useTranslation } from 'react-i18next';
 
 const CoursesPage = () => {
+  const { t, i18n } = useTranslation();
+  const selectedLanguage = i18n?.resolvedLanguage || i18n?.language || 'en';
+  const locale = selectedLanguage.startsWith('ar') ? 'ar-MA' : selectedLanguage.startsWith('fr') ? 'fr-MA' : 'en-MA';
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -24,12 +28,12 @@ const CoursesPage = () => {
       setPagination(response.data.pagination || { page: 1, totalPages: 1 });
     } catch (error) {
       console.error('Error fetching courses:', error);
-      toast.error('Failed to load courses');
+      toast.error(t('courseMarketplace.loadError'));
     } finally {
       if (append) setLoadingMore(false);
       else setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     let isCurrent = true;
@@ -44,7 +48,7 @@ const CoursesPage = () => {
       } catch (error) {
         if (isCurrent) {
           console.error('Error fetching courses:', error);
-          toast.error('Failed to load courses');
+          toast.error(t('courseMarketplace.loadError'));
         }
       } finally {
         if (isCurrent) setLoading(false);
@@ -56,13 +60,13 @@ const CoursesPage = () => {
     return () => {
       isCurrent = false;
     };
-  }, []);
+  }, [t]);
 
   if (loading) {
     return (
       <div className="container text-center py-16">
         <div className="spinner"></div>
-        <p>Loading courses...</p>
+        <p>{t('courseMarketplace.loading')}</p>
       </div>
     );
   }
@@ -71,13 +75,13 @@ const CoursesPage = () => {
     <div className="courses-page">
       <div className="container">
         <div className="courses-header">
-          <h1>Courses</h1>
-          <p>Learn new skills from expert instructors</p>
+          <h1>{t('courseMarketplace.title')}</h1>
+          <p>{t('courseMarketplace.lead')}</p>
         </div>
 
         <div className="courses-grid">
           {courses.length === 0 ? (
-            <p className="text-center col-span-full">No courses found</p>
+            <p className="text-center col-span-full">{t('courseMarketplace.empty')}</p>
           ) : (
             courses.map(course => {
               // Get primary image from media array
@@ -99,7 +103,7 @@ const CoursesPage = () => {
                     style={{ cursor: course.media && course.media.length > 0 ? 'pointer' : 'default' }}
                     role={course.media?.length ? 'button' : undefined}
                     tabIndex={course.media?.length ? 0 : undefined}
-                    aria-label={course.media?.length ? `View media for ${course.title}` : undefined}
+                    aria-label={course.media?.length ? t('courseMarketplace.viewMedia', { title: course.title }) : undefined}
                     onKeyDown={(event) => {
                       if (course.media?.length && (event.key === 'Enter' || event.key === ' ')) {
                         event.preventDefault();
@@ -109,10 +113,10 @@ const CoursesPage = () => {
                   >
                     {primaryMedia ? (
                       <>
-                        {primaryMedia.media_type === 'video' && <div className="video-badge">🎬 Video</div>}
+                        {primaryMedia.media_type === 'video' && <div className="video-badge">🎬 {t('courseMarketplace.video')}</div>}
                         <MarketplaceImage source={primaryMedia.media_url} alt={course.title} />
                         {course.media.length > 1 && (
-                          <div className="media-count">{course.media.length} items</div>
+                          <div className="media-count">{t('courseMarketplace.mediaCount', { count: course.media.length })}</div>
                         )}
                       </>
                     ) : (
@@ -127,21 +131,21 @@ const CoursesPage = () => {
                   
                   {/* Instructor name */}
                   <p className="instructor-name">
-                    by <Link to={`/profile/${course.instructor_id}`} className="instructor-link">
-                      {course.instructor_name || 'Unknown Instructor'}
+                    {t('courseMarketplace.by')} <Link to={`/profile/${course.instructor_id}`} className="instructor-link">
+                      {course.instructor_name || t('courseMarketplace.unknownInstructor')}
                     </Link>
                   </p>
                   
                   <div className="course-meta">
                     <span>⭐ {course.rating || 0}</span>
-                    <span>👥 {course.students_count || 0} students</span>
+                    <span>👥 {t('courseMarketplace.students', { count: course.students_count || 0 })}</span>
                   </div>
                   
                   <div className="course-price">
-                    <span className="current-price">{course.price} MAD</span>
-                    {course.old_price && <span className="old-price">{course.old_price} MAD</span>}
+                    <span className="current-price">{Number(course.price || 0).toLocaleString(locale)} MAD</span>
+                    {course.old_price && <span className="old-price">{Number(course.old_price).toLocaleString(locale)} MAD</span>}
                   </div>
-                  <Link to={`/course/${course.id}`} className="listing-card-action">Explore course</Link>
+                  <Link to={`/course/${course.id}`} className="listing-card-action">{t('courseMarketplace.explore')}</Link>
                 </div>
               );
             })
@@ -152,7 +156,7 @@ const CoursesPage = () => {
           hasMore={pagination.page < pagination.totalPages}
           isLoading={loadingMore}
           onLoadMore={() => fetchCourses({ page: pagination.page + 1, append: true })}
-          itemLabel="courses"
+          itemLabel={t('courseMarketplace.itemLabel')}
         />
       </div>
 
@@ -281,6 +285,14 @@ const CoursesPage = () => {
           font-size: 0.75rem;
           color: #9ca3af;
           text-decoration: line-through;
+        }
+        @media (max-width: 640px) {
+          .courses-page { padding: 1.25rem 0 2rem; }
+          .courses-header { margin-bottom: 1.25rem; text-align: start; }
+          .courses-header h1 { font-size: 1.65rem; }
+          .courses-grid { grid-template-columns: 1fr; gap: 1rem; }
+          .course-image { height: 13rem; }
+          .course-card:hover { transform: none; }
         }
       `}</style>
     </div>

@@ -8,7 +8,11 @@ const e2eBaseUrl = `http://127.0.0.1:${e2ePort}`;
 
 export default defineConfig({
   testDir: './e2e',
-  fullyParallel: true,
+  // These checks deliberately exercise one shared local Vite server. Running
+  // route-level lazy imports concurrently can starve that development server
+  // and produce false negatives unrelated to marketplace behavior.
+  fullyParallel: false,
+  workers: 1,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 2 : 0,
   reporter: process.env.CI ? 'github' : 'list',

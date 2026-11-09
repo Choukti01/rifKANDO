@@ -15,7 +15,7 @@ import { featuredMarketplaceCities, marketplaceCities } from '../../constants/ma
 import { BellAlertIcon, BookmarkIcon, TrashIcon } from '@heroicons/react/24/outline';
 
 const ProductsPage = () => {
-  const { t, i18n } = useTranslation();
+  const { t, i18n = {} } = useTranslation();
   const [urlSearchParams, setUrlSearchParams] = useSearchParams();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -153,7 +153,7 @@ const ProductsPage = () => {
     }
   }, [isAuthenticated]);
 
-  useEffect(() => { void loadSavedSearches(); }, [loadSavedSearches]);
+  useEffect(() => { void Promise.resolve().then(loadSavedSearches); }, [loadSavedSearches]);
 
   const handleAddToCart = (product) => {
     if (!isAuthenticated) { toast.error(t('products.signInRequired')); return; }

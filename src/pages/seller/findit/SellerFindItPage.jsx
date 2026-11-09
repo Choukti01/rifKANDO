@@ -9,7 +9,7 @@ const defaultOffer = { title: '', description: '', price: '', condition: 'new' }
 const categoryKeys = { 'Auto & Parts': 'auto', 'Phones & Electronics': 'electronics', 'Home & Appliances': 'home', 'Tools & Equipment': 'tools', 'Fashion & Accessories': 'fashion', Other: 'other' };
 
 const SellerFindItPage = () => {
-  const { t, i18n } = useTranslation();
+  const { t, i18n = {} } = useTranslation();
   const [requests, setRequests] = useState([]);
   const [offers, setOffers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -17,7 +17,8 @@ const SellerFindItPage = () => {
   const [form, setForm] = useState(defaultOffer);
   const [sending, setSending] = useState(false);
 
-  const locale = i18n.language === 'ar' ? 'ar-MA' : undefined;
+  const selectedLanguage = i18n.resolvedLanguage || i18n.language || 'en';
+  const locale = selectedLanguage.startsWith('ar') ? 'ar-MA' : selectedLanguage.startsWith('fr') ? 'fr-MA' : 'en-MA';
   const formatMoney = (value) => `${Number(value || 0).toLocaleString(locale)} MAD`;
   const status = (value) => t(`findit.status.${value}`, { defaultValue: value });
   const category = (value) => categoryKeys[value] ? t(`findit.form.categories.${categoryKeys[value]}`) : value;

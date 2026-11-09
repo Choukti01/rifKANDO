@@ -11,7 +11,7 @@ const MidaDashboard = () => {
   const { mida, language } = useMidaI18n(); const navigate = useNavigate();
   const [items, setItems] = useState([]); const [loading, setLoading] = useState(true);
   const load = useCallback(async () => { setLoading(true); try { const response = await getMyProducts({ section: 'mida' }); setItems(response.data.products || []); } catch (error) { console.error('Unable to load Food Market workspace:', error); toast.error('Unable to load Food Market listings.'); } finally { setLoading(false); } }, []);
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { void Promise.resolve().then(load); }, [load]);
   const remove = async (id) => { if (!window.confirm(language === 'ar' ? 'هل تريد إزالة هذا الإعلان؟' : language === 'fr' ? 'Retirer cette annonce ?' : 'Remove this listing?')) return; try { const response = await deleteProduct(id); toast.success(response.data?.message || 'Listing removed.'); void load(); } catch (error) { toast.error(error.response?.data?.error || 'Unable to remove this listing.'); } };
   const totalStock = items.reduce((total, item) => total + Number(item.stock || 0), 0);
   if (loading) return <LoadingSkeleton label={mida.dashboard} />;
