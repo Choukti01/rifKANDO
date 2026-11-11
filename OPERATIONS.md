@@ -1,4 +1,9 @@
-# Production Operations Runbook
+# Legacy Render Operations Runbook
+
+> **Historical reference only.** The Render/SQLite/Windows instructions below
+> are no longer the production deployment. Use
+> [`docs/PRODUCTION_OPERATIONS_RAILWAY.md`](docs/PRODUCTION_OPERATIONS_RAILWAY.md)
+> for the current Railway + Neon + Cloudflare R2 runbook.
 
 ## Required production configuration
 

@@ -2,18 +2,20 @@ name: Production readiness monitor
 
 on:
   schedule:
-    - cron: '*/15 * * * *'
+    # Keeps private-repository Actions usage within the free allowance while
+    # still detecting a full service outage within 30 minutes.
+    - cron: '*/30 * * * *'
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  api-readiness:
-    name: API readiness
+  production-readiness:
+    name: Storefront, API, database and storage
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
-      - name: Check public API readiness
-        run: |
-          curl --fail --silent --show-error --max-time 20 --retry 2 --retry-delay 5 https://api.rifkando.com/ready
+      - uses: actions/checkout@v4
+      - name: Check public production dependencies
+        run: node rifKANDI-backend/scripts/productionReadinessCheck.js

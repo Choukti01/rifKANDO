@@ -27,17 +27,17 @@ Browser / PWA (React, Vite, i18next)
 Cloudflare Worker: static SPA + route SEO
 www.rifkando.com
         │ API calls
-Cloudflare DNS + Tunnel
+Cloudflare DNS
 api.rifkando.com
-        │ private connection
-Node.js / Express API on Windows origin (current)
+        │ HTTPS
+Node.js / Express API on Railway (production)
         ├──────────────► Neon PostgreSQL
         └──────────────► Cloudflare R2 / S3-compatible storage
 ```
 
 ### Important current boundary
 
-The Cloudflare frontend is independently available. The current Node API runs from a Windows origin behind Cloudflare Tunnel. If that PC, its network, cloudflared, or the Node process stops, live actions and current API data stop. This is a temporary single-origin deployment—not high availability or horizontal scaling.
+The Cloudflare storefront is independently available and the Node API runs on Railway. The production path no longer depends on a Windows machine or Cloudflare Tunnel. Railway currently runs one API replica, so it is reliable always-on hosting but not yet a multi-region/high-availability deployment.
 
 Cloudflare Workers serve the frontend; they do **not** host the current Express API. Migrating the backend to a Worker-native runtime is a separate refactor because the Node origin uses Express, `sqlite3`, `sharp`, filesystem streams, timers and server semantics.
 
@@ -84,7 +84,7 @@ Cloudflare Workers serve the frontend; they do **not** host the current Express 
 | Cloudflare R2 | S3-compatible target for public/private media when configured |
 | Neon | Managed PostgreSQL and provider recovery/restore branches |
 | GitHub | Source control and Actions CI |
-| GitHub Actions | Quality gate plus 15-minute API readiness monitor |
+| GitHub Actions | Quality gate plus 30-minute storefront/API/database/R2 readiness monitor |
 
 ## 4. Repository map
 
@@ -107,7 +107,7 @@ rifKANDI-backend/
   src/middleware/            Security, upload, auth, validation, observability
   migrations/postgres/       Immutable PostgreSQL migrations
   scripts/                   Tests, migrations, backup and maintenance commands
-  deploy/                    Windows/cloudflared/Oracle deployment helpers
+  deploy/                    legacy local/Oracle deployment helpers (not production)
 ```
 
 The backend is a **modular monolith**: domains are isolated into routes/services while financial, audit and access logic remain within one deployable application. Do not create microservices without a concrete scaling or isolation requirement.
@@ -414,7 +414,7 @@ Incident first response:
 
 1. Check `/health` and `/ready`.
 2. Record time, user impact and `X-Request-ID`.
-3. Check backend process, cloudflared connector and structured logs.
+3. Check Railway deployment status, `/health`, `/ready`, `/ready/storage`, and structured logs.
 4. Consult Error Tracking for redacted diagnostic context.
 5. Disable only the affected operation with a reviewed feature flag if needed.
 6. Add a regression test before declaring the incident fixed.

@@ -1,4 +1,9 @@
-# Production deployment
+# Legacy deployment reference
+
+> **Historical reference only.** Production now runs on Railway, Neon, and
+> Cloudflare R2. Follow
+> [`docs/PRODUCTION_OPERATIONS_RAILWAY.md`](docs/PRODUCTION_OPERATIONS_RAILWAY.md)
+> for deployments, monitoring, rollback, and recovery.
 
 ## Current live status
 

@@ -49,6 +49,14 @@ const run = async () => {
     assert.equal(readiness.status, 200, 'readiness endpoint must confirm database availability');
     assert.equal((await readiness.json()).status, 'ready');
 
+    const storageReadiness = await request(port, '/ready/storage');
+    assert.equal(storageReadiness.status, 200, 'storage readiness must be available as a separate operational signal');
+    assert.deepEqual(await storageReadiness.json(), {
+      status: 'ready',
+      resource: 'storage',
+      requestId: storageReadiness.headers.get('x-request-id'),
+    });
+
     const hiddenMetrics = await request(port, '/metrics');
     assert.equal(hiddenMetrics.status, 404, 'metrics must not be discoverable without the monitoring token');
 
@@ -56,7 +64,7 @@ const run = async () => {
     const metricsBody = await metrics.json();
     assert.equal(metrics.status, 200, 'authorized monitoring must receive metrics');
     assert.equal(metrics.headers.get('cache-control'), 'no-store', 'metrics must never be cached');
-    assert.equal(metricsBody.http.requestsTotal >= 3, true, 'metrics must include completed requests');
+    assert.equal(metricsBody.http.requestsTotal >= 4, true, 'metrics must include completed requests');
     assert.equal(metricsBody.http.requestsByRoute['GET /health'] >= 1, true, 'metrics must use low-cardinality route labels');
     assert.equal(metricsBody.http.requestsByStatus['200'] >= 2, true, 'metrics must count response statuses');
     assert.equal(metricsBody.http.requestsByStatus['404'] >= 1, true, 'metrics must count denied probes without leaking details');

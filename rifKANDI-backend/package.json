@@ -58,6 +58,7 @@
     "db:postgres:import-sqlite": "node scripts/importSqliteToPostgres.js",
     "backup:db": "node scripts/backupDatabase.js",
     "backup:postgres:r2": "node --use-system-ca scripts/postgresBackupToR2.js",
+    "verify:production": "node --use-system-ca scripts/productionReadinessCheck.js",
     "load:catalog:local": "node scripts/loadTestCatalog.js"
   },
   "overrides": {

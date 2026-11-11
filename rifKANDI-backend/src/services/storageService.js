@@ -5,6 +5,7 @@ const { Readable } = require('node:stream');
 const {
   DeleteObjectCommand,
   GetObjectCommand,
+  HeadBucketCommand,
   PutObjectCommand,
   S3Client,
 } = require('@aws-sdk/client-s3');
@@ -39,6 +40,7 @@ class StorageService {
     this.publicBaseUrl = (process.env.OBJECT_STORAGE_PUBLIC_BASE_URL || '').replace(/\/$/, '');
     this.publicBucket = process.env.OBJECT_STORAGE_PUBLIC_BUCKET;
     this.privateBucket = process.env.OBJECT_STORAGE_PRIVATE_BUCKET;
+    this.readinessCache = null;
 
     if (!['local', 's3'].includes(this.driver)) {
       throw new Error('OBJECT_STORAGE_DRIVER must be either local or s3.');
@@ -162,6 +164,30 @@ class StorageService {
   bucketForKey(key) {
     this.assertKey(key);
     return key.startsWith(PUBLIC_STORAGE_PREFIX) ? this.publicBucket : this.privateBucket;
+  }
+
+  // This deliberately performs only authenticated bucket metadata reads. It
+  // never writes probe files, so a public readiness monitor cannot create
+  // storage objects or consume meaningful R2 capacity.
+  async checkReadiness() {
+    if (this.isLocal()) {
+      return { driver: 'local', ready: true };
+    }
+
+    const now = Date.now();
+    if (this.readinessCache?.expiresAt > now) return this.readinessCache.result;
+
+    await Promise.all([
+      this.client.send(new HeadBucketCommand({ Bucket: this.publicBucket })),
+      this.client.send(new HeadBucketCommand({ Bucket: this.privateBucket })),
+    ]);
+
+    const result = { driver: 's3', ready: true };
+    this.readinessCache = {
+      result,
+      expiresAt: now + 30_000,
+    };
+    return result;
   }
 }
 

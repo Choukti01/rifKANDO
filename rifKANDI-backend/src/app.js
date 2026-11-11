@@ -426,6 +426,18 @@ app.get('/ready', async (req, res) => {
   }
 });
 
+// Storage readiness is intentionally separate from /ready. Railway can keep
+// serving read-only marketplace traffic if R2 has a transient issue, while
+// monitors still get a precise signal that uploads/private media need action.
+app.get('/ready/storage', async (req, res) => {
+  try {
+    await storageService.checkReadiness();
+    return res.status(200).json({ status: 'ready', resource: 'storage', requestId: req.requestId });
+  } catch (_) {
+    return res.status(503).json({ status: 'not_ready', resource: 'storage', requestId: req.requestId });
+  }
+});
+
 const hasValidMetricsToken = (providedToken) => {
   const configuredToken = Buffer.from(String(process.env.METRICS_TOKEN || ''));
   const suppliedToken = Buffer.from(String(providedToken || ''));
