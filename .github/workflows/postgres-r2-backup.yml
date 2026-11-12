@@ -1,0 +1,73 @@
+name: PostgreSQL backup to private R2
+
+on:
+  schedule:
+    # Daily at 02:30 UTC. Scheduled runs remain disabled until the repository
+    # variable RIFKANDO_BACKUPS_ENABLED is explicitly set to true.
+    - cron: '30 2 * * *'
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Why this backup was started manually'
+        required: false
+        default: 'manual recovery check'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rifkando-postgres-r2-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    name: Encrypted PostgreSQL dump to private R2
+    # A manual run is useful to prove the configuration before automation is
+    # enabled. Scheduled runs must be explicitly opted in through a repository
+    # variable so a missing secret cannot generate noisy recurring failures.
+    if: github.event_name == 'workflow_dispatch' || vars.RIFKANDO_BACKUPS_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: rifKANDI-backend
+    env:
+      DATABASE_ENGINE: postgres
+      DATABASE_URL: ${{ secrets.RIFKANDO_DATABASE_URL }}
+      POSTGRES_SSL: 'true'
+      DB_BACKUP_RETENTION_DAYS: ${{ vars.RIFKANDO_DB_BACKUP_RETENTION_DAYS || '14' }}
+      OBJECT_STORAGE_DRIVER: s3
+      OBJECT_STORAGE_REGION: ${{ secrets.RIFKANDO_OBJECT_STORAGE_REGION }}
+      OBJECT_STORAGE_ENDPOINT: ${{ secrets.RIFKANDO_OBJECT_STORAGE_ENDPOINT }}
+      OBJECT_STORAGE_ACCESS_KEY_ID: ${{ secrets.RIFKANDO_OBJECT_STORAGE_ACCESS_KEY_ID }}
+      OBJECT_STORAGE_SECRET_ACCESS_KEY: ${{ secrets.RIFKANDO_OBJECT_STORAGE_SECRET_ACCESS_KEY }}
+      OBJECT_STORAGE_PUBLIC_BUCKET: ${{ secrets.RIFKANDO_OBJECT_STORAGE_PUBLIC_BUCKET }}
+      OBJECT_STORAGE_PRIVATE_BUCKET: ${{ secrets.RIFKANDO_OBJECT_STORAGE_PRIVATE_BUCKET }}
+      OBJECT_STORAGE_PUBLIC_BASE_URL: ${{ secrets.RIFKANDO_OBJECT_STORAGE_PUBLIC_BASE_URL }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: rifKANDI-backend/.nvmrc
+          cache: npm
+          cache-dependency-path: rifKANDI-backend/package-lock.json
+
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install --yes postgresql-client
+
+      - name: Install backup dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Validate backup configuration
+        run: |
+          test -n "$DATABASE_URL"
+          test -n "$OBJECT_STORAGE_ENDPOINT"
+          test -n "$OBJECT_STORAGE_ACCESS_KEY_ID"
+          test -n "$OBJECT_STORAGE_SECRET_ACCESS_KEY"
+          test -n "$OBJECT_STORAGE_PUBLIC_BUCKET"
+          test -n "$OBJECT_STORAGE_PRIVATE_BUCKET"
+
+      - name: Create PostgreSQL backup in private R2
+        run: npm run backup:postgres:r2

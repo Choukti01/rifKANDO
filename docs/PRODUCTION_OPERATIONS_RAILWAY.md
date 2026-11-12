@@ -101,10 +101,32 @@ recovery method. Perform this once per month:
 5. Record the date, operator, result, and branch name in the incident log.
 6. Delete the temporary branch after the drill.
 
-`npm run backup:postgres:r2` needs the official `pg_dump` client and a private
-R2 bucket. Automate it from a managed runner or Railway cron only after one
-manual backup and restore succeed. A personal computer is not a production
-backup runner.
+Neon provider recovery remains the first-line recovery mechanism. A second,
+independent PostgreSQL dump is prepared in
+`.github/workflows/postgres-r2-backup.yml`; it writes custom-format dumps only
+to the private R2 bucket. The workflow installs its own `pg_dump`, so it is
+independent of any personal computer.
+
+The workflow intentionally starts disabled. Before enabling it, create these
+**GitHub Actions secrets** in the private `Choukti01/rifKANDO` repository. Copy
+them from Railway's existing production configuration; never commit them:
+
+- `RIFKANDO_DATABASE_URL`
+- `RIFKANDO_OBJECT_STORAGE_REGION`
+- `RIFKANDO_OBJECT_STORAGE_ENDPOINT`
+- `RIFKANDO_OBJECT_STORAGE_ACCESS_KEY_ID`
+- `RIFKANDO_OBJECT_STORAGE_SECRET_ACCESS_KEY`
+- `RIFKANDO_OBJECT_STORAGE_PUBLIC_BUCKET`
+- `RIFKANDO_OBJECT_STORAGE_PRIVATE_BUCKET`
+- `RIFKANDO_OBJECT_STORAGE_PUBLIC_BASE_URL`
+
+Then create repository variables:
+
+- `RIFKANDO_BACKUPS_ENABLED` = `true`
+- `RIFKANDO_DB_BACKUP_RETENTION_DAYS` = `14`
+
+Run **PostgreSQL backup to private R2** manually once and confirm its log says
+`postgres_r2_backup_complete`. Only then will the daily 02:30 UTC schedule run.
 
 ## Incident response
 
