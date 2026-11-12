@@ -35,6 +35,10 @@ jobs:
       DATABASE_ENGINE: postgres
       DATABASE_URL: ${{ secrets.RIFKANDO_DATABASE_URL }}
       POSTGRES_SSL: 'true'
+      # Debian runners provide this audited system bundle. Supplying it makes
+      # pg_dump verify Neon’s certificate instead of falling back to a missing
+      # per-user ~/.postgresql/root.crt file.
+      PGSSLROOTCERT: /etc/ssl/certs/ca-certificates.crt
       DB_BACKUP_RETENTION_DAYS: ${{ vars.RIFKANDO_DB_BACKUP_RETENTION_DAYS || '14' }}
       OBJECT_STORAGE_DRIVER: s3
       OBJECT_STORAGE_REGION: ${{ secrets.RIFKANDO_OBJECT_STORAGE_REGION }}
