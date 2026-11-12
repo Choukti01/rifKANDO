@@ -479,7 +479,7 @@ Object.assign(resources.ar.translation, {
 Object.assign(resources.en.translation.common, { search: 'Search products...' });
 Object.assign(resources.fr.translation.common, { search: 'Rechercher des produits...' });
 Object.assign(resources.ar.translation.common, { search: '\u0627\u0628\u062d\u062b \u0639\u0646 \u0645\u0646\u062a\u062c\u0627\u062a...' });
-Object.assign(resources.en.translation.home, { valueStatement: 'Products, courses, services, Food Market, and FINDit — one trusted marketplace built in Morocco for opportunity everywhere.' });
+Object.assign(resources.en.translation.home, { valueStatement: 'Products, courses, services, Food Market, and FINDiT. One trusted marketplace built in Morocco for opportunity everywhere.' });
 Object.assign(resources.fr.translation.home, { valueStatement: 'Produits, cours, services, Marché alimentaire et FINDit : une marketplace de confiance, née au Maroc pour créer des opportunités partout.' });
 Object.assign(resources.ar.translation.home, { valueStatement: '\u0627\u0644\u0645\u0646\u062a\u062c\u0627\u062a \u0648\u0627\u0644\u062f\u0648\u0631\u0627\u062a \u0648\u0627\u0644\u062e\u062f\u0645\u0627\u062a \u0648\u0633\u0648\u0642 \u0627\u0644\u0645\u0623\u0643\u0648\u0644\u0627\u062a \u0648FINDit \u2014 \u0633\u0648\u0642 \u0645\u0648\u062b\u0648\u0642 \u0648\u0627\u062d\u062f\u060c \u0645\u0646 \u0627\u0644\u0645\u063a\u0631\u0628 \u0644\u0641\u0631\u0635 \u0641\u064a \u0643\u0644 \u0645\u0643\u0627\u0646.' });
 
