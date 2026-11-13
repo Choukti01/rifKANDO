@@ -17,4 +17,31 @@ describe('rifKANDO localization startup integrity', () => {
       expect(i18n.getResourceBundle(locale, 'translation')).toBeTruthy();
     }
   });
+
+  it('keeps the complete FINDit interface translated and branded per language', () => {
+    const requiredFindItAreas = ['public', 'form', 'buyer', 'seller', 'status'];
+
+    for (const area of requiredFindItAreas) {
+      expect(resources.fr.translation.findit?.[area]).toBeTruthy();
+      expect(resources.ar.translation.findit?.[area]).toBeTruthy();
+    }
+
+    expect(resources.ar.translation.nav.findit).toBe('جدها');
+    expect(resources.ar.translation.findit.navigation).toBe('جدها');
+    expect(resources.fr.translation.nav.findit).toBe('Trouvez-le');
+    expect(resources.fr.translation.findit.navigation).toBe('Trouvez-le');
+    expect(resources.fr.translation.findit.public.title).not.toBe(resources.en.translation.findit.public.title);
+    expect(resources.fr.translation.findit.form.publish).not.toBe(resources.en.translation.findit.form.publish);
+  });
+
+  it('does not leave any FINDit interface leaf on the English fallback path', () => {
+    const findMissingLeaves = (reference, translated, path = '') => Object.entries(reference).flatMap(([key, value]) => {
+      const nextPath = path ? `${path}.${key}` : key;
+      if (value && typeof value === 'object') return findMissingLeaves(value, translated?.[key], nextPath);
+      return typeof translated?.[key] === 'string' && translated[key].trim() ? [] : [nextPath];
+    });
+
+    expect(findMissingLeaves(resources.en.translation.findit, resources.fr.translation.findit)).toEqual([]);
+    expect(findMissingLeaves(resources.en.translation.findit, resources.ar.translation.findit)).toEqual([]);
+  });
 });

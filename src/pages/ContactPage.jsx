@@ -10,9 +10,19 @@ import {
 
 const SUPPORT_EMAIL = 'rifkandoteam@gmail.com'
 
+const frenchCopy = {
+  'Contact support': 'Contacter l’assistance', 'Tell us how we can help.': 'Dites-nous comment nous pouvons vous aider.',
+  'Whether you have a marketplace question, need seller guidance, or want to report an issue, our team is here to help.': 'Que vous ayez une question sur la place de marché, besoin d’un conseil vendeur ou souhaitiez signaler un problème, notre équipe est là pour vous aider.',
+  'Start with the details': 'Commencez par les détails', 'Share your account email, relevant order or listing information, and what you need help with.': 'Indiquez l’e-mail de votre compte, les informations de commande ou d’annonce utiles et ce pour quoi vous avez besoin d’aide.',
+  'Support shortcuts': 'Raccourcis d’assistance', 'Visit Help Center': 'Consulter le centre d’aide', 'Browse common questions and answers': 'Parcourir les questions et réponses fréquentes', 'Read the Seller Guide': 'Lire le guide du vendeur', 'Review seller standards and fees': 'Consulter les règles et frais vendeur',
+  'Support details': 'Coordonnées de l’assistance', 'Choose the best way to reach us.': 'Choisissez le meilleur moyen de nous joindre.', 'rifKANDO team': 'Équipe rifKANDO', 'One inbox for every request': 'Une boîte de réception pour chaque demande', 'Buying, selling, delivery, FINDiT, courses, services, Food Market, account, and privacy support.': 'Assistance pour l’achat, la vente, la livraison, FINDit, les cours, les services, le Marché alimentaire, le compte et la confidentialité.',
+  'Send an email': 'Envoyer un e-mail', 'Write your message.': 'Écrivez votre message.', 'Submitting this form opens your email application with a message addressed to rifKANDO support. You remain in control of sending it.': 'L’envoi de ce formulaire ouvre votre application e-mail avec un message adressé à l’assistance rifKANDO. Vous gardez le contrôle de son envoi.',
+  'Your name': 'Votre nom', 'Email address': 'Adresse e-mail', 'What can we help with?': 'Comment pouvons-nous vous aider ?', 'For example, a question about an order': 'Par exemple, une question sur une commande', 'Message': 'Message', 'Include any useful details so we can help faster.': 'Ajoutez les détails utiles afin que nous puissions vous aider plus vite.', 'Open email message': 'Ouvrir le message e-mail',
+}
+
 const ContactPage = () => {
   const { i18n } = useTranslation()
-  const localize = (english, arabic) => (i18n.resolvedLanguage === 'ar' ? arabic : english)
+  const localize = (english, arabic) => (i18n.resolvedLanguage === 'ar' ? arabic : i18n.resolvedLanguage === 'fr' ? (frenchCopy[english] || english) : english)
   const [formData, setFormData] = useState({ name: '', email: '', subject: '', message: '' })
 
   const updateField = (field) => (event) => {

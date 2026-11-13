@@ -93,6 +93,7 @@ import MarketplaceBrowsingNotice from './components/common/MarketplaceBrowsingNo
 import NotFoundPage from './components/common/NotFoundPage'
 import WaveDivider from './components/common/WaveDivider'
 import RouteSeo from './components/seo/RouteSeo'
+import LocalizedBrand from './components/common/LocalizedBrand'
 import { API_ORIGIN } from './config/apiUrl'
 
 const PageLoadingFallback = () => (
@@ -150,7 +151,7 @@ function AppContent() {
       <AuthProvider>
         <CartProvider>
           <FavoritesProvider>
-            <div className="app-shell" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+            <LocalizedBrand><div className="app-shell" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
               <RouteSeo />
               <Navbar />
               {apiAvailable === false && <MarketplaceBrowsingNotice onRetry={() => { setApiAvailable(null); setAvailabilityAttempt((attempt) => attempt + 1) }} />}
@@ -361,7 +362,7 @@ function AppContent() {
               </main>
               <WaveDivider className="app-footer-wave" tone="blue" />
               <Footer />
-            </div>
+            </div></LocalizedBrand>
             <Toaster 
               position="top-center"
               toastOptions={{

@@ -426,9 +426,9 @@ Object.assign(resources.ar.translation, {
   },
 });
 
-resources.ar.translation.nav.findit = '\u0627\u0639\u062b\u0631 \u0639\u0644\u064a\u0647\u0627';
-resources.ar.translation.findit.navigation = '\u0627\u0639\u062b\u0631 \u0639\u0644\u064a\u0647\u0627';
-// French intentionally falls back to English for FINDit until its complete
+resources.ar.translation.nav.findit = '\u062c\u062f\u0647\u0627';
+resources.ar.translation.findit.navigation = '\u062c\u062f\u0647\u0627';
+// FINDit uses fully translated French copy. It is not allowed to fall back to English.
 // translation is added. Create the nested objects before adding the one
 // delivery-specific French string so startup never depends on that fallback.
 resources.fr.translation.findit ??= {};
@@ -964,13 +964,51 @@ Object.assign(resources.ar.translation.productDetails, {
   trust: { sellerCity: 'البائع موجود في {{city}}', sellerSince: 'يبيع منذ {{date}}', codTitle: 'كيف يعمل الدفع عند الاستلام', codSteps: { confirm: 'أرسل طلبك. يؤكد البائع أن المنتج جاهز.', quote: 'يؤكد فريق عمليات الدفع عند الاستلام في rifKANDO سعر التوصيل وخطة التسليم.', deliver: 'استلم الطرد وادفع نقدًا فقط عند وصوله.', review: 'بعد تسليم موثّق، أضف تقييمك بناءً على تجربتك الحقيقية.' } },
 });
 
+// Keep the complete FINDit journey professional in French rather than relying
+// on i18next's English fallback for nested marketplace views.
+Object.assign(resources.fr.translation, {
+  findit: {
+    navigation: 'FINDit',
+    public: {
+      eyebrow: 'FINDit', title: 'Vous cherchez quelque chose de précis ?',
+      lead: 'Décrivez une seule fois ce que vous recherchez. Les vendeurs vous envoient des solutions correspondantes en privé et vous choisissez celle qui vous convient.',
+      postRequest: 'Publier une demande', signInToPost: 'Connectez-vous pour publier', viewBuyerRequests: 'Voir les demandes d’acheteurs',
+      processTitle: 'Conçu pour les demandes réelles', processText: 'FINDit est distinct du catalogue de produits. Il est destiné aux articles difficiles à trouver.',
+      processOne: 'Les vendeurs proposent des solutions précises', processTwo: 'Vous comparez les offres en privé', processThree: 'Vous payez uniquement à la livraison',
+      openRequests: 'Demandes d’acheteurs ouvertes', requestsHeading: 'Demandes que les vendeurs peuvent résoudre maintenant', requestsDescription: 'Chaque demande est indépendante des Produits et affiche uniquement les informations nécessaires pour faire une offre.',
+      discoverLabel: 'Trouver des demandes d’acheteurs', searchPlaceholder: 'Rechercher des demandes d’acheteurs…', allCategories: 'Toutes les catégories', cityPlaceholder: 'Filtrer par ville de livraison', sort: 'Trier les demandes', sortNewest: 'Plus récentes', sortOffers: 'Le plus d’offres vendeurs', sortBudgetAsc: 'Budget le plus bas', sortBudgetDesc: 'Budget le plus élevé', emptyFiltered: 'Aucune demande ouverte ne correspond à ces filtres. Effacez-les ou publiez votre demande.',
+      dashboard: 'Mon tableau de bord FINDit', loading: 'Chargement des demandes FINDit…', emptyTitle: 'Aucune demande ouverte pour le moment', emptyText: 'Publiez ce dont vous avez besoin. Les vendeurs vous répondront avec des solutions dans votre tableau de bord FINDit.',
+      createRequest: 'Créer une demande', expires: 'Expire le {{date}}', offer_one: '{{count}} offre', offer_other: '{{count}} offres', anyCondition: 'Tout état', preferredCondition: '{{condition}} souhaité', sendSolution: 'Envoyer une solution', budgetOpen: 'Budget ouvert', budgetUpTo: 'Jusqu’à {{amount}}', loadMore: 'Charger plus de demandes', loadingMore: 'Chargement de demandes supplémentaires…', loadMoreError: 'Impossible de charger plus de demandes FINDit. Réessayez.', openUntilClosed: 'Ouverte jusqu’à ce que l’acheteur la ferme.',
+    },
+    form: {
+      eyebrow: 'Demande FINDit', title: 'Dites exactement aux vendeurs ce dont vous avez besoin.', description: 'Les photos sont facultatives, mais elles aident les vendeurs à identifier le bon article.',
+      titleLabel: 'Que recherchez-vous ?', titlePlaceholder: 'Exemple : phare avant pour Dacia Logan 2016', detailsLabel: 'Détails utiles aux vendeurs', detailsPlaceholder: 'Marque, modèle, référence, taille, couleur ou compatibilité.', category: 'Catégorie', city: 'Ville de livraison', cityPlaceholder: 'Exemple : Tanger', condition: 'État', budget: 'Budget maximum en MAD', duration: 'Laisser la demande ouverte pendant', photos: 'Photos de référence', photosHelp: 'Jusqu’à 3 photos JPEG, PNG ou WebP. N’ajoutez jamais de document d’identité.', addPhotos: 'Ajouter des photos', uploading: 'Téléversement…', footer: 'Votre demande reste ouverte jusqu’à ce que vous la fermiez. Les offres restent dans rifKANDO et vous payez à la livraison.', publish: 'Publier la demande FINDit', publishing: 'Publication…', validBudget: 'Saisissez un budget maximum valide. Utilisez 0 pour recevoir des offres sans limite de budget.', validDuration: 'Choisissez la durée pendant laquelle votre demande doit rester ouverte.', created: 'Votre demande FINDit est publiée. Les vendeurs peuvent maintenant envoyer leurs solutions.', uploadError: 'Impossible de téléverser cette photo de référence.', photoLimit: 'Vous pouvez ajouter jusqu’à 3 photos de référence.', photoRequirements: 'Utilisez des photos JPEG, PNG ou WebP de 5 Mo maximum chacune.', removePhoto: 'Retirer la photo de référence',
+      categories: { auto: 'Auto et pièces', electronics: 'Téléphones et électronique', home: 'Maison et électroménager', tools: 'Outils et équipement', fashion: 'Mode et accessoires', other: 'Autre' }, conditions: { any: 'Tout état', new: 'Neuf uniquement', used: 'Occasion acceptée' }, days: '{{count}} jours',
+    },
+    buyer: {
+      eyebrow: 'Mon tableau de bord FINDit', title: 'Demandez une fois. Comparez les bonnes solutions.', lead: 'Vos demandes sont distinctes du catalogue de produits. Les solutions, prix et commandes à la livraison restent ici.', active_one: '{{count}} demande active', active_other: '{{count}} demandes actives', requests: 'Vos demandes', solutionsHeading: 'Les solutions des vendeurs arrivent ici', privateOffers: 'Vous seul pouvez voir les offres faites pour votre demande.', loading: 'Chargement de votre espace FINDit…', emptyTitle: 'Aucune demande pour le moment', emptyText: 'Publiez votre première demande ci-dessus. Les vendeurs enverront ici des solutions privées et comparables.', cancel: 'Annuler la demande', cancelConfirm: 'Annuler cette demande FINDit ? Les offres actives des vendeurs seront fermées.', cancelled: 'Demande FINDit annulée.', openBudget: 'Budget ouvert', budgetUpTo: 'Budget jusqu’à {{amount}}', solution_one: '{{count}} solution de vendeur', solution_other: '{{count}} solutions de vendeurs', noSolutions: 'Votre demande est publiée. Les vendeurs apparaîtront ici avec une solution, le prix exact, le devis de livraison et le délai estimé.', item: 'Article', delivery: 'Livraison', arrival: 'Arrivée', condition: 'État', included: 'Inclus', totalCod: 'Total à la livraison : {{amount}}', choose: 'Choisir cette solution', checkoutEyebrow: 'Confirmer la solution FINDit', checkoutTotal: 'Total à la livraison', fullName: 'Nom complet', email: 'E-mail', phone: 'Numéro de téléphone', address: 'Adresse de livraison', city: 'Ville', postalCode: 'Code postal (facultatif)', notes: 'Note pour le vendeur ou la livraison', notesPlaceholder: 'Note de livraison facultative', codNotice: 'Payez le total indiqué seulement à la livraison. rifKANDO conserve la commission vendeur de 5 % après la régularisation COD.', confirm: 'Confirmer la commande COD', creating: 'Création de la commande COD…', created: 'Offre FINDit acceptée. Votre commande COD est prête.',
+    },
+    seller: {
+      eyebrow: 'Espace vendeur FINDit', title: 'Répondez aux besoins réels des acheteurs avec une solution précise.', lead: 'Proposez un article exact et un délai réaliste. Les opérations COD indiquent le prix de livraison après la confirmation de l’acheteur. Les commandes FINDit appliquent une commission rifKANDO de 5 % après règlement COD.', independent: 'Indépendant des Produits', independentText: 'Votre solution FINDit est visible uniquement par l’acheteur qui l’a demandée. Elle n’est jamais publiée dans le catalogue de produits.', requests: 'Demandes d’acheteurs', heading: 'Besoins ouverts auxquels vous pouvez répondre', open: '{{count}} ouvertes', loading: 'Chargement des demandes d’acheteurs…', emptyTitle: 'Aucune demande FINDit ouverte', emptyText: 'Les nouvelles demandes apparaîtront ici lorsque des acheteurs recherchent un article précis.', anyCondition: 'Tout état', requestedCondition: '{{condition}} demandé', budgetOpen: 'Budget ouvert', budgetUpTo: 'Jusqu’à {{amount}}', send: 'Envoyer une solution', yourSolution: 'Votre solution : {{status}}', solutions: 'Vos solutions', status: 'Statut de l’offre', noSolutions: 'Lorsque vous répondez à une demande, le statut de votre solution apparaît ici.', reply: 'Répondre à une demande FINDit', formNote: 'Proposez une solution précise et honnête. Les échanges et le paiement restent dans rifKANDO.', solutionTitle: 'Titre de la solution', solutionDescription: 'Pourquoi cette solution correspond', price: 'Prix de l’article en MAD', deliveryFee: 'Frais de livraison en MAD', deliveryIncluded: '0 si inclus', deliveryQuoteNote: 'Les opérations COD rifKANDO indiquent le prix de livraison après acceptation de l’offre par l’acheteur.', estimate: 'Estimation de livraison', commission: 'rifKANDO prélève 5 % du prix de l’article uniquement après livraison et règlement de cette commande FINDit.', sending: 'Envoi de la solution…', sent: 'Envoyer la solution FINDit', withdraw: 'Retirer', withdrawConfirm: 'Retirer cette solution FINDit ? L’acheteur ne pourra plus l’accepter.', withdrawn: 'Solution FINDit retirée.',
+    },
+    status: { active: 'Active', accepted: 'Acceptée', withdrawn: 'Retirée', cancelled: 'Annulée', completed: 'Terminée', pending: 'En attente', new: 'Neuf', used: 'Occasion', refurbished: 'Reconditionné' },
+  },
+});
+
 const replaceArabicFinditBrand = (value) => {
   if (typeof value === 'string') return value.replaceAll('FINDit', resources.ar.translation.findit.navigation);
-  if (value && typeof value === 'object') Object.values(value).forEach(replaceArabicFinditBrand);
+  if (value && typeof value === 'object') Object.entries(value).forEach(([key, child]) => { value[key] = replaceArabicFinditBrand(child); });
+  return value;
+};
+
+const replaceFrenchFinditBrand = (value) => {
+  if (typeof value === 'string') return value.replaceAll('FINDiT', 'Trouvez-le').replaceAll('FINDit', 'Trouvez-le');
+  if (value && typeof value === 'object') Object.entries(value).forEach(([key, child]) => { value[key] = replaceFrenchFinditBrand(child); });
   return value;
 };
 
 replaceArabicFinditBrand(resources.ar.translation);
+replaceFrenchFinditBrand(resources.fr.translation);
 
 const supportedLanguages = ['en', 'fr', 'ar'];
 const savedLanguage = localStorage.getItem('rifkando_language');
