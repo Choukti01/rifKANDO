@@ -84,7 +84,7 @@ const MidaPage = () => {
   return <div className="mida-page">
     <section className="mida-hero"><div className="container">
       <div className="mida-hero__inner">
-        <div className="mida-hero__content"><span className="mida-kicker">{mida.name}</span><h1>{mida.title}</h1><p>{mida.lead}</p><div className="mida-hero__highlights"><span><BuildingStorefrontIcon aria-hidden="true" />{mida.market}</span><span><CakeIcon aria-hidden="true" />{mida.kitchens}</span></div></div>
+        <div className="mida-hero__content"><span className="mida-kicker">{mida.name}</span><h1 style={{ color: '#fff' }}>{mida.title}</h1><p>{mida.lead}</p><div className="mida-hero__highlights"><span><BuildingStorefrontIcon aria-hidden="true" />{mida.market}</span><span><CakeIcon aria-hidden="true" />{mida.kitchens}</span></div></div>
         <div className="mida-hero__side"><div className="mida-hero__visual" aria-hidden="true"><div className="mida-hero__visual-ring"></div><div className="mida-hero__visual-card mida-hero__visual-card--market"><BuildingStorefrontIcon /></div><div className="mida-hero__visual-card mida-hero__visual-card--kitchen"><CakeIcon /></div><div className="mida-hero__visual-card mida-hero__visual-card--product">🍯</div></div><Link to="/seller/dashboard/food-market/add" className="mida-hero__action"><BuildingStorefrontIcon aria-hidden="true" />{mida.sell}</Link></div>
       </div>
     </div></section>

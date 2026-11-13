@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 const copy = {
   en: {
     name: 'Food Market', market: 'Food Market', kitchens: 'Food Kitchens', nav: 'Food Market',
-    title: 'Good food, close to home.', lead: 'Fresh local ingredients, trusted producers, restaurants, and food makers in one place.',
+    title: 'Fresh food. close to home.', lead: 'Fresh local ingredients, trusted producers, restaurants, and food makers in one place.',
     marketLead: 'Vegetables, oil, honey, olives, spices, pantry essentials, and more.', kitchensLead: 'Home cooks, restaurants, bakeries, and local food makers.',
     browseMarket: 'Browse the market', browseKitchens: 'Explore kitchens', sell: 'Sell on Food Market',
     search: 'Search food, producers, or dishes', all: 'All food', city: 'City', results: '{{count}} listings',
