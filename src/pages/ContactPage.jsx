@@ -79,7 +79,7 @@ const ContactPage = () => {
         .contact-hero-grid { align-items: center; display: grid; gap: clamp(2rem, 7vw, 7rem); grid-template-columns: minmax(0, 1.25fr) minmax(14rem, .65fr); padding: clamp(4rem, 8vw, 6.5rem) 0; }
         .contact-eyebrow { align-items: center; color: #c9e9ff; display: flex; font-size: .76rem; font-weight: 800; gap: .5rem; letter-spacing: .1em; margin: 0 0 1rem; text-transform: uppercase; }
         .contact-eyebrow svg { height: 1.15rem; width: 1.15rem; }
-        .contact-hero h1 { font-size: clamp(2.35rem, 5vw, 4.2rem); letter-spacing: -.055em; line-height: 1.04; margin: 0; }
+        .contact-hero h1 { color: #fff; font-size: clamp(2.35rem, 5vw, 4.2rem); letter-spacing: -.055em; line-height: 1.04; margin: 0; }
         .contact-hero > .container > div > p:not(.contact-eyebrow) { color: #e5f4ff; font-size: 1.08rem; line-height: 1.75; margin: 1.25rem 0 0; max-width: 42rem; }
         .contact-hero-note { align-items: flex-start; background: linear-gradient(145deg, rgba(255,255,255,.16), rgba(255,255,255,.07)); border: 1px solid rgba(201,233,255,.3); border-radius: 1.1rem; box-shadow: 0 20px 46px rgba(0,0,0,.16), inset 0 1px 0 rgba(255,255,255,.16); display: flex; gap: .8rem; padding: 1.25rem; }
         .contact-hero-note > svg { color: var(--color-brand-blue); flex: 0 0 auto; height: 1.55rem; width: 1.55rem; }

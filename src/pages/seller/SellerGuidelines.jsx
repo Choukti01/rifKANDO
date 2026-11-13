@@ -151,7 +151,7 @@ const SellerGuidelines = () => {
         .seller-guide-hero-grid { align-items: center; display: grid; gap: clamp(2rem, 6vw, 6rem); grid-template-columns: minmax(0, 1.3fr) minmax(15rem, .7fr); padding: clamp(4rem, 8vw, 6.5rem) 0; }
         .seller-guide-eyebrow { align-items: center; color: #c9e9ff; display: flex; font-size: .76rem; font-weight: 800; gap: .5rem; letter-spacing: .1em; margin: 0 0 1rem; text-transform: uppercase; }
         .seller-guide-eyebrow svg { height: 1.15rem; width: 1.15rem; }
-        .seller-guide-hero h1 { font-size: clamp(2.35rem, 5vw, 4.2rem); letter-spacing: -.055em; line-height: 1.04; margin: 0; max-width: 45rem; }
+        .seller-guide-hero h1 { color: #fff; font-size: clamp(2.35rem, 5vw, 4.2rem); letter-spacing: -.055em; line-height: 1.04; margin: 0; max-width: 45rem; }
         .seller-guide-intro { color: #e5f4ff; font-size: 1.08rem; line-height: 1.75; margin: 1.25rem 0 0; max-width: 40rem; }
         .seller-guide-actions { display: flex; flex-wrap: wrap; gap: .8rem; margin-top: 1.8rem; }
         .seller-guide-primary-action, .seller-guide-secondary-action { align-items: center; border-radius: .72rem; display: inline-flex; font-weight: 800; gap: .5rem; min-height: 2.9rem; padding: .72rem 1rem; text-decoration: none; }

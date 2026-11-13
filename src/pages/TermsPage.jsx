@@ -66,7 +66,7 @@ const TermsPage = () => {
         .terms-hero-content { max-width: 49rem; padding: clamp(4rem, 8vw, 6.5rem) 0; position: relative; z-index: 1; }
         .terms-eyebrow { align-items: center; color: #c9e9ff; display: flex; font-size: .76rem; font-weight: 800; gap: .5rem; letter-spacing: .1em; margin: 0 0 1rem; text-transform: uppercase; }
         .terms-eyebrow svg { height: 1.15rem; width: 1.15rem; }
-        .terms-hero h1 { font-size: clamp(2.35rem, 5vw, 4.2rem); letter-spacing: -.055em; line-height: 1.04; margin: 0; }
+        .terms-hero h1 { color: #fff; font-size: clamp(2.35rem, 5vw, 4.2rem); letter-spacing: -.055em; line-height: 1.04; margin: 0; }
         .terms-hero > .container > p:not(.terms-eyebrow) { color: #e5f4ff; font-size: 1.08rem; line-height: 1.75; margin: 1.25rem 0 0; }
         .terms-meta { align-items: center; color: #c9e9ff; display: flex; flex-wrap: wrap; font-size: .9rem; gap: .65rem; margin-top: 1.5rem; }
         .terms-meta a { color: #fff; font-weight: 800; text-decoration: underline; text-underline-offset: .2rem; }

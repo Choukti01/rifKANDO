@@ -109,7 +109,7 @@ const HelpCenter = () => {
         .help-hero-content { max-width: 53rem; padding: clamp(4rem, 8vw, 6.5rem) 0; }
         .help-eyebrow { align-items: center; color: #c9e9ff; display: flex; font-size: .76rem; font-weight: 800; gap: .5rem; letter-spacing: .1em; margin: 0 0 1rem; text-transform: uppercase; }
         .help-eyebrow svg { height: 1.15rem; width: 1.15rem; }
-        .help-hero h1 { font-size: clamp(2.3rem, 5vw, 4.15rem); letter-spacing: -.055em; line-height: 1.04; margin: 0; }
+        .help-hero h1 { color: #fff; font-size: clamp(2.3rem, 5vw, 4.15rem); letter-spacing: -.055em; line-height: 1.04; margin: 0; }
         .help-hero > .container > p:not(.help-eyebrow) { color: #e5f4ff; font-size: 1.08rem; line-height: 1.7; margin: 1.25rem 0 0; }
         .help-search { align-items: center; background: #fff; border: 1px solid rgba(255,255,255,.5); border-radius: .85rem; box-shadow: 0 12px 30px rgba(0,0,0,.16); color: var(--color-brand-ink); display: flex; gap: .7rem; margin-top: 1.8rem; max-width: 43rem; padding: 0 .95rem; }
         .help-search svg { color: var(--color-brand-ink); flex: 0 0 auto; height: 1.25rem; width: 1.25rem; }

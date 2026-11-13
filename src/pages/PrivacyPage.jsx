@@ -172,7 +172,7 @@ const PrivacyPage = () => {
         .privacy-hero-content { max-width: 48rem; padding: clamp(4.5rem, 9vw, 7rem) 0 clamp(3.5rem, 7vw, 5rem); position: relative; z-index: 1; }
         .privacy-eyebrow { align-items: center; color: #c9e9ff; display: inline-flex; font-size: .82rem; font-weight: 800; gap: .55rem; letter-spacing: .08em; text-transform: uppercase; }
         .privacy-eyebrow svg { height: 1.2rem; width: 1.2rem; }
-        .privacy-hero h1 { font-size: clamp(2.35rem, 5vw, 4.25rem); letter-spacing: -.045em; line-height: 1.04; margin: 1.1rem 0; max-width: 44rem; }
+        .privacy-hero h1 { color: #fff; font-size: clamp(2.35rem, 5vw, 4.25rem); letter-spacing: -.045em; line-height: 1.04; margin: 1.1rem 0; max-width: 44rem; }
         .privacy-hero p { color: #e5f4ff; font-size: clamp(1rem, 2vw, 1.2rem); line-height: 1.75; margin: 0; max-width: 43rem; }
         .privacy-meta { align-items: center; color: #c9e9ff; display: flex; flex-wrap: wrap; font-size: .9rem; gap: .65rem; margin-top: 1.5rem; }
         .privacy-meta a { color: #fff; font-weight: 700; text-decoration: underline; text-underline-offset: .22rem; }

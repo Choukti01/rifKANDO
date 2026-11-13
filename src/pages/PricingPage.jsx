@@ -54,7 +54,7 @@ const PricingPage = () => {
             {pricingPlans.map((plan) => {
               const Icon = plan.icon
               return (
-                <article className="fees-card" key={plan.type}>
+                <article className="fees-card" key={`${plan.type}-${plan.title}`}>
                   <div className="fees-card-top"><span className="fees-icon"><Icon aria-hidden="true" /></span><span className="fees-rate">{formatCommissionRate(plan.type)}</span></div>
                   <h3>{plan.title}</h3>
                   <p className="fees-best-for">{localize('Best for ', 'مناسب لـ ')}{plan.bestFor}</p>
@@ -95,7 +95,7 @@ const PricingPage = () => {
         .fees-hero-content { max-width: 52rem; padding: clamp(4rem, 8vw, 6.5rem) 0; position: relative; z-index: 1; }
         .fees-eyebrow { align-items: center; color: #c9e9ff; display: flex; font-size: .76rem; font-weight: 800; gap: .5rem; letter-spacing: .1em; margin: 0 0 1rem; text-transform: uppercase; }
         .fees-eyebrow svg { height: 1.15rem; width: 1.15rem; }
-        .fees-hero h1 { font-size: clamp(2.35rem, 5vw, 4.2rem); letter-spacing: -.055em; line-height: 1.04; margin: 0; }
+        .fees-hero h1 { color: #fff; font-size: clamp(2.35rem, 5vw, 4.2rem); letter-spacing: -.055em; line-height: 1.04; margin: 0; }
         .fees-hero > .container > p:not(.fees-eyebrow) { color: #e5f4ff; font-size: 1.08rem; line-height: 1.75; margin: 1.25rem 0 0; max-width: 42rem; }
         .fees-hero-actions { display: flex; flex-wrap: wrap; gap: .8rem; margin-top: 1.8rem; }
         .fees-hero-actions a, .fees-card > a, .fees-wallet-section > a, .fees-support a { align-items: center; display: inline-flex; font-weight: 800; gap: .45rem; text-decoration: none; }
