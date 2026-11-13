@@ -90,17 +90,17 @@ const PricingPage = () => {
 
       <style>{`
         .fees-page { background: #f7fafc; color: var(--color-brand-ink); min-height: calc(100vh - 80px); padding-bottom: 5rem; }
-        .fees-hero { background: linear-gradient(125deg, var(--color-brand-ink), #10233e 68%, var(--color-brand-blue) 150%); color: #fff; overflow: hidden; position: relative; }
+        .fees-hero { background: linear-gradient(125deg, #07182f, var(--color-brand-ink) 58%, #164a78 145%); color: #fff; overflow: hidden; position: relative; }
         .fees-hero::after { background: radial-gradient(circle, rgba(255,255,255,.16), transparent 67%); content: ''; height: 34rem; position: absolute; right: -13rem; top: -20rem; width: 34rem; }
         .fees-hero-content { max-width: 52rem; padding: clamp(4rem, 8vw, 6.5rem) 0; position: relative; z-index: 1; }
-        .fees-eyebrow { align-items: center; color: var(--color-primary-light); display: flex; font-size: .76rem; font-weight: 800; gap: .5rem; letter-spacing: .1em; margin: 0 0 1rem; text-transform: uppercase; }
+        .fees-eyebrow { align-items: center; color: #c9e9ff; display: flex; font-size: .76rem; font-weight: 800; gap: .5rem; letter-spacing: .1em; margin: 0 0 1rem; text-transform: uppercase; }
         .fees-eyebrow svg { height: 1.15rem; width: 1.15rem; }
         .fees-hero h1 { font-size: clamp(2.35rem, 5vw, 4.2rem); letter-spacing: -.055em; line-height: 1.04; margin: 0; }
-        .fees-hero > .container > p:not(.fees-eyebrow) { color: var(--color-primary-light); font-size: 1.08rem; line-height: 1.75; margin: 1.25rem 0 0; max-width: 42rem; }
+        .fees-hero > .container > p:not(.fees-eyebrow) { color: #e5f4ff; font-size: 1.08rem; line-height: 1.75; margin: 1.25rem 0 0; max-width: 42rem; }
         .fees-hero-actions { display: flex; flex-wrap: wrap; gap: .8rem; margin-top: 1.8rem; }
         .fees-hero-actions a, .fees-card > a, .fees-wallet-section > a, .fees-support a { align-items: center; display: inline-flex; font-weight: 800; gap: .45rem; text-decoration: none; }
         .fees-hero-actions a:first-child { background: var(--color-brand-blue); border-radius: .72rem; color: var(--color-brand-ink); padding: .75rem 1rem; }
-        .fees-hero-actions a:last-child { border: 1px solid rgba(255,255,255,.3); border-radius: .72rem; color: #fff; padding: .75rem 1rem; }
+        .fees-hero-actions a:last-child { background: rgba(255,255,255,.08); border: 1px solid rgba(201,233,255,.44); border-radius: .72rem; color: #fff; padding: .75rem 1rem; }
         .fees-hero-actions svg, .fees-card > a svg, .fees-wallet-section > a svg, .fees-support svg { height: 1rem; width: 1rem; }
         .fees-content { padding-top: clamp(2rem, 5vw, 4rem); }
         .fees-principles { display: grid; gap: 1rem; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: 1.25rem; }

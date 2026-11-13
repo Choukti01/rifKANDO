@@ -1,5 +1,4 @@
 import React from 'react'
-import { Link } from 'react-router-dom'
 import {
   DocumentTextIcon,
   EyeIcon,
@@ -131,10 +130,10 @@ const PrivacyPage = () => {
               <div>
                 <h2>Your privacy choices</h2>
                 <p>You may ask to access, correct, or delete your personal information, subject to applicable legal and transaction-record retention requirements.</p>
-                <Link to="/contact" className="privacy-action">
+              <a href="mailto:rifkandoteam@gmail.com" className="privacy-action">
                   Contact privacy support
                   <span aria-hidden="true">→</span>
-                </Link>
+              </a>
               </div>
             </section>
 
@@ -158,7 +157,7 @@ const PrivacyPage = () => {
               <DocumentTextIcon aria-hidden="true" />
               <div>
                 <h2>Privacy questions?</h2>
-                <p>Our support team can help with privacy requests or questions about this policy.</p>
+                <p>For privacy requests or questions about this policy, email <a href="mailto:rifkandoteam@gmail.com">rifkandoteam@gmail.com</a>.</p>
               </div>
               <Link to="/contact">Contact us</Link>
             </section>
@@ -168,14 +167,14 @@ const PrivacyPage = () => {
 
       <style>{`
         .privacy-page { min-height: calc(100vh - 80px); background: #f7fafc; color: #172033; padding-bottom: 5rem; }
-        .privacy-hero { background: linear-gradient(128deg, var(--color-brand-ink) 0%, #10233e 58%, var(--color-brand-blue) 145%); color: #fff; overflow: hidden; position: relative; }
-        .privacy-hero::after { background: radial-gradient(circle, rgba(255,255,255,.21), transparent 67%); content: ''; height: 32rem; position: absolute; right: -11rem; top: -17rem; width: 32rem; }
+        .privacy-hero { background: linear-gradient(128deg, #07182f 0%, var(--color-brand-ink) 58%, #164a78 145%); color: #fff; overflow: hidden; position: relative; }
+        .privacy-hero::after { background: radial-gradient(circle, rgba(99,184,243,.3), transparent 68%); content: ''; height: 32rem; position: absolute; right: -11rem; top: -17rem; width: 32rem; }
         .privacy-hero-content { max-width: 48rem; padding: clamp(4.5rem, 9vw, 7rem) 0 clamp(3.5rem, 7vw, 5rem); position: relative; z-index: 1; }
-        .privacy-eyebrow { align-items: center; color: var(--color-primary-light); display: inline-flex; font-size: .82rem; font-weight: 800; gap: .55rem; letter-spacing: .08em; text-transform: uppercase; }
+        .privacy-eyebrow { align-items: center; color: #c9e9ff; display: inline-flex; font-size: .82rem; font-weight: 800; gap: .55rem; letter-spacing: .08em; text-transform: uppercase; }
         .privacy-eyebrow svg { height: 1.2rem; width: 1.2rem; }
         .privacy-hero h1 { font-size: clamp(2.35rem, 5vw, 4.25rem); letter-spacing: -.045em; line-height: 1.04; margin: 1.1rem 0; max-width: 44rem; }
-        .privacy-hero p { color: var(--color-primary-light); font-size: clamp(1rem, 2vw, 1.2rem); line-height: 1.75; margin: 0; max-width: 43rem; }
-        .privacy-meta { align-items: center; color: var(--color-primary-light); display: flex; flex-wrap: wrap; font-size: .9rem; gap: .65rem; margin-top: 1.5rem; }
+        .privacy-hero p { color: #e5f4ff; font-size: clamp(1rem, 2vw, 1.2rem); line-height: 1.75; margin: 0; max-width: 43rem; }
+        .privacy-meta { align-items: center; color: #c9e9ff; display: flex; flex-wrap: wrap; font-size: .9rem; gap: .65rem; margin-top: 1.5rem; }
         .privacy-meta a { color: #fff; font-weight: 700; text-decoration: underline; text-underline-offset: .22rem; }
         .privacy-layout { align-items: start; display: grid; gap: clamp(1.5rem, 4vw, 3.5rem); grid-template-columns: minmax(11rem, 14rem) minmax(0, 1fr); margin-top: clamp(2rem, 5vw, 4rem); }
         .privacy-navigation { position: sticky; top: 6.5rem; }

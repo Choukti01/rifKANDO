@@ -170,7 +170,7 @@ const OrderDetailsPage = () => {
   const fulfillments = order.fulfillments || [];
   const canCancelBeforePickup = fulfillments.length > 0
     && fulfillments.every((fulfillment) => ['pending_confirmation', 'confirmed'].includes(fulfillment.status));
-  const supportHref = `mailto:rifKANDO@gmail.com?subject=${encodeURIComponent(`[rifKANDO delivery support] ${order.order_number}`)}&body=${encodeURIComponent(`Order: ${order.order_number}\n\nDescribe the delivery issue and include any useful details.\n`)}`;
+  const supportHref = `mailto:rifkandoteam@gmail.com?subject=${encodeURIComponent(`[rifKANDO delivery support] ${order.order_number}`)}&body=${encodeURIComponent(`Order: ${order.order_number}\n\nDescribe the delivery issue and include any useful details.\n`)}`;
 
   return (
     <div className="order-details-page">

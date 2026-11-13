@@ -65,7 +65,7 @@ const SellerGuidelines = () => {
               </div>
             </div>
             <div className="seller-guide-steps">
-              <article><UserPlusIcon aria-hidden="true" /><h3>Create your account</h3><p>Use accurate contact details and confirm your email before you start selling.</p></article>
+              <article><UserPlusIcon aria-hidden="true" /><h3>Create your account</h3><p>Use accurate, current account and contact details before you start selling.</p></article>
               <article><DocumentCheckIcon aria-hidden="true" /><h3>Choose your seller workspace</h3><p>Select Products, Courses, Services, or Food Market to open the tools that match your business. FINDit is available to every seller who can solve buyer requests.</p></article>
               <article><ShieldCheckIcon aria-hidden="true" /><h3>Keep your profile current</h3><p>Make sure your name, business details, and customer-facing information remain accurate.</p></article>
             </div>
@@ -91,8 +91,8 @@ const SellerGuidelines = () => {
             <div className="seller-guide-section-heading">
               <span>03</span>
               <div>
-                <h2>Fees and COD settlement</h2>
-                <p>Commission is calculated only from the delivered item amount. Delivery fees are separate and are never part of the rifKANDO commission.</p>
+                <h2>Fees and settlement</h2>
+                <p>rifKANDO applies a 5% marketplace commission to the applicable completed sale. Delivery fees are separate and never form part of the rifKANDO commission.</p>
               </div>
             </div>
             <div className="seller-guide-fee-grid">
@@ -105,7 +105,7 @@ const SellerGuidelines = () => {
             </div>
             <div className="seller-guide-wallet-note">
               <CurrencyDollarIcon aria-hidden="true" />
-              <p>For COD orders, confirm the order and add your carrier tracking number. After rifKANDO confirms delivery, pay the 5% commission using the reference in your order workspace within three days. Unpaid overdue commissions stop new sales until finance verifies payment.</p>
+              <p>For COD orders, confirm the order and prepare the parcel for the delivery coordination shown in your order workspace. rifKANDO’s operations team records the handoff, delivery outcome, delivery fee, and settlement steps. Pay the 5% commission using the reference in your workspace within three days after delivery is confirmed. Unpaid overdue commission can pause new sales until finance verifies payment.</p>
             </div>
           </section>
 
@@ -146,19 +146,20 @@ const SellerGuidelines = () => {
 
       <style>{`
         .seller-guide-page { background: #f7fafc; color: var(--color-brand-ink); min-height: calc(100vh - 80px); padding-bottom: 5rem; }
-        .seller-guide-hero { background: linear-gradient(125deg, var(--color-brand-ink), #10233e 68%, var(--color-brand-blue) 150%); color: #fff; overflow: hidden; }
+        .seller-guide-hero { background: linear-gradient(125deg, #07182f, var(--color-brand-ink) 58%, #164a78 145%); color: #fff; isolation: isolate; overflow: hidden; position: relative; }
+        .seller-guide-hero::after { background: radial-gradient(circle, rgba(99,184,243,.28), transparent 68%); content: ''; height: 34rem; pointer-events: none; position: absolute; right: -12rem; top: -18rem; width: 34rem; z-index: -1; }
         .seller-guide-hero-grid { align-items: center; display: grid; gap: clamp(2rem, 6vw, 6rem); grid-template-columns: minmax(0, 1.3fr) minmax(15rem, .7fr); padding: clamp(4rem, 8vw, 6.5rem) 0; }
-        .seller-guide-eyebrow { align-items: center; color: var(--color-primary-light); display: flex; font-size: .76rem; font-weight: 800; gap: .5rem; letter-spacing: .1em; margin: 0 0 1rem; text-transform: uppercase; }
+        .seller-guide-eyebrow { align-items: center; color: #c9e9ff; display: flex; font-size: .76rem; font-weight: 800; gap: .5rem; letter-spacing: .1em; margin: 0 0 1rem; text-transform: uppercase; }
         .seller-guide-eyebrow svg { height: 1.15rem; width: 1.15rem; }
         .seller-guide-hero h1 { font-size: clamp(2.35rem, 5vw, 4.2rem); letter-spacing: -.055em; line-height: 1.04; margin: 0; max-width: 45rem; }
-        .seller-guide-intro { color: var(--color-primary-light); font-size: 1.08rem; line-height: 1.75; margin: 1.25rem 0 0; max-width: 40rem; }
+        .seller-guide-intro { color: #e5f4ff; font-size: 1.08rem; line-height: 1.75; margin: 1.25rem 0 0; max-width: 40rem; }
         .seller-guide-actions { display: flex; flex-wrap: wrap; gap: .8rem; margin-top: 1.8rem; }
         .seller-guide-primary-action, .seller-guide-secondary-action { align-items: center; border-radius: .72rem; display: inline-flex; font-weight: 800; gap: .5rem; min-height: 2.9rem; padding: .72rem 1rem; text-decoration: none; }
         .seller-guide-primary-action { background: var(--color-brand-blue); color: var(--color-brand-ink); }
         .seller-guide-primary-action svg, .seller-guide-support a svg { height: 1rem; width: 1rem; }
         .seller-guide-secondary-action { border: 1px solid rgba(255,255,255,.32); color: #fff; }
-        .seller-guide-hero-card { background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.2); border-radius: 1.1rem; padding: 1.5rem; }
-        .seller-guide-hero-card > span { color: var(--color-primary-light); font-size: .75rem; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+        .seller-guide-hero-card { background: linear-gradient(145deg, rgba(255,255,255,.16), rgba(255,255,255,.07)); border: 1px solid rgba(201,233,255,.3); border-radius: 1.1rem; box-shadow: 0 20px 46px rgba(0,0,0,.16), inset 0 1px 0 rgba(255,255,255,.16); padding: 1.5rem; }
+        .seller-guide-hero-card > span { color: #c9e9ff; font-size: .75rem; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
         .seller-guide-hero-card ol { display: grid; gap: 1rem; list-style: none; margin: 1.2rem 0 0; padding: 0; }
         .seller-guide-hero-card li { align-items: center; display: flex; font-weight: 700; gap: .75rem; }
         .seller-guide-hero-card strong { align-items: center; background: var(--color-brand-blue); border-radius: 50%; color: var(--color-brand-ink); display: inline-flex; height: 1.65rem; justify-content: center; width: 1.65rem; }

@@ -3,15 +3,12 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
   ArrowRightIcon,
-  ClockIcon,
   EnvelopeIcon,
   LifebuoyIcon,
-  MapPinIcon,
-  PhoneIcon,
   UserGroupIcon,
 } from '@heroicons/react/24/outline'
 
-const SUPPORT_EMAIL = 'rifKANDO@gmail.com'
+const SUPPORT_EMAIL = 'rifkandoteam@gmail.com'
 
 const ContactPage = () => {
   const { i18n } = useTranslation()
@@ -53,11 +50,8 @@ const ContactPage = () => {
             <p className="contact-card-kicker">{localize('Support details', 'تفاصيل الدعم')}</p>
             <h2 id="contact-details-title">{localize('Choose the best way to reach us.', 'اختر أفضل طريقة للتواصل معنا.')}</h2>
             <div className="contact-detail-list">
-              <a href={`mailto:${SUPPORT_EMAIL}`} className="contact-detail"><span><EnvelopeIcon aria-hidden="true" /></span><div><strong>{localize('General support', 'الدعم العام')}</strong><small>{SUPPORT_EMAIL}</small></div></a>
-              <a href="mailto:sellersRifKANDO@gmail.com" className="contact-detail"><span><UserGroupIcon aria-hidden="true" /></span><div><strong>{localize('Seller support', 'دعم البائعين')}</strong><small>sellersRifKANDO@gmail.com</small></div></a>
-              <a href="tel:+212624483286" className="contact-detail"><span><PhoneIcon aria-hidden="true" /></span><div><strong>{localize('Phone', 'الهاتف')}</strong><small>+212 624 483 286</small></div></a>
-              <div className="contact-detail static"><span><ClockIcon aria-hidden="true" /></span><div><strong>{localize('Support hours', 'ساعات الدعم')}</strong><small>{localize('Monday to Friday, 9:00 to 18:00', 'من الإثنين إلى الجمعة، 9:00 إلى 18:00')}<br />{localize('Saturday, 10:00 to 14:00', 'السبت، 10:00 إلى 14:00')}</small></div></div>
-              <div className="contact-detail static"><span><MapPinIcon aria-hidden="true" /></span><div><strong>{localize('Based in Nador', 'مقرنا في الناظور')}</strong><small>{localize('Nador, Morocco', 'الناظور، المغرب')}</small></div></div>
+              <a href={`mailto:${SUPPORT_EMAIL}`} className="contact-detail"><span><EnvelopeIcon aria-hidden="true" /></span><div><strong>{localize('rifKANDO team', 'فريق rifKANDO')}</strong><small>{SUPPORT_EMAIL}</small></div></a>
+              <div className="contact-detail static"><span><UserGroupIcon aria-hidden="true" /></span><div><strong>{localize('One inbox for every request', 'بريد واحد لكل الطلبات')}</strong><small>{localize('Buying, selling, delivery, FINDiT, courses, services, Food Market, account, and privacy support.', 'دعم الشراء والبيع والتوصيل وFINDiT والدورات والخدمات وسوق الطعام والحساب والخصوصية.')}</small></div></div>
             </div>
           </section>
 
@@ -80,16 +74,17 @@ const ContactPage = () => {
 
       <style>{`
         .contact-page-redesign { background: #f7fafc; color: var(--color-brand-ink); min-height: calc(100vh - 80px); padding-bottom: 5rem; }
-        .contact-hero { background: linear-gradient(125deg, var(--color-brand-ink), #10233e 68%, var(--color-brand-blue) 150%); color: #fff; }
+        .contact-hero { background: linear-gradient(125deg, #07182f, var(--color-brand-ink) 58%, #164a78 145%); color: #fff; isolation: isolate; overflow: hidden; position: relative; }
+        .contact-hero::after { background: radial-gradient(circle, rgba(99,184,243,.28), transparent 68%); content: ''; height: 34rem; pointer-events: none; position: absolute; right: -12rem; top: -18rem; width: 34rem; z-index: -1; }
         .contact-hero-grid { align-items: center; display: grid; gap: clamp(2rem, 7vw, 7rem); grid-template-columns: minmax(0, 1.25fr) minmax(14rem, .65fr); padding: clamp(4rem, 8vw, 6.5rem) 0; }
-        .contact-eyebrow { align-items: center; color: var(--color-primary-light); display: flex; font-size: .76rem; font-weight: 800; gap: .5rem; letter-spacing: .1em; margin: 0 0 1rem; text-transform: uppercase; }
+        .contact-eyebrow { align-items: center; color: #c9e9ff; display: flex; font-size: .76rem; font-weight: 800; gap: .5rem; letter-spacing: .1em; margin: 0 0 1rem; text-transform: uppercase; }
         .contact-eyebrow svg { height: 1.15rem; width: 1.15rem; }
         .contact-hero h1 { font-size: clamp(2.35rem, 5vw, 4.2rem); letter-spacing: -.055em; line-height: 1.04; margin: 0; }
-        .contact-hero > .container > div > p:not(.contact-eyebrow) { color: var(--color-primary-light); font-size: 1.08rem; line-height: 1.75; margin: 1.25rem 0 0; max-width: 42rem; }
-        .contact-hero-note { align-items: flex-start; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.2); border-radius: 1.1rem; display: flex; gap: .8rem; padding: 1.25rem; }
+        .contact-hero > .container > div > p:not(.contact-eyebrow) { color: #e5f4ff; font-size: 1.08rem; line-height: 1.75; margin: 1.25rem 0 0; max-width: 42rem; }
+        .contact-hero-note { align-items: flex-start; background: linear-gradient(145deg, rgba(255,255,255,.16), rgba(255,255,255,.07)); border: 1px solid rgba(201,233,255,.3); border-radius: 1.1rem; box-shadow: 0 20px 46px rgba(0,0,0,.16), inset 0 1px 0 rgba(255,255,255,.16); display: flex; gap: .8rem; padding: 1.25rem; }
         .contact-hero-note > svg { color: var(--color-brand-blue); flex: 0 0 auto; height: 1.55rem; width: 1.55rem; }
         .contact-hero-note strong { display: block; margin-bottom: .35rem; }
-        .contact-hero-note span { color: var(--color-primary-light); display: block; font-size: .87rem; line-height: 1.55; }
+        .contact-hero-note span { color: #e5f4ff; display: block; font-size: .87rem; line-height: 1.55; }
         .contact-content { padding-top: clamp(2rem, 5vw, 4rem); }
         .contact-shortcuts { display: grid; gap: 1rem; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 1.25rem; }
         .contact-shortcuts a { align-items: center; background: #fff; border: 1px solid #e2ebf3; border-radius: .95rem; color: var(--color-brand-ink); display: grid; gap: .7rem; grid-template-columns: auto 1fr auto; padding: 1rem; text-decoration: none; transition: border-color .18s ease, transform .18s ease; }
