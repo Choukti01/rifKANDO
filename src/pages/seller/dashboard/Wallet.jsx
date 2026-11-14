@@ -1,8 +1,17 @@
 import React, { useEffect, useRef, useState } from 'react';
 import api from '../../../services/api';
 import toast from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
 
 const Wallet = () => {
+  const { i18n } = useTranslation();
+  const language = i18n.resolvedLanguage === 'ar' ? 'ar' : i18n.resolvedLanguage === 'fr' ? 'fr' : 'en';
+  const copy = {
+    en: { load: 'Failed to load wallet data', hold: 'New seller withdrawals are available {{date}}', minimum: 'Minimum withdrawal is 100 MAD', insufficient: 'Insufficient balance', submitted: 'Withdrawal request submitted', submitFailed: 'Failed to submit withdrawal', loading: 'Loading wallet...', title: 'My Wallet', available: 'Available balance', withdraw: 'Withdraw', escrow: 'In escrow', escrowHint: 'Pending delivery confirmation', pending: 'Pending withdrawal', pendingHint: 'Being processed', earned: 'Total earned', earnedHint: 'Lifetime earnings', history: 'Transaction history', empty: 'No transactions yet', sale: 'Sale', withdrawal: 'Withdrawal', deposit: 'Deposit', other: 'Other', request: 'Request withdrawal', amount: 'Amount (MAD)', amountHint: 'Minimum 100 MAD', bank: 'Bank name', holder: 'Account holder name', account: 'Account number / IBAN', rib: 'RIB (optional)', cancel: 'Cancel', submit: 'Submit request', after: 'after {{days}} days' },
+    fr: { load: 'Impossible de charger les données du portefeuille', hold: 'Les retraits des nouveaux vendeurs sont disponibles {{date}}', minimum: 'Le retrait minimum est de 100 MAD', insufficient: 'Solde insuffisant', submitted: 'Demande de retrait envoyée', submitFailed: 'Impossible d’envoyer la demande de retrait', loading: 'Chargement du portefeuille...', title: 'Mon portefeuille', available: 'Solde disponible', withdraw: 'Retirer', escrow: 'Sous séquestre', escrowHint: 'En attente de confirmation de livraison', pending: 'Retrait en attente', pendingHint: 'En cours de traitement', earned: 'Total gagné', earnedHint: 'Revenus cumulés', history: 'Historique des transactions', empty: 'Aucune transaction pour le moment', sale: 'Vente', withdrawal: 'Retrait', deposit: 'Dépôt', other: 'Autre', request: 'Demander un retrait', amount: 'Montant (MAD)', amountHint: 'Minimum 100 MAD', bank: 'Nom de la banque', holder: 'Nom du titulaire du compte', account: 'Numéro de compte / IBAN', rib: 'RIB (facultatif)', cancel: 'Annuler', submit: 'Envoyer la demande', after: 'après {{days}} jours' },
+    ar: { load: 'تعذر تحميل بيانات المحفظة', hold: 'تتوفر سحوبات البائعين الجدد {{date}}', minimum: 'الحد الأدنى للسحب هو 100 درهم', insufficient: 'الرصيد غير كافٍ', submitted: 'تم إرسال طلب السحب', submitFailed: 'تعذر إرسال طلب السحب', loading: 'جارٍ تحميل المحفظة...', title: 'محفظتي', available: 'الرصيد المتاح', withdraw: 'اسحب', escrow: 'قيد الضمان', escrowHint: 'بانتظار تأكيد التوصيل', pending: 'سحب قيد الانتظار', pendingHint: 'جارٍ المعالجة', earned: 'إجمالي الأرباح', earnedHint: 'الأرباح مدى الحياة', history: 'سجل المعاملات', empty: 'لا توجد معاملات بعد', sale: 'بيع', withdrawal: 'سحب', deposit: 'إيداع', other: 'أخرى', request: 'اطلب سحبًا', amount: 'المبلغ (درهم)', amountHint: 'الحد الأدنى 100 درهم', bank: 'اسم البنك', holder: 'اسم صاحب الحساب', account: 'رقم الحساب / IBAN', rib: 'RIB (اختياري)', cancel: 'إلغاء', submit: 'إرسال الطلب', after: 'بعد {{days}} يومًا' },
+  }[language];
+  const text = (key, values = {}) => Object.entries(values).reduce((value, [name, replacement]) => value.replace(`{{${name}}}`, replacement), copy[key]);
   const [wallet, setWallet] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -25,7 +34,7 @@ const Wallet = () => {
         setWallet(walletRes.data.wallet);
         setTransactions(transRes.data.transactions || []);
       } catch {
-        if (isCurrent) toast.error('Failed to load wallet data');
+        if (isCurrent) toast.error(copy.load);
       } finally {
         if (isCurrent) setLoading(false);
       }
@@ -47,7 +56,7 @@ const Wallet = () => {
       setWallet(walletRes.data.wallet);
       setTransactions(transRes.data.transactions || []);
     } catch {
-      toast.error('Failed to load wallet data');
+      toast.error(copy.load);
     } finally {
       setLoading(false);
     }
@@ -56,17 +65,17 @@ const Wallet = () => {
   const handleWithdraw = async () => {
     if (wallet?.withdrawalEligibility?.eligible === false) {
       const availableAt = wallet.withdrawalEligibility.availableAt
-        ? new Date(wallet.withdrawalEligibility.availableAt).toLocaleDateString()
-        : `after ${wallet.withdrawalEligibility.holdDays} days`;
-      toast.error(`New seller withdrawals are available ${availableAt}`);
+        ? new Date(wallet.withdrawalEligibility.availableAt).toLocaleDateString(language === 'ar' ? 'ar-MA' : language === 'fr' ? 'fr-MA' : 'en-MA')
+        : text('after', { days: wallet.withdrawalEligibility.holdDays });
+      toast.error(text('hold', { date: availableAt }));
       return;
     }
     if (!withdrawAmount || withdrawAmount < 100) {
-      toast.error('Minimum withdrawal is 100 MAD');
+      toast.error(copy.minimum);
       return;
     }
     if (withdrawAmount > wallet?.available_balance) {
-      toast.error('Insufficient balance');
+      toast.error(copy.insufficient);
       return;
     }
 
@@ -80,72 +89,72 @@ const Wallet = () => {
         method: 'bank_transfer',
         bankDetails
       }, { headers: { 'Idempotency-Key': withdrawalRequestIdRef.current } });
-      toast.success('Withdrawal request submitted');
+      toast.success(copy.submitted);
       withdrawalRequestIdRef.current = null;
       setShowWithdrawModal(false);
       setWithdrawAmount('');
       fetchWalletData();
     } catch (error) {
-      toast.error(error.response?.data?.error || 'Failed to submit withdrawal');
+      toast.error(error.response?.data?.error || copy.submitFailed);
     }
   };
 
-  if (loading) return <div className="text-center py-16"><div className="spinner"></div><p>Loading wallet...</p></div>;
+  if (loading) return <div className="text-center py-16"><div className="spinner"></div><p>{copy.loading}</p></div>;
 
   const withdrawalEligibility = wallet?.withdrawalEligibility;
   const withdrawalAvailableAt = withdrawalEligibility?.availableAt
-    ? new Date(withdrawalEligibility.availableAt).toLocaleDateString()
+    ? new Date(withdrawalEligibility.availableAt).toLocaleDateString(language === 'ar' ? 'ar-MA' : language === 'fr' ? 'fr-MA' : 'en-MA')
     : null;
   const withdrawalsOnHold = withdrawalEligibility?.eligible === false;
 
   return (
     <div className="wallet-page">
-      <h2>My Wallet</h2>
+      <h2>{copy.title}</h2>
       
       <div className="wallet-stats">
         <div className="stat-card">
-          <div className="stat-label">Available Balance</div>
+          <div className="stat-label">{copy.available}</div>
           <div className="stat-value">{Number(wallet?.available_balance || 0).toLocaleString()} MAD</div>
           <button onClick={() => setShowWithdrawModal(true)} className="withdraw-btn" disabled={wallet?.available_balance < 100 || withdrawalsOnHold}>
-            Withdraw
+            {copy.withdraw}
           </button>
           {withdrawalsOnHold && (
             <p className="withdrawal-hold-message">
-              New seller withdrawals are available {withdrawalAvailableAt || `after ${withdrawalEligibility.holdDays} days`}.
+              {text('hold', { date: withdrawalAvailableAt || text('after', { days: withdrawalEligibility.holdDays }) })}.
             </p>
           )}
         </div>
         <div className="stat-card">
-          <div className="stat-label">In Escrow</div>
+          <div className="stat-label">{copy.escrow}</div>
           <div className="stat-value">{Number(wallet?.escrow_balance || 0).toLocaleString()} MAD</div>
-          <div className="stat-change">Pending delivery confirmation</div>
+          <div className="stat-change">{copy.escrowHint}</div>
         </div>
         <div className="stat-card">
-          <div className="stat-label">Pending Withdrawal</div>
+          <div className="stat-label">{copy.pending}</div>
           <div className="stat-value">{Number(wallet?.pending_withdrawal || 0).toLocaleString()} MAD</div>
-          <div className="stat-change">Being processed</div>
+          <div className="stat-change">{copy.pendingHint}</div>
         </div>
         <div className="stat-card">
-          <div className="stat-label">Total Earned</div>
+          <div className="stat-label">{copy.earned}</div>
           <div className="stat-value">{Number(wallet?.total_earned || 0).toLocaleString()} MAD</div>
-          <div className="stat-change">Lifetime earnings</div>
+          <div className="stat-change">{copy.earnedHint}</div>
         </div>
       </div>
 
       <div className="transactions-card">
-        <h3>Transaction History</h3>
+        <h3>{copy.history}</h3>
         {transactions.length === 0 ? (
-          <p className="empty-text">No transactions yet</p>
+          <p className="empty-text">{copy.empty}</p>
         ) : (
           <div className="transactions-list">
             {transactions.map(tx => (
               <div key={tx.id} className="transaction-item">
                 <div className="transaction-info">
                   <div className="transaction-type">
-                    {tx.type === 'sale' ? '💰 Sale' : tx.type === 'withdrawal' ? '🏦 Withdrawal' : tx.type === 'deposit' ? '💳 Deposit' : '🔄 Other'}
+                    {tx.type === 'sale' ? `💰 ${copy.sale}` : tx.type === 'withdrawal' ? `🏦 ${copy.withdrawal}` : tx.type === 'deposit' ? `💳 ${copy.deposit}` : `🔄 ${copy.other}`}
                   </div>
                   <div className="transaction-desc">{tx.description}</div>
-                  <div className="transaction-date">{new Date(tx.created_at).toLocaleDateString()}</div>
+                  <div className="transaction-date">{new Date(tx.created_at).toLocaleDateString(language === 'ar' ? 'ar-MA' : language === 'fr' ? 'fr-MA' : 'en-MA')}</div>
                 </div>
                 <div className={`transaction-amount ${tx.amount > 0 ? 'positive' : 'negative'}`}>
                   {tx.amount > 0 ? '+' : ''}{tx.amount} MAD
@@ -160,30 +169,30 @@ const Wallet = () => {
       {showWithdrawModal && (
         <div className="modal-overlay" onClick={() => setShowWithdrawModal(false)}>
           <div className="modal-container" onClick={e => e.stopPropagation()}>
-            <h3>Request Withdrawal</h3>
+            <h3>{copy.request}</h3>
             <div className="form-group">
-              <label>Amount (MAD)</label>
-              <input type="number" value={withdrawAmount} onChange={e => setWithdrawAmount(e.target.value)} className="form-input" placeholder="Minimum 100 MAD" />
+              <label>{copy.amount}</label>
+              <input type="number" value={withdrawAmount} onChange={e => setWithdrawAmount(e.target.value)} className="form-input" placeholder={copy.amountHint} />
             </div>
             <div className="form-group">
-              <label>Bank Name</label>
+              <label>{copy.bank}</label>
               <input type="text" value={bankDetails.bank} onChange={e => setBankDetails({ ...bankDetails, bank: e.target.value })} className="form-input" />
             </div>
             <div className="form-group">
-              <label>Account Holder Name</label>
+              <label>{copy.holder}</label>
               <input type="text" value={bankDetails.account_name} onChange={e => setBankDetails({ ...bankDetails, account_name: e.target.value })} className="form-input" />
             </div>
             <div className="form-group">
-              <label>Account Number / IBAN</label>
+              <label>{copy.account}</label>
               <input type="text" value={bankDetails.account_number} onChange={e => setBankDetails({ ...bankDetails, account_number: e.target.value })} className="form-input" />
             </div>
             <div className="form-group">
-              <label>RIB (Optional)</label>
+              <label>{copy.rib}</label>
               <input type="text" value={bankDetails.rib} onChange={e => setBankDetails({ ...bankDetails, rib: e.target.value })} className="form-input" />
             </div>
             <div className="modal-actions">
-              <button onClick={() => setShowWithdrawModal(false)} className="btn-cancel">Cancel</button>
-              <button onClick={handleWithdraw} className="btn-confirm">Submit Request</button>
+              <button onClick={() => setShowWithdrawModal(false)} className="btn-cancel">{copy.cancel}</button>
+              <button onClick={handleWithdraw} className="btn-confirm">{copy.submit}</button>
             </div>
           </div>
         </div>
