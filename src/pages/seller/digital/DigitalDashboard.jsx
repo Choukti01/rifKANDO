@@ -139,7 +139,7 @@ const DigitalDashboard = () => {
           <div className="stats-grid">
             <div className="stat-card"><div className="stat-label">Total Products</div><div className="stat-value">{stats.totalProducts}</div><div className="stat-change">{stats.totalProducts > 0 ? '+ recently' : 'Add your first product'}</div></div>
             <div className="stat-card"><div className="stat-label">Total Downloads</div><div className="stat-value">{stats.totalDownloads}</div><div className="stat-change">Customer downloads</div></div>
-            <div className="stat-card"><div className="stat-label">Access Granted Value</div><div className="stat-value">{stats.totalRevenue.toLocaleString()} MAD</div><div className="stat-change">Based on granted digital access</div></div>
+            <div className="stat-card"><div className="stat-label">Access Granted Value</div><div className="stat-value">{Number(stats.totalRevenue || 0).toLocaleString()} MAD</div><div className="stat-change">Based on granted digital access</div></div>
             <div className="stat-card"><div className="stat-label">Average Rating</div><div className="stat-value">{stats.avgRating} ★</div><div className="stat-change">Customer satisfaction</div></div>
           </div>
 

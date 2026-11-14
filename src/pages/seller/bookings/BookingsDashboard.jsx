@@ -142,7 +142,7 @@ const BookingsDashboard = () => {
       <div className="stats-grid">
         <div className="stat-card"><div className="stat-label">Total Services</div><div className="stat-value">{stats.totalBookings}</div><div className="stat-change">Active listings</div></div>
         <div className="stat-card"><div className="stat-label">Total Appointments</div><div className="stat-value">{stats.totalAppointments}</div><div className="stat-change">Booked appointments</div></div>
-        <div className="stat-card"><div className="stat-label">Total Revenue</div><div className="stat-value">{stats.totalRevenue.toLocaleString()} MAD</div><div className="stat-change">From bookings</div></div>
+        <div className="stat-card"><div className="stat-label">Total Revenue</div><div className="stat-value">{Number(stats.totalRevenue || 0).toLocaleString()} MAD</div><div className="stat-change">From bookings</div></div>
         <div className="stat-card"><div className="stat-label">Average Rating</div><div className="stat-value">{stats.avgRating} ★</div><div className="stat-change">Client satisfaction</div></div>
       </div>
 

@@ -44,4 +44,19 @@ describe('rifKANDO localization startup integrity', () => {
     expect(findMissingLeaves(resources.en.translation.findit, resources.fr.translation.findit)).toEqual([]);
     expect(findMissingLeaves(resources.en.translation.findit, resources.ar.translation.findit)).toEqual([]);
   });
+
+  it('keeps account, seller workspace, and internal operation navigation translated', () => {
+    const requiredAreas = ['auth', 'sellerDashboard', 'operations'];
+
+    for (const locale of ['fr', 'ar']) {
+      for (const area of requiredAreas) {
+        expect(resources[locale].translation[area]).toBeTruthy();
+        expect(Object.keys(resources[locale].translation[area]).length).toBeGreaterThan(0);
+      }
+    }
+
+    expect(resources.fr.translation.auth.signIn).toBe('Se connecter');
+    expect(resources.fr.translation.sellerDashboard.orders).toBe('Commandes');
+    expect(resources.ar.translation.operations.codDesk).toContain('الدفع عند الاستلام');
+  });
 });

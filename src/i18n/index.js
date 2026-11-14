@@ -641,6 +641,7 @@ Object.assign(resources.ar.translation.auth, {
 
 resources.fr.translation.auth ||= {};
 Object.assign(resources.fr.translation.auth, {
+  account: 'Compte rifKANDO', enterCode: 'Saisissez votre code SMS', welcomeBack: 'Bon retour', codeSent: 'Utilisez le code à six chiffres envoyé à votre téléphone.', signInLead: 'Connectez-vous en toute sécurité avec votre numéro de téléphone ou votre compte Google.', smsCode: 'Code SMS', signIn: 'Se connecter', signingIn: 'Connexion…', newCode: 'Envoyer un nouveau code', differentPhone: 'Utiliser un autre numéro', mobile: 'Numéro de téléphone', phoneHint: 'Utilisez votre indicatif pays. Les numéros marocains peuvent aussi commencer par 0.', sendingSms: 'Envoi du SMS…', continuePhone: 'Continuer avec le téléphone', or: 'ou', newTo: 'Nouveau sur rifKANDO ?', create: 'Créer un compte', confirmPhone: 'Confirmez votre téléphone', join: 'Rejoignez rifKANDO', codeRegistration: 'Saisissez le code à six chiffres envoyé par SMS.', createLead: 'Créez votre compte avec votre numéro de téléphone ou votre compte Google.', confirming: 'Confirmation…', confirmCreate: 'Confirmer et créer le compte', changePhone: 'Changer de numéro', fullName: 'Nom complet', alreadyHave: 'Vous avez déjà un compte ?', googleSignInFailed: 'La connexion Google a été annulée ou a échoué.', googleSignUpFailed: 'L’inscription Google a été annulée ou a échoué.',
   email: 'Adresse e-mail',
   googleOnlyLead: 'Connectez-vous en toute sécurité avec votre compte Google.',
   googleOnlyCreateLead: 'Créez votre compte rifKANDO en toute sécurité avec Google.',
@@ -918,10 +919,24 @@ Object.assign(resources.ar.translation, {
 
 Object.assign(resources.en.translation.sellerDashboard, { disputes: 'Disputes' });
 Object.assign(resources.fr.translation, {
-  sellerDashboard: { ...(resources.fr.translation.sellerDashboard || {}), disputes: 'Litiges', workspace: 'Espace vendeur', operations: 'Opérations', account: 'Compte' },
+  sellerDashboard: {
+    ...(resources.fr.translation.sellerDashboard || {}),
+    title: 'Tableau de bord vendeur', overview: 'Vue d’ensemble', products: 'Produits', courses: 'Cours', services: 'Services', digital: 'Produits numériques', orders: 'Commandes', findit: 'Trouvez-le', offers: 'Offres', messages: 'Messages', wallet: 'Portefeuille', settings: 'Paramètres', buying: 'Achats', savedItems: 'Éléments enregistrés', cart: 'Panier', exit: 'Quitter le tableau de bord', seller: 'Vendeur', productSeller: 'Vendeur de produits', courseInstructor: 'Formateur', serviceProvider: 'Prestataire de services', digitalCreator: 'Créateur numérique', collapse: 'Réduire le menu latéral', expand: 'Développer le menu latéral', close: 'Fermer le menu du tableau de bord', open: 'Ouvrir le menu du tableau de bord',
+    disputes: 'Litiges', workspace: 'Espace vendeur', operations: 'Opérations', account: 'Compte',
+  },
 });
 Object.assign(resources.en.translation.sellerDashboard, { workspace: 'Workspace', operations: 'Operations', account: 'Account' });
 Object.assign(resources.ar.translation.sellerDashboard, { disputes: 'النزاعات', workspace: 'مساحة البائع', operations: 'العمليات', account: 'الحساب' });
+
+Object.assign(resources.en.translation, {
+  operations: { codDesk: 'COD Operations Desk', codReconciliation: 'COD Reconciliation', serviceReconciliation: 'Services Reconciliation', courseReconciliation: 'Courses Reconciliation', errorTracking: 'rifKANDO Error Tracking' },
+});
+Object.assign(resources.fr.translation, {
+  operations: { codDesk: 'Centre des opérations COD', codReconciliation: 'Rapprochement COD', serviceReconciliation: 'Rapprochement des services', courseReconciliation: 'Rapprochement des cours', errorTracking: 'Suivi des erreurs rifKANDO' },
+});
+Object.assign(resources.ar.translation, {
+  operations: { codDesk: 'مكتب عمليات الدفع عند الاستلام', codReconciliation: 'تسوية الدفع عند الاستلام', serviceReconciliation: 'تسوية الخدمات', courseReconciliation: 'تسوية الدورات', errorTracking: 'متابعة أخطاء rifKANDO' },
+});
 
 Object.assign(resources.en.translation.codOps, { disputes: 'Delivery disputes' });
 Object.assign(resources.fr.translation.codOps, { disputes: 'Litiges de livraison' });

@@ -96,9 +96,9 @@ const Overview = () => {
   ];
 
   const overviewStats = [
-    { label: t('sellerOverview.orderValue'), value: `${stats.totalOrderValue.toLocaleString(i18n.language)} MAD`, icon: CurrencyDollarIcon, color: '#0877bf' },
+    { label: t('sellerOverview.orderValue'), value: `${Number(stats.totalOrderValue || 0).toLocaleString(i18n.language)} MAD`, icon: CurrencyDollarIcon, color: '#0877bf' },
     { label: t('sellerOverview.orders'), value: stats.totalOrders, icon: ShoppingBagIcon, color: '#0877bf' },
-    { label: t('sellerOverview.views'), value: stats.totalViews.toLocaleString(i18n.language), icon: EyeIcon, color: '#0877bf' },
+    { label: t('sellerOverview.views'), value: Number(stats.totalViews || 0).toLocaleString(i18n.language), icon: EyeIcon, color: '#0877bf' },
   ];
   const totalListings = stats.totalProducts;
   const firstListingPath = '/seller/dashboard/products/add';

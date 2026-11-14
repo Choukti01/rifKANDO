@@ -129,7 +129,7 @@ const ProductsDashboard = () => {
         </div>
         <div className="stat-card">
           <div className="stat-label">{t('sellerProducts.stats.value')}</div>
-          <div className="stat-value">{stats.totalValue.toLocaleString(i18n.language)} MAD</div>
+          <div className="stat-value">{Number(stats.totalValue || 0).toLocaleString(i18n.language)} MAD</div>
           <div className="stat-change">{t('sellerProducts.stats.stockValue')}</div>
         </div>
         <div className="stat-card">

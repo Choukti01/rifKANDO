@@ -126,7 +126,7 @@ const CoursesDashboard = () => {
       <div className="stats-grid">
         <div className="stat-card"><div className="stat-label">Total Courses</div><div className="stat-value">{stats.totalCourses}</div><div className="stat-change">{stats.totalCourses > 0 ? '+ recently' : 'Add your first course'}</div></div>
         <div className="stat-card"><div className="stat-label">Total Students</div><div className="stat-value">{stats.totalStudents}</div><div className="stat-change">Enrolled learners</div></div>
-        <div className="stat-card"><div className="stat-label">Total Revenue</div><div className="stat-value">{stats.totalRevenue.toLocaleString()} MAD</div><div className="stat-change">From course sales</div></div>
+        <div className="stat-card"><div className="stat-label">Total Revenue</div><div className="stat-value">{Number(stats.totalRevenue || 0).toLocaleString()} MAD</div><div className="stat-change">From course sales</div></div>
         <div className="stat-card"><div className="stat-label">Average Rating</div><div className="stat-value">{stats.avgRating} ★</div><div className="stat-change">Student satisfaction</div></div>
       </div>
 

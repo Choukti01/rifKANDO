@@ -105,7 +105,7 @@ const Wallet = () => {
       <div className="wallet-stats">
         <div className="stat-card">
           <div className="stat-label">Available Balance</div>
-          <div className="stat-value">{wallet?.available_balance?.toLocaleString()} MAD</div>
+          <div className="stat-value">{Number(wallet?.available_balance || 0).toLocaleString()} MAD</div>
           <button onClick={() => setShowWithdrawModal(true)} className="withdraw-btn" disabled={wallet?.available_balance < 100 || withdrawalsOnHold}>
             Withdraw
           </button>
@@ -117,17 +117,17 @@ const Wallet = () => {
         </div>
         <div className="stat-card">
           <div className="stat-label">In Escrow</div>
-          <div className="stat-value">{wallet?.escrow_balance?.toLocaleString()} MAD</div>
+          <div className="stat-value">{Number(wallet?.escrow_balance || 0).toLocaleString()} MAD</div>
           <div className="stat-change">Pending delivery confirmation</div>
         </div>
         <div className="stat-card">
           <div className="stat-label">Pending Withdrawal</div>
-          <div className="stat-value">{wallet?.pending_withdrawal?.toLocaleString()} MAD</div>
+          <div className="stat-value">{Number(wallet?.pending_withdrawal || 0).toLocaleString()} MAD</div>
           <div className="stat-change">Being processed</div>
         </div>
         <div className="stat-card">
           <div className="stat-label">Total Earned</div>
-          <div className="stat-value">{wallet?.total_earned?.toLocaleString()} MAD</div>
+          <div className="stat-value">{Number(wallet?.total_earned || 0).toLocaleString()} MAD</div>
           <div className="stat-change">Lifetime earnings</div>
         </div>
       </div>
