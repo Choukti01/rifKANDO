@@ -1,0 +1,47 @@
+name: Verify production deployment
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rifkando-production-verification-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Storefront, API, database and storage
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.16.0
+
+      # Cloudflare and Railway deploy independently after a push. Retrying
+      # gives both providers time to finish while still making a failed public
+      # deployment visible on the exact commit that caused it.
+      - name: Verify public production readiness
+        working-directory: rifKANDI-backend
+        env:
+          API_BASE_URL: https://api.rifkando.com
+          STOREFRONT_URL: https://www.rifkando.com
+          STOREFRONT_ORIGIN: https://www.rifkando.com
+        run: |
+          for attempt in 1 2 3 4 5 6 7 8 9 10; do
+            if node scripts/productionReadinessCheck.js; then
+              exit 0
+            fi
+            if [ "$attempt" = "10" ]; then
+              echo "Production readiness did not pass after deployment propagation."
+              exit 1
+            fi
+            echo "Readiness not available yet; retrying in 60 seconds (attempt $attempt/10)."
+            sleep 60
+          done
