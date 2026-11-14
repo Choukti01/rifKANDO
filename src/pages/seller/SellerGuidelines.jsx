@@ -1,5 +1,6 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   ArrowRightIcon,
   CheckIcon,
@@ -19,40 +20,53 @@ const feeCategories = [
 ]
 
 const SellerGuidelines = () => {
+  const { i18n } = useTranslation()
+  const language = i18n.resolvedLanguage === 'ar' ? 'ar' : i18n.resolvedLanguage === 'fr' ? 'fr' : 'en'
+  const translated = {
+    fr: {
+      'Seller guide': 'Guide du vendeur', 'Build a seller experience customers can trust.': 'Créez une expérience vendeur digne de confiance.', 'A clear guide to setting up, publishing quality listings, managing customer expectations, and understanding how rifKANDO seller fees work.': 'Un guide clair pour vous installer, publier des annonces de qualité, gérer les attentes des clients et comprendre le fonctionnement des frais vendeur rifKANDO.', 'Become a seller': 'Devenir vendeur', 'View fees and pricing': 'Voir les frais et tarifs', 'Seller journey': 'Parcours vendeur', 'Choose your workspace': 'Choisissez votre espace', 'Complete your profile': 'Complétez votre profil', 'Publish with confidence': 'Publiez en toute confiance', 'Seller guide navigation': 'Navigation du guide vendeur', 'In this guide': 'Dans ce guide', 'Getting started': 'Bien démarrer', 'Listing standards': 'Règles des annonces', 'Fees and wallet': 'Frais et portefeuille', 'Customer care': 'Service client', 'Marketplace conduct': 'Règles de la place de marché', 'Set a strong foundation before your first listing goes live.': 'Posez de bonnes bases avant de publier votre première annonce.', 'Create your account': 'Créez votre compte', 'Use accurate, current account and contact details before you start selling.': 'Utilisez des informations de compte et de contact exactes et à jour avant de commencer à vendre.', 'Choose your seller workspace': 'Choisissez votre espace vendeur', 'Select Products, Courses, Services, or Food Market to open the tools that match your business. FINDit is available to every seller who can solve buyer requests.': 'Sélectionnez Produits, Cours, Services ou Marché alimentaire pour ouvrir les outils adaptés à votre activité. Trouvez-le est disponible pour chaque vendeur capable de répondre aux demandes des acheteurs.', 'Keep your profile current': 'Gardez votre profil à jour', 'Make sure your name, business details, and customer-facing information remain accurate.': 'Veillez à ce que votre nom, vos informations professionnelles et vos informations destinées aux clients restent exacts.', 'Strong listings make it easier for customers to make an informed decision.': 'Des annonces solides permettent aux clients de prendre une décision éclairée.', 'Use clear, accurate titles, descriptions, prices, and specifications.': 'Utilisez des titres, descriptions, prix et spécifications clairs et exacts.', 'Use original, high-quality images or media that honestly represent the offer.': 'Utilisez des images ou médias originaux et de qualité qui représentent honnêtement votre offre.', 'Set realistic availability, delivery, lesson, service, or FINDit fulfillment expectations.': 'Indiquez une disponibilité et des attentes réalistes de livraison, cours, service ou réalisation Trouvez-le.', 'Only publish content you are allowed to sell, distribute, or use commercially.': 'Ne publiez que du contenu que vous êtes autorisé à vendre, distribuer ou utiliser commercialement.', 'Fees and settlement': 'Frais et règlement', 'rifKANDO applies a 5% marketplace commission to the applicable completed sale. Delivery fees are separate and never form part of the rifKANDO commission.': 'rifKANDO applique une commission de 5 % à la vente finalisée concernée. Les frais de livraison sont distincts et ne font jamais partie de la commission rifKANDO.', 'For COD orders, confirm the order and prepare the parcel for the delivery coordination shown in your order workspace. rifKANDO’s operations team records the handoff, delivery outcome, delivery fee, and settlement steps. Pay the 5% commission using the reference in your workspace within three days after delivery is confirmed. Unpaid overdue commission can pause new sales until finance verifies payment.': 'Pour les commandes COD, confirmez la commande et préparez le colis selon les informations de coordination affichées dans votre espace commandes. L’équipe opérations rifKANDO enregistre la remise, le résultat de livraison, les frais de livraison et les étapes de règlement. Payez la commission de 5 % avec la référence de votre espace dans les trois jours suivant la confirmation de livraison. Une commission échue non réglée peut suspendre les nouvelles ventes jusqu’à vérification par la finance.', 'Customer care and fulfillment': 'Service client et exécution', 'Reliability builds trust, repeat business, and a healthier marketplace.': 'La fiabilité crée la confiance, la fidélité et une place de marché plus saine.', Do: 'À faire', Avoid: 'À éviter', 'Meet the delivery or service timeframe you communicate.': 'Respectez le délai de livraison ou de service annoncé.', 'Respond to customer questions promptly and professionally.': 'Répondez aux questions des clients rapidement et avec professionnalisme.', 'Keep customers informed when an order or FINDit request changes.': 'Tenez les clients informés lorsqu’une commande ou une demande Trouvez-le change.', 'Misleading product details, hidden conditions, or unavailable inventory.': 'Des détails trompeurs, des conditions cachées ou un stock indisponible.', 'Requesting payments outside rifKANDO for marketplace activity.': 'Demander des paiements hors de rifKANDO pour une activité de la place de marché.', 'Using customer information for purposes unrelated to the transaction.': 'Utiliser les informations client à des fins non liées à la transaction.', 'rifKANDO does not allow illegal, counterfeit, harmful, discriminatory, adult, or copyright-infringing content and products.': 'rifKANDO n’autorise pas les contenus ou produits illégaux, contrefaits, dangereux, discriminatoires, réservés aux adultes ou portant atteinte aux droits d’auteur.', 'Listings or accounts that breach these standards may be reviewed, removed, restricted, or suspended. Serious or repeated violations can lead to account termination, subject to the Terms of Service and applicable law.': 'Les annonces ou comptes qui enfreignent ces règles peuvent être examinés, retirés, limités ou suspendus. Les violations graves ou répétées peuvent entraîner la fermeture du compte, conformément aux Conditions d’utilisation et à la loi applicable.', 'Need help setting up?': 'Besoin d’aide pour démarrer ?', 'Our support team can help you choose the right seller workspace or understand your seller tools.': 'Notre équipe peut vous aider à choisir le bon espace vendeur ou à comprendre vos outils.', 'Contact support': 'Contacter l’assistance',
+    },
+    ar: {
+      'Seller guide': 'دليل البائع', 'Build a seller experience customers can trust.': 'أنشئ تجربة بيع يثق بها العملاء.', 'A clear guide to setting up, publishing quality listings, managing customer expectations, and understanding how rifKANDO seller fees work.': 'دليل واضح لإعداد حسابك ونشر إعلانات جيدة وإدارة توقعات العملاء وفهم رسوم البائع في rifKANDO.', 'Become a seller': 'كن بائعًا', 'View fees and pricing': 'اطلع على الرسوم والأسعار', 'Seller journey': 'رحلة البائع', 'Choose your workspace': 'اختر مساحة عملك', 'Complete your profile': 'أكمل ملفك الشخصي', 'Publish with confidence': 'انشر بثقة', 'Seller guide navigation': 'تنقل دليل البائع', 'In this guide': 'في هذا الدليل', 'Getting started': 'البداية', 'Listing standards': 'معايير الإعلان', 'Fees and wallet': 'الرسوم والمحفظة', 'Customer care': 'رعاية العملاء', 'Marketplace conduct': 'سلوك المنصة', 'Set a strong foundation before your first listing goes live.': 'ضع أساسًا قويًا قبل نشر إعلانك الأول.', 'Create your account': 'أنشئ حسابك', 'Use accurate, current account and contact details before you start selling.': 'استخدم بيانات حساب وتواصل دقيقة وحديثة قبل بدء البيع.', 'Choose your seller workspace': 'اختر مساحة البائع', 'Select Products, Courses, Services, or Food Market to open the tools that match your business. FINDit is available to every seller who can solve buyer requests.': 'اختر المنتجات أو الدورات أو الخدمات أو سوق المأكولات لفتح الأدوات المناسبة لنشاطك. جدها متاحة لكل بائع يمكنه حل طلبات المشترين.', 'Keep your profile current': 'حافظ على تحديث ملفك', 'Make sure your name, business details, and customer-facing information remain accurate.': 'تأكد من بقاء اسمك وتفاصيل عملك ومعلوماتك الظاهرة للعملاء دقيقة.', 'Strong listings make it easier for customers to make an informed decision.': 'تساعد الإعلانات القوية العملاء على اتخاذ قرار واعٍ.', 'Use clear, accurate titles, descriptions, prices, and specifications.': 'استخدم عناوين وأوصافًا وأسعارًا ومواصفات واضحة ودقيقة.', 'Use original, high-quality images or media that honestly represent the offer.': 'استخدم صورًا أو وسائط أصلية وعالية الجودة تمثل العرض بصدق.', 'Set realistic availability, delivery, lesson, service, or FINDit fulfillment expectations.': 'حدّد توقعات واقعية للتوفر والتوصيل والدروس والخدمات أو تنفيذ طلبات جدها.', 'Only publish content you are allowed to sell, distribute, or use commercially.': 'انشر فقط محتوى مسموحًا لك ببيعه أو توزيعه أو استخدامه تجاريًا.', 'Fees and settlement': 'الرسوم والتسوية', 'rifKANDO applies a 5% marketplace commission to the applicable completed sale. Delivery fees are separate and never form part of the rifKANDO commission.': 'تطبق rifKANDO عمولة سوق بنسبة 5% على البيع المكتمل المعني. رسوم التوصيل منفصلة ولا تدخل أبدًا ضمن عمولة rifKANDO.', 'Customer care and fulfillment': 'رعاية العملاء والتنفيذ', 'Reliability builds trust, repeat business, and a healthier marketplace.': 'الموثوقية تبني الثقة وتكرار التعامل وسوقًا أكثر صحة.', Do: 'افعل', Avoid: 'تجنب', 'Meet the delivery or service timeframe you communicate.': 'التزم بموعد التوصيل أو الخدمة الذي تعلنه.', 'Respond to customer questions promptly and professionally.': 'أجب عن أسئلة العملاء بسرعة واحترافية.', 'Keep customers informed when an order or FINDit request changes.': 'أبق العملاء على اطلاع عند تغيّر طلب أو طلب جدها.', 'Misleading product details, hidden conditions, or unavailable inventory.': 'تفاصيل مضللة أو شروط مخفية أو مخزون غير متاح.', 'Requesting payments outside rifKANDO for marketplace activity.': 'طلب مدفوعات خارج rifKANDO لنشاط في المنصة.', 'Using customer information for purposes unrelated to the transaction.': 'استخدام معلومات العملاء لأغراض لا تتعلق بالمعاملة.', 'rifKANDO does not allow illegal, counterfeit, harmful, discriminatory, adult, or copyright-infringing content and products.': 'لا تسمح rifKANDO بالمحتوى أو المنتجات غير القانونية أو المقلدة أو الضارة أو التمييزية أو المخصصة للبالغين أو المخالفة لحقوق النشر.', 'Listings or accounts that breach these standards may be reviewed, removed, restricted, or suspended. Serious or repeated violations can lead to account termination, subject to the Terms of Service and applicable law.': 'قد تتم مراجعة الإعلانات أو الحسابات التي تخالف هذه المعايير أو إزالتها أو تقييدها أو تعليقها. يمكن أن تؤدي المخالفات الخطيرة أو المتكررة إلى إنهاء الحساب وفقًا لشروط الخدمة والقانون المعمول به.', 'Need help setting up?': 'هل تحتاج مساعدة في الإعداد؟', 'Our support team can help you choose the right seller workspace or understand your seller tools.': 'يمكن لفريق الدعم مساعدتك في اختيار مساحة البائع المناسبة أو فهم أدواتك.', 'Contact support': 'تواصل مع الدعم',
+    },
+  }[language] || {}
+  if (language === 'ar') translated['For COD orders, confirm the order and prepare the parcel for the delivery coordination shown in your order workspace. rifKANDO’s operations team records the handoff, delivery outcome, delivery fee, and settlement steps. Pay the 5% commission using the reference in your workspace within three days after delivery is confirmed. Unpaid overdue commission can pause new sales until finance verifies payment.'] = 'بالنسبة لطلبات الدفع عند الاستلام، أكّد الطلب وجهّز الطرد وفق تنسيق التوصيل الظاهر في مساحة الطلبات. يسجل فريق عمليات rifKANDO تسليم الطرد ونتيجة التوصيل ورسم التوصيل وخطوات التسوية. ادفع عمولة 5% باستخدام المرجع الموجود في مساحة عملك خلال ثلاثة أيام من تأكيد التوصيل. قد يؤدي تأخر العمولة غير المدفوعة إلى إيقاف المبيعات الجديدة حتى تتحقق الإدارة المالية من الدفع.'
+  const localize = (english) => translated[english] || english
+  const localizedFeeCategories = feeCategories.map((category) => ({ ...category, label: localize(category.label) }))
   return (
     <main className="seller-guide-page">
       <section className="seller-guide-hero">
         <div className="container seller-guide-hero-grid">
           <div>
-            <p className="seller-guide-eyebrow"><ShieldCheckIcon aria-hidden="true" /> Seller guide</p>
-            <h1>Build a seller experience customers can trust.</h1>
+            <p className="seller-guide-eyebrow"><ShieldCheckIcon aria-hidden="true" /> {localize('Seller guide')}</p>
+            <h1>{localize('Build a seller experience customers can trust.')}</h1>
             <p className="seller-guide-intro">
-              A clear guide to setting up, publishing quality listings, managing customer expectations, and understanding how rifKANDO seller fees work.
+              {localize('A clear guide to setting up, publishing quality listings, managing customer expectations, and understanding how rifKANDO seller fees work.')}
             </p>
             <div className="seller-guide-actions">
-              <Link to="/choose-seller-type" className="seller-guide-primary-action">Become a seller <ArrowRightIcon aria-hidden="true" /></Link>
-              <Link to="/pricing" className="seller-guide-secondary-action">View fees and pricing</Link>
+              <Link to="/choose-seller-type" className="seller-guide-primary-action">{localize('Become a seller')} <ArrowRightIcon aria-hidden="true" /></Link>
+              <Link to="/pricing" className="seller-guide-secondary-action">{localize('View fees and pricing')}</Link>
             </div>
           </div>
           <div className="seller-guide-hero-card">
-            <span>Seller journey</span>
+            <span>{localize('Seller journey')}</span>
             <ol>
-              <li><strong>1</strong> Choose your workspace</li>
-              <li><strong>2</strong> Complete your profile</li>
-              <li><strong>3</strong> Publish with confidence</li>
+              <li><strong>1</strong> {localize('Choose your workspace')}</li>
+              <li><strong>2</strong> {localize('Complete your profile')}</li>
+              <li><strong>3</strong> {localize('Publish with confidence')}</li>
             </ol>
           </div>
         </div>
       </section>
 
       <div className="container seller-guide-layout">
-        <aside className="seller-guide-nav" aria-label="Seller guide navigation">
-          <p>In this guide</p>
-          <a href="#start">Getting started</a>
-          <a href="#listings">Listing standards</a>
-          <a href="#fees">Fees and wallet</a>
-          <a href="#fulfillment">Customer care</a>
-          <a href="#conduct">Marketplace conduct</a>
+        <aside className="seller-guide-nav" aria-label={localize('Seller guide navigation')}>
+          <p>{localize('In this guide')}</p>
+          <a href="#start">{localize('Getting started')}</a>
+          <a href="#listings">{localize('Listing standards')}</a>
+          <a href="#fees">{localize('Fees and wallet')}</a>
+          <a href="#fulfillment">{localize('Customer care')}</a>
+          <a href="#conduct">{localize('Marketplace conduct')}</a>
         </aside>
 
         <div className="seller-guide-content">
@@ -60,14 +74,14 @@ const SellerGuidelines = () => {
             <div className="seller-guide-section-heading">
               <span>01</span>
               <div>
-                <h2>Getting started</h2>
-                <p>Set a strong foundation before your first listing goes live.</p>
+                <h2>{localize('Getting started')}</h2>
+                <p>{localize('Set a strong foundation before your first listing goes live.')}</p>
               </div>
             </div>
             <div className="seller-guide-steps">
-              <article><UserPlusIcon aria-hidden="true" /><h3>Create your account</h3><p>Use accurate, current account and contact details before you start selling.</p></article>
-              <article><DocumentCheckIcon aria-hidden="true" /><h3>Choose your seller workspace</h3><p>Select Products, Courses, Services, or Food Market to open the tools that match your business. FINDit is available to every seller who can solve buyer requests.</p></article>
-              <article><ShieldCheckIcon aria-hidden="true" /><h3>Keep your profile current</h3><p>Make sure your name, business details, and customer-facing information remain accurate.</p></article>
+              <article><UserPlusIcon aria-hidden="true" /><h3>{localize('Create your account')}</h3><p>{localize('Use accurate, current account and contact details before you start selling.')}</p></article>
+              <article><DocumentCheckIcon aria-hidden="true" /><h3>{localize('Choose your seller workspace')}</h3><p>{localize('Select Products, Courses, Services, or Food Market to open the tools that match your business. FINDit is available to every seller who can solve buyer requests.')}</p></article>
+              <article><ShieldCheckIcon aria-hidden="true" /><h3>{localize('Keep your profile current')}</h3><p>{localize('Make sure your name, business details, and customer-facing information remain accurate.')}</p></article>
             </div>
           </section>
 
@@ -75,15 +89,15 @@ const SellerGuidelines = () => {
             <div className="seller-guide-section-heading">
               <span>02</span>
               <div>
-                <h2>Listing standards</h2>
-                <p>Strong listings make it easier for customers to make an informed decision.</p>
+                <h2>{localize('Listing standards')}</h2>
+                <p>{localize('Strong listings make it easier for customers to make an informed decision.')}</p>
               </div>
             </div>
             <div className="seller-guide-checklist">
-              <div><CheckIcon aria-hidden="true" /><span>Use clear, accurate titles, descriptions, prices, and specifications.</span></div>
-              <div><CheckIcon aria-hidden="true" /><span>Use original, high-quality images or media that honestly represent the offer.</span></div>
-              <div><CheckIcon aria-hidden="true" /><span>Set realistic availability, delivery, lesson, service, or FINDit fulfillment expectations.</span></div>
-              <div><CheckIcon aria-hidden="true" /><span>Only publish content you are allowed to sell, distribute, or use commercially.</span></div>
+              <div><CheckIcon aria-hidden="true" /><span>{localize('Use clear, accurate titles, descriptions, prices, and specifications.')}</span></div>
+              <div><CheckIcon aria-hidden="true" /><span>{localize('Use original, high-quality images or media that honestly represent the offer.')}</span></div>
+              <div><CheckIcon aria-hidden="true" /><span>{localize('Set realistic availability, delivery, lesson, service, or FINDit fulfillment expectations.')}</span></div>
+              <div><CheckIcon aria-hidden="true" /><span>{localize('Only publish content you are allowed to sell, distribute, or use commercially.')}</span></div>
             </div>
           </section>
 
@@ -91,12 +105,12 @@ const SellerGuidelines = () => {
             <div className="seller-guide-section-heading">
               <span>03</span>
               <div>
-                <h2>Fees and settlement</h2>
-                <p>rifKANDO applies a 5% marketplace commission to the applicable completed sale. Delivery fees are separate and never form part of the rifKANDO commission.</p>
+                <h2>{localize('Fees and settlement')}</h2>
+                <p>{localize('rifKANDO applies a 5% marketplace commission to the applicable completed sale. Delivery fees are separate and never form part of the rifKANDO commission.')}</p>
               </div>
             </div>
             <div className="seller-guide-fee-grid">
-              {feeCategories.map((category) => (
+              {localizedFeeCategories.map((category) => (
                 <div key={category.type}>
                   <span>{category.label}</span>
                   <strong>{formatCommissionRate(category.type)}</strong>
@@ -105,7 +119,7 @@ const SellerGuidelines = () => {
             </div>
             <div className="seller-guide-wallet-note">
               <CurrencyDollarIcon aria-hidden="true" />
-              <p>For COD orders, confirm the order and prepare the parcel for the delivery coordination shown in your order workspace. rifKANDO’s operations team records the handoff, delivery outcome, delivery fee, and settlement steps. Pay the 5% commission using the reference in your workspace within three days after delivery is confirmed. Unpaid overdue commission can pause new sales until finance verifies payment.</p>
+              <p>{localize('For COD orders, confirm the order and prepare the parcel for the delivery coordination shown in your order workspace. rifKANDO’s operations team records the handoff, delivery outcome, delivery fee, and settlement steps. Pay the 5% commission using the reference in your workspace within three days after delivery is confirmed. Unpaid overdue commission can pause new sales until finance verifies payment.')}</p>
             </div>
           </section>
 
@@ -113,13 +127,13 @@ const SellerGuidelines = () => {
             <div className="seller-guide-section-heading">
               <span>04</span>
               <div>
-                <h2>Customer care and fulfillment</h2>
-                <p>Reliability builds trust, repeat business, and a healthier marketplace.</p>
+                <h2>{localize('Customer care and fulfillment')}</h2>
+                <p>{localize('Reliability builds trust, repeat business, and a healthier marketplace.')}</p>
               </div>
             </div>
             <div className="seller-guide-two-column">
-              <div><h3>Do</h3><ul><li>Meet the delivery or service timeframe you communicate.</li><li>Respond to customer questions promptly and professionally.</li><li>Keep customers informed when an order or FINDit request changes.</li></ul></div>
-              <div><h3>Avoid</h3><ul><li>Misleading product details, hidden conditions, or unavailable inventory.</li><li>Requesting payments outside rifKANDO for marketplace activity.</li><li>Using customer information for purposes unrelated to the transaction.</li></ul></div>
+              <div><h3>{localize('Do')}</h3><ul><li>{localize('Meet the delivery or service timeframe you communicate.')}</li><li>{localize('Respond to customer questions promptly and professionally.')}</li><li>{localize('Keep customers informed when an order or FINDit request changes.')}</li></ul></div>
+              <div><h3>{localize('Avoid')}</h3><ul><li>{localize('Misleading product details, hidden conditions, or unavailable inventory.')}</li><li>{localize('Requesting payments outside rifKANDO for marketplace activity.')}</li><li>{localize('Using customer information for purposes unrelated to the transaction.')}</li></ul></div>
             </div>
           </section>
 
@@ -127,19 +141,19 @@ const SellerGuidelines = () => {
             <div className="seller-guide-section-heading">
               <span>05</span>
               <div>
-                <h2>Marketplace conduct</h2>
-                <p>rifKANDO does not allow illegal, counterfeit, harmful, discriminatory, adult, or copyright-infringing content and products.</p>
+                <h2>{localize('Marketplace conduct')}</h2>
+                <p>{localize('rifKANDO does not allow illegal, counterfeit, harmful, discriminatory, adult, or copyright-infringing content and products.')}</p>
               </div>
             </div>
-            <p className="seller-guide-section-copy">Listings or accounts that breach these standards may be reviewed, removed, restricted, or suspended. Serious or repeated violations can lead to account termination, subject to the Terms of Service and applicable law.</p>
+            <p className="seller-guide-section-copy">{localize('Listings or accounts that breach these standards may be reviewed, removed, restricted, or suspended. Serious or repeated violations can lead to account termination, subject to the Terms of Service and applicable law.')}</p>
           </section>
 
           <section className="seller-guide-support">
             <div>
-              <h2>Need help setting up?</h2>
-              <p>Our support team can help you choose the right seller workspace or understand your seller tools.</p>
+              <h2>{localize('Need help setting up?')}</h2>
+              <p>{localize('Our support team can help you choose the right seller workspace or understand your seller tools.')}</p>
             </div>
-            <Link to="/contact">Contact support <ArrowRightIcon aria-hidden="true" /></Link>
+            <Link to="/contact">{localize('Contact support')} <ArrowRightIcon aria-hidden="true" /></Link>
           </section>
         </div>
       </div>
