@@ -5,7 +5,47 @@ import { ArrowRightIcon, DocumentTextIcon, ScaleIcon, ShieldCheckIcon } from '@h
 
 const TermsPage = () => {
   const { i18n } = useTranslation()
-  const localize = (english, arabic) => (i18n.resolvedLanguage === 'ar' ? arabic : english)
+  const frenchCopy = {
+    'Acceptance of terms': 'Acceptation des conditions',
+    'Description of service': 'Description du service',
+    'User accounts': 'Comptes utilisateurs',
+    'Buying and selling': 'Acheter et vendre',
+    'Payments and fees': 'Paiements et frais',
+    'Cancellations and refunds': 'Annulations et remboursements',
+    'Prohibited activities': 'Activités interdites',
+    'Intellectual property': 'Propriété intellectuelle',
+    'Limitation of liability': 'Limitation de responsabilité',
+    'Changes to these terms': 'Modifications de ces conditions',
+    'Legal information': 'Informations juridiques',
+    'The standards for using rifKANDO.': 'Les règles d’utilisation de rifKANDO.',
+    'These Terms of Service explain the agreement between you and rifKANDO when you access the platform, buy, sell, or use its marketplace tools.': 'Ces Conditions d’utilisation expliquent l’accord entre vous et rifKANDO lorsque vous accédez à la plateforme, achetez, vendez ou utilisez ses outils de place de marché.',
+    'Last updated: March 2026': 'Dernière mise à jour : mars 2026',
+    'Legal contact': 'Contact juridique',
+    'Terms navigation': 'Navigation des conditions',
+    'On this page': 'Sur cette page',
+    'Contact information': 'Informations de contact',
+    'Read these terms before you use the marketplace.': 'Lisez ces conditions avant d’utiliser la place de marché.',
+    'They cover account responsibilities, marketplace activity, payments, refunds, and the standards that help keep rifKANDO useful and safe for everyone.': 'Elles couvrent les responsabilités du compte, l’activité de la place de marché, les paiements, les remboursements et les règles qui permettent à rifKANDO de rester utile et sûre pour tous.',
+    'Fees and pricing': 'Frais et tarifs',
+    'Questions about these terms?': 'Des questions sur ces conditions ?',
+    'Contact us at ': 'Contactez-nous à l’adresse ',
+    ' and include the context of your question.': ' en précisant le contexte de votre demande.',
+    'Contact us': 'Nous contacter',
+    'By accessing or using rifKANDO, you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use our platform.': 'En accédant à rifKANDO ou en l’utilisant, vous acceptez d’être lié par les présentes Conditions d’utilisation. Si vous ne les acceptez pas, veuillez ne pas utiliser notre plateforme.',
+    'rifKANDO connects buyers, sellers, instructors, food makers, and professionals. The active sections are Products, FINDiT, Services, Courses, and Food Market. Each section has its own listing, request, delivery, learning, or payment flow.': 'rifKANDO met en relation acheteurs, vendeurs, formateurs, producteurs alimentaires et professionnels. Les sections actives sont Produits, Trouvez-le, Services, Cours et Marché alimentaire. Chaque section possède son propre parcours de publication, demande, livraison, apprentissage ou paiement.',
+    'You must create an account to use certain features. You are responsible for maintaining the security of your account and for all activities that occur under your account.': 'Vous devez créer un compte pour utiliser certaines fonctionnalités. Vous êtes responsable de la sécurité de votre compte et de toutes les activités qui y sont effectuées.',
+    'When you purchase an item on rifKANDO, you agree to pay the listed price plus any applicable fees. Sellers agree to deliver the item as described and within the stated timeframe.': 'Lorsque vous achetez un article sur rifKANDO, vous acceptez de payer le prix affiché et les frais applicables. Les vendeurs s’engagent à livrer l’article tel que décrit et dans le délai annoncé.',
+    'Products, Food Market, and FINDiT orders currently use cash on delivery where offered. Services and courses use the payment instructions displayed in their purchase flow; a payment submission is not access or acceptance until rifKANDO verifies it. The 5% marketplace commission and any delivery charge are shown in the relevant workflow.': 'Les commandes Produits, Marché alimentaire et Trouvez-le utilisent actuellement le paiement à la livraison lorsqu’il est proposé. Les services et les cours utilisent les instructions de paiement affichées pendant l’achat ; une preuve de paiement ne donne pas accès et ne vaut pas acceptation avant vérification par rifKANDO. La commission de 5 % et les frais de livraison éventuels sont affichés dans le parcours concerné.',
+    'Cancellation, refusal, dispute, and refund handling depends on the applicable order type and stage. rifKANDO reviews eligible requests through the relevant marketplace workflow; no fixed refund period is promised where payment has not been collected by rifKANDO.': 'Le traitement des annulations, refus, litiges et remboursements dépend du type de commande et de son étape. rifKANDO examine les demandes éligibles dans le parcours concerné ; aucun délai fixe de remboursement n’est promis lorsque rifKANDO n’a pas encaissé le paiement.',
+    'You may not use our platform for illegal activities, to sell prohibited items, or to harass other users. Violations may result in account suspension or termination.': 'Vous ne pouvez pas utiliser notre plateforme pour des activités illégales, vendre des articles interdits ou harceler d’autres utilisateurs. Toute violation peut entraîner la suspension ou la fermeture du compte.',
+    'rifKANDO and its content are protected by copyright, trademark, and other laws. You may not copy, modify, or distribute our content without permission.': 'rifKANDO et son contenu sont protégés par le droit d’auteur, les marques et d’autres lois. Vous ne pouvez pas copier, modifier ou distribuer notre contenu sans autorisation.',
+    'rifKANDO is not liable for any damages arising from your use of our platform. We provide the platform "as is" without warranties of any kind.': 'rifKANDO ne peut être tenu responsable des dommages résultant de votre utilisation de la plateforme. La plateforme est fournie telle quelle, sans garantie d’aucune sorte.',
+    'We may modify these terms at any time. Continued use of the platform constitutes acceptance of the modified terms.': 'Nous pouvons modifier ces conditions à tout moment. La poursuite de l’utilisation de la plateforme vaut acceptation des conditions modifiées.',
+  }
+  const localize = (english, arabic) => {
+    if (i18n.resolvedLanguage === 'ar') return arabic
+    return i18n.resolvedLanguage === 'fr' ? (frenchCopy[english] || english) : english
+  }
   const termsSections = [
     { id: 'acceptance', title: localize('Acceptance of terms', 'قبول الشروط'), text: localize('By accessing or using rifKANDO, you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use our platform.', 'عند دخولك إلى rifKANDO أو استخدامك لها، فإنك توافق على الالتزام بشروط الخدمة هذه. إذا لم توافق عليها، فيرجى عدم استخدام المنصة.') },
     { id: 'service', title: localize('Description of service', 'وصف الخدمة'), text: localize('rifKANDO connects buyers, sellers, instructors, food makers, and professionals. The active sections are Products, FINDiT, Services, Courses, and Food Market. Each section has its own listing, request, delivery, learning, or payment flow.', 'تربط rifKANDO المشترين والبائعين والمدرّسين وصنّاع الطعام والمحترفين. الأقسام النشطة هي المنتجات وFINDiT والخدمات والدورات وسوق الطعام. ولكل قسم مسار خاص به للإعلان أو الطلب أو التوصيل أو التعلم أو الدفع.') },
