@@ -440,7 +440,7 @@ const ProductDetailsPage = () => {
                   <span className="quantity-label">{t('productDetails.quantity')}</span>
                   <div className="quantity-selector" role="group" aria-label={t('productDetails.selectQuantity')}>
                     <button type="button" onClick={() => setQuantity((currentQuantity) => Math.max(1, currentQuantity - 1))} disabled={quantity <= 1} aria-label={t('productDetails.decrease')}>-</button>
-                    <span className="quantity-value" role="status" aria-live="polite" aria-atomic="true" aria-label={`${t('productDetails.quantity')}: ${quantity}`}>{quantity}</span>
+                    <span key={`quantity-${quantity}`} className="quantity-value" role="status" aria-live="polite" aria-atomic="true" aria-label={`${t('productDetails.quantity')}: ${quantity}`}>{quantity}</span>
                     <button type="button" onClick={() => setQuantity((currentQuantity) => Math.min(stock, currentQuantity + 1))} disabled={quantity >= stock} aria-label={t('productDetails.increase')}>+</button>
                   </div>
                 </div>
