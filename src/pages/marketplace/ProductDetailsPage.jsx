@@ -434,7 +434,7 @@ const ProductDetailsPage = () => {
                   <span className="quantity-label">{t('productDetails.quantity')}</span>
                   <div className="quantity-selector" role="group" aria-label={t('productDetails.selectQuantity')}>
                     <button type="button" onClick={() => setQuantity(Math.max(1, quantity - 1))} disabled={quantity <= 1} aria-label={t('productDetails.decrease')}>-</button>
-                    <output aria-live="polite" aria-atomic="true">{quantity}</output>
+                    <span className="quantity-value" aria-live="polite" aria-atomic="true" aria-label={`${t('productDetails.quantity')}: ${quantity}`}>{quantity}</span>
                     <button type="button" onClick={() => setQuantity(Math.min(stock, quantity + 1))} disabled={quantity >= stock} aria-label={t('productDetails.increase')}>+</button>
                   </div>
                 </div>
@@ -755,7 +755,7 @@ const ProductDetailsPage = () => {
         .quantity-selector button { width: 2.25rem; height: 2.25rem; border: 1px solid #e5e7eb; background: white; border-radius: 0.4rem; cursor: pointer; font-weight: 800; }
         .quantity-selector button:hover:not(:disabled) { background: #e8f7fc; border-color: #87CEEB; }
         .quantity-selector button:disabled { cursor: not-allowed; opacity: 0.45; }
-        .quantity-selector output { display: inline-flex; align-items: center; justify-content: center; min-width: 2.5rem; min-height: 2.25rem; padding: 0 0.5rem; border: 1px solid #cfe6ed; border-radius: 0.4rem; background: #f2f8fc; color: #173f4c; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; text-align: center; }
+        .quantity-selector .quantity-value { display: inline-flex !important; align-items: center; justify-content: center; min-width: 2.5rem; min-height: 2.25rem; padding: 0 0.5rem; border: 1px solid #cfe6ed; border-radius: 0.4rem; background: #f2f8fc !important; color: #173f4c !important; direction: ltr; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; opacity: 1 !important; text-align: center; visibility: visible !important; }
         .product-actions { display: flex; gap: 0.75rem; margin-top: 1.25rem; align-items: center; }
         .add-to-cart-btn, .make-offer-btn { flex: 1; min-height: 48px; padding: 0.75rem 1rem; background: #1a1a1a; color: white; border: none; border-radius: 2rem; cursor: pointer; font-weight: 700; }
         .add-to-cart-btn:hover:not(:disabled), .make-offer-btn:hover:not(:disabled) { background: #333; }
