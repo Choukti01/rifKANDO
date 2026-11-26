@@ -2790,7 +2790,7 @@ app.get('/api/my-courses-stats', protect, requireSeller, (req, res) => {
 // ==================== SELLER TYPE & PUBLIC PROFILE ====================
 app.patch('/api/users/update-seller-type', protect, validateSellerType, (req, res) => {
   const { sellerType } = req.body;
-  const valid = ['product', 'course', 'service', 'digital'];
+  const valid = ['product', 'course', 'service', 'digital', 'mida'];
   if (!valid.includes(sellerType)) {
     return res.status(400).json({ error: 'Invalid seller type' });
   }

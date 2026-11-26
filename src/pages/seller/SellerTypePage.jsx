@@ -2,11 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import useAuth from '../../hooks/useAuth';
-import { ShoppingBagIcon, AcademicCapIcon, WrenchScrewdriverIcon, CheckIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
+import { ShoppingBagIcon, AcademicCapIcon, WrenchScrewdriverIcon, ShoppingCartIcon, CheckIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
+
+const workspacePath = (sellerType) => (
+  sellerType === 'mida' ? '/seller/dashboard/food-market' : '/seller/dashboard'
+);
 
 const SellerTypePage = () => {
   const { i18n } = useTranslation();
-  const localize = (english, arabic) => (i18n.resolvedLanguage === 'ar' ? arabic : english);
+  const localize = (english, arabic, french = english) => (
+    i18n.resolvedLanguage === 'ar' ? arabic : i18n.resolvedLanguage === 'fr' ? french : english
+  );
   const [selectedType, setSelectedType] = useState(null);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -18,12 +24,13 @@ const SellerTypePage = () => {
     // a flow that is not operational during the focused launch.
     { id: 'course', title: localize('Course Instructor', 'مدرّس دورات'), icon: AcademicCapIcon, description: localize('Publish structured online courses and lessons.', 'انشر دورات ودروسًا منظمة عبر الإنترنت.'), features: [localize('Courses', 'الدورات'), localize('Lessons', 'الدروس'), localize('Students', 'الطلاب')], available: true },
     { id: 'service', title: localize('Service Provider', 'مقدّم خدمات'), icon: WrenchScrewdriverIcon, description: localize('Create a professional portfolio, offer packages, and manage client requests.', 'أنشئ معرض أعمال احترافيًا، وقدّم باقات، وأدر طلبات العملاء.'), features: [localize('Portfolio', 'معرض الأعمال'), localize('Packages', 'الباقات'), localize('Client requests', 'طلبات العملاء')], available: true },
+    { id: 'mida', title: localize('Food Market Seller', 'بائع المأكولات', 'Vendeur du Marché alimentaire'), icon: ShoppingCartIcon, description: localize('Offer local food, ingredients, and prepared dishes with clear food details and COD fulfilment.', 'اعرض المأكولات المحلية والمكونات والأطباق الجاهزة مع معلومات غذائية واضحة والدفع عند الاستلام.', 'Proposez des produits alimentaires locaux, des ingrédients et des plats préparés avec des informations claires et un parcours COD.'), features: [localize('Market food & dishes', 'مأكولات السوق والأطباق', 'Produits du marché et plats'), localize('Food details', 'معلومات الطعام', 'Informations alimentaires'), localize('COD fulfilment', 'الدفع عند الاستلام', 'Exécution COD')], available: true },
   ];
 
   // If user already has a seller type, redirect to dashboard
   useEffect(() => {
     if (user?.sellerType && user.sellerType !== null && user.sellerType !== '') {
-      navigate('/seller/dashboard', { replace: true });
+      navigate(workspacePath(user.sellerType), { replace: true });
     }
   }, [user, navigate]);
 
@@ -32,7 +39,7 @@ const SellerTypePage = () => {
     setLoading(true);
     const result = await updateSellerType(selectedType.id);
     if (result.success) {
-      navigate('/seller/dashboard', { replace: true });
+      navigate(workspacePath(selectedType.id), { replace: true });
     }
     setLoading(false);
   };

@@ -1029,7 +1029,7 @@ const validateSellerType = validate((req) => {
   onlyKeys(body, ['sellerType']);
   // Services are now a request-and-hire marketplace. Other retained domains
   // stay unavailable until their own operational checks are complete.
-  return { body: { sellerType: enumValue(body.sellerType, 'sellerType', ['product', 'service', 'course']) } };
+  return { body: { sellerType: enumValue(body.sellerType, 'sellerType', ['product', 'service', 'course', 'mida']) } };
 });
 
 const validateProductReview = validate((req) => {

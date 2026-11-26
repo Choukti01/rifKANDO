@@ -156,6 +156,7 @@ const DashboardLayout = () => {
               <p>{user?.sellerType === 'product' ? t('sellerDashboard.productSeller') :
                      user?.sellerType === 'course' ? t('sellerDashboard.courseInstructor') :
                      user?.sellerType === 'service' ? t('sellerDashboard.serviceProvider') :
+                     user?.sellerType === 'mida' ? t('sellerDashboard.foodMarketSeller', { defaultValue: 'Food Market seller' }) :
                      user?.sellerType === 'digital' ? t('sellerDashboard.digitalCreator') : t('sellerDashboard.seller')}</p>
               </div>
               <button type="button" onClick={handleLogout} className="seller-workspace-logout">
