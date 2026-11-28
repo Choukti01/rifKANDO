@@ -36,12 +36,18 @@ async function sample(check, pause = () => wait(10000)) {
 function gh(args) {
   return execFileSync('gh', args, { encoding: 'utf8', timeout: 20000 }).trim();
 }
+function openBotIssues(repo) {
+  // Read the REST list, not the eventually indexed search endpoint.
+  const path = 'repos/' + repo + '/issues?state=open&per_page=100&_ts=' + Date.now();
+  return JSON.parse(gh(['api','--paginate','--slurp',path])).flat()
+    .filter(i => !i.pull_request && i.user?.login === 'github-actions[bot]');
+}
 function reconcile(kind, failure, drill = false) {
   const repo = process.env.GITHUB_REPOSITORY;
   const owner = process.env.GITHUB_REPOSITORY_OWNER;
   const url = 'https://github.com/' + repo + '/actions/runs/' + process.env.GITHUB_RUN_ID;
   const title = (drill ? '[TEST ONLY ' + process.env.GITHUB_RUN_ID + '] ' : '') + '[uptime] ' + kind;
-  const issues = JSON.parse(gh(['api','--paginate','--slurp','repos/' + repo + '/issues?state=open&creator=github-actions%5Bbot%5D&per_page=100'])).flat();
+  const issues = openBotIssues(repo);
   const issue = issues.find(i => i.title === title);
   if (failure && !issue) {
     gh(['issue','create','--repo',repo,'--assignee',owner,'--title',title,'--body',
@@ -63,8 +69,17 @@ async function main() {
     const failure = await sample(bad, async () => {});
     assert.ok(failure);
     assert.equal(reconcile('catalog',failure,true),'opened');
+    const repo = process.env.GITHUB_REPOSITORY;
+    const title = '[TEST ONLY ' + process.env.GITHUB_RUN_ID + '] [uptime] catalog';
+    for (let i = 0; i < 8 && !openBotIssues(repo).some(issue => issue.title === title); i++) await wait(3000);
+    assert.ok(openBotIssues(repo).some(issue => issue.title === title), 'New drill issue not visible yet');
     assert.equal(reconcile('catalog',failure,true),'unchanged');
     assert.equal(reconcile('catalog',await sample(good),true),'closed');
+    // Retire leftover bot-created drill tickets, never live incidents.
+    for (const issue of openBotIssues(repo)) {
+      if (/^\[TEST ONLY \d+\] \[uptime\] catalog$/.test(issue.title) && issue.title !== title)
+        gh(['issue','close',String(issue.number),'--repo',repo,'--comment','Superseded test drill. No production outage.']);
+    }
     console.log('Drill passed: one incident opened, duplicate suppressed, recovery posted.');
     return;
   }
