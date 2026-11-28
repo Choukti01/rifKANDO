@@ -2,20 +2,38 @@ name: Production readiness monitor
 
 on:
   schedule:
-    # Keeps private-repository Actions usage within the free allowance while
-    # still detecting a full service outage within 30 minutes.
-    - cron: '*/30 * * * *'
+    - cron: '8,38 * * * *'
+    - cron: '18 */3 * * *'
   workflow_dispatch:
+    inputs:
+      mode:
+        type: choice
+        description: Check production or simulate an incident without hitting production
+        options: [all, drill]
+        default: all
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/uptime.yml'
+      - 'scripts/uptimeMonitor.cjs'
 
 permissions:
   contents: read
+  issues: write
 
 jobs:
-  production-readiness:
-    name: Storefront, API, database and storage
+  monitor:
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+    timeout-minutes: 6
+    concurrency:
+      group: rifkando-uptime
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
-      - name: Check public production dependencies
-        run: node rifKANDI-backend/scripts/productionReadinessCheck.js
+        with:
+          persist-credentials: false
+      - name: Run checks and reconcile incidents
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MODE: ${{ github.event_name == 'push' && 'drill' || inputs.mode || (github.event.schedule == '18 */3 * * *' && 'catalog') || 'basic' }}
+        run: node scripts/uptimeMonitor.cjs

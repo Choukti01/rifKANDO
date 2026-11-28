@@ -380,7 +380,7 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on pull requests and `main` pus
 2. Backend clean install and comprehensive test suite.
 3. Repository-hygiene and dependency security checks.
 
-The uptime workflow requests `https://api.rifkando.com/ready` every 15 minutes.
+The scheduled monitor checks the storefront and API liveness twice per hour and validates a one-item public catalog response every three hours (GitHub scheduling can be delayed). Two failed attempts ten seconds apart open one issue assigned to the repository owner; a later successful check closes it with a recovery comment. The deployment verifier separately checks database and storage readiness. Run the uptime workflow in drill mode to exercise notifications without touching production.
 
 ```text
 Git push → GitHub checks → Cloudflare frontend deploy
