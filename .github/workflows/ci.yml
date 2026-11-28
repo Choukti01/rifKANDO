@@ -57,6 +57,28 @@ jobs:
       - run: npm ci
       - run: npm test
 
+  withdrawal-retries:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: local-ci-only
+          POSTGRES_DB: wallet_retry_test
+        ports: ['5432:5432']
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24.16.0
+      - run: npm ci
+        working-directory: rifKANDI-backend
+      - run: node scripts/withdrawalPostgresTest.js
+        working-directory: rifKANDI-backend
+        env:
+          WALLET_TEST_URL: postgresql://postgres:local-ci-only@127.0.0.1:5432/wallet_retry_test
+
   security:
     name: Repository and dependency security
     runs-on: ubuntu-latest

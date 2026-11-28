@@ -1,3 +1,4 @@
+const { isDeepStrictEqual } = require('node:util');
 const db = require('../config/database');
 const Money = require('./moneyService');
 const { getFeatureFlags } = require('./featureFlagService');
@@ -621,11 +622,22 @@ class WalletService {
     if (bankDetailsJson.length > 4000) throw new Error('Bank details are too large.');
 
     return this.withFinancialTransaction(async (tx) => {
-      const existing = await tx.get(
-        this.lockForUpdate('SELECT * FROM withdrawal_requests WHERE request_key = ?'),
-        [safeKey]
+      // Claim the key atomically. A failed reservation rolls back this insert too.
+      const request = await tx.run(
+        `INSERT INTO withdrawal_requests
+         (user_id, amount, amount_minor, method, bank_details, status, request_key)
+         VALUES (?, ?, ?, ?, ?, 'pending', ?) ON CONFLICT (request_key) DO NOTHING`,
+        [safeUserId, Money.fromMinor(safeAmount), safeAmount, method, bankDetailsJson, safeKey]
       );
-      if (existing) return { success: true, alreadyProcessed: true, requestId: existing.id };
+      if (!request.changes) {
+        const existing = await tx.get('SELECT * FROM withdrawal_requests WHERE request_key = ?', [safeKey]);
+        if (!existing || Number(existing.user_id) !== safeUserId ||
+            Number(existing.amount_minor) !== safeAmount || existing.method !== method ||
+            !isDeepStrictEqual(JSON.parse(existing.bank_details), JSON.parse(bankDetailsJson))) {
+          throw Object.assign(new Error('Withdrawal key already used for a different request.'), { statusCode: 409 });
+        }
+        return { success: true, alreadyProcessed: true, requestId: existing.id };
+      }
 
       const seller = await tx.get(
         this.lockForUpdate('SELECT role, seller_started_at FROM users WHERE id = ?'),
@@ -675,12 +687,6 @@ class WalletService {
         idempotencyKey: `${operationKey}:pending`,
       });
 
-      const request = await tx.run(
-        `INSERT INTO withdrawal_requests
-         (user_id, amount, amount_minor, method, bank_details, status, request_key)
-          VALUES (?, ?, ?, ?, ?, 'pending', ?)`,
-         [safeUserId, Money.fromMinor(safeAmount), safeAmount, method, bankDetailsJson, safeKey]
-      );
       await tx.run(
         `UPDATE wallet_ledger_entries SET reference_id = ?
          WHERE idempotency_key IN (?, ?)`,

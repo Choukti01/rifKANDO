@@ -3102,7 +3102,7 @@ app.post('/api/wallet/withdraw', protect, validateWithdrawal, async (req, res) =
       requestId: result.requestId,
     });
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    res.status(error.statusCode === 409 ? 409 : 400).json({ error: error.message });
   }
 });
 

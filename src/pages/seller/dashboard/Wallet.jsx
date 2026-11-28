@@ -18,6 +18,8 @@ const Wallet = () => {
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const withdrawalRequestIdRef = useRef(null);
+  const sending = useRef(false);
+  const [submitting, setSubmitting] = useState(false);
   const [bankDetails, setBankDetails] = useState({ bank: '', account_name: '', account_number: '', rib: '' });
 
   useEffect(() => {
@@ -45,7 +47,7 @@ const Wallet = () => {
     return () => {
       isCurrent = false;
     };
-  }, []);
+  }, [copy.load]);
 
   const fetchWalletData = async () => {
     try {
@@ -79,11 +81,11 @@ const Wallet = () => {
       return;
     }
 
+    if (sending.current) return;
+    sending.current = true;
+    setSubmitting(true);
     try {
-      if (!withdrawalRequestIdRef.current) {
-        withdrawalRequestIdRef.current = globalThis.crypto?.randomUUID?.()
-          || `withdraw-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      }
+      withdrawalRequestIdRef.current ??= globalThis.crypto.randomUUID();
       await api.post('/wallet/withdraw', {
         amount: parseFloat(withdrawAmount),
         method: 'bank_transfer',
@@ -96,6 +98,9 @@ const Wallet = () => {
       fetchWalletData();
     } catch (error) {
       toast.error(error.response?.data?.error || copy.submitFailed);
+    } finally {
+      sending.current = false;
+      setSubmitting(false);
     }
   };
 
@@ -192,7 +197,7 @@ const Wallet = () => {
             </div>
             <div className="modal-actions">
               <button onClick={() => setShowWithdrawModal(false)} className="btn-cancel">{copy.cancel}</button>
-              <button onClick={handleWithdraw} className="btn-confirm">{copy.submit}</button>
+              <button onClick={handleWithdraw} className="btn-confirm" disabled={submitting} aria-busy={submitting}>{copy.submit}</button>
             </div>
           </div>
         </div>
