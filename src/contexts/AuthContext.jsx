@@ -4,6 +4,8 @@ import api, { clearCsrfToken, getAuthMethods, getSession, setCsrfToken } from '.
 import toast from 'react-hot-toast';
 import AuthContext from './authStore';
 import { GOOGLE_CLIENT_CONFIGURED } from '../config/googleAuth';
+import i18n from 'i18next';
+import { welcomeMessage } from '../utils/welcomeMessage';
 
 const normalizeUser = (user) => ({
   ...user,
@@ -157,7 +159,8 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await api.post('/auth/google', { credential });
       if (response.data.verificationRequired) return { success: false, verificationRequired: true };
-      return completeAuthentication(response, 'Welcome to rifKANDO!');
+      const account = response.data.data?.user || response.data.user;
+      return completeAuthentication(response, welcomeMessage(i18n.resolvedLanguage || i18n.language, account?.name, response.status === 201));
     } catch (error) {
       toast.error(error.response?.data?.error || 'Google sign-in failed');
       return { success: false };
